@@ -288,7 +288,9 @@ public struct ContentView: View {
         }
         .buttonStyle(.plain)
         .padding(.bottom, isTabBarHidden ? 20 : 100) // Minimize with tab bar
+        .opacity(showAccessory ? 1 : 0)
         .animation(.easeInOut(duration: 0.3), value: isTabBarHidden)
+        .animation(.easeInOut(duration: 0.2), value: showAccessory)
     }
 }
 
