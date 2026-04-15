@@ -93,14 +93,14 @@ public struct WordCounterNavButton: View {
 
     private var emptyStateIcon: some View {
         Image(systemName: "checkmark.circle")
-            .font(.system(size: buttonSize * 0.6, weight: .regular))
+            .font(.system(size: buttonSize * 0.6, weight: .bold))
             .foregroundStyle(theme.mutedForeground.opacity(0.5))
             .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }
 
     private var completedStateIcon: some View {
         Image(systemName: "checkmark.circle.fill")
-            .font(.system(size: buttonSize * 0.6, weight: .medium))
+            .font(.system(size: buttonSize * 0.6, weight: .bold))
             .foregroundStyle(theme.primary)
             .transition(.scale(scale: 0.8).combined(with: .opacity))
     }

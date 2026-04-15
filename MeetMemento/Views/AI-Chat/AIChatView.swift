@@ -21,6 +21,10 @@ public struct AIChatView: View {
     private struct CitationsWrapper: Identifiable {
         let id = UUID()
         let citations: [JournalCitation]
+
+        init(citations: [JournalCitation]) {
+            self.citations = citations
+        }
     }
     @State private var selectedCitations: CitationsWrapper? = nil
     @State private var showChatHistorySheet = false

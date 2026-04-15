@@ -35,7 +35,7 @@ public struct CitationsBottomSheet: View {
                 .padding(.top, 20)
                 .padding(.bottom, 24)
 
-            // Timeline list
+            // Timeline list of citations
             CitationTimelineList(citations: citations)
         }
         .background(theme.background.ignoresSafeArea())

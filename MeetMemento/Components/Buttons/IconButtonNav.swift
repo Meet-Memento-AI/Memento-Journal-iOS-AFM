@@ -67,7 +67,7 @@ struct IconButtonNav: View {
 
                 // Icon
                 Image(systemName: icon)
-                    .font(.system(size: iconSize, weight: .semibold))
+                    .font(.system(size: iconSize, weight: .bold))
                     .foregroundStyle(foregroundColor ?? theme.foreground)
             }
             .frame(width: buttonSize, height: buttonSize)

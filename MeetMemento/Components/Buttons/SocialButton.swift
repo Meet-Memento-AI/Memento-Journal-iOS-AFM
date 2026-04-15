@@ -24,7 +24,7 @@ public struct SocialButton: View {
     public var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage { Image(systemName: systemImage).font(.system(size: 16, weight: .semibold)) }
+                if let systemImage { Image(systemName: systemImage).font(.system(size: 16, weight: .bold)) }
                 Text(title).font(type.button).fontWeight(.semibold)
             }
             .frame(height: 48)

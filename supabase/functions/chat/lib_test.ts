@@ -18,7 +18,7 @@ import {
 } from './lib.ts';
 
 Deno.test('buildContextBlock_empty_returnsPlaceholder', () => {
-  assertEquals(buildContextBlock([]), '[No journal entries matched this topic]');
+  assertEquals(buildContextBlock([]).block, '[No journal entries matched this topic]');
 });
 
 Deno.test('buildContextBlock_formatsEntries', () => {
@@ -30,10 +30,10 @@ Deno.test('buildContextBlock_formatsEntries', () => {
       similarity: 0.9,
     },
   ];
-  const block = buildContextBlock(entries);
-  assertEquals(block.includes('[Journal context'), true);
-  assertEquals(block.includes('Hello journal'), true);
-  assertEquals(block.includes('[End of journal context]'), true);
+  const result = buildContextBlock(entries);
+  assertEquals(result.block.includes('[Journal context'), true);
+  assertEquals(result.block.includes('Hello journal'), true);
+  assertEquals(result.block.includes('[End of journal context]'), true);
 });
 
 Deno.test('buildGeminiContents_appendsUserMessageWithContext', () => {
@@ -74,7 +74,7 @@ Deno.test('sanitizeResponseBody_plainTextUnchanged', () => {
 });
 
 Deno.test('sanitizeResponseBody_extractsBodyFromJson', () => {
-  const out = sanitizeResponseBody('{"body":"Line\\none"}');
+  const out = sanitizeResponseBody(String.raw`{"body":"Line\none"}`);
   assertEquals(out, 'Line\none');
 });
 

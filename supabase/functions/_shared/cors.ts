@@ -9,19 +9,23 @@
 // - Allow requests from Swift app and web browsers
 //
 // Usage:
-// import { corsHeaders } from '../_shared/cors.ts'
+// import { corsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
 
-// TODO: Export CORS headers object
-// export const corsHeaders = {
-//   'Access-Control-Allow-Origin': '*',
-//   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-//   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
-// }
+/**
+ * Standard CORS headers for edge functions.
+ */
+export const corsHeaders: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
+};
 
-// TODO: Export helper function for OPTIONS requests
-// export function handleCorsPrelight(): Response {
-//   return new Response('ok', { headers: corsHeaders })
-// }
+/**
+ * Handle CORS preflight OPTIONS request.
+ */
+export function handleCorsPreflight(): Response {
+  return new Response('ok', { headers: corsHeaders });
+}
 
 // Note: In production, you might want to restrict 'Access-Control-Allow-Origin'
 // to specific domains instead of '*' for better security

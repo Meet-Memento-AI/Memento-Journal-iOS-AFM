@@ -14,6 +14,7 @@
 		A52968F82E8D4769004F65BE /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A52968F72E8D4769004F65BE /* Supabase */; };
 		A5296C902E8D9B15004F65BE /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */; };
 		A5296C9A2E8D9B15004F65BE /* Sign In with Apple.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A5296C8D2E8D9B15004F65BE /* Sign In with Apple.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */ = {isa = PBXBuildFile; productRef = A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -166,6 +167,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A52968F82E8D4769004F65BE /* Supabase in Frameworks */,
+				A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,6 +348,7 @@
 			name = MeetMemento;
 			packageProductDependencies = (
 				A52968F72E8D4769004F65BE /* Supabase */,
+				A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */,
 			);
 			productName = MeetMemento;
 			productReference = A52968642E8CCF12004F65BE /* MeetMemento.app */;
@@ -468,6 +471,7 @@
 			packageReferences = (
 				A52968F62E8D4768004F65BE /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */,
+				A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A52968652E8CCF12004F65BE /* Products */;
@@ -1149,6 +1153,14 @@
 				minimumVersion = 3.0.0;
 			};
 		};
+		A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dominikmartn/ProgressiveBlurHeader";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1156,6 +1168,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A52968F62E8D4768004F65BE /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */;
+			productName = ProgressiveBlurHeader;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

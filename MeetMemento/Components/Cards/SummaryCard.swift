@@ -83,7 +83,7 @@ private struct HeaderLabel: View {
     }
 }
 
-// MARK: - Page (H3 using Sora-SemiBold with line height of 1)
+// MARK: - Page (H3 using Manrope-SemiBold with line height of 1)
 
 private struct InsightPage: View {
     let text: String
@@ -91,7 +91,7 @@ private struct InsightPage: View {
 
     var body: some View {
         Text(text)
-            .font(.custom("Sora-SemiBold", size: 24, relativeTo: .title))
+            .font(.custom("Manrope-SemiBold", size: 24, relativeTo: .title))
             .lineSpacing(0) // Line height of 1 (no extra spacing)
             .foregroundStyle(theme.overlayText)
             .multilineTextAlignment(.leading)
@@ -135,7 +135,7 @@ private struct ProgressSegments: View {
         }
         .padding(.vertical, 24)
     }
-    // To render Sora **SemiBold** for all headings inside:
+    // To render Manrope **SemiBold** for all headings inside:
     .useTypography(Typography(headingWeight: .semibold))
     .useTheme()
     .background(Color(.systemGroupedBackground))

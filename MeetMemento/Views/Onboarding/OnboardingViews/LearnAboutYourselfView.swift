@@ -240,7 +240,7 @@ public struct LearnAboutYourselfView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 // Duration timer appears inside button when recording

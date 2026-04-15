@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - Typography
-// Default app typography uses Manrope for all text (headings and body).
+// Default app typography uses Manrope for all text (headings, body, caption, micro).
 // Use Typography.onboarding for onboarding screens (Lora Serif).
 
 public struct Typography {
@@ -20,6 +20,7 @@ public struct Typography {
     private let headingFontName: String
     private let bodyRegularFontName: String
     private let bodyMediumFontName: String
+    private let bodySemiBoldFontName: String
     private let bodyBoldFontName: String
 
     // MARK: - Configurable Properties
@@ -31,6 +32,7 @@ public struct Typography {
         self.headingFontName = "Manrope-Bold"
         self.bodyRegularFontName = "Manrope-Regular"
         self.bodyMediumFontName = "Manrope-Medium"
+        self.bodySemiBoldFontName = "Manrope-SemiBold"
         self.bodyBoldFontName = "Manrope-Bold"
     }
 
@@ -39,6 +41,7 @@ public struct Typography {
         headingFontName: String,
         bodyRegularFontName: String,
         bodyMediumFontName: String,
+        bodySemiBoldFontName: String,
         bodyBoldFontName: String,
         headingWeight: Font.Weight = .semibold
     ) {
@@ -46,6 +49,7 @@ public struct Typography {
         self.headingFontName = headingFontName
         self.bodyRegularFontName = bodyRegularFontName
         self.bodyMediumFontName = bodyMediumFontName
+        self.bodySemiBoldFontName = bodySemiBoldFontName
         self.bodyBoldFontName = bodyBoldFontName
     }
 
@@ -54,6 +58,7 @@ public struct Typography {
         headingFontName: "Lora-SemiBold",
         bodyRegularFontName: "Lora-Regular",
         bodyMediumFontName: "Lora-Medium",
+        bodySemiBoldFontName: "Lora-SemiBold",
         bodyBoldFontName: "Lora-Bold",
         headingWeight: .semibold
     )
@@ -69,8 +74,8 @@ public struct Typography {
     /// Line spacing for h6 (16pt) — 2px smaller than default heading spacing.
     public var h6LineSpacing: CGFloat { max(0, headingLineSpacing(for: sizeLG) - 2) }
 
-    // Body text line spacing for body1/body2 — 2px smaller than previous 4pt
-    public var bodyLineSpacing: CGFloat { 2 }
+    // Body text line spacing for body1/body2
+    public var bodyLineSpacing: CGFloat { 4 }
 
     // MARK: - Font Helpers
     private func headingFont(size: CGFloat) -> Font {
@@ -81,14 +86,16 @@ public struct Typography {
         switch weight {
         case .bold:
             return Font.custom(bodyBoldFontName, size: size, relativeTo: .body)
-        case .medium, .semibold:
+        case .semibold:
+            return Font.custom(bodySemiBoldFontName, size: size, relativeTo: .body)
+        case .medium:
             return Font.custom(bodyMediumFontName, size: size, relativeTo: .body)
         default:
             return Font.custom(bodyRegularFontName, size: size, relativeTo: .body)
         }
     }
 
-    // MARK: - Headings (h1-h6) — Manrope Bold by default; Lora SemiBold for onboarding
+    // MARK: - Headings (h1-h6) — Manrope Bold; Lora SemiBold for onboarding
     /// 40pt - Major display heading
     public var h1: Font { headingFont(size: size4XL) }
     /// 32pt - Secondary display heading
@@ -105,14 +112,14 @@ public struct Typography {
     // MARK: - Body Text (body1 = 16pt, body2 = 14pt)
     /// 16pt medium - Primary body text
     public var body1: Font { bodyFont(size: sizeLG, weight: .medium) }
-    /// 16pt medium - Emphasized body text (same weight as body1)
-    public var body1Medium: Font { bodyFont(size: sizeLG, weight: .medium) }
+    /// 16pt semibold - Emphasized body text
+    public var body1Medium: Font { bodyFont(size: sizeLG, weight: .semibold) }
     /// 16pt bold - Strong body text
     public var body1Bold: Font { bodyFont(size: sizeLG, weight: .bold) }
     /// 14pt medium - Secondary body text
     public var body2: Font { bodyFont(size: sizeMD, weight: .medium) }
-    /// 14pt medium - Emphasized secondary text (same weight as body2)
-    public var body2Medium: Font { bodyFont(size: sizeMD, weight: .medium) }
+    /// 14pt semibold - Emphasized secondary text
+    public var body2Medium: Font { bodyFont(size: sizeMD, weight: .semibold) }
     /// 14pt bold - Strong secondary text
     public var body2Bold: Font { bodyFont(size: sizeMD, weight: .bold) }
 

@@ -246,7 +246,7 @@ struct Theme {
         overlayText: BaseColors.white,
         overlayTextSecondary: BaseColors.white.opacity(0.8),
         glassBorder: BaseColors.white.opacity(0.2),
-        glassFill: Color.black.opacity(0.1),
+        glassFill: Color.black.opacity(0.05),
         glassFallback: BaseColors.white,
         emotionJoy: Color(hex: "#7FE87D"),
         emotionSadness: Color(hex: "#5DD4E8"),
@@ -313,7 +313,7 @@ struct Theme {
         overlayText: BaseColors.white,
         overlayTextSecondary: BaseColors.white.opacity(0.8),
         glassBorder: BaseColors.white.opacity(0.2),
-        glassFill: Color.white.opacity(0.15),
+        glassFill: Color.white.opacity(0.075),
         glassFallback: GrayScale.gray800,
         // Emotion colors adjusted for dark mode visibility (slightly brighter)
         emotionJoy: Color(hex: "#8FFF8D"),

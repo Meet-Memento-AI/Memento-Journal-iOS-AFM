@@ -37,10 +37,10 @@ public struct AISuggestionCard: View {
                     .background(Circle().fill(theme.primary.opacity(0.2)))
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 16)
-        .frame(minWidth: 164, maxWidth: 164, minHeight: 180, maxHeight: 200)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+        .frame(width: 164, height: 210)
         .background(theme.primary.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
         .contentShape(Rectangle())

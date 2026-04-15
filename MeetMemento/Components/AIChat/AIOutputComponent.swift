@@ -14,13 +14,6 @@ public struct AIOutputContent: Hashable, Codable {
     public let body: String
     public let citations: [JournalCitation]?
 
-    enum CodingKeys: String, CodingKey {
-        case heading1
-        case heading2
-        case body
-        case citations
-    }
-
     public init(
         heading1: String? = nil,
         heading2: String? = nil,
@@ -124,12 +117,15 @@ public struct AIOutputComponent: View {
                 }
             }
 
-            // Body text with typewriter effect
+            // Body text with typewriter effect and rich text parsing
             if !displayedBody.isEmpty || !animate {
-                Text(LocalizedStringKey(animate ? displayedBody : content.body))
-                    .font(type.body1)
-                    .foregroundStyle(theme.foreground)
-                    .lineSpacing(type.bodyLineSpacing)
+                Text(RichTextParser.parse(
+                    animate ? displayedBody : content.body,
+                    baseFont: type.body1,
+                    boldFont: type.body1Bold,
+                    textColor: GrayScale.gray800
+                ))
+                .lineSpacing(type.bodyLineSpacing)
             }
 
             // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently after message has finished loading

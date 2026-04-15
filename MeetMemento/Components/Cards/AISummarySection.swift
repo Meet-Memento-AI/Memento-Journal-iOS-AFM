@@ -19,7 +19,7 @@ public struct AISummarySection: View {
             // Header with icon
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(theme.overlayText)
 
                 Text("YOUR AI SUMMARY")

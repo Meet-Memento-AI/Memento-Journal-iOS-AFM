@@ -55,7 +55,7 @@ struct ListeningPanel: View {
             onBack()
         } label: {
             Image(systemName: "chevron.left")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(theme.primary)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(
@@ -76,7 +76,7 @@ struct ListeningPanel: View {
             onDone()
         } label: {
             Image(systemName: "checkmark")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(

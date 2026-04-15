@@ -33,9 +33,9 @@ struct JournalCard: View {
 
             // Excerpt
             Text(excerpt)
-                .typographyBody2()
+                .typographyBody1()
                 .foregroundStyle(theme.mutedForeground)
-                .lineLimit(7)
+                .lineLimit(5)
                 .multilineTextAlignment(.leading)
                 .hPadding(Spacing.lg)
                 .padding(.top, Spacing.sm)
@@ -51,7 +51,7 @@ struct JournalCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(theme.border, lineWidth: 1.5)
+                .stroke(.white, lineWidth: 1.5)
         )
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
@@ -90,7 +90,6 @@ struct JournalCard: View {
                 .font(type.body2)
                 .fontWeight(.bold)
                 .foregroundStyle(theme.primary)
-                .padding(4)
                 .cornerRadius(16)
             Text(formattedDate)
                 .typographyCaptionBold()

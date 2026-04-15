@@ -64,31 +64,31 @@ const SYSTEM_PROMPT_FALLBACK = `You are Memento, a journaling companion. Help us
 const HISTORY_LIMIT = 6; // 3 conversation turns is sufficient with RAG context
 
 function chatMatchCount(): number {
-  const n = parseInt(Deno.env.get('CHAT_MATCH_COUNT') ?? '10', 10);
+  const n = Number.parseInt(Deno.env.get('CHAT_MATCH_COUNT') ?? '10', 10);
   return Number.isFinite(n) && n > 0 ? Math.min(n, 20) : 10;
 }
 
 function chatMatchThreshold(): number {
-  const n = parseFloat(Deno.env.get('CHAT_MATCH_THRESHOLD') ?? '0.4');
+  const n = Number.parseFloat(Deno.env.get('CHAT_MATCH_THRESHOLD') ?? '0.4');
   return Number.isFinite(n) && n > 0 && n < 1 ? n : 0.4;
 }
 
 function chatContextMaxEntries(): number {
-  const n = parseInt(Deno.env.get('CHAT_CONTEXT_MAX_ENTRIES') ?? '7', 10);
+  const n = Number.parseInt(Deno.env.get('CHAT_CONTEXT_MAX_ENTRIES') ?? '7', 10);
   return Number.isFinite(n) && n > 0 ? Math.min(n, 15) : 7;
 }
 
 function chatMaxCitations(): number {
-  const n = parseInt(Deno.env.get('CHAT_MAX_CITATIONS') ?? '3', 10);
+  const n = Number.parseInt(Deno.env.get('CHAT_MAX_CITATIONS') ?? '3', 10);
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 10) : 3;
 }
 
 function chatMinQueryLen(): number {
-  const n = parseInt(Deno.env.get('CHAT_MIN_QUERY_LEN') ?? '10', 10);
+  const n = Number.parseInt(Deno.env.get('CHAT_MIN_QUERY_LEN') ?? '10', 10);
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 50) : 10;
 }
 
-// JSON schema for structured responses
+// JSON schema for structured responses (simplified: no inline citations)
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
@@ -179,7 +179,7 @@ async function generateGeminiChat(
 ): Promise<{ ok: boolean; data?: unknown; errorText?: string }> {
   const generationConfig = {
     temperature: 0.7,
-    maxOutputTokens: 800,
+    maxOutputTokens: 900,
     responseMimeType: 'application/json',
     responseSchema: RESPONSE_SCHEMA,
   };
@@ -336,7 +336,6 @@ serve(async (req) => {
     // ============================================================
 
     let sessionId: string;
-    let isNewSession = false;
 
     if (body.sessionId) {
       // Validate session belongs to user
@@ -366,7 +365,6 @@ serve(async (req) => {
         return jsonResponse({ error: 'Failed to create session', code: 'SESSION_ERROR' }, 500);
       }
       sessionId = newSession.id;
-      isNewSession = true;
       console.log(`📝 Created new session: ${sessionId.substring(0, 8)}...`);
     }
 
@@ -426,10 +424,21 @@ serve(async (req) => {
       console.log(`📊 Feedback: ${positiveCount}/${positiveCount + negativeCount} positive, threshold adjusted to ${dynamicThreshold}`);
     }
 
-    if (!skipRetrieval) {
+    if (skipRetrieval) {
+      const lower = userMessage.trim().toLowerCase();
+      let reason: string;
+      if (effectiveQuery.length < minQueryLen) {
+        reason = 'short_query';
+      } else if (/^(thanks|ok|got it)/.test(lower)) {
+        reason = 'acknowledgement';
+      } else {
+        reason = 'meta_question';
+      }
+      console.log(`📝 Skipping retrieval: query="${effectiveQuery.slice(0, 50)}" len=${effectiveQuery.length} reason=${reason}`);
+    } else {
       console.log(`🔍 RAG query: "${effectiveQuery.slice(0, 100)}..." (${effectiveQuery.length} chars)`);
 
-      const embedMax = parseInt(Deno.env.get('CHAT_EMBED_MAX_CHARS') ?? '2000', 10);
+      const embedMax = Number.parseInt(Deno.env.get('CHAT_EMBED_MAX_CHARS') ?? '2000', 10);
       const embedText = effectiveQuery.slice(0, Number.isFinite(embedMax) ? embedMax : 2000);
       const queryEmbedding = await generateEmbedding(embedText, geminiApiKey);
 
@@ -449,18 +458,13 @@ serve(async (req) => {
       const raw = (matchedEntries ?? []) as MatchedEntry[];
       entries = diversifyEntriesForContext(raw, chatContextMaxEntries());
       console.log(`📚 RAG: ${raw.length} raw → ${entries.length} after diversify (threshold=${dynamicThreshold})`);
-    } else {
-      const lower = userMessage.trim().toLowerCase();
-      const reason = effectiveQuery.length < minQueryLen ? 'short_query' :
-        /^(thanks|ok|got it)/.test(lower) ? 'acknowledgement' : 'meta_question';
-      console.log(`📝 Skipping retrieval: query="${effectiveQuery.slice(0, 50)}" len=${effectiveQuery.length} reason=${reason}`);
     }
 
     // ============================================================
     // 8. BUILD CONTEXT BLOCK
     // ============================================================
 
-    const contextBlock = buildContextBlock(entries);
+    const { block: contextBlock } = buildContextBlock(entries);
 
     // ============================================================
     // 9. ASSEMBLE & CALL GEMINI 2.5 FLASH
@@ -498,6 +502,9 @@ serve(async (req) => {
         const parsedRec = parsed as Record<string, unknown>;
         const citedIds = parseCitedEntryIds(parsedRec);
 
+        // Use cited_entry_ids from LLM, or fallback to all retrieved entries
+        const finalCitedIds = citedIds.length > 0 ? citedIds : entries.map((e) => e.id);
+
         if (extractedBody) {
           // Clean up body (unwrap nested JSON if needed)
           const cleanedBody = cleanParsedBody({ body: extractedBody });
@@ -505,7 +512,7 @@ serve(async (req) => {
             heading1: (parsed.heading1 as string | null) || null,
             heading2: (parsed.heading2 as string | null) || null,
             body: cleanedBody,
-            cited_entry_ids: citedIds,
+            cited_entry_ids: finalCitedIds,
           };
         } else {
           // JSON parsed but no usable body found - log and use raw text as body
@@ -530,7 +537,26 @@ serve(async (req) => {
     }
 
     // ============================================================
-    // 10. PERSIST MESSAGES
+    // 10. BUILD SOURCES FROM CITED ENTRY IDS
+    // ============================================================
+
+    const maxCit = chatMaxCitations();
+    const allowedSourceIds = filterCitedIdsToAllowed(
+      structuredReply.cited_entry_ids,
+      entries,
+    ).slice(0, maxCit);
+    const sources: ChatSource[] = allowedSourceIds.map((id) => {
+      const e = entries.find((x) => x.id === id);
+      if (!e) return null;
+      return {
+        id: e.id,
+        created_at: e.created_at,
+        preview: buildPreviewExcerpt(e.content, effectiveQuery),
+      };
+    }).filter((x): x is ChatSource => x !== null);
+
+    // ============================================================
+    // 11. PERSIST MESSAGES
     // ============================================================
 
     // Store full JSON structure for assistant messages to preserve headings and sources when loading history
@@ -552,23 +578,8 @@ serve(async (req) => {
     }
 
     // ============================================================
-    // 11. RETURN RESPONSE
+    // 12. RETURN RESPONSE
     // ============================================================
-
-    const maxCit = chatMaxCitations();
-    const allowedSourceIds = filterCitedIdsToAllowed(
-      structuredReply.cited_entry_ids,
-      entries,
-    ).slice(0, maxCit);
-    const sources: ChatSource[] = allowedSourceIds.map((id) => {
-      const e = entries.find((x) => x.id === id);
-      if (!e) return null;
-      return {
-        id: e.id,
-        created_at: e.created_at,
-        preview: buildPreviewExcerpt(e.content, effectiveQuery),
-      };
-    }).filter((x): x is ChatSource => x !== null);
 
     return jsonResponse({
       reply: structuredReply.body,

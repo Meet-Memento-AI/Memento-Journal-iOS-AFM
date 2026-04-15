@@ -12,12 +12,23 @@ export interface ChatMessageRow {
   content: string;
 }
 
-export function buildContextBlock(entries: MatchedEntry[]): string {
+export interface ContextBlockResult {
+  block: string;
+  indexMap: Map<number, string>;
+}
+
+export function buildContextBlock(entries: MatchedEntry[]): ContextBlockResult {
   if (entries.length === 0) {
-    return '[No journal entries matched this topic]';
+    return {
+      block: '[No journal entries matched this topic]',
+      indexMap: new Map(),
+    };
   }
 
-  const formatted = entries.map((e) => {
+  const indexMap = new Map<number, string>();
+  const formatted = entries.map((e, idx) => {
+    const refNum = idx + 1;
+    indexMap.set(refNum, e.id);
     const date = new Date(e.created_at);
     const label = date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -27,13 +38,15 @@ export function buildContextBlock(entries: MatchedEntry[]): string {
     return `[${label}] ${e.content}`;
   });
 
-  return [
-    '[Journal context — reference these naturally, do not quote them verbatim]',
+  const block = [
+    '[Journal context — reference entries by date in your response]',
     '',
     ...formatted,
     '',
     '[End of journal context]',
   ].join('\n');
+
+  return { block, indexMap };
 }
 
 export function buildGeminiContents(
@@ -125,12 +138,12 @@ export function sanitizeResponseBody(text: string): string {
   ];
 
   for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
+    const match = pattern.exec(trimmed);
     if (match) {
       return match[1]
-        .replace(/\\"/g, '"')
-        .replace(/\\n/g, '\n')
-        .replace(/\\t/g, '\t');
+        .replaceAll(String.raw`\"`, '"')
+        .replaceAll(String.raw`\n`, '\n')
+        .replaceAll(String.raw`\t`, '\t');
     }
   }
 
@@ -140,12 +153,12 @@ export function sanitizeResponseBody(text: string): string {
 
   // Try to extract any meaningful text content
   const textContent = trimmed
-    .replace(/^\{|\}$/g, '')  // Remove outer braces
-    .replace(/"[^"]+"\s*:\s*/g, '')  // Remove JSON keys
-    .replace(/[{}\[\]]/g, '')  // Remove remaining brackets
-    .replace(/,\s*$/g, '')  // Remove trailing commas
-    .replace(/\\n/g, '\n')
-    .replace(/\\"/g, '"')
+    .replaceAll(/^\{|\}$/g, '')  // Remove outer braces
+    .replaceAll(/"[^"]+"\s*:\s*/g, '')  // Remove JSON keys
+    .replaceAll(/[{}[\]]/g, '')  // Remove remaining brackets
+    .replaceAll(/,\s*$/g, '')  // Remove trailing commas
+    .replaceAll(String.raw`\n`, '\n')
+    .replaceAll(String.raw`\"`, '"')
     .trim();
 
   if (textContent.length > 10) {
@@ -230,7 +243,7 @@ export function condenseHistoryForRetrieval(
         // legacy plain text
       }
     }
-    t = t.replace(/\s+/g, ' ').trim();
+    t = t.replaceAll(/\s+/g, ' ').trim();
     if (t.length > 400) t = t.slice(0, 400) + '...';
     const piece = `${m.role === 'user' ? 'User' : 'Assistant'}: ${t}`;
     if (used + piece.length > maxChars) break;
@@ -278,7 +291,7 @@ export function diversifyEntriesForContext(
   if (entries.length <= max) return entries;
   const sorted = [...entries].sort((a, b) => b.similarity - a.similarity);
   const out: MatchedEntry[] = [];
-  const norm = (s: string) => s.slice(0, 200).toLowerCase().replace(/\s+/g, ' ');
+  const norm = (s: string) => s.slice(0, 200).toLowerCase().replaceAll(/\s+/g, ' ');
   for (const e of sorted) {
     if (out.length >= max) break;
     const n = norm(e.content);
@@ -330,7 +343,7 @@ export function buildPreviewExcerpt(
   query: string,
   maxLen = 120,
 ): string {
-  const text = content.replace(/\s+/g, ' ').trim();
+  const text = content.replaceAll(/\s+/g, ' ').trim();
   if (text.length <= maxLen) return text;
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
   const lower = text.toLowerCase();

@@ -43,8 +43,9 @@ struct ListeningDotsView: View {
         // Create wave pattern: center bars are taller
         let waveMultiplier = 1.0 - (normalizedDistance * 0.6)
 
-        // Calculate height based on audio level
-        let dynamicHeight = minHeight + (maxHeight - minHeight) * level * waveMultiplier
+        // Calculate height based on audio level (amplified for sensitivity)
+        let amplifiedLevel = min(1.0, level * 1.8)
+        let dynamicHeight = minHeight + (maxHeight - minHeight) * amplifiedLevel * waveMultiplier
 
         // Add slight variation for more organic feel
         let variation = sin(Double(index) * 0.8 + Double(level) * 10) * 0.15 + 1.0

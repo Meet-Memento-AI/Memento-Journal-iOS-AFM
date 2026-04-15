@@ -54,10 +54,14 @@ serve(async (req) => {
   const startTime = Date.now();
 
   // Service-role client (webhooks don't carry user JWTs)
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }, 500);
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let recordId: string | undefined;
 

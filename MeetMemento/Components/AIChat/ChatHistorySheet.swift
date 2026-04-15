@@ -56,7 +56,7 @@ public struct ChatHistorySheet: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 14, weight: .bold))
                         Text("New")
                             .font(type.body2Bold)
                     }

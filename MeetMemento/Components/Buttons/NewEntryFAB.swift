@@ -54,7 +54,7 @@ public struct NewEntryFAB: View {
     @available(iOS 26.0, *)
     private var glassStyleContent: some View {
         Image(systemName: "square.and.pencil")
-            .font(.system(size: size * 0.4, weight: .semibold))
+            .font(.system(size: size * 0.4, weight: .bold))
             .foregroundStyle(PrimaryScale.primary600)
             .frame(width: size, height: size)
             .glassEffect(
@@ -84,7 +84,7 @@ public struct NewEntryFAB: View {
                 ))
 
             Image(systemName: "square.and.pencil")
-                .font(.system(size: size * 0.4, weight: .semibold))
+                .font(.system(size: size * 0.4, weight: .bold))
                 .foregroundStyle(theme.primaryForeground)
         }
         .frame(width: size, height: size)

@@ -7,6 +7,30 @@
 
 import Foundation
 
+/// Inline citation info for displaying numbered references in the body text
+public struct InlineCitationInfo: Identifiable, Hashable {
+    public var id: Int { ref }
+    public let ref: Int
+    public let entryId: UUID
+    public let theme: String
+    public let entryDate: Date
+    public let excerpt: String
+
+    public init(
+        ref: Int,
+        entryId: UUID,
+        theme: String,
+        entryDate: Date,
+        excerpt: String
+    ) {
+        self.ref = ref
+        self.entryId = entryId
+        self.theme = theme
+        self.entryDate = entryDate
+        self.excerpt = excerpt
+    }
+}
+
 /// Citation reference to a journal entry (for future use)
 public struct JournalCitation: Identifiable, Hashable, Codable {
     public let id: UUID

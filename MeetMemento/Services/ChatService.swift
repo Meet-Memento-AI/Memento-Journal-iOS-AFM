@@ -4,7 +4,7 @@ import Supabase
 // MARK: - Response Types
 
 /// Decoded `chat` Edge Function JSON. `sources` may be empty when retrieval was skipped, no matches were found,
-/// or the model did not cite journal entries — the citations UI should treat an empty list as “no citations.”
+/// or the model did not cite journal entries — the citations UI should treat an empty list as "no citations."
 struct ChatResponse: Codable {
     let reply: String
     let heading1: String?
@@ -172,10 +172,17 @@ class ChatService {
         print("💬 [ChatService] Sending message to chat Edge Function (session: \(sessionId?.uuidString.prefix(8) ?? "new"))...")
         #endif
 
+        // Refresh session to ensure we have a valid access token
+        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
+        let session = try await client.auth.refreshSession()
+
         let response: ChatResponse = try await withRetry {
             try await self.client.functions.invoke(
                 "chat",
-                options: FunctionInvokeOptions(body: requestBody)
+                options: FunctionInvokeOptions(
+                    headers: ["Authorization": "Bearer \(session.accessToken)"],
+                    body: requestBody
+                )
             )
         }
 
@@ -201,10 +208,17 @@ class ChatService {
 
         let request = EmbedRequest(entryId: entryId.uuidString)
 
+        // Refresh session to ensure we have a valid access token
+        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
+        let session = try await client.auth.refreshSession()
+
         try await withRetry {
             try await self.client.functions.invoke(
                 "sync-embedding",
-                options: FunctionInvokeOptions(body: request)
+                options: FunctionInvokeOptions(
+                    headers: ["Authorization": "Bearer \(session.accessToken)"],
+                    body: request
+                )
             )
         }
 
@@ -335,10 +349,17 @@ class ChatService {
             messages: summaryMessages
         )
 
+        // Refresh session to ensure we have a valid access token
+        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
+        let session = try await client.auth.refreshSession()
+
         let response: ChatSummaryResponse = try await withRetry {
             try await self.client.functions.invoke(
                 "summarize-chat",
-                options: FunctionInvokeOptions(body: requestBody)
+                options: FunctionInvokeOptions(
+                    headers: ["Authorization": "Bearer \(session.accessToken)"],
+                    body: requestBody
+                )
             )
         }
 
@@ -374,10 +395,17 @@ class ChatService {
             feedbackType: type.rawValue
         )
 
+        // Refresh session to ensure we have a valid access token
+        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
+        let session = try await client.auth.refreshSession()
+
         let response: FeedbackResponse = try await withRetry {
             try await self.client.functions.invoke(
                 "chat-feedback",
-                options: FunctionInvokeOptions(body: request)
+                options: FunctionInvokeOptions(
+                    headers: ["Authorization": "Bearer \(session.accessToken)"],
+                    body: request
+                )
             )
         }
 

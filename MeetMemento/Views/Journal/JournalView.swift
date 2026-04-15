@@ -95,7 +95,7 @@ public struct JournalView: View {
         return Array(Set(monthsForYear)).sorted()
     }
 
-    /// Dynamic inset for floating header
+    /// Dynamic inset for floating header (includes 32px gap below header)
     private var topHeaderInset: CGFloat {
         let safeAreaTop = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
@@ -104,8 +104,8 @@ public struct JournalView: View {
             .first { $0.isKeyWindow }?
             .safeAreaInsets.top ?? 0
         // TopNavHeader positioned at safeAreaTop + 8 with height 44px
-        // Content starts at header bottom; 32px gap added by YourEntriesView padding
-        return safeAreaTop + 8 + 44  // = safeAreaTop + 52
+        // Content starts 32px below header bottom
+        return safeAreaTop + 8 + 44 + 32  // = safeAreaTop + 84
     }
 
     public init(
@@ -210,34 +210,13 @@ public struct JournalView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea(edges: .all)
 
-            YourEntriesView(
-                    entryViewModel: entryViewModel,
-                    monthGroups: allEntriesByMonth,
-                    topContentPadding: isEmbedded ? topHeaderInset : 0,
-                    onMonthVisibilityChanged: { monthStart in
-                        // Sync scroll position with picker selection
-                        selectedDate = monthStart
-                        selectedMonth = Calendar.current.component(.month, from: monthStart)
-                        selectedYear = Calendar.current.component(.year, from: monthStart)
-                        visibleMonthStart = monthStart
-                    },
-                    onNavigateToEntry: { route in
-                        if isEmbedded, let onPresentEntry = onPresentEntry {
-                            // When embedded, use ContentView's sheet presentation
-                            onPresentEntry(route)
-                        } else {
-                            // Standalone mode: use our own sheet
-                            activeEntryRoute = route
-                        }
-                    }
-                )
+            yourEntriesContent
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if isEmbedded {
-                        // Spacer for FAB clearance
+                        // Spacer for FAB clearance when embedded
                         Color.clear.frame(height: 100)
                     }
                 }
-
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: .all)
@@ -299,6 +278,33 @@ public struct JournalView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Your Entries Content
+
+    @ViewBuilder
+    private var yourEntriesContent: some View {
+        YourEntriesView(
+            entryViewModel: entryViewModel,
+            monthGroups: allEntriesByMonth,
+            topContentPadding: isEmbedded ? topHeaderInset : 0,
+            onMonthVisibilityChanged: { monthStart in
+                // Sync scroll position with picker selection
+                selectedDate = monthStart
+                selectedMonth = Calendar.current.component(.month, from: monthStart)
+                selectedYear = Calendar.current.component(.year, from: monthStart)
+                visibleMonthStart = monthStart
+            },
+            onNavigateToEntry: { route in
+                if isEmbedded, let onPresentEntry = onPresentEntry {
+                    // When embedded, use ContentView's sheet presentation
+                    onPresentEntry(route)
+                } else {
+                    // Standalone mode: use our own sheet
+                    activeEntryRoute = route
+                }
+            }
+        )
     }
 
     // MARK: - Month Picker Sheet

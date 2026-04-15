@@ -153,10 +153,11 @@ public struct TopNav: View {
     private var pillBackground: some View {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            // iOS 26: Pure liquid glass with interactive feedback
+            // iOS 26: Pure liquid glass with interactive feedback and shadow
             Capsule()
                 .fill(Color.clear)
                 .glassEffect(.regular.interactive(), in: Capsule())
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         } else {
             fallbackPillBackground
         }
@@ -168,13 +169,14 @@ public struct TopNav: View {
     @ViewBuilder
     private var fallbackPillBackground: some View {
         if #available(iOS 18.0, *) {
-            // iOS 18-25: Ultra thin material fallback
+            // iOS 18-25: Thin material fallback with shadow
             Capsule()
-                .fill(Material.ultraThinMaterial)
+                .fill(Material.thinMaterial)
                 .overlay(
                     Capsule()
                         .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
                 )
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         } else {
             // Pre-iOS 18: Gradient fallback
             Capsule()

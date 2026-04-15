@@ -219,7 +219,7 @@ public struct WelcomeView: View {
                             .tint(.white)
                     } else {
                         Image(systemName: "apple.logo")
-                            .font(.system(size: 18, weight: .medium))
+                            .font(.system(size: 18, weight: .bold))
                     }
                     Text("Continue with Apple")
                         .font(type.body1Bold)

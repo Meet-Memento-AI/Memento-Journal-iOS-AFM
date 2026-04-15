@@ -206,7 +206,7 @@ struct YourEntriesView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, topContentPadding + 32) // Dynamic header clearance + 32px gap
+            .padding(.top, topContentPadding) // Header clearance (includes 32px gap)
             .padding(.bottom, 20) // Bottom padding for scrolling
             .background(
                 GeometryReader { geometry in

@@ -20,10 +20,8 @@ import type {
   JournalEntry,
   InsightsResponse,
   ErrorResponse,
-  ErrorCode,
   OpenAIInsightResponse,
   CachedInsight,
-  Sentiment
 } from './types.ts';
 
 // ============================================================
@@ -222,11 +220,12 @@ serve(async (req) => {
     console.log('🔵 MAIN: Returning JSON response...');
     return jsonResponse(response, 200);
 
-  } catch (error) {
+  } catch (err: unknown) {
     // ============================================================
     // ERROR HANDLING
     // ============================================================
 
+    const error = err as Error;
     console.error('❌ CAUGHT ERROR IN MAIN HANDLER');
     console.error('❌ Unexpected error:', error);
     console.error('❌ Error type:', error?.constructor?.name);
@@ -243,16 +242,14 @@ serve(async (req) => {
     console.error('❌ Error details object:', JSON.stringify(errorDetails));
 
     // Check for specific error types
-    if (error instanceof OpenAI.APIError) {
+    if (err instanceof OpenAI.APIError) {
       console.error('❌ This is an OpenAI.APIError');
-      console.error('OpenAI API Error - Status:', error.status);
-      if (error.status === 429) {
+      console.error('OpenAI API Error - Status:', err.status);
+      if (err.status === 429) {
         return jsonResponse(
           {
             error: 'Too many requests. Please try again in a few minutes.',
             code: 'RATE_LIMIT',
-            retryAfter: 60,
-            debug: `OpenAI rate limit: ${error.message}`
           },
           429
         );
@@ -261,22 +258,16 @@ serve(async (req) => {
         {
           error: 'AI service temporarily unavailable. Please try again.',
           code: 'OPENAI_ERROR',
-          debug: `OpenAI API error (${error.status}): ${error.message}`
         },
         502
       );
     }
 
-    // Return error with EXTENSIVE context for debugging
+    // Return error with context for debugging
     return jsonResponse(
       {
         error: 'Failed to generate insights. Please try again.',
         code: 'INTERNAL_ERROR',
-        debug: {
-          message: error?.message || 'Unknown error',
-          type: error?.constructor?.name || 'UnknownType',
-          stack: error?.stack?.split('\n').slice(0, 3).join(' | ') || 'No stack'
-        }
       },
       500
     );
@@ -470,10 +461,11 @@ ${JSON.stringify(entriesData)}`
       max_tokens: 1500,
       response_format: { type: 'json_object' }
     });
-  } catch (openaiError) {
+  } catch (openaiError: unknown) {
+    const err = openaiError as Error;
     console.error('❌ OpenAI API call failed:', openaiError);
-    console.error('OpenAI error type:', openaiError?.constructor?.name);
-    console.error('OpenAI error message:', openaiError?.message);
+    console.error('OpenAI error type:', err?.constructor?.name);
+    console.error('OpenAI error message:', err?.message);
     throw openaiError;
   }
 
@@ -596,7 +588,7 @@ function estimateCost(totalTokens: number): string {
   // Rough estimate: assume 60% input, 40% output
   const inputTokens = totalTokens * 0.6;
   const outputTokens = totalTokens * 0.4;
-  const cost = (inputTokens / 1_000_000 * 0.10) + (outputTokens / 1_000_000 * 0.40);
+  const cost = (inputTokens / 1_000_000 * 0.1) + (outputTokens / 1_000_000 * 0.4);
   return cost.toFixed(6);
 }
 

@@ -42,8 +42,7 @@ You MUST respond with valid JSON only (no markdown fences), matching this shape:
 {
   "heading1": "Short section title or null",
   "heading2": "Sub-heading or null",
-  "body": "Your full reply text here",
-  "cited_entry_ids": ["uuid-from-context-only", "..."]
+  "body": "Your full reply. Use **bold** and *italic*. End with a Sources section if citing journals."
 }
 
 Put the Acknowledge, Insight, and Reflect sections inside "body", separated by line breaks.
@@ -52,4 +51,18 @@ Put the Acknowledge, Insight, and Reflect sections inside "body", separated by l
 - Use heading2 for a subsection when needed; otherwise null.
 - For short or casual replies, heading1 and heading2 are usually null.
 
-**cited_entry_ids:** Include the journal entry UUID(s) you actually relied on when your answer references specific journal content. Only use IDs that appear in the journal context block for this turn — never invent UUIDs. Use an empty array `[]` when the reply does not need journal-specific grounding, when no context was provided, or when you are answering generally without pointing at particular entries.
+**Citing journal entries:**
+- Reference entries naturally in the text: "In your March 5th entry, you mentioned..."
+- When you reference journal entries, add a **Sources** section at the end of body
+- Format sources as a bullet list using "- " prefix:
+
+Example body with sources:
+"Looking at your entries, I notice a pattern around work stress appearing in your March 5th and April 2nd reflections.
+
+**Sources:**
+- March 5th - work stress
+- April 2nd - self-care routine"
+
+- Each source line: date + short theme (2-3 words)
+- Only include sources you actually referenced in the text
+- If no entries are relevant, don't include a Sources section

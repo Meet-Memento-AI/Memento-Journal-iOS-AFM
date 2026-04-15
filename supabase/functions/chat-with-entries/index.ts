@@ -135,10 +135,10 @@ function buildSystemPrompt(ctx: SystemPromptContext | undefined, parsed: ParsedP
 
   const parts: string[] = [];
   if (reflection && parsed.onboardingBlock) {
-    parts.push(parsed.onboardingBlock.replace(/\{\{onboarding_reflection\}\}/g, reflection));
+    parts.push(parsed.onboardingBlock.replaceAll('{{onboarding_reflection}}', reflection));
   }
   if (goals.length && parsed.goalsBlock) {
-    parts.push(parsed.goalsBlock.replace(/\{\{selected_goals\}\}/g, goals.join(', ')));
+    parts.push(parsed.goalsBlock.replaceAll('{{selected_goals}}', goals.join(', ')));
   }
 
   if (parts.length === 0) return parsed.base;
@@ -170,7 +170,7 @@ async function sha256(input: string): Promise<string> {
 async function computeEntriesHash(entries: JournalEntryPayload[]): Promise<string> {
   const canonical = entries
     .map(e => `${e.date}|${e.title || ''}|${e.content?.substring(0, 200) || ''}`)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .join('\n');
   return sha256(canonical);
 }
@@ -178,7 +178,7 @@ async function computeEntriesHash(entries: JournalEntryPayload[]): Promise<strin
 /** Compute hash of systemPromptContext — different personalization = different cache */
 function computeContextHash(ctx: SystemPromptContext | undefined): string {
   const ref = ctx?.onboardingSelfReflection?.trim() ?? '';
-  const goals = (ctx?.selectedGoals ?? []).map(g => g.trim()).filter(Boolean).sort();
+  const goals = (ctx?.selectedGoals ?? []).map(g => g.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
   return ref + '|' + goals.join(',');
 }
 

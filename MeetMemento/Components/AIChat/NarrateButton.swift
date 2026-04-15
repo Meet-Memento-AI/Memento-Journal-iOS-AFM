@@ -71,7 +71,7 @@ struct NarrateButton: View {
 
     private var sendContent: some View {
         Image(systemName: "arrow.up")
-            .font(.system(size: 18, weight: .semibold))
+            .font(.system(size: 18, weight: .bold))
             .foregroundColor(.white)
     }
 

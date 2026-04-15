@@ -201,13 +201,10 @@ public struct AddEntryView: View {
                 // Back button
                 Button { dismiss() } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(theme.foreground)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Circle()
-                                .fill(GrayScale.gray100)
-                        )
+                        .frame(width: 44, height: 44)
+                        .background(iconButtonBackground)
                 }
 
                 Spacer()
@@ -215,17 +212,14 @@ public struct AddEntryView: View {
                 // Date pill
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 13, weight: .bold))
                     Text(formattedDate)
                         .font(.system(size: 14, weight: .semibold))
                 }
                 .foregroundStyle(theme.foreground)
                 .padding(.horizontal, 14)
-                .frame(height: 40)
-                .background(
-                    Capsule()
-                        .fill(GrayScale.gray100)
-                )
+                .frame(height: 44)
+                .background(datePillBackground)
 
                 Spacer()
 
@@ -234,19 +228,14 @@ public struct AddEntryView: View {
                     if isSaving {
                         ProgressView()
                             .tint(.white)
-                            .frame(width: 40, height: 40)
-                            .background(Circle().fill(theme.primary.opacity(0.7)))
+                            .frame(width: 44, height: 44)
+                            .background(submitButtonBackground)
                     } else {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                Circle()
-                                    .fill(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                        ? theme.primary.opacity(0.4)
-                                        : theme.primary)
-                            )
+                            .frame(width: 44, height: 44)
+                            .background(submitButtonBackground)
                     }
                 }
                 .disabled(isSaving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -255,6 +244,85 @@ public struct AddEntryView: View {
             .padding(.top, 8)
         }
         .padding(.bottom, 8)
+    }
+
+    // MARK: - Button Backgrounds
+
+    @ViewBuilder
+    private var iconButtonBackground: some View {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            Circle()
+                .fill(.clear)
+                .glassEffect(.regular.interactive(), in: Circle())
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+        } else {
+            fallbackIconButtonBackground
+        }
+        #else
+        fallbackIconButtonBackground
+        #endif
+    }
+
+    @ViewBuilder
+    private var fallbackIconButtonBackground: some View {
+        Circle()
+            .fill(.thinMaterial)
+            .overlay(Circle().strokeBorder(theme.glassBorder, lineWidth: 0.5))
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
+
+    @ViewBuilder
+    private var datePillBackground: some View {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            Capsule()
+                .fill(.clear)
+                .glassEffect(.regular.interactive(), in: Capsule())
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+        } else {
+            fallbackDatePillBackground
+        }
+        #else
+        fallbackDatePillBackground
+        #endif
+    }
+
+    @ViewBuilder
+    private var fallbackDatePillBackground: some View {
+        Capsule()
+            .fill(.thinMaterial)
+            .overlay(Capsule().strokeBorder(theme.glassBorder, lineWidth: 0.5))
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
+
+    @ViewBuilder
+    private var submitButtonBackground: some View {
+        let isEmpty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let baseColor = isEmpty ? theme.primary.opacity(0.4) : theme.primary
+
+        ZStack {
+            Circle().fill(baseColor)
+            // Glassy sheen overlay
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.white.opacity(0.05), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Circle()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.5
+                )
+        }
+        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 
     private var titleField: some View {
@@ -320,13 +388,13 @@ public struct AddEntryView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 // Duration timer appears inside button when recording
                 if speechService.isRecording {
                     Text(formatDuration(speechService.currentDuration))
-                        .font(type.body2Bold)
+                        .font(type.body1Bold)
                         .foregroundStyle(theme.destructive)
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }

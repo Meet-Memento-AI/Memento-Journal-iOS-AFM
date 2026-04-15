@@ -31,8 +31,8 @@ public struct ChatSummarySheet: View {
             RoundedRectangle(cornerRadius: 2.5)
                 .fill(theme.mutedForeground.opacity(0.3))
                 .frame(width: 36, height: 5)
-                .padding(.top, Spacing.xs)
-                .padding(.bottom, Spacing.xl)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.lg)
 
             // Icon with pulse animation
             AISparkleIcon(size: 48)
@@ -48,6 +48,7 @@ public struct ChatSummarySheet: View {
             Text("Summarize chat as an entry")
                 .font(type.h4)
                 .foregroundStyle(theme.foreground)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, Spacing.xs)
 
             // Description
@@ -56,31 +57,30 @@ public struct ChatSummarySheet: View {
                 .foregroundStyle(theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .lineSpacing(type.bodyLineSpacing)
-                .padding(.horizontal, Spacing.xxl)
-                .padding(.bottom, Spacing.xxl)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Spacing.xl)
 
-            // Primary Button
-            PrimaryButton(
-                title: isSummarizing ? "Generating..." : "Summarize Chat",
-                isLoading: isSummarizing,
-                action: onSummarize
-            )
-            .padding(.horizontal, Spacing.xl)
+            Spacer(minLength: Spacing.lg)
 
-            // Cancel Button
-            SecondaryButton(title: "Cancel") {
-                dismiss()
+            // Buttons - 32px from bottom
+            VStack(spacing: Spacing.sm) {
+                PrimaryButton(
+                    title: isSummarizing ? "Generating..." : "Summarize Chat",
+                    isLoading: isSummarizing,
+                    action: onSummarize
+                )
+
+                SecondaryButton(title: "Cancel") {
+                    dismiss()
+                }
+                .disabled(isSummarizing)
             }
-            .padding(.horizontal, Spacing.xl)
-            .padding(.top, Spacing.sm)
-            .padding(.bottom, Spacing.xxl)
-            .disabled(isSummarizing)
+            .padding(.horizontal, Spacing.lg)
         }
-        .background(theme.popover.ignoresSafeArea())
-        .shadow(Shadows.strong)
-        .presentationDetents([.height(400)])
+        .presentationDetents([.height(360)])
         .presentationDragIndicator(.hidden)
-        .presentationCornerRadius(24)
+        .presentationCornerRadius(32)
+        .presentationBackground(theme.popover)
         .interactiveDismissDisabled(isSummarizing)
     }
 }

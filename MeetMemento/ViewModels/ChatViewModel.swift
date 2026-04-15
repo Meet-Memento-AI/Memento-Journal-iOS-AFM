@@ -75,6 +75,7 @@ class ChatViewModel: ObservableObject {
 
             // Extract sources/citations from stored message
             var citations: [JournalCitation]? = nil
+            var sources: [ChatSource] = []
             if let sourcesArray = json["sources"] as? [[String: Any]], !sourcesArray.isEmpty {
                 citations = sourcesArray.compactMap { source -> JournalCitation? in
                     guard let idString = source["id"] as? String,
@@ -84,6 +85,8 @@ class ChatViewModel: ObservableObject {
                     }
 
                     let createdAt = source["created_at"] as? String ?? ""
+                    sources.append(ChatSource(id: idString, createdAt: createdAt, preview: preview))
+
                     let date: Date
                     if let parsed = ISO8601DateFormatter().date(from: createdAt) {
                         date = parsed
@@ -187,6 +190,7 @@ class ChatViewModel: ObservableObject {
                 }
 
                 let citations = mapSourcesToCitations(response.sources)
+
                 let aiMessage = ChatMessage.aiMessage(
                     heading1: response.heading1,
                     heading2: response.heading2,
@@ -458,7 +462,15 @@ class ChatViewModel: ObservableObject {
     }
 
     private func chatErrorMessage(for error: Error) -> String {
+        #if DEBUG
+        print("❌ [ChatViewModel] Error details: \(String(describing: error))")
+        #endif
+
         let code = extractHTTPStatusCode(from: error)
+        #if DEBUG
+        print("❌ [ChatViewModel] Extracted HTTP code: \(code ?? -1)")
+        #endif
+
         switch code {
         case 404:
             return "Chat service is not set up yet. Please ensure Edge Functions are deployed."
@@ -504,4 +516,5 @@ class ChatViewModel: ObservableObject {
             )
         }
     }
+
 }

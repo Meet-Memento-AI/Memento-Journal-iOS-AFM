@@ -1,5 +1,5 @@
 {
-  "originHash" : "dc68f356f3386bd4fd885e23fc44ee79505b1456dd167726ca36f13057c9f3df",
+  "originHash" : "a9090ccdbc97a37e4a3c8eb2b28744b1078709476be7dde7bc13e609bc97756a",
   "pins" : [
     {
       "identity" : "cocoalumberjack",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "a9ed4b6f9bdedce7d77046f43adfb8ce1fd54114",
         "version" : "3.9.0"
+      }
+    },
+    {
+      "identity" : "progressiveblurheader",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dominikmartn/ProgressiveBlurHeader",
+      "state" : {
+        "branch" : "main",
+        "revision" : "0e8c29bc90d52e592fd63e034ca15b59095855f3"
       }
     },
     {
@@ -80,6 +89,15 @@
       "state" : {
         "revision" : "ce592ae52f982c847a4efc0dd881cc9eb32d29f2",
         "version" : "1.6.4"
+      }
+    },
+    {
+      "identity" : "variableblur",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nikstar/VariableBlur",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5073a0d9080e488a2d317e04859c001a57fbb3e8"
       }
     },
     {

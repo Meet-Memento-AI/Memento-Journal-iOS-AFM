@@ -108,7 +108,7 @@ serve(async (req) => {
     }
 
     // Sanitize HTML tags (prevent XSS)
-    const sanitized = selfReflectionText.replace(/<[^>]*>/g, '').trim();
+    const sanitized = selfReflectionText.replaceAll(/<[^>]*>/g, '').trim();
 
     // Validate length
     if (sanitized.length < MIN_TEXT_LENGTH) {
@@ -207,8 +207,8 @@ serve(async (req) => {
     scoredThemes.sort((a, b) => b.score - a.score);
 
     // Log top scores for debugging (no user content!)
-    console.log(`🎯 Top 3 scores: ${scoredThemes.slice(0, 3).map(t =>
-      `${t.theme.name}(${t.score})`).join(', ')}`);
+    const top3Scores = scoredThemes.slice(0, 3).map(t => `${t.theme.name}(${t.score})`).join(', ');
+    console.log(`🎯 Top 3 scores: ${top3Scores}`);
 
     // ============================================================
     // 6. DETERMINE THEME COUNT (3-6 based on quality)
@@ -303,7 +303,7 @@ function scoreThemes(text: string, themes: Theme[]): ThemeScore[] {
 
       // Use word boundaries to avoid false positives
       // Example: "work" matches "work", "working", but not "homework"
-      const pattern = new RegExp(`\\b${escapeRegex(keywordLower)}\\w*\\b`, 'gi');
+      const pattern = new RegExp(String.raw`\b` + escapeRegex(keywordLower) + String.raw`\w*\b`, 'gi');
       const matches = text.match(pattern);
       const occurrences = matches ? matches.length : 0;
 
@@ -312,7 +312,7 @@ function scoreThemes(text: string, themes: Theme[]): ThemeScore[] {
         score += occurrences;  // +1 per match
 
         // Bonus for first sentence (+1)
-        if (firstSentence.match(pattern)) {
+        if (pattern.exec(firstSentence)) {
           score += 1;
         }
       }
@@ -366,7 +366,7 @@ function calculateSimilarity(text1: string, text2: string): number {
  * Escape special regex characters
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /**

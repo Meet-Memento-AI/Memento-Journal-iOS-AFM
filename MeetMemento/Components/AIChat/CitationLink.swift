@@ -27,9 +27,9 @@ public struct CitationLink: View {
             onTap?()
         } label: {
             HStack(spacing: 6) {
-                Text("Reviewed \(count) journal\(count == 1 ? "" : "s")")
+                Text("Reviewed your journals")
                     .font(type.body2)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
 
                 Image(systemName: "chevron.right")
                     .font(type.caption)

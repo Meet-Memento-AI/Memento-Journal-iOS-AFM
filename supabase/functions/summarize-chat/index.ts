@@ -23,37 +23,21 @@ const corsHeaders = {
 };
 
 const GEMINI_CHAT_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-const SYSTEM_PROMPT = `You are a journal summarization assistant for Memento, a personal journaling app.
+const SYSTEM_PROMPT = `You are a journal summarization assistant for Memento.
 
-Your task is to transform a conversation between a user and an AI assistant (about the user's journal entries, emotions, and reflections) into a thoughtful journal entry.
+Transform a user-AI conversation into a concise journal entry.
 
 Guidelines:
-- Write in FIRST PERSON as if the user is writing their own journal entry
-- Focus on the user's insights, realizations, and emotional discoveries
-- Capture the essence of the conversation without being too detailed
-- Create a meaningful title that reflects the main theme (3-8 words)
-- Write 2-4 paragraphs of reflective content
-- Use a warm, introspective tone appropriate for personal journaling
-- Do NOT include meta-commentary about the conversation itself
-- Do NOT reference "the AI" or "our conversation" - write as pure self-reflection
+- Write in FIRST PERSON as the user's own reflection
+- Be direct and specific - state concrete realizations, not vague sentiments
+- 1-2 short paragraphs maximum (4-6 sentences total)
+- Focus on: what was discussed, what was learned, any decisions or next steps
+- Skip flowery language - be clear and actionable
+- Do NOT reference "the AI", "our conversation", or the chat itself
 
-Return valid JSON only:
-{
-  "title": "Brief meaningful title (3-8 words)",
-  "content": "2-4 paragraph summary in first person, focusing on insights and reflections"
-}`;
-
-// JSON schema for structured responses
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    title: { type: "string" },
-    content: { type: "string" }
-  },
-  required: ["title", "content"]
-};
+Plain text only, no formatting.`;
 
 // ============================================================
 // TYPES
@@ -162,9 +146,7 @@ serve(async (req) => {
         }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1000,
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA,
+          maxOutputTokens: 400,
         },
       }),
     });
@@ -191,32 +173,13 @@ serve(async (req) => {
     console.log('Gemini raw response:', rawText.substring(0, 200));
 
     // ============================================================
-    // 5. PARSE AND RETURN
+    // 5. RETURN PLAIN TEXT CONTENT
     // ============================================================
 
-    let summary: { title: string; content: string };
-    try {
-      summary = JSON.parse(rawText);
-    } catch {
-      console.error('Failed to parse Gemini response as JSON:', rawText.substring(0, 300));
-      // Fallback: create a simple summary
-      summary = {
-        title: "Reflection from Today",
-        content: rawText
-      };
-    }
-
-    // Validate response structure
-    if (!summary.title || !summary.content) {
-      console.error('Invalid summary structure:', summary);
-      throw new Error('Invalid summary structure from Gemini');
-    }
-
-    console.log(`✅ Summary generated: "${summary.title.substring(0, 30)}..."`);
+    console.log(`✅ Summary generated (${rawText.length} chars)`);
 
     return jsonResponse({
-      title: summary.title,
-      content: summary.content
+      content: rawText.trim()
     }, 200);
 
   } catch (error) {

@@ -37,7 +37,7 @@ public struct JournalReviewIndicator: View {
                     .foregroundStyle(theme.primary)
                 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(theme.primary)
             }
         }

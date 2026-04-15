@@ -7,28 +7,34 @@
 // - Define common response formats
 // - Ensure consistency across functions
 
-// TODO: Define common User type
-// export interface User {
-//   id: string
-//   email?: string
-//   user_metadata?: Record<string, any>
-// }
+/**
+ * Common user type from Supabase auth.
+ */
+export interface User {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+}
 
-// TODO: Define common error response format
-// export interface ErrorResponse {
-//   error: string
-//   details?: string
-//   code?: string
-// }
+/**
+ * Standard error response format.
+ */
+export interface ErrorResponse {
+  error: string;
+  details?: string;
+  code?: string;
+}
 
-// TODO: Define common success response format
-// export interface SuccessResponse<T> {
-//   data: T
-//   metadata?: {
-//     timestamp: string
-//     [key: string]: any
-//   }
-// }
+/**
+ * Standard success response wrapper.
+ */
+export interface SuccessResponse<T> {
+  data: T;
+  metadata?: {
+    timestamp: string;
+    [key: string]: unknown;
+  };
+}
 
 // Note: Function-specific types should be in their own types.ts files
 // Only put truly shared types here

@@ -28,7 +28,7 @@ public struct ThemesSection: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(theme.primary)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .bold))
                 Text(title)
                     .font(type.body1Bold) // Manrope Bold 17 from Typography.swift
                     .modifier(type.lineSpacingModifier(for: type.sizeLG))

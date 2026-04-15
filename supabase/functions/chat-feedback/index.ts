@@ -104,7 +104,7 @@ serve(async (req) => {
       .single();
 
     // 5. Handle DELETE request or toggle behavior
-    if (req.method === 'DELETE' || (existingFeedback && existingFeedback.feedback_type === feedbackType)) {
+    if (req.method === 'DELETE' || existingFeedback?.feedback_type === feedbackType) {
       // Delete existing feedback (toggle off)
       if (existingFeedback) {
         const { error: deleteError } = await supabase
@@ -181,7 +181,7 @@ serve(async (req) => {
   }
 });
 
-function jsonResponse(data: Record<string, unknown>, status: number): Response {
+function jsonResponse(data: FeedbackResponse | { error: string }, status: number): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

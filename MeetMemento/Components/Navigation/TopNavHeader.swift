@@ -77,10 +77,11 @@ public struct TopNavHeader: View {
     private var iconButtonBackground: some View {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            // iOS 26: Pure liquid glass (no fill)
+            // iOS 26: Pure liquid glass with shadow
             Circle()
                 .fill(.clear)
                 .glassEffect(.regular.interactive(), in: Circle())
+                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         } else {
             fallbackIconButtonBackground
         }
@@ -91,13 +92,14 @@ public struct TopNavHeader: View {
 
     @ViewBuilder
     private var fallbackIconButtonBackground: some View {
-        // iOS 18+: Ultra thin material fallback
+        // iOS 18+: Ultra thin material fallback with shadow
         Circle()
-            .fill(.ultraThinMaterial)
+            .fill(.thinMaterial)
             .overlay(
                 Circle()
                     .strokeBorder(theme.glassBorder, lineWidth: 0.5)
             )
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 
     // MARK: - Action Button Styling
@@ -106,9 +108,8 @@ public struct TopNavHeader: View {
     private var actionButtonIcon: String {
         if selection == .yourEntries {
             return "magnifyingglass"
-        } else if hasActiveChat {
-            return "doc.text"
         } else {
+            // Both hasActiveChat and default use the same icon
             return "square.and.pencil"
         }
     }
@@ -116,7 +117,7 @@ public struct TopNavHeader: View {
     /// Foreground color for the right action button
     private var actionButtonForeground: Color {
         if selection == .digDeeper && hasActiveChat {
-            return theme.primaryForeground
+            return .white
         } else {
             return theme.foreground
         }
@@ -126,9 +127,47 @@ public struct TopNavHeader: View {
     @ViewBuilder
     private var actionButtonBackground: some View {
         if selection == .digDeeper && hasActiveChat {
-            // Active chat state: purple filled circle
-            Circle()
-                .fill(PrimaryScale.primary600)
+            // Active chat state: gradient circle with glassy sheen and shadow
+            ZStack {
+                // Base gradient
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [PrimaryScale.primary600, PrimaryScale.primary800],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                // Glassy sheen overlay
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.05),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                // Subtle inner border for glass edge
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.4),
+                                Color.white.opacity(0.1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.5
+                    )
+            }
+            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
         } else {
             iconButtonBackground
         }
@@ -139,7 +178,7 @@ public struct TopNavHeader: View {
         if selection == .yourEntries {
             return "Search"
         } else if hasActiveChat {
-            return "Summarize Chat"
+            return "Save as Journal Entry"
         } else {
             return "New Entry"
         }
