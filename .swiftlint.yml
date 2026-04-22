@@ -1,0 +1,63 @@
+included:
+  - MeetMemento
+
+excluded:
+  - MeetMemento.xcodeproj
+  - MeetMementoTests/Fixtures
+  - UIPlayground
+  - supabase
+
+opt_in_rules:
+  - array_init
+  - closure_spacing
+  - empty_count
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - joined_default_parameter
+  - modifier_order
+  - multiline_arguments
+  - multiline_parameters
+  - operator_usage_whitespace
+  - redundant_nil_coalescing
+  - sorted_imports
+
+analyzer_rules:
+  - unused_import
+  - unused_declaration
+
+line_length:
+  warning: 130
+  error: 180
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 400
+  error: 550
+
+file_length:
+  warning: 700
+  error: 900
+
+function_body_length:
+  warning: 80
+  error: 120
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+identifier_name:
+  min_length:
+    warning: 2
+  excluded:
+    - id
+    - db
+    - ui
+    - vm
+
+force_cast: error
+force_try: error
+trailing_whitespace: error

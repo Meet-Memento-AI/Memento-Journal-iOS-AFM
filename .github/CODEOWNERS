@@ -1,0 +1,12 @@
+# Default owner
+* @Meet-Memento-AI
+
+# Workflow and security changes require owner review
+.github/workflows/ @Meet-Memento-AI
+.github/dependabot.yml @Meet-Memento-AI
+
+# Application security-sensitive areas
+MeetMemento/Services/ @Meet-Memento-AI
+MeetMemento/Resources/ @Meet-Memento-AI
+supabase/migrations/ @Meet-Memento-AI
+supabase/functions/ @Meet-Memento-AI
