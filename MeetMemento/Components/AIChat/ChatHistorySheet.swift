@@ -121,14 +121,8 @@ public struct ChatHistorySheet: View {
 
     @ViewBuilder
     private var newButtonBackground: some View {
-        if #available(iOS 26.0, *) {
-            Capsule()
-                .fill(theme.primary.opacity(0.1))
-                .glassEffect(.regular, in: Capsule())
-        } else {
-            Capsule()
-                .fill(theme.primary.opacity(0.1))
-        }
+        Capsule()
+            .fill(theme.primary.opacity(0.1))
     }
 }
 
