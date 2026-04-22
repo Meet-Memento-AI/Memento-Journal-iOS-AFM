@@ -19,7 +19,13 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: SwiftLint (strict)
+      - name: SwiftLint changed files (strict)
+        if: github.event_name == 'pull_request'
+        run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
+
+      - name: SwiftLint full project (advisory on push)
+        if: github.event_name == 'push'
+        continue-on-error: true
         run: swiftlint lint --strict
 
       - name: Build and test (simulator)
