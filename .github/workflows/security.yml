@@ -60,9 +60,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: Secret scan on new commits only
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "$BASE_REF" --depth=1
+            LOG_OPTS="origin/$BASE_REF..HEAD"
+          else
+            LOG_OPTS="-n 1"
+          fi
+
+          echo "Running gitleaks with log options: $LOG_OPTS"
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            git /repo --redact --log-opts="$LOG_OPTS" --exit-code 1
