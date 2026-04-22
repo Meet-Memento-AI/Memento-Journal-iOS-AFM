@@ -17,7 +17,13 @@ fi
 echo "Using base ref: $BASE_REF"
 git fetch origin "$BASE_REF" --depth=1
 
-changed_files=$(git diff --name-only "origin/$BASE_REF"...HEAD -- '*.swift' || true)
+if git merge-base "origin/$BASE_REF" HEAD >/dev/null 2>&1; then
+  DIFF_RANGE="origin/$BASE_REF...HEAD"
+else
+  DIFF_RANGE="origin/$BASE_REF..HEAD"
+fi
+
+changed_files=$(git diff --name-only "$DIFF_RANGE" -- '*.swift' || true)
 
 if [[ -z "$changed_files" ]]; then
   echo "No Swift file changes detected relative to $BASE_REF."

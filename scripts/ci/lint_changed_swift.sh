@@ -12,7 +12,17 @@ fi
 echo "Linting changed Swift files relative to origin/$BASE_REF"
 git fetch origin "$BASE_REF" --depth=1
 
-mapfile -t changed < <(git diff --name-only "origin/$BASE_REF"...HEAD -- '*.swift')
+if git merge-base "origin/$BASE_REF" HEAD >/dev/null 2>&1; then
+  DIFF_RANGE="origin/$BASE_REF...HEAD"
+else
+  DIFF_RANGE="origin/$BASE_REF..HEAD"
+fi
+
+changed=()
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  changed+=("$line")
+done < <(git diff --name-only "$DIFF_RANGE" -- '*.swift' || true)
 
 if [[ ${#changed[@]} -eq 0 ]]; then
   echo "No changed Swift files detected; skipping SwiftLint."
