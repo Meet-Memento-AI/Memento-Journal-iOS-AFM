@@ -28,6 +28,17 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --strict
 
+      - name: Create CI Secrets.swift
+        run: |
+          cat > MeetMemento/Secrets.swift << 'EOF'
+          import Foundation
+
+          enum Secrets {
+              static let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] ?? "https://example.supabase.co"
+              static let supabaseAnonKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] ?? "public-anon-key-placeholder"
+          }
+          EOF
+
       - name: Build and test (simulator)
         run: |
           xcodebuild \
