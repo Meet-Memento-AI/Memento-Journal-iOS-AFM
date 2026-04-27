@@ -5,6 +5,12 @@ import SwiftUI
 enum MementoGlassStyle {
     case regular
 
+    func tint(_ color: Color) -> MementoGlassStyle {
+        // Compatibility no-op. The fallback material path does not support tinting.
+        _ = color
+        return self
+    }
+
     func interactive() -> MementoGlassStyle {
         self
     }
