@@ -270,7 +270,7 @@ public struct AddEntryView: View {
             // iOS 26: Liquid glass with frosted effect
             Capsule()
                 .fill(Color.white.opacity(0.3))
-                .glassEffect(.regular.interactive(), in: Capsule())
+                .mementoGlassEffect(.regular.interactive(), in: Capsule())
         } else {
             // iOS 18+: Ultra thin material fallback
             Capsule()
