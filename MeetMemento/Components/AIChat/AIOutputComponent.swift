@@ -32,6 +32,36 @@ public struct AIOutputContent: Hashable, Codable {
         self.body = body
         self.citations = citations
     }
+
+    /// Sanitizes body text that may contain leaked JSON (e.g. "{body: ...") from malformed AI output.
+    /// Ensures production never displays raw JSON to users.
+    public static func sanitizeBody(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{"), trimmed.contains("body") else { return trimmed }
+        guard let data = trimmed.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let body = json["body"] as? String else {
+            return trimmed
+        }
+        return body
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        heading1 = try container.decodeIfPresent(String.self, forKey: .heading1)
+        heading2 = try container.decodeIfPresent(String.self, forKey: .heading2)
+        let rawBody = try container.decodeIfPresent(String.self, forKey: .body) ?? ""
+        body = Self.sanitizeBody(rawBody)
+        citations = try container.decodeIfPresent([JournalCitation].self, forKey: .citations)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(heading1, forKey: .heading1)
+        try container.encodeIfPresent(heading2, forKey: .heading2)
+        try container.encode(body, forKey: .body)
+        try container.encodeIfPresent(citations, forKey: .citations)
+    }
 }
 
 public struct AIOutputComponent: View {

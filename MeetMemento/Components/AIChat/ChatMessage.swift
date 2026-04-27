@@ -36,6 +36,39 @@ public struct JournalCitation: Identifiable, Hashable, Codable {
         self.entryDate = entryDate
         self.excerpt = excerpt
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let idString = try? container.decodeIfPresent(String.self, forKey: .id),
+           let uuid = UUID(uuidString: idString) {
+            id = uuid
+        } else {
+            id = UUID()
+        }
+        if let entryIdString = try? container.decodeIfPresent(String.self, forKey: .entryId),
+           let uuid = UUID(uuidString: entryIdString) {
+            entryId = uuid
+        } else {
+            entryId = UUID()
+        }
+        entryTitle = try container.decodeIfPresent(String.self, forKey: .entryTitle) ?? ""
+        let dateString = try container.decodeIfPresent(String.self, forKey: .entryDate) ?? ""
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withFullDate, .withDashSeparatorInDate]
+        entryDate = fmt.date(from: dateString)
+            ?? ISO8601DateFormatter().date(from: dateString)
+            ?? Date()
+        excerpt = try container.decodeIfPresent(String.self, forKey: .excerpt) ?? ""
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.uuidString, forKey: .id)
+        try container.encode(entryId.uuidString, forKey: .entryId)
+        try container.encode(entryTitle, forKey: .entryTitle)
+        try container.encode(ISO8601DateFormatter().string(from: entryDate), forKey: .entryDate)
+        try container.encode(excerpt, forKey: .excerpt)
+    }
 }
 
 /// Chat message model for AI Chat interface
