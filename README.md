@@ -59,6 +59,14 @@ MeetMemento/
 ### Testing
 Run tests with ⌘U in Xcode.
 
+### Branching and CI/CD
+- Branch model: feature branches merge into dev, then dev is promoted into main by pull request.
+- CI quality and security checks run on pull requests to dev and main.
+- Pushes to dev trigger automated deployment to dev and staging environments.
+- Full policy: [docs/BRANCHING_AND_CI_POLICY.md](docs/BRANCHING_AND_CI_POLICY.md)
+- Branch protection setup: [docs/BRANCH_PROTECTION_SETUP.md](docs/BRANCH_PROTECTION_SETUP.md)
+- Quality gate rollout: [docs/QUALITY_GATE_ROLLOUT.md](docs/QUALITY_GATE_ROLLOUT.md)
+
 ## License
 
 [Add your license here]

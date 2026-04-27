@@ -151,7 +151,7 @@ public struct DrawerMenuView: View {
         if #available(iOS 26.0, *) {
             Capsule()
                 .fill(Color.white.opacity(0.3))
-                .glassEffect(.regular, in: Capsule())
+                .mementoGlassEffect(.regular, in: Capsule())
         } else {
             Capsule()
                 .fill(colorScheme == .dark ? GrayScale.gray800 : GrayScale.gray100)

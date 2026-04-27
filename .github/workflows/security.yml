@@ -1,0 +1,96 @@
+name: Security gates
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "28 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  codeql:
+    name: CodeQL analysis
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: swift, javascript
+
+      - name: Create CI Secrets.swift
+        run: |
+          cat > MeetMemento/Secrets.swift << 'EOF'
+          import Foundation
+
+          enum Secrets {
+              static let supabaseUrl = "https://example.supabase.co"
+              static let supabaseAnonKey = "public-anon-key-placeholder"
+          }
+          EOF
+
+      - name: Build app for CodeQL extraction
+        run: |
+          xcodebuild \
+            -scheme MeetMemento \
+            -project MeetMemento.xcodeproj \
+            -destination "platform=iOS Simulator,name=iPhone 16" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency review
+        continue-on-error: true
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+      - name: Dependency review note
+        if: always()
+        run: echo "Dependency review is currently advisory. Enable dependency graph + branch protection required checks to enforce blocking."
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan on new commits only
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "$BASE_REF" --depth=1
+            LOG_OPTS="origin/$BASE_REF..HEAD"
+          else
+            LOG_OPTS="-n 1"
+          fi
+
+          echo "Running gitleaks with log options: $LOG_OPTS"
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            git /repo --redact --log-opts="$LOG_OPTS" --exit-code 1

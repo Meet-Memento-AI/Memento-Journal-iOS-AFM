@@ -79,7 +79,7 @@ public struct TopNavHeader: View {
             // iOS 26: Liquid glass with interactive feedback
             Circle()
                 .fill(Color.clear)
-                .glassEffect(.regular.interactive(), in: Circle())
+                .mementoGlassEffect(.regular.interactive(), in: Circle())
         } else {
             // iOS 18+: Ultra thin material fallback
             Circle()

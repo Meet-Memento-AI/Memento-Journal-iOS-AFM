@@ -1,15 +1,48 @@
-name: iOS and chat helper tests
+name: iOS quality and chat helper tests
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
 
 jobs:
   ios-unit-ui:
+    name: iOS quality gates
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: SwiftLint changed files (strict)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
+
+      - name: SwiftLint advisory note
+        if: github.event_name == 'pull_request'
+        run: echo "SwiftLint is advisory during rollout. Keep iOS build, tests, coverage, and security checks as blocking gates."
+
+      - name: SwiftLint full project (advisory on push)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: swiftlint lint --strict
+
+      - name: Create CI Secrets.swift
+        run: |
+          cat > MeetMemento/Secrets.swift << 'EOF'
+          import Foundation
+
+          enum Secrets {
+              static let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] ?? "https://example.supabase.co"
+              static let supabaseAnonKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] ?? "public-anon-key-placeholder"
+          }
+          EOF
 
       - name: Build and test (simulator)
         run: |
@@ -17,9 +50,40 @@ jobs:
             -scheme MeetMemento \
             -destination "platform=iOS Simulator,name=iPhone 16" \
             -resultBundlePath TestResults \
+            -enableCodeCoverage YES \
             test
 
+      - name: Coverage gate
+        env:
+          MIN_COVERAGE: "60"
+        run: bash scripts/ci/check_coverage.sh TestResults.xcresult
+
+      - name: Install Periphery
+        run: brew install peripheryapp/periphery/periphery
+
+      - name: Periphery dead-code scan (advisory)
+        continue-on-error: true
+        run: |
+          periphery scan \
+            --project MeetMemento.xcodeproj \
+            --schemes MeetMemento \
+            --format xcode \
+            --retain-public \
+            > periphery-report.txt
+
+      - name: Periphery regression gate (new issues only)
+        if: github.event_name == 'pull_request'
+        run: bash scripts/ci/check_periphery_regression.sh periphery-report.txt "${{ github.base_ref }}"
+
+      - name: Upload Periphery report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: periphery-report
+          path: periphery-report.txt
+
   deno-chat-lib:
+    name: Deno chat tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
