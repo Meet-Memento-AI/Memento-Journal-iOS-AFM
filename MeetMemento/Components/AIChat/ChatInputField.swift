@@ -128,7 +128,7 @@ public struct ChatInputField: View {
             // iOS 26: Liquid glass effect with higher frost (semi-transparent fill adds opacity)
             RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
                 .fill(Color.white.opacity(0.4))
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous))
+                .mementoGlassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous))
         } else {
             // iOS 18+: Light grey background
             RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
@@ -266,7 +266,7 @@ public struct ChatInputField: View {
         if #available(iOS 26.0, *) {
             Circle()
                 .fill(Color.white.opacity(0.4))
-                .glassEffect(.regular.interactive(), in: Circle())
+                .mementoGlassEffect(.regular.interactive(), in: Circle())
         } else {
             Circle()
                 .fill(theme.inputBackground)

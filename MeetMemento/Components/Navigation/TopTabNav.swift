@@ -155,7 +155,7 @@ public struct TopNav: View {
             // iOS 26: Pure liquid glass with interactive feedback
             Capsule()
                 .fill(Color.clear)
-                .glassEffect(.regular.interactive(), in: Capsule())
+                .mementoGlassEffect(.regular.interactive(), in: Capsule())
         } else if #available(iOS 18.0, *) {
             // iOS 18-25: Ultra thin material fallback
             Capsule()

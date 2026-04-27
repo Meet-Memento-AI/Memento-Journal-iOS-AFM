@@ -52,7 +52,7 @@ public struct NewEntryFAB: View {
             .font(.system(size: size * 0.4, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .glassEffect(
+            .mementoGlassEffect(
                 .regular.tint(theme.primary.opacity(0.85)).interactive(),
                 in: Circle()
             )

@@ -117,7 +117,7 @@ extension View {
     @ViewBuilder
     func iOS26GlassEffect(in shape: some Shape = .rect(cornerRadius: 16)) -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(in: shape)
+            self.mementoGlassEffect(in: shape)
         } else {
             self
         }
