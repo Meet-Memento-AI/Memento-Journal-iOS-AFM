@@ -26,8 +26,26 @@ jobs:
         with:
           languages: swift, javascript
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+      - name: Create CI Secrets.swift
+        run: |
+          cat > MeetMemento/Secrets.swift << 'EOF'
+          import Foundation
+
+          enum Secrets {
+              static let supabaseUrl = "https://example.supabase.co"
+              static let supabaseAnonKey = "public-anon-key-placeholder"
+          }
+          EOF
+
+      - name: Build app for CodeQL extraction
+        run: |
+          xcodebuild \
+            -scheme MeetMemento \
+            -project MeetMemento.xcodeproj \
+            -destination "platform=iOS Simulator,name=iPhone 16" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3

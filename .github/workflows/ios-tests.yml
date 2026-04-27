@@ -21,7 +21,12 @@ jobs:
 
       - name: SwiftLint changed files (strict)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
+
+      - name: SwiftLint advisory note
+        if: github.event_name == 'pull_request'
+        run: echo "SwiftLint is advisory during rollout. Keep iOS build, tests, coverage, and security checks as blocking gates."
 
       - name: SwiftLint full project (advisory on push)
         if: github.event_name == 'push'
