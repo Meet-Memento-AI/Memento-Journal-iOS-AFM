@@ -157,8 +157,8 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
                     continuation?.resume(throwing: AppleSignInError.notInteractive)
                 case .matchedExcludedCredential:
                     continuation?.resume(throwing: AppleSignInError.matchedExcludedCredential)
-                case .credentialImport, .credentialExport,
-                     .preferSignInWithApple, .deviceNotConfiguredForPasskeyCreation:
+                 case .credentialImport, .credentialExport,
+                     .deviceNotConfiguredForPasskeyCreation:
                     // These are passkey-related errors not applicable to Sign in with Apple
                     continuation?.resume(throwing: AppleSignInError.failed)
                 @unknown default:
