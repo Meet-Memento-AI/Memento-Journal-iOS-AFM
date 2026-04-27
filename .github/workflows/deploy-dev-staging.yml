@@ -41,6 +41,7 @@ jobs:
     name: Deploy dev
     runs-on: ubuntu-latest
     needs: preflight
+    if: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN != '' && secrets.DEV_SUPABASE_PROJECT_REF != '' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -105,6 +106,7 @@ jobs:
     name: Deploy staging
     runs-on: ubuntu-latest
     needs: deploy-dev
+    if: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN != '' && secrets.STAGING_SUPABASE_PROJECT_REF != '' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
