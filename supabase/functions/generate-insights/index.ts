@@ -467,7 +467,7 @@ ${JSON.stringify(entriesData)}`
       }
     ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 2200,  // Increased from 1500 to prevent responses from being cut off early
       response_format: { type: 'json_object' }
     });
   } catch (openaiError) {
