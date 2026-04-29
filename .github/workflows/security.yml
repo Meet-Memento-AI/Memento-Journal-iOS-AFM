@@ -17,7 +17,7 @@ permissions:
 jobs:
   sonar:
     name: Sonar analysis
-    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    runs-on: [self-hosted, Linux, ARM64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -40,12 +40,11 @@ jobs:
         with:
           args: >-
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
 
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     permissions:
       contents: read
       pull-requests: read
@@ -65,7 +64,7 @@ jobs:
 
   secret-scan:
     name: Secret scanning
-    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    runs-on: [self-hosted, Linux, ARM64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -75,7 +74,9 @@ jobs:
       - name: Install gitleaks
         run: |
           if ! command -v gitleaks >/dev/null 2>&1; then
-            brew install gitleaks
+            mkdir -p "$HOME/.local/bin"
+            curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b "$HOME/.local/bin" v8.24.2
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
 
       - name: Secret scan on new commits only
