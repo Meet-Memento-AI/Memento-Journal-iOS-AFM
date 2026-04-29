@@ -28,7 +28,7 @@ permissions:
 jobs:
   preflight:
     name: Preflight deploy checks
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, x64]
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -52,7 +52,7 @@ jobs:
 
   deploy-dev:
     name: Deploy dev
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, x64]
     needs: preflight
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     timeout-minutes: 20
@@ -128,7 +128,7 @@ jobs:
 
   deploy-staging:
     name: Deploy staging
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, x64]
     needs: preflight
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'staging'
     timeout-minutes: 20
