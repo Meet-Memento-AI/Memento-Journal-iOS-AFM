@@ -33,7 +33,7 @@ jobs:
           fi
 
       - name: Sonar scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
@@ -91,4 +91,4 @@ jobs:
           fi
 
           echo "Running gitleaks with log options: $LOG_OPTS"
-          gitleaks git . --redact --log-opts="$LOG_OPTS" --exit-code 1
+          "$HOME/.local/bin/gitleaks" git . --redact --log-opts="$LOG_OPTS" --exit-code 1
