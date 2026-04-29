@@ -1,0 +1,128 @@
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: Type deploy-production to confirm a production deployment
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Preflight production checks
+    runs-on: [self-hosted, Linux, x64]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify function directories exist
+        run: |
+          count=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name "_shared" | wc -l | tr -d ' ')
+          if [ "$count" -eq 0 ]; then
+            echo "No deployable edge functions found."
+            exit 1
+          fi
+          echo "Found $count deployable edge functions."
+
+      - name: Verify migration directories exist
+        run: |
+          if [ ! -d "supabase/migrations" ] && [ ! -d "supabase_migrations" ]; then
+            echo "No migration directory found."
+            exit 1
+          fi
+
+  deploy-prod:
+    name: Deploy production
+    runs-on: [self-hosted, Linux, x64]
+    needs: preflight
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Require explicit production confirmation
+        run: |
+          if [ "${{ inputs.confirm_production }}" != "deploy-production" ]; then
+            echo "Production deployment requires workflow_dispatch with confirm_production=deploy-production."
+            exit 1
+          fi
+
+      - name: Install Supabase CLI
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase_cli.tar.gz
+          tar -xzf /tmp/supabase_cli.tar.gz -C "$HOME/.local/bin" supabase
+          chmod +x "$HOME/.local/bin/supabase"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/supabase" --version
+
+      - name: Require production deploy secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.PROD_SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "Missing required production deployment secrets."
+            echo "Required: PROD_SUPABASE_ACCESS_TOKEN, PROD_SUPABASE_PROJECT_REF"
+            exit 1
+          fi
+
+      - name: Link production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.PROD_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Apply migrations to production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase db push
+
+      - name: Deploy edge functions to production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          for dir in supabase/functions/*; do
+            if [ -d "$dir" ]; then
+              fn=$(basename "$dir")
+              if [ "$fn" = "_shared" ] || [ ! -f "$dir/index.ts" ]; then
+                continue
+              fi
+              echo "Deploying $fn"
+              supabase functions deploy "$fn"
+            fi
+          done
+
+      - name: Smoke check production functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list > prod-functions.txt
+          for dir in supabase/functions/*; do
+            if [ -d "$dir" ]; then
+              fn=$(basename "$dir")
+              if [ "$fn" = "_shared" ] || [ ! -f "$dir/index.ts" ]; then
+                continue
+              fi
+              grep -q "$fn" prod-functions.txt || {
+                echo "Smoke check failed: expected function '$fn' not listed in production."
+                exit 1
+              }
+            fi
+          done
