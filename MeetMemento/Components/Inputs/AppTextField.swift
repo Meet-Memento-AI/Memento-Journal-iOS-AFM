@@ -18,9 +18,6 @@ public struct AppTextField: View {
     @Environment(\.typography) private var type
     @FocusState private var isFocused: Bool
 
-    /// Text color: Gray/700 for typing and filled states
-    private let textColor: Color = GrayScale.gray700
-
     public init(
         placeholder: String,
         text: Binding<String>,
@@ -44,13 +41,13 @@ public struct AppTextField: View {
             }
         }
         .font(type.h4)
-        .foregroundStyle(textColor)
+        .foregroundStyle(theme.foreground) // Use semantic theme color for proper contrast
         .textInputAutocapitalization(textInputAutocapitalization)
         .keyboardType(keyboardType)
         .focused($isFocused)
         .accessibilityLabel(placeholder)
         .accessibilityHint(isSecure ? "Secure text field" : "Text field")
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Spacing.xs)
         .padding(.vertical, 14)
     }
 }

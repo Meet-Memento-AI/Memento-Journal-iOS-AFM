@@ -56,7 +56,7 @@ public struct ChatHistoryItem: View {
                 .mementoGlassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
         } else {
             RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(colorScheme == .dark ? GrayScale.gray800 : GrayScale.gray100)
+                .fill(theme.secondary) // Use semantic token for light/dark support
                 .overlay(
                     RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
                         .stroke(theme.border, lineWidth: 1)

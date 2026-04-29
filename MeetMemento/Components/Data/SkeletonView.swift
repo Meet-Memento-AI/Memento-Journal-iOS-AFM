@@ -1,6 +1,8 @@
 import SwiftUI
 
 public struct SkeletonView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let width: CGFloat?
     let height: CGFloat
     let cornerRadius: CGFloat
@@ -19,13 +21,14 @@ public struct SkeletonView: View {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.white.opacity(0.05))
 
-            // Breathing wave layer
+            // Breathing wave layer (static when reduce motion enabled)
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.white.opacity(0.08))
-                .opacity(0.3 + 0.7 * (0.5 + 0.5 * sin(phase)))
+                .opacity(reduceMotion ? 0.5 : (0.3 + 0.7 * (0.5 + 0.5 * sin(phase))))
         }
         .frame(width: width, height: height)
         .onAppear {
+            guard !reduceMotion else { return }
             withAnimation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 phase = .pi
             }
