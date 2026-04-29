@@ -60,10 +60,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v2
-        with:
-          version: latest
+      - name: Install Supabase CLI
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase_cli.tar.gz
+          tar -xzf /tmp/supabase_cli.tar.gz -C "$HOME/.local/bin" supabase
+          chmod +x "$HOME/.local/bin/supabase"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/supabase" --version
 
       - name: Require dev deployment secrets
         env:
@@ -136,10 +140,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v2
-        with:
-          version: latest
+      - name: Install Supabase CLI
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase_cli.tar.gz
+          tar -xzf /tmp/supabase_cli.tar.gz -C "$HOME/.local/bin" supabase
+          chmod +x "$HOME/.local/bin/supabase"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/supabase" --version
 
       - name: Require staging deployment secrets
         env:
