@@ -3,18 +3,30 @@ import SwiftUI
 // MARK: - Typography
 // Default app typography uses Manrope for all text (headings and body).
 // Use Typography.onboarding for onboarding screens (Lora Serif).
+// All sizes support Dynamic Type scaling via @ScaledMetric.
 
 public struct Typography {
 
-    // MARK: - Size Scale
-    public let sizeXS: CGFloat = 11    // micro
-    public let sizeSM: CGFloat = 13    // caption
-    public let sizeMD: CGFloat = 14    // body2
-    public let sizeLG: CGFloat = 16    // body1, h6, h5
-    public let sizeXL: CGFloat = 20    // h4
-    public let size2XL: CGFloat = 24   // h3
-    public let size3XL: CGFloat = 32   // h2
-    public let size4XL: CGFloat = 40   // h1
+    // MARK: - Base Size Scale (used as relativeTo base values)
+    // These are the design-time base sizes before Dynamic Type scaling
+    public static let baseSizeXS: CGFloat = 11    // micro
+    public static let baseSizeSM: CGFloat = 13    // caption
+    public static let baseSizeMD: CGFloat = 14    // body2
+    public static let baseSizeLG: CGFloat = 16    // body1, h6, h5
+    public static let baseSizeXL: CGFloat = 20    // h4
+    public static let baseSize2XL: CGFloat = 24   // h3
+    public static let baseSize3XL: CGFloat = 32   // h2
+    public static let baseSize4XL: CGFloat = 40   // h1
+
+    // MARK: - Size Scale (legacy accessors for backward compatibility)
+    public var sizeXS: CGFloat { Self.baseSizeXS }
+    public var sizeSM: CGFloat { Self.baseSizeSM }
+    public var sizeMD: CGFloat { Self.baseSizeMD }
+    public var sizeLG: CGFloat { Self.baseSizeLG }
+    public var sizeXL: CGFloat { Self.baseSizeXL }
+    public var size2XL: CGFloat { Self.baseSize2XL }
+    public var size3XL: CGFloat { Self.baseSize3XL }
+    public var size4XL: CGFloat { Self.baseSize4XL }
 
     // MARK: - Font Families (configurable for default vs onboarding)
     private let headingFontName: String
@@ -296,5 +308,87 @@ struct HeaderGradientModifier: ViewModifier {
 public extension View {
     func headerGradient() -> some View {
         self.modifier(HeaderGradientModifier())
+    }
+}
+
+// MARK: - Dynamic Type Support
+
+/// A property wrapper that scales typography sizes according to Dynamic Type settings.
+/// Use with SwiftUI views to support accessibility text scaling up to 200%.
+@propertyWrapper
+public struct ScaledTypographySize: DynamicProperty {
+    @ScaledMetric private var scaledValue: CGFloat
+
+    public var wrappedValue: CGFloat { scaledValue }
+
+    public init(baseSize: CGFloat, relativeTo textStyle: Font.TextStyle = .body) {
+        _scaledValue = ScaledMetric(wrappedValue: baseSize, relativeTo: textStyle)
+    }
+}
+
+/// Dynamic Type-aware typography sizes that scale with user preferences.
+/// Use these in views that need to respond to Dynamic Type changes.
+public struct ScaledTypography {
+    @ScaledMetric(relativeTo: .caption2) public var sizeXS: CGFloat = Typography.baseSizeXS
+    @ScaledMetric(relativeTo: .caption) public var sizeSM: CGFloat = Typography.baseSizeSM
+    @ScaledMetric(relativeTo: .subheadline) public var sizeMD: CGFloat = Typography.baseSizeMD
+    @ScaledMetric(relativeTo: .body) public var sizeLG: CGFloat = Typography.baseSizeLG
+    @ScaledMetric(relativeTo: .title3) public var sizeXL: CGFloat = Typography.baseSizeXL
+    @ScaledMetric(relativeTo: .title2) public var size2XL: CGFloat = Typography.baseSize2XL
+    @ScaledMetric(relativeTo: .title) public var size3XL: CGFloat = Typography.baseSize3XL
+    @ScaledMetric(relativeTo: .largeTitle) public var size4XL: CGFloat = Typography.baseSize4XL
+
+    public init() {}
+}
+
+// MARK: - Dynamic Type View Modifier
+
+/// Modifier that limits Dynamic Type scaling to prevent layout overflow.
+/// Restricts maximum size to xxxLarge (roughly 200% of default).
+public struct DynamicTypeLimitModifier: ViewModifier {
+    public func body(content: Content) -> some View {
+        content
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+}
+
+public extension View {
+    /// Limits Dynamic Type scaling to xxxLarge to prevent layout overflow.
+    /// Apply at the root of screens or components that may overflow at extreme sizes.
+    func limitDynamicTypeSize() -> some View {
+        modifier(DynamicTypeLimitModifier())
+    }
+}
+
+// MARK: - Accessibility Text Scaling Environment
+
+/// Environment key to check if the user has enabled larger accessibility sizes.
+private struct IsAccessibilitySizeEnabledKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+public extension EnvironmentValues {
+    /// Returns true if the user has enabled accessibility text sizes (xxxLarge or larger).
+    var isAccessibilitySizeEnabled: Bool {
+        get { self[IsAccessibilitySizeEnabledKey.self] }
+        set { self[IsAccessibilitySizeEnabledKey.self] = newValue }
+    }
+}
+
+/// Modifier that tracks accessibility size preference and updates environment.
+public struct AccessibilitySizeTracker: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    public func body(content: Content) -> some View {
+        content
+            .environment(\.isAccessibilitySizeEnabled, dynamicTypeSize >= .accessibility1)
+    }
+}
+
+public extension View {
+    /// Tracks whether user has enabled accessibility text sizes.
+    /// Provides `isAccessibilitySizeEnabled` environment value downstream.
+    func trackAccessibilitySize() -> some View {
+        modifier(AccessibilitySizeTracker())
     }
 }

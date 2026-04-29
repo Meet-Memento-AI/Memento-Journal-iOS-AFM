@@ -48,7 +48,7 @@ struct JournalCard: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [GrayScale.gray100, GrayScale.gray50],
+                        colors: [theme.secondary, theme.card], // Use semantic tokens
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -75,8 +75,20 @@ struct JournalCard: View {
         }, perform: {})
         .modifier(JournalCardContextMenuModifier(isInteractive: isInteractive, onEditTapped: onEditTapped, onDeleteTapped: onDeleteTapped))
         .allowsHitTesting(isInteractive)
+        // MARK: - Accessibility
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(isInteractive ? "Double-tap to open" : "")
+        .accessibilityAddTraits(isInteractive ? [.isButton] : [])
+        .accessibilityAction(named: "Open") {
+            onTap?()
+        }
+        .accessibilityAction(named: "Edit") {
+            onEditTapped?()
+        }
+        .accessibilityAction(named: "Delete") {
+            onDeleteTapped?()
+        }
     }
 
     // MARK: - Subviews

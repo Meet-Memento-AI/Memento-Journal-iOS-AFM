@@ -9,6 +9,83 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Reduce Motion Support
+
+/// Checks if the user has enabled "Reduce Motion" in accessibility settings.
+/// Use this to disable or simplify animations for users who are sensitive to motion.
+extension View {
+    /// Applies animation only when reduce motion is not enabled.
+    /// When reduce motion is enabled, uses no animation (instant transitions).
+    /// - Parameters:
+    ///   - animation: The animation to apply when reduce motion is disabled
+    ///   - value: The value to watch for changes
+    /// - Returns: View with accessibility-aware animation
+    func accessibleAnimation<V: Equatable>(_ animation: Animation?, value: V) -> some View {
+        modifier(AccessibleAnimationModifier(animation: animation, value: value))
+    }
+
+    /// Applies animation only when reduce motion is not enabled.
+    /// When reduce motion is enabled, uses no animation (instant transitions).
+    /// - Parameter animation: The animation to apply when reduce motion is disabled
+    /// - Returns: View with accessibility-aware animation
+    func accessibleAnimation(_ animation: Animation?) -> some View {
+        modifier(AccessibleAnimationValuelessModifier(animation: animation))
+    }
+}
+
+private struct AccessibleAnimationModifier<V: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let animation: Animation?
+    let value: V
+
+    func body(content: Content) -> some View {
+        content
+            .animation(reduceMotion ? nil : animation, value: value)
+    }
+}
+
+private struct AccessibleAnimationValuelessModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let animation: Animation?
+
+    func body(content: Content) -> some View {
+        content
+            .animation(reduceMotion ? nil : animation)
+    }
+}
+
+/// Executes a closure with animation, respecting reduce motion preference.
+/// - Parameters:
+///   - animation: The animation to use when reduce motion is disabled
+///   - reduceMotion: Whether reduce motion is enabled
+///   - body: The closure to execute
+public func withAccessibleAnimation<Result>(
+    _ animation: Animation? = .default,
+    reduceMotion: Bool,
+    _ body: () throws -> Result
+) rethrows -> Result {
+    if reduceMotion {
+        return try body()
+    } else {
+        return try withAnimation(animation, body)
+    }
+}
+
+/// A view that provides reduce motion context to its content.
+/// Use this wrapper to access reduce motion state in non-view contexts.
+public struct ReduceMotionReader<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let content: (Bool) -> Content
+
+    public init(@ViewBuilder content: @escaping (Bool) -> Content) {
+        self.content = content
+    }
+
+    public var body: some View {
+        content(reduceMotion)
+    }
+}
+
 // MARK: - Card Styling
 
 extension View {
@@ -70,6 +147,7 @@ extension View {
 }
 
 private struct PressEffectModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPressed: Bool
     let scale: CGFloat
     let duration: CGFloat
@@ -77,7 +155,7 @@ private struct PressEffectModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(isPressed ? scale : 1.0)
-            .animation(.easeInOut(duration: duration), value: isPressed)
+            .animation(reduceMotion ? nil : .easeInOut(duration: duration), value: isPressed)
     }
 }
 

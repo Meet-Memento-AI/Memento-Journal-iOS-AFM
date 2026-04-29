@@ -115,10 +115,10 @@ extension TagStyleConfig {
         )
     }
 
-    /// Gray chip tag for themes
+    /// Gray chip tag for themes - uses semantic muted color for light/dark support
     static func themeChip(typography: Typography, theme: Theme) -> TagStyleConfig {
         TagStyleConfig(
-            backgroundColor: GrayScale.gray200,
+            backgroundColor: theme.muted, // Use semantic token for proper light/dark support
             foregroundColor: theme.foreground,
             font: typography.body1Bold,
             verticalPadding: 10,
