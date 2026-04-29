@@ -17,7 +17,7 @@ permissions:
 jobs:
   sonar:
     name: Sonar analysis
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: [self-hosted, Linux, x64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -44,7 +44,7 @@ jobs:
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: [self-hosted, Linux, x64]
     permissions:
       contents: read
       pull-requests: read
@@ -64,7 +64,7 @@ jobs:
 
   secret-scan:
     name: Secret scanning
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: [self-hosted, Linux, x64]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

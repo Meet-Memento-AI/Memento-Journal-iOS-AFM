@@ -85,7 +85,7 @@ jobs:
 
   deno-chat-lib:
     name: Deno chat tests
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: [self-hosted, Linux, x64]
     steps:
       - uses: actions/checkout@v6
 
