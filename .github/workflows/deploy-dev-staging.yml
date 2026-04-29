@@ -60,73 +60,97 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Supabase CLI
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase_cli.tar.gz
-          tar -xzf /tmp/supabase_cli.tar.gz -C "$HOME/.local/bin" supabase
-          chmod +x "$HOME/.local/bin/supabase"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/supabase" --version
-
-      - name: Require dev deployment secrets
+      - name: Apply pending migrations to self-hosted dev DB
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.DEV_SUPABASE_PROJECT_REF }}
+          DB_CONTAINER: ${{ vars.DEV_SUPABASE_DB_CONTAINER }}
         run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "Missing required dev deployment secrets."
-            echo "Required: DEV_SUPABASE_ACCESS_TOKEN, DEV_SUPABASE_PROJECT_REF"
+          set -euo pipefail
+
+          DB_CONTAINER="${DB_CONTAINER:-supabase-db}"
+
+          if ! docker ps --format '{{.Names}}' | grep -Fxq "$DB_CONTAINER"; then
+            echo "Database container '$DB_CONTAINER' is not running."
             exit 1
           fi
 
-      - name: Link Supabase project (dev)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.DEV_SUPABASE_PROJECT_REF }}
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "Missing required dev environment secrets."
-            echo "Required: DEV_SUPABASE_ACCESS_TOKEN, DEV_SUPABASE_PROJECT_REF"
+          docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "
+          create schema if not exists meta;
+          create table if not exists meta.ci_migrations (
+            migration_id text primary key,
+            applied_at timestamptz not null default now()
+          );"
+
+          mapfile -t migration_files < <(
+            {
+              find supabase/migrations -maxdepth 1 -type f -name '*.sql' 2>/dev/null;
+              find supabase_migrations -maxdepth 1 -type f -name '*.sql' 2>/dev/null;
+            } | sort
+          )
+
+          if [ "${#migration_files[@]}" -eq 0 ]; then
+            echo "No migration files found."
             exit 1
           fi
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-      - name: Apply migrations (dev)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN }}
-        run: supabase db push
+          for file in "${migration_files[@]}"; do
+            migration_id=$(printf "%s" "$file" | sed "s/'/''/g")
+            already_applied=$(docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -Atqc "select 1 from meta.ci_migrations where migration_id='${migration_id}' limit 1;")
 
-      - name: Deploy edge functions (dev)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN }}
-        run: |
-          for dir in supabase/functions/*; do
-            if [ -d "$dir" ]; then
-              fn=$(basename "$dir")
-              if [ "$fn" = "_shared" ]; then
-                continue
-              fi
-              echo "Deploying $fn"
-              supabase functions deploy "$fn"
+            if [ "$already_applied" = "1" ]; then
+              echo "Skipping already applied migration: $file"
+              continue
             fi
+
+            echo "Applying migration: $file"
+            docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file"
+            docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
+
+      - name: Sync edge functions to self-hosted dev runtime
+        env:
+          EDGE_CONTAINER: ${{ vars.DEV_SUPABASE_EDGE_CONTAINER }}
+          FUNCTIONS_PATH: ${{ vars.DEV_SUPABASE_FUNCTIONS_PATH }}
+        run: |
+          set -euo pipefail
+
+          EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+
+          mkdir -p "$FUNCTIONS_PATH"
+          if command -v rsync >/dev/null 2>&1; then
+            rsync -a --delete --exclude '.DS_Store' --exclude 'README.md' supabase/functions/ "$FUNCTIONS_PATH/"
+          else
+            find "$FUNCTIONS_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            cp -R supabase/functions/. "$FUNCTIONS_PATH/"
+            rm -f "$FUNCTIONS_PATH/.DS_Store" "$FUNCTIONS_PATH/README.md"
+          fi
+          docker restart "$EDGE_CONTAINER"
 
       - name: Smoke check (dev)
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.DEV_SUPABASE_ACCESS_TOKEN }}
+          EDGE_CONTAINER: ${{ vars.DEV_SUPABASE_EDGE_CONTAINER }}
+          FUNCTIONS_PATH: ${{ vars.DEV_SUPABASE_FUNCTIONS_PATH }}
         run: |
-          supabase functions list > dev-functions.txt
+          set -euo pipefail
+
+          EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+
+          docker ps --format '{{.Names}}' | grep -Fxq "$EDGE_CONTAINER" || {
+            echo "Edge runtime container '$EDGE_CONTAINER' is not running."
+            exit 1
+          }
+
           for dir in supabase/functions/*; do
             if [ -d "$dir" ]; then
               fn=$(basename "$dir")
-              if [ "$fn" = "_shared" ]; then
+              if [ "$fn" = "_shared" ] || [ ! -f "$dir/index.ts" ]; then
                 continue
               fi
-              grep -q "$fn" dev-functions.txt || {
-                echo "Smoke check failed: expected function '$fn' not listed in dev."
+              if [ ! -f "$FUNCTIONS_PATH/$fn/index.ts" ]; then
+                echo "Smoke check failed: expected function '$fn' was not synced to '$FUNCTIONS_PATH'."
                 exit 1
-              }
+              fi
             fi
           done
 
@@ -140,26 +164,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Supabase CLI
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o /tmp/supabase_cli.tar.gz
-          tar -xzf /tmp/supabase_cli.tar.gz -C "$HOME/.local/bin" supabase
-          chmod +x "$HOME/.local/bin/supabase"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/supabase" --version
-
-      - name: Require staging deployment secrets
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "Missing required staging deployment secrets."
-            echo "Required: STAGING_SUPABASE_ACCESS_TOKEN, STAGING_SUPABASE_PROJECT_REF"
-            exit 1
-          fi
-
       - name: Require explicit staging confirmation
         run: |
           if [ "${{ inputs.confirm_staging }}" != "deploy-staging" ]; then
@@ -167,52 +171,96 @@ jobs:
             exit 1
           fi
 
-      - name: Link Supabase project (staging)
+      - name: Apply pending migrations to self-hosted staging DB
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.STAGING_SUPABASE_PROJECT_REF }}
+          DB_CONTAINER: ${{ vars.STAGING_SUPABASE_DB_CONTAINER }}
         run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "Missing required staging environment secrets."
-            echo "Required: STAGING_SUPABASE_ACCESS_TOKEN, STAGING_SUPABASE_PROJECT_REF"
+          set -euo pipefail
+
+          DB_CONTAINER="${DB_CONTAINER:-supabase-db}"
+
+          if ! docker ps --format '{{.Names}}' | grep -Fxq "$DB_CONTAINER"; then
+            echo "Database container '$DB_CONTAINER' is not running."
             exit 1
           fi
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-      - name: Apply migrations (staging)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
-        run: supabase db push
+          docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "
+          create schema if not exists meta;
+          create table if not exists meta.ci_migrations (
+            migration_id text primary key,
+            applied_at timestamptz not null default now()
+          );"
 
-      - name: Deploy edge functions (staging)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
-        run: |
-          for dir in supabase/functions/*; do
-            if [ -d "$dir" ]; then
-              fn=$(basename "$dir")
-              if [ "$fn" = "_shared" ]; then
-                continue
-              fi
-              echo "Deploying $fn"
-              supabase functions deploy "$fn"
+          mapfile -t migration_files < <(
+            {
+              find supabase/migrations -maxdepth 1 -type f -name '*.sql' 2>/dev/null;
+              find supabase_migrations -maxdepth 1 -type f -name '*.sql' 2>/dev/null;
+            } | sort
+          )
+
+          if [ "${#migration_files[@]}" -eq 0 ]; then
+            echo "No migration files found."
+            exit 1
+          fi
+
+          for file in "${migration_files[@]}"; do
+            migration_id=$(printf "%s" "$file" | sed "s/'/''/g")
+            already_applied=$(docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -Atqc "select 1 from meta.ci_migrations where migration_id='${migration_id}' limit 1;")
+
+            if [ "$already_applied" = "1" ]; then
+              echo "Skipping already applied migration: $file"
+              continue
             fi
+
+            echo "Applying migration: $file"
+            docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file"
+            docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
+
+      - name: Sync edge functions to self-hosted staging runtime
+        env:
+          EDGE_CONTAINER: ${{ vars.STAGING_SUPABASE_EDGE_CONTAINER }}
+          FUNCTIONS_PATH: ${{ vars.STAGING_SUPABASE_FUNCTIONS_PATH }}
+        run: |
+          set -euo pipefail
+
+          EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+
+          mkdir -p "$FUNCTIONS_PATH"
+          if command -v rsync >/dev/null 2>&1; then
+            rsync -a --delete --exclude '.DS_Store' --exclude 'README.md' supabase/functions/ "$FUNCTIONS_PATH/"
+          else
+            find "$FUNCTIONS_PATH" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            cp -R supabase/functions/. "$FUNCTIONS_PATH/"
+            rm -f "$FUNCTIONS_PATH/.DS_Store" "$FUNCTIONS_PATH/README.md"
+          fi
+          docker restart "$EDGE_CONTAINER"
 
       - name: Smoke check (staging)
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          EDGE_CONTAINER: ${{ vars.STAGING_SUPABASE_EDGE_CONTAINER }}
+          FUNCTIONS_PATH: ${{ vars.STAGING_SUPABASE_FUNCTIONS_PATH }}
         run: |
-          supabase functions list > staging-functions.txt
+          set -euo pipefail
+
+          EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+
+          docker ps --format '{{.Names}}' | grep -Fxq "$EDGE_CONTAINER" || {
+            echo "Edge runtime container '$EDGE_CONTAINER' is not running."
+            exit 1
+          }
+
           for dir in supabase/functions/*; do
             if [ -d "$dir" ]; then
               fn=$(basename "$dir")
-              if [ "$fn" = "_shared" ]; then
+              if [ "$fn" = "_shared" ] || [ ! -f "$dir/index.ts" ]; then
                 continue
               fi
-              grep -q "$fn" staging-functions.txt || {
-                echo "Smoke check failed: expected function '$fn' not listed in staging."
+              if [ ! -f "$FUNCTIONS_PATH/$fn/index.ts" ]; then
+                echo "Smoke check failed: expected function '$fn' was not synced to '$FUNCTIONS_PATH'."
                 exit 1
-              }
+              fi
             fi
           done
