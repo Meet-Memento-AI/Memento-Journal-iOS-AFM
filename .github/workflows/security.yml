@@ -33,13 +33,16 @@ jobs:
           fi
 
       - name: Sonar scan
-        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
-        with:
-          args: >-
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          "$HOME/.local/sonar-scanner/bin/sonar-scanner" \
+            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.sources=.
 
   dependency-review:
     name: Dependency review
