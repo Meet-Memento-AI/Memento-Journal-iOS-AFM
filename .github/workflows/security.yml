@@ -74,12 +74,18 @@ jobs:
 
   secret-scan:
     name: Secret scanning
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          if ! command -v gitleaks >/dev/null 2>&1; then
+            brew install gitleaks
+          fi
 
       - name: Secret scan on new commits only
         env:
@@ -93,5 +99,4 @@ jobs:
           fi
 
           echo "Running gitleaks with log options: $LOG_OPTS"
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
-            git /repo --redact --log-opts="$LOG_OPTS" --exit-code 1
+          gitleaks git . --redact --log-opts="$LOG_OPTS" --exit-code 1
