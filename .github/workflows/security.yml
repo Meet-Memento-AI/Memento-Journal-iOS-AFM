@@ -17,7 +17,7 @@ permissions:
 jobs:
   codeql:
     name: CodeQL analysis
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -13,7 +13,7 @@ permissions:
 jobs:
   ios-unit-ui:
     name: iOS quality gates
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     steps:
       - uses: actions/checkout@v6
 
