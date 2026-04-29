@@ -15,7 +15,7 @@ public struct ThemeTag: View {
     }
 
     public var body: some View {
-        // Simple tag with Gray/200 background, bold sans text, rounded corners.
+        // Simple tag with muted background, bold sans text, rounded corners.
         // No border for a cleaner look.
         Button {
             onClick?()
@@ -28,7 +28,7 @@ public struct ThemeTag: View {
                 .padding(.horizontal, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(GrayScale.gray200) // Gray/200 background
+                        .fill(theme.muted) // Use semantic token for light/dark support
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }

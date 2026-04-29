@@ -154,7 +154,7 @@ public struct DrawerMenuView: View {
                 .mementoGlassEffect(.regular, in: Capsule())
         } else {
             Capsule()
-                .fill(colorScheme == .dark ? GrayScale.gray800 : GrayScale.gray100)
+                .fill(theme.secondary) // Use semantic token for light/dark support
         }
     }
 

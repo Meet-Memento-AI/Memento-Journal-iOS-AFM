@@ -87,10 +87,12 @@ public struct NewEntryFAB: View {
 }
 
 private struct FABPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 
@@ -98,6 +100,8 @@ private struct FABPressStyle: ButtonStyle {
 
 /// Wrapper that positions the FAB in the bottom-right corner with swipe animations
 public struct PositionedNewEntryFAB: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let swipeProgress: CGFloat
     let action: () -> Void
 
@@ -116,7 +120,7 @@ public struct PositionedNewEntryFAB: View {
                     .scaleEffect(1 - (swipeProgress * 0.3))
                     .offset(x: swipeProgress * 60)
                     .allowsHitTesting(swipeProgress < 0.5)
-                    .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.8), value: swipeProgress)
+                    .animation(reduceMotion ? nil : .interactiveSpring(response: 0.3, dampingFraction: 0.8), value: swipeProgress)
                     .padding(.trailing, 20)
                     .padding(.bottom, 56)
             }
