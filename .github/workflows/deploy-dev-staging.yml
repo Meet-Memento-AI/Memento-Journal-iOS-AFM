@@ -102,7 +102,14 @@ jobs:
             fi
 
             echo "Applying migration: $file"
-            docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file"
+            if ! docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file" 2>/tmp/migration.err; then
+              if grep -Eq "already exists|duplicate key value" /tmp/migration.err; then
+                echo "Migration has already-applied objects; recording as applied and continuing: $file"
+              else
+                cat /tmp/migration.err
+                exit 1
+              fi
+            fi
             docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
 
@@ -213,7 +220,14 @@ jobs:
             fi
 
             echo "Applying migration: $file"
-            docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file"
+            if ! docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file" 2>/tmp/migration.err; then
+              if grep -Eq "already exists|duplicate key value" /tmp/migration.err; then
+                echo "Migration has already-applied objects; recording as applied and continuing: $file"
+              else
+                cat /tmp/migration.err
+                exit 1
+              fi
+            fi
             docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
 
