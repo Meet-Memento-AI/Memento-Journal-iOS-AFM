@@ -105,6 +105,8 @@ iOSInjectionProject/
 # Specific project secrets
 MeetMemento/Secrets.swift
 MeetMemento/Resources/SupabaseConfig.swift
+MeetMemento/Config/Debug.local.xcconfig
+MeetMemento/Config/Release.local.xcconfig
 
 # Environment variables
 .env
