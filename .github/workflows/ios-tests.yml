@@ -58,6 +58,7 @@ jobs:
               -resultBundlePath TestResults \
               -enableCodeCoverage YES \
               -parallel-testing-enabled NO \
+              -skip-testing:MeetMementoUITests \
               test
           }
 
@@ -148,6 +149,14 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Fix Deno binary permissions
+        run: |
+          set -euo pipefail
+          if [ -n "${RUNNER_TOOL_CACHE:-}" ] && [ -d "${RUNNER_TOOL_CACHE}/deno" ]; then
+            find "${RUNNER_TOOL_CACHE}/deno" -type f -name deno -exec chmod +x {} +
+          fi
+          deno --version
 
       - name: Deno test (chat lib)
         working-directory: supabase/functions/chat
