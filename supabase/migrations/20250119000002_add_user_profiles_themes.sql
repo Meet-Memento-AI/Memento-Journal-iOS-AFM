@@ -12,11 +12,44 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Ensure all auth users have a profile row
-INSERT INTO user_profiles (user_id)
-SELECT id FROM auth.users
-WHERE id NOT IN (SELECT user_id FROM user_profiles)
-ON CONFLICT (user_id) DO NOTHING;
+-- Ensure all auth users have a profile row when the existing schema still
+-- references auth.users. Older production schemas may point elsewhere.
+DO $$
+DECLARE
+  fk_targets_auth_users boolean;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint constraint_def
+    JOIN pg_class table_def ON table_def.oid = constraint_def.conrelid
+    JOIN pg_namespace table_ns ON table_ns.oid = table_def.relnamespace
+    JOIN pg_attribute column_def
+      ON column_def.attrelid = table_def.oid
+      AND column_def.attnum = ANY (constraint_def.conkey)
+    JOIN pg_class referenced_table ON referenced_table.oid = constraint_def.confrelid
+    JOIN pg_namespace referenced_ns ON referenced_ns.oid = referenced_table.relnamespace
+    WHERE constraint_def.contype = 'f'
+      AND table_ns.nspname = 'public'
+      AND table_def.relname = 'user_profiles'
+      AND column_def.attname = 'user_id'
+      AND referenced_ns.nspname = 'auth'
+      AND referenced_table.relname = 'users'
+  ) INTO fk_targets_auth_users;
+
+  IF fk_targets_auth_users THEN
+    INSERT INTO user_profiles (user_id)
+    SELECT auth_user.id
+    FROM auth.users AS auth_user
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM user_profiles AS profile
+      WHERE profile.user_id = auth_user.id
+    )
+    ON CONFLICT (user_id) DO NOTHING;
+  ELSE
+    RAISE NOTICE 'Skipping user_profiles auth.users backfill because existing foreign key target is not auth.users';
+  END IF;
+END $$;
 
 -- ============================================================
 -- ADD THEME ANALYSIS COLUMNS

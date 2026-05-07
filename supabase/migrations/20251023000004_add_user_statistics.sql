@@ -370,16 +370,54 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 8. INITIALIZE STATS FOR EXISTING USERS
 -- ============================================================
 
--- Create stats rows for all existing users
-INSERT INTO user_stats (user_id)
-SELECT id FROM auth.users
-ON CONFLICT (user_id) DO NOTHING;
-
--- Recalculate stats for all users with entries
+-- Create stats rows for all existing users when the existing schema still
+-- references auth.users. Older production schemas may point elsewhere.
 DO $$
 DECLARE
+  fk_targets_auth_users boolean;
   user_record RECORD;
 BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint constraint_def
+    JOIN pg_class table_def ON table_def.oid = constraint_def.conrelid
+    JOIN pg_namespace table_ns ON table_ns.oid = table_def.relnamespace
+    JOIN pg_attribute column_def
+      ON column_def.attrelid = table_def.oid
+      AND column_def.attnum = ANY (constraint_def.conkey)
+    JOIN pg_class referenced_table ON referenced_table.oid = constraint_def.confrelid
+    JOIN pg_namespace referenced_ns ON referenced_ns.oid = referenced_table.relnamespace
+    WHERE constraint_def.contype = 'f'
+      AND table_ns.nspname = 'public'
+      AND table_def.relname = 'user_stats'
+      AND column_def.attname = 'user_id'
+      AND referenced_ns.nspname = 'auth'
+      AND referenced_table.relname = 'users'
+  ) INTO fk_targets_auth_users;
+
+  IF fk_targets_auth_users THEN
+    INSERT INTO user_stats (user_id)
+    SELECT auth_user.id
+    FROM auth.users AS auth_user
+    ON CONFLICT (user_id) DO NOTHING;
+  ELSE
+    RAISE NOTICE 'Skipping user_stats auth.users backfill because existing foreign key target is not auth.users';
+  END IF;
+
+-- Recalculate stats for all users with entries
+  FOR user_record IN
+    SELECT DISTINCT user_id
+    FROM entries
+  LOOP
+    PERFORM recalculate_user_stats(user_record.user_id);
+  END LOOP;
+
+  RAISE NOTICE '✅ Initialized stats for existing users';
+END $$;
+
+-- ============================================================
+-- 9. ADD HELPFUL COMMENTS
+-- ============================================================
   FOR user_record IN
     SELECT DISTINCT user_id
     FROM entries
