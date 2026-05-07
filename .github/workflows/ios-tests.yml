@@ -34,15 +34,16 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --strict
 
-      - name: Create CI Secrets.swift
+      - name: Create CI local xcconfig overrides
         run: |
-          cat > MeetMemento/Secrets.swift << 'EOF'
-          import Foundation
+          cat > MeetMemento/Config/Debug.local.xcconfig << 'EOF'
+          SUPABASE_URL = https://example.supabase.co
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaSIsInJvbGUiOiJhbm9uIn0.signature
+          EOF
 
-          enum Secrets {
-              static let supabaseUrl = ProcessInfo.processInfo.environment["SUPABASE_URL"] ?? "https://example.supabase.co"
-              static let supabaseAnonKey = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] ?? "public-anon-key-placeholder"
-          }
+          cat > MeetMemento/Config/Release.local.xcconfig << 'EOF'
+          SUPABASE_URL = https://example.supabase.co
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaSIsInJvbGUiOiJhbm9uIn0.signature
           EOF
 
       - name: Build and test (simulator)
@@ -50,6 +51,7 @@ jobs:
           set -euo pipefail
 
           run_tests() {
+            rm -rf TestResults.xcresult
             xcodebuild \
               -scheme MeetMemento \
               -destination "platform=iOS Simulator,name=iPhone 17" \
@@ -108,19 +110,40 @@ jobs:
             exit 0
           fi
 
-          if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y unzip
-          elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y unzip
-          elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y unzip
-          elif command -v brew >/dev/null 2>&1; then
-            brew install unzip
-          else
-            echo "unzip is required but no supported package manager was found."
-            exit 1
-          fi
+          cat > "$RUNNER_TEMP/unzip" << 'EOF'
+          #!/usr/bin/env python3
+          import os
+          import sys
+          import zipfile
+
+          args = sys.argv[1:]
+          destination = "."
+          archive = None
+
+          i = 0
+          while i < len(args):
+              arg = args[i]
+              if arg == "-d" and i + 1 < len(args):
+                  destination = args[i + 1]
+                  i += 2
+                  continue
+              if arg.startswith("-"):
+                  i += 1
+                  continue
+              archive = arg
+              i += 1
+
+          if archive is None:
+              print("usage: unzip <archive> [-d destination]", file=sys.stderr)
+              sys.exit(2)
+
+          os.makedirs(destination, exist_ok=True)
+          with zipfile.ZipFile(archive, "r") as zf:
+              zf.extractall(destination)
+          EOF
+
+          chmod +x "$RUNNER_TEMP/unzip"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - uses: denoland/setup-deno@v2
         with:
