@@ -85,14 +85,17 @@ CREATE INDEX IF NOT EXISTS chat_messages_user_created_idx
 -- Row Level Security
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users read own messages" ON chat_messages;
 CREATE POLICY "Users read own messages"
   ON chat_messages FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users insert own messages" ON chat_messages;
 CREATE POLICY "Users insert own messages"
   ON chat_messages FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users delete own messages" ON chat_messages;
 CREATE POLICY "Users delete own messages"
   ON chat_messages FOR DELETE
   USING (auth.uid() = user_id);
