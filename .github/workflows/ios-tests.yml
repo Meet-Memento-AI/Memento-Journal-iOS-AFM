@@ -38,12 +38,12 @@ jobs:
         run: |
           cat > MeetMemento/Config/Debug.local.xcconfig << 'EOF'
           SUPABASE_URL = https://example.supabase.co
-          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaSIsInJvbGUiOiJhbm9uIn0.signature
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
           EOF
 
           cat > MeetMemento/Config/Release.local.xcconfig << 'EOF'
           SUPABASE_URL = https://example.supabase.co
-          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaSIsInJvbGUiOiJhbm9uIn0.signature
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
           EOF
 
       - name: Build and test (simulator)
@@ -51,6 +51,7 @@ jobs:
           set -euo pipefail
 
           run_tests() {
+            rm -rf TestResults
             rm -rf TestResults.xcresult
             xcodebuild \
               -scheme MeetMemento \
