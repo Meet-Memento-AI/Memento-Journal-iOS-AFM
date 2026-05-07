@@ -418,15 +418,6 @@ END $$;
 -- ============================================================
 -- 9. ADD HELPFUL COMMENTS
 -- ============================================================
-  FOR user_record IN
-    SELECT DISTINCT user_id
-    FROM entries
-  LOOP
-    PERFORM recalculate_user_stats(user_record.user_id);
-  END LOOP;
-
-  RAISE NOTICE '✅ Initialized stats for existing users';
-END $$;
 
 -- ============================================================
 -- 9. ADD HELPFUL COMMENTS
