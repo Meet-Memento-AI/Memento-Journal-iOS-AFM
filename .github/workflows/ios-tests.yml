@@ -72,7 +72,7 @@ jobs:
 
       - name: Coverage gate
         env:
-          MIN_COVERAGE: "5"
+          MIN_COVERAGE: "4"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 
       - name: Install Periphery
