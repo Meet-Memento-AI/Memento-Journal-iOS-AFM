@@ -39,11 +39,23 @@ class AuthViewModel: ObservableObject {
         SupabaseService.shared.client
     }
 
+    private var isRunningAnyTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     /// Restores session on app launch and checks onboarding status from DB.
     func initializeAuth() async {
         defer {
             self.isInitializing = false
             self.hasCheckedAuth = true
+        }
+
+        // Unit tests and UI tests should never require live Supabase bootstrap during app startup.
+        if isRunningAnyTest {
+            self.isAuthenticated = false
+            self.hasCompletedOnboarding = false
+            self.authState = .unauthenticated
+            return
         }
 
         // UI tests: clear any persisted session so Welcome + stable IDs are reachable.
