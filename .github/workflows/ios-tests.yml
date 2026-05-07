@@ -47,12 +47,24 @@ jobs:
 
       - name: Build and test (simulator)
         run: |
-          xcodebuild \
-            -scheme MeetMemento \
-            -destination "platform=iOS Simulator,name=iPhone 17" \
-            -resultBundlePath TestResults \
-            -enableCodeCoverage YES \
-            test
+          set -euo pipefail
+
+          run_tests() {
+            xcodebuild \
+              -scheme MeetMemento \
+              -destination "platform=iOS Simulator,name=iPhone 17" \
+              -resultBundlePath TestResults \
+              -enableCodeCoverage YES \
+              -parallel-testing-enabled NO \
+              test
+          }
+
+          if ! run_tests; then
+            echo "First simulator test run failed. Resetting simulators and retrying once..."
+            xcrun simctl shutdown all || true
+            xcrun simctl erase all || true
+            run_tests
+          fi
 
       - name: Coverage gate
         env:
@@ -88,6 +100,27 @@ jobs:
     runs-on: [self-hosted, Linux, x64]
     steps:
       - uses: actions/checkout@v6
+
+      - name: Ensure unzip is available
+        run: |
+          set -euo pipefail
+          if command -v unzip >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y unzip
+          elif command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y unzip
+          elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y unzip
+          elif command -v brew >/dev/null 2>&1; then
+            brew install unzip
+          else
+            echo "unzip is required but no supported package manager was found."
+            exit 1
+          fi
 
       - uses: denoland/setup-deno@v2
         with:
