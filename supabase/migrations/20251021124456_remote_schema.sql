@@ -1,12 +1,14 @@
-alter table "public"."entries" add column "is_archived" boolean default false;
+alter table "public"."entries" add column if not exists "is_archived" boolean default false;
 
-alter table "public"."entries" add column "tags" text[] default '{}'::text[];
+alter table "public"."entries" add column if not exists "tags" text[] default '{}'::text[];
 
-alter table "public"."entries" add column "title" text;
+alter table "public"."entries" add column if not exists "title" text;
 
 alter table "public"."entries" alter column "created_at" set not null;
 
 alter table "public"."entries" alter column "updated_at" set not null;
+
+alter table "public"."entries" drop constraint if exists "text_not_empty";
 
 alter table "public"."entries" add constraint "text_not_empty" CHECK ((char_length(text) > 0)) not valid;
 
@@ -129,6 +131,7 @@ AS $function$
   $function$
 ;
 
+drop policy if exists "Users can create own entries" on "public"."entries";
 create policy "Users can create own entries"
 on "public"."entries"
 as permissive
@@ -137,6 +140,7 @@ to public
 with check ((auth.uid() = user_id));
 
 
+drop policy if exists "Users can create their own entries" on "public"."entries";
 create policy "Users can create their own entries"
 on "public"."entries"
 as permissive
@@ -145,6 +149,7 @@ to public
 with check ((auth.uid() = user_id));
 
 
+drop policy if exists "Users can delete their own entries" on "public"."entries";
 create policy "Users can delete their own entries"
 on "public"."entries"
 as permissive
@@ -153,6 +158,7 @@ to public
 using ((auth.uid() = user_id));
 
 
+drop policy if exists "Users can update their own entries" on "public"."entries";
 create policy "Users can update their own entries"
 on "public"."entries"
 as permissive
@@ -162,6 +168,7 @@ using ((auth.uid() = user_id))
 with check ((auth.uid() = user_id));
 
 
+drop policy if exists "Users can view their own entries" on "public"."entries";
 create policy "Users can view their own entries"
 on "public"."entries"
 as permissive
@@ -170,8 +177,10 @@ to public
 using ((auth.uid() = user_id));
 
 
+drop trigger if exists entries_updated_at on public.entries;
 CREATE TRIGGER entries_updated_at BEFORE UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+drop trigger if exists update_entries_updated_at on public.entries;
 CREATE TRIGGER update_entries_updated_at BEFORE UPDATE ON public.entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
