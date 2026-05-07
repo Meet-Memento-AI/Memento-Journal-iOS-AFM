@@ -27,21 +27,25 @@ CREATE INDEX IF NOT EXISTS chat_sessions_user_updated_idx ON chat_sessions(user_
 ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Users can only read their own sessions
+DROP POLICY IF EXISTS "Users read own sessions" ON chat_sessions;
 CREATE POLICY "Users read own sessions"
   ON chat_sessions FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can only insert sessions for themselves
+DROP POLICY IF EXISTS "Users insert own sessions" ON chat_sessions;
 CREATE POLICY "Users insert own sessions"
   ON chat_sessions FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can only update their own sessions
+DROP POLICY IF EXISTS "Users update own sessions" ON chat_sessions;
 CREATE POLICY "Users update own sessions"
   ON chat_sessions FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- Users can only delete their own sessions
+DROP POLICY IF EXISTS "Users delete own sessions" ON chat_sessions;
 CREATE POLICY "Users delete own sessions"
   ON chat_sessions FOR DELETE
   USING (auth.uid() = user_id);
