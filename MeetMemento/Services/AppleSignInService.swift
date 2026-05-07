@@ -160,7 +160,7 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
                  case .credentialImport, .credentialExport:
                     // These are passkey-related errors not applicable to Sign in with Apple
                     continuation?.resume(throwing: AppleSignInError.failed)
-                @unknown default:
+                default:
                     continuation?.resume(throwing: error)
                 }
             } else {

@@ -50,7 +50,9 @@ private struct AccessibleAnimationValuelessModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .animation(reduceMotion ? nil : animation)
+            .transaction { transaction in
+                transaction.animation = reduceMotion ? nil : animation
+            }
     }
 }
 
