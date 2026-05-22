@@ -63,7 +63,7 @@ final class SpeechService: ObservableObject {
 
     // MARK: - Audio level (for voice-reactive UI)
 
-    private static func computeRMS(from buffer: AVAudioPCMBuffer) -> Float {
+    private nonisolated static func computeRMS(from buffer: AVAudioPCMBuffer) -> Float {
         let frameLength = Int(buffer.frameLength)
         guard frameLength > 0 else { return 0 }
         if let channelData = buffer.floatChannelData {
@@ -116,7 +116,7 @@ final class SpeechService: ObservableObject {
 
     /// Converts buffer to 16 kHz mono for Speech framework; returns nil on failure.
     /// Output buffer capacity must be >= input frame length per AVAudioConverter requirement.
-    private static func convertTo16kMono(_ buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, converter: AVAudioConverter, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
+    private nonisolated static func convertTo16kMono(_ buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, converter: AVAudioConverter, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
         let outFrameCount = AVAudioFrameCount(Double(buffer.frameLength) * 16000.0 / inputFormat.sampleRate + 1)
         let capacity = max(outFrameCount, buffer.frameLength)
         guard let outBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else { return nil }
@@ -151,8 +151,14 @@ final class SpeechService: ObservableObject {
 
     private func requestMicrophonePermission() async -> Bool {
         await withCheckedContinuation { continuation in
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                continuation.resume(returning: granted)
+            if #available(iOS 17.0, *) {
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            } else {
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
             }
         }
     }
@@ -191,7 +197,11 @@ final class SpeechService: ObservableObject {
         onLevel: @escaping (Float) -> Void
     ) throws -> (AVAudioEngine, SFSpeechAudioBufferRecognitionRequest, SFSpeechRecognitionTask) {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [.allowBluetooth])
+        try session.setCategory(
+            .record,
+            mode: .measurement,
+            options: [AVAudioSession.CategoryOptions.allowBluetoothHFP]
+        )
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         let request = SFSpeechAudioBufferRecognitionRequest()

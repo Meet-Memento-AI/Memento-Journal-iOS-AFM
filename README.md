@@ -6,17 +6,20 @@ A journaling app with AI-powered insights.
 
 ### 1. Supabase Configuration
 
-**⚠️ IMPORTANT:** The Supabase configuration file is not included in version control for security reasons.
+**⚠️ IMPORTANT:** Use local xcconfig override files for Supabase values. Do not commit real keys.
 
-1. Copy the template file:
+1. Copy the local override templates:
    ```bash
-   cp MeetMemento/Resources/SupabaseConfig.swift.template MeetMemento/Resources/SupabaseConfig.swift
+   cp MeetMemento/Config/Debug.local.xcconfig.template MeetMemento/Config/Debug.local.xcconfig
+   cp MeetMemento/Config/Release.local.xcconfig.template MeetMemento/Config/Release.local.xcconfig
    ```
 
-2. Open `SupabaseConfig.swift` and replace placeholders with your actual credentials:
+2. Open both local files and replace placeholders with your actual credentials:
    - Get your Supabase URL and anon key from: [Supabase Dashboard → Settings → API](https://app.supabase.com/project/_/settings/api)
 
-3. **Never commit** `SupabaseConfig.swift` to version control (it's already in `.gitignore`)
+3. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected into `Info.plist` from xcconfig and read at runtime by `SupabaseService`.
+
+4. **Never commit** `Debug.local.xcconfig` or `Release.local.xcconfig` (already ignored in `.gitignore`).
 
 ### 2. Build & Run
 
@@ -66,8 +69,8 @@ MeetMemento/
 ## Security
 
 - Supabase credentials are stored locally and never committed to version control
-- All API keys should be stored in `SupabaseConfig.swift` (local only)
-- Use the `.template` file as a reference for required configuration
+- Supabase values are loaded from local `*.local.xcconfig` files
+- Use the `.template` files as references for required configuration keys
 
 ## Development
 
