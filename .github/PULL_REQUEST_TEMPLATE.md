@@ -11,6 +11,7 @@
 ## CI and Security
 
 - [ ] This PR targets `dev` unless it is a release promotion PR from `dev` to `main`.
+- [ ] If auth/OAuth configuration changed, I verified Supabase Site URL and Redirect URLs using the checklist in `README.md` (Setup -> Supabase Auth URL Configuration).
 - [ ] SwiftLint passes in strict mode.
 - [ ] Coverage gate passes.
 - [ ] Security checks pass (CodeQL, dependency review, secret scanning).

@@ -6,16 +6,36 @@ private enum Environment {
     static let supabaseURLKey = "SUPABASE_URL"
     static let supabaseAnonKeyKey = "SUPABASE_ANON_KEY"
 
+    private static let placeholderValues: Set<String> = [
+        "https://YOUR_PROJECT_ID.supabase.co",
+        "YOUR_SUPABASE_ANON_KEY",
+        "your-supabase-anon-key"
+    ]
+
     static func value(forInfoDictionaryKey key: String) -> String? {
         guard let rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
             return nil
         }
 
-        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else {
+        var normalized = rawValue
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\/", with: "/")
+
+        if normalized.hasPrefix("\"") && normalized.hasSuffix("\"") && normalized.count >= 2 {
+            normalized.removeFirst()
+            normalized.removeLast()
+            normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard !normalized.isEmpty, !normalized.hasPrefix("$(") else {
             return nil
         }
-        return trimmed
+
+        if placeholderValues.contains(normalized) {
+            return nil
+        }
+
+        return normalized
     }
 }
 
@@ -23,6 +43,10 @@ private enum Environment {
 /// Ensure you have added the 'supabase-swift' package dependency to your project.
 class SupabaseService {
     static let shared = SupabaseService()
+
+    // Supabase client initialization may parse JWT claims from anon key.
+    // Use a structurally valid placeholder to avoid fatal crashes when local config is missing.
+    private static let fallbackAnonJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl"
 
     /// Configuration error that occurred during initialization
     enum ConfigurationError: LocalizedError {
@@ -59,12 +83,18 @@ class SupabaseService {
         if let configuredAnonKey {
             self.supabaseKey = configuredAnonKey
         } else {
-            self.supabaseKey = "invalid-anon-key"
+            self.supabaseKey = Self.fallbackAnonJWT
             self.configurationError = .missingValue(Environment.supabaseAnonKeyKey)
         }
 
-        // Validate URL - use a safe fallback if invalid to prevent crash
-        if let configuredURLString, let url = URL(string: configuredURLString) {
+                // Validate URL - use a safe fallback if invalid to prevent crash.
+                // URL(string:) accepts values like "https:" (no host), so we require
+                // both an http/https scheme and a host component.
+                  if let configuredURLString,
+                      let url = URL(string: configuredURLString),
+                     let scheme = url.scheme?.lowercased(),
+                     ["http", "https"].contains(scheme),
+                     url.host != nil {
             self.supabaseUrl = url
             if self.configurationError == nil {
                 self.configurationError = nil
@@ -78,8 +108,7 @@ class SupabaseService {
             self.configurationError = self.configurationError ?? .invalidSupabaseURL(badValue)
 
             #if DEBUG
-            // In debug builds, assert to catch configuration errors during development
-            assertionFailure("Invalid Supabase configuration. Check SUPABASE_URL and SUPABASE_ANON_KEY in your xcconfig files.")
+            print("⚠️ SUPABASE CONFIG ERROR: Check SUPABASE_URL and SUPABASE_ANON_KEY in your local xcconfig files.")
             #endif
         }
 
