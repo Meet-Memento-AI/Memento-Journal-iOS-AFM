@@ -24,6 +24,26 @@ A journaling app with AI-powered insights.
 2. Select your target device/simulator
 3. Build and run (⌘R)
 
+### 3. Supabase Auth URL Configuration (OAuth)
+
+Use this checklist for OAuth providers (Google/Apple web flows) and iOS deep-link callbacks.
+
+1. In Supabase Dashboard, go to Authentication -> URL Configuration.
+2. Set Site URL:
+   - Production: `https://www.meetmemento.com`
+3. Keep only required production Redirect URLs:
+   - `memento://auth/callback`
+   - `https://www.meetmemento.com/auth/callback`
+4. Remove unused Redirect URLs in production:
+   - `exp://*`, `latest://auth/callback`, `localhost`, and LAN IP callback URLs.
+5. For Google OAuth in Google Cloud Console, keep this authorized redirect URI:
+   - `https://fhsgvlbedqwxwpubtlls.supabase.co/auth/v1/callback`
+
+Notes:
+- The iOS app expects `memento://auth/callback` (configured in `Info.plist` and Supabase client auth options).
+- Keep development callback URLs only in development environments/projects.
+- Avoid wildcard redirect URLs in production.
+
 ## Project Structure
 
 ```

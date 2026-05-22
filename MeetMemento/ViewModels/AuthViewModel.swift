@@ -39,11 +39,27 @@ class AuthViewModel: ObservableObject {
         SupabaseService.shared.client
     }
 
+    private func configuredClient() throws -> SupabaseClient {
+        try SupabaseService.shared.getClient()
+    }
+
+    private var isRunningAnyTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     /// Restores session on app launch and checks onboarding status from DB.
     func initializeAuth() async {
         defer {
             self.isInitializing = false
             self.hasCheckedAuth = true
+        }
+
+        // Unit tests and UI tests should never require live Supabase bootstrap during app startup.
+        if isRunningAnyTest {
+            self.isAuthenticated = false
+            self.hasCompletedOnboarding = false
+            self.authState = .unauthenticated
+            return
         }
 
         // UI tests: clear any persisted session so Welcome + stable IDs are reachable.
@@ -67,6 +83,16 @@ class AuthViewModel: ObservableObject {
 
         self.isInitializing = true
 
+        print("🔵 [Auth] Checking Supabase config...")
+        if let configError = SupabaseService.shared.configurationError {
+            print("⚠️ [Auth] Skipping session restore due to invalid Supabase config: \(configError.localizedDescription)")
+            self.isAuthenticated = false
+            self.hasCompletedOnboarding = false
+            self.authState = .unauthenticated
+            return
+        }
+        print("🔵 [Auth] Config OK. Checking inactivity...")
+
         // Check for inactivity timeout FIRST (14+ days of inactivity)
         if SecurityService.shared.shouldAutoLogout() {
             print("⏰ [Auth] Auto-logout triggered: 14+ days of inactivity")
@@ -74,25 +100,38 @@ class AuthViewModel: ObservableObject {
             return
         }
 
+        print("🔵 [Auth] Fetching session (8s timeout)...")
+        // Capture client before entering task group to avoid @MainActor isolation issues
+        let supabaseClient = self.client
         do {
-            let session = try await client.auth.session
+            let session = try await withThrowingTaskGroup(of: Session.self) { group in
+                group.addTask { try await supabaseClient.auth.session }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 8_000_000_000)
+                    throw CancellationError()
+                }
+                guard let result = try await group.next() else { throw CancellationError() }
+                group.cancelAll()
+                return result
+            }
 
+            print("🔵 [Auth] Session found. Ensuring user exists...")
             if let email = session.user.email {
                 try? await UserService.shared.ensureUserExists(id: session.user.id, email: email)
             }
 
+            print("🔵 [Auth] Checking onboarding status...")
             let hasOnboarded = try await UserService.shared.hasCompletedOnboarding(userId: session.user.id)
 
             self.isAuthenticated = true
             self.hasCompletedOnboarding = hasOnboarded
             self.authState = .authenticated(needsOnboarding: !hasOnboarded)
 
-            // Update activity timestamp on successful session restore
             SecurityService.shared.updateActivityTimestamp()
 
             print("✅ Supabase Session Restored: \(session.user.id), onboarded: \(hasOnboarded)")
         } catch {
-            print("ℹ️ No active Supabase session found.")
+            print("ℹ️ No active Supabase session found or timed out: \(error)")
             self.isAuthenticated = false
             self.hasCompletedOnboarding = false
             self.authState = .unauthenticated
@@ -116,6 +155,7 @@ class AuthViewModel: ObservableObject {
 
     /// Sends a magic link / OTP to the user's email
     func sendOTP(email: String) async throws {
+        let client = try configuredClient()
         self.currentEmail = email
         // Using Email OTP (Magic Link logic can differ, standard is OTP)
         try await client.auth.signInWithOTP(email: email)
@@ -124,6 +164,7 @@ class AuthViewModel: ObservableObject {
 
     /// Verifies the OTP code and dynamically checks DB for onboarding status.
     func verifyOTP(email: String, code: String) async throws {
+        let client = try configuredClient()
         let session = try await client.auth.verifyOTP(
             email: email,
             token: code,
@@ -158,7 +199,9 @@ class AuthViewModel: ObservableObject {
     }
 
     func signOut() async {
-        try? await client.auth.signOut()
+        if let configuredClient = try? configuredClient() {
+            try? await configuredClient.auth.signOut()
+        }
         SecurityService.shared.clearActivityTimestamp()
         self.isAuthenticated = false
         self.hasCompletedOnboarding = false
@@ -194,6 +237,7 @@ class AuthViewModel: ObservableObject {
     }
 
     func updateProfile(firstName: String, lastName: String) async throws {
+        let client = try configuredClient()
         let attributes = UserAttributes(data: [
             "full_name": .string("\(firstName) \(lastName)")
         ])
@@ -205,6 +249,7 @@ class AuthViewModel: ObservableObject {
 
     /// Signs in with Apple using native AuthenticationServices
     func signInWithApple() async throws {
+        let client = try configuredClient()
         let appleResult = try await AppleSignInService.shared.signIn()
 
         let session = try await client.auth.signInWithIdToken(
@@ -247,6 +292,7 @@ class AuthViewModel: ObservableObject {
 
     /// Signs in with Google using the SDK's built-in ASWebAuthenticationSession flow
     func signInWithGoogle() async throws {
+        let client = try configuredClient()
         let session = try await client.auth.signInWithOAuth(
             provider: .google
         ) { (session: ASWebAuthenticationSession) in
@@ -278,6 +324,7 @@ class AuthViewModel: ObservableObject {
 
     /// Deletes the user's account and all associated data
     func deleteAccount() async throws {
+        let client = try configuredClient()
         guard let userId = client.auth.currentUser?.id else {
             throw AuthError.notAuthenticated
         }
