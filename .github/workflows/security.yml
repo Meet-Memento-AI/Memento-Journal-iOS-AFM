@@ -55,11 +55,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # spec-006: blocking on critical vulnerabilities (was advisory).
       - name: Dependency review
-        continue-on-error: true
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: high
+          fail-on-severity: critical
 
       - name: Dependency review note
         if: always()

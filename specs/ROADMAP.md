@@ -11,7 +11,7 @@ Review date: **2026-07-13** · branch `sync/upstream-main` · workflow in `specs
 | [003](003-database-baseline-and-account-deletion.md) | Database Baseline and Account Deletion | P0 | 2 | — | not-started |
 | [004](004-edge-function-security-and-cost.md) | Edge Function Security and LLM Cost Controls | P1 | 2 | 003 | not-started |
 | [005](005-release-logging-privacy.md) | Release Logging Privacy | P1 | 1 | — | ✅ done (2026-07-14) |
-| [006](006-ci-and-build-config-integrity.md) | CI and Build Configuration Integrity | P1 | 1–2 | 003 | not-started |
+| [006](006-ci-and-build-config-integrity.md) | CI and Build Configuration Integrity | P1 | 1–2 | 003 | ✅ done (2026-07-14) — CI-live checks are user actions |
 | [007](007-offline-resilience.md) | Offline Resilience | P2 | 2 | — | not-started |
 | [008](008-dynamic-type-and-accessibility.md) | Dynamic Type and Accessibility Completion | P2 | 2 | — | not-started |
 | [009](009-launch-experience-and-ui-consistency.md) | Launch Experience and UI System Consistency | P2 | 1–2 | — | not-started |

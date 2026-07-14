@@ -119,6 +119,18 @@ class SupabaseService {
                 )
             )
         )
+
+        // spec-006 R3: surface misconfiguration immediately during development.
+        // A misconfigured Release can't even be built (the Release build-phase gate
+        // blocks a placeholder SUPABASE_URL); at runtime AuthViewModel degrades to
+        // an unauthenticated state. This assertion just shortens the dev feedback loop.
+        #if DEBUG
+        if let configurationError,
+           ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1",
+           NSClassFromString("XCTestCase") == nil {
+            assertionFailure("Supabase misconfigured: \(configurationError.localizedDescription). Set MeetMemento/Config/Debug.local.xcconfig.")
+        }
+        #endif
     }
 
     /// Returns the Supabase client, throwing if configuration failed

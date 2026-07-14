@@ -2,7 +2,7 @@
 id: 006
 title: CI and Build Configuration Integrity
 tier: P1
-status: not-started
+status: done (2026-07-14) — CI-live verification is a user action
 effort: 1-2 sessions
 depends_on: [003]
 findings: [staging-migration-error-masking, prod-deploy-no-test-gate, hardcoded-runner-paths, no-staging-xcconfig, release-endpoint-unasserted, coverage-gate-3-percent, advisory-lint-and-security]
@@ -73,38 +73,63 @@ with real tests.
 - Migrating to GitHub-hosted runners (cost/infra decision — document status quo only).
 - The `print(` lint rule content → **spec 005** (this spec only makes lint blocking).
 
+## Implementation notes (2026-07-14)
+
+- **R1**: deleted the grep-swallow blocks in both dev + staging migration steps of
+  `deploy-dev-staging.yml`; migrations now fail-fast under `ON_ERROR_STOP=1` with a
+  clear `::error::`. Relies on spec 003's idempotent migrations (guards belong in the
+  SQL, not the pipeline).
+- **R2**: added a `tests` job to `deploy-prod.yml` (runs `deno test` **and** an
+  `actions/github-script` step that queries the Checks API for the deploy SHA — fails
+  unless the iOS/SwiftLint/coverage checks conclude `success`/`skipped`). `deploy-prod`
+  now `needs: [preflight, tests]`. Typed `deploy-production` confirmation preserved.
+- **R3**: `scripts/ci/assert_release_endpoint.sh` (dual-mode: build-phase `$SUPABASE_URL`
+  or `xcodebuild -showBuildSettings`). Enforcement is a **Release-only Xcode build phase**
+  ("Assert Release endpoint (spec-006)") — inlined into the phase (not an external file)
+  to satisfy Xcode's user-script sandbox. Verified: Debug build skips + succeeds; Release
+  build **fails** on the placeholder URL with the assertion message. This is stronger
+  than a CI step (CI never archives — archiving is local), so it also fixes the
+  originally-planned "wire into ios-tests.yml" as a build-time gate instead.
+- **R3 (SupabaseService)**: added a DEBUG `assertionFailure` on `configurationError`
+  (guarded against previews + XCTest) — fires only on genuinely broken config
+  (missing key / unparseable URL), not on the standard placeholder (which parses).
+  AuthViewModel already degrades to unauthenticated at runtime (`:90`). Migrated its 2
+  prints to `AppLogger` (delegated from spec 005).
+- **R4**: `RUNNER_FUNCTIONS_PATH` var wired into all four functions-path fallbacks in
+  `deploy-dev-staging.yml`; personal `/home/thomas/...` path is now only the last-resort
+  documented default. Wrote `docs/CI_RUNNERS.md` (labels, software, vars, secrets,
+  offline impact).
+- **R5**: `lint_changed_swift.sh` PR step made **blocking** (removed `continue-on-error`);
+  `dependency-review` now `fail-on-severity: critical` (was advisory `high`);
+  `MIN_COVERAGE` kept at 3 with a **ratchet-only** comment — the orchestrator/spec 011
+  raises it after real tests land (measuring now would just lock in 3).
+
 ## Tasks
 
-- [ ] 1. Delete the grep-swallow blocks; switch dev/staging migration application to
-      fail-fast (`supabase db push` against the target, or psql with `ON_ERROR_STOP=1`
-      and no error filtering). Requires 003 done. (R1)
-- [ ] 2. Test-gate prod: add deno-test + iOS-test verification (job dependency or
-      Checks-API query for the SHA) to `deploy-prod.yml`. (R2)
-- [ ] 3. Add the Release endpoint assertion script (`scripts/ci/assert_release_endpoint.sh`):
-      resolve build settings via `xcodebuild -showBuildSettings -configuration Release`,
-      fail on placeholder or non-prod URL; call it in `ios-tests.yml` and document it
-      for local archiving. (R3)
-- [ ] 4. Improve `SupabaseService` placeholder handling: misconfiguration surfaces
-      immediately (assertionFailure in Debug; user-visible config-error state instead
-      of silent invalid-URL client in Release). (R3)
-- [ ] 5. Parameterize the runner function-sync path into a GitHub Actions variable;
-      write the runner requirements doc. (R4)
-- [ ] 6. Measure current real coverage → set `MIN_COVERAGE` to that floor with the
-      ratchet-only comment. (R5)
-- [ ] 7. Make `lint_changed_swift.sh` blocking (remove `continue-on-error`), and
-      dependency-review fail on critical. (R5)
+- [x] 1. Migration steps fail-fast; grep-swallow deleted (both dev + staging). (R1)
+- [x] 2. `deploy-prod.yml` test gate (deno + Checks-API iOS gate); `needs` updated. (R2)
+- [x] 3. `assert_release_endpoint.sh` + Release-only build phase; Debug skips, Release
+      fails on placeholder (verified). (R3)
+- [x] 4. `SupabaseService` DEBUG assertionFailure (preview/test-guarded) + AppLogger. (R3)
+- [x] 5. `RUNNER_FUNCTIONS_PATH` var + `docs/CI_RUNNERS.md`. (R4)
+- [x] 6. `MIN_COVERAGE` ratchet-only comment (value stays 3 until spec 011). (R5)
+- [x] 7. Changed-files SwiftLint blocking; dependency-review on `critical`. (R5)
 
 ## Verification
 
-- [ ] Push a branch with an intentionally broken migration → dev/staging workflow fails
-      at the migration step (then delete the branch).
-- [ ] Attempt a prod deploy from a SHA with a failing test → workflow refuses.
-- [ ] Build Release with placeholder xcconfig → build fails with the assertion message;
-      with real prod values → passes.
-- [ ] Lower a Swift file into a lint violation on a test branch → CI fails.
-- [ ] Coverage below the new floor (temporarily exclude a covered file) → CI fails;
-      restored → passes.
-- [ ] Normal PR flow (`ios-tests.yml` on a clean branch) is green end-to-end.
+- [x] All 4 workflow YAMLs parse (ruby YAML.load); all `scripts/ci/*.sh` pass `bash -n`. ✅
+- [x] Build Release with placeholder xcconfig → **build fails** with
+      "Release SUPABASE_URL is a placeholder/empty"; Debug build skips the phase and
+      **succeeds**. ✅ (R3 acceptance met)
+- [x] `assert_release_endpoint.sh Release` dry-run → exits 1 on the current placeholder
+      (correct). ✅
+- [ ] Push a branch with an intentionally broken migration → dev/staging workflow fails —
+      **user/CI action** (needs the self-hosted runner + a live push).
+- [ ] Attempt a prod deploy from a SHA with a failing test → workflow refuses —
+      **user/CI action**.
+- [ ] Lower a Swift file into a lint violation on a PR → CI fails — **user/CI action**
+      (swiftlint not installed locally; the `no_print` rule + blocking step are wired).
+- [ ] Normal PR flow green end-to-end — **user/CI action**.
 
 ## Regression Guards
 

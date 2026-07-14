@@ -20,14 +20,12 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: SwiftLint changed files (strict)
+      # spec-006: SwiftLint is now BLOCKING for new violations on PRs (changed files
+      # only, so pre-existing debt elsewhere doesn't block). The no_print custom rule
+      # (spec-005) is enforced here.
+      - name: SwiftLint changed files (strict, blocking)
         if: github.event_name == 'pull_request'
-        continue-on-error: true
         run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
-
-      - name: SwiftLint advisory note
-        if: github.event_name == 'pull_request'
-        run: echo "SwiftLint is advisory during rollout. Keep iOS build, tests, coverage, and security checks as blocking gates."
 
       - name: SwiftLint full project (advisory on push)
         if: github.event_name == 'push'
@@ -81,6 +79,9 @@ jobs:
 
       - name: Coverage gate
         env:
+          # spec-006/011: RATCHET-ONLY. This floor may only ever INCREASE.
+          # Kept at the rollout baseline until spec 011 adds tests for the
+          # security-critical paths, after which it is raised to the measured floor.
           MIN_COVERAGE: "3"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 

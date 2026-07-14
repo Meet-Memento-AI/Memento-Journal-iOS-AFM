@@ -33,10 +33,10 @@
 		A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
-		B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
-		B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
-		B7F000032F00110000A00001 /* MeetMemento/Config/Debug.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.local.xcconfig.template; sourceTree = "<group>"; };
-		B7F000042F00110000A00001 /* MeetMemento/Config/Release.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.local.xcconfig.template; sourceTree = "<group>"; };
+		B7F000012F00110000A00001 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
+		B7F000022F00110000A00001 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
+		B7F000032F00110000A00001 /* Debug.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.local.xcconfig.template; sourceTree = "<group>"; };
+		B7F000042F00110000A00001 /* Release.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.local.xcconfig.template; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -69,11 +69,15 @@
 		};
 		A52968772E8CCF14004F65BE /* MeetMementoTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MeetMementoTests;
 			sourceTree = "<group>";
 		};
 		A52968812E8CCF14004F65BE /* MeetMementoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MeetMementoUITests;
 			sourceTree = "<group>";
 		};
@@ -139,10 +143,10 @@
 		B7F000052F00110000A00001 /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */,
-				B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */,
-				B7F000032F00110000A00001 /* MeetMemento/Config/Debug.local.xcconfig.template */,
-				B7F000042F00110000A00001 /* MeetMemento/Config/Release.local.xcconfig.template */,
+				B7F000012F00110000A00001 /* Debug.xcconfig */,
+				B7F000022F00110000A00001 /* Release.xcconfig */,
+				B7F000032F00110000A00001 /* Debug.local.xcconfig.template */,
+				B7F000042F00110000A00001 /* Release.local.xcconfig.template */,
 			);
 			name = Config;
 			sourceTree = "<group>";
@@ -154,6 +158,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMemento" */;
 			buildPhases = (
+				54204DD48CF8F2F920283E07 /* Assert Release endpoint (spec-006) */,
 				A52968602E8CCF12004F65BE /* Sources */,
 				A52968612E8CCF12004F65BE /* Frameworks */,
 				A52968622E8CCF12004F65BE /* Resources */,
@@ -288,6 +293,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		54204DD48CF8F2F920283E07 /* Assert Release endpoint (spec-006) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Assert Release endpoint (spec-006)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# spec-006 R3: fail a Release build pointed at a placeholder/non-prod Supabase URL.\n# Inlined (not an external script) to stay inside Xcode's user-script sandbox.\nif [ \"$CONFIGURATION\" != \"Release\" ]; then\n  echo \"assert_release_endpoint: skipped ($CONFIGURATION)\"\n  exit 0\nfi\nURL=$(printf '%s' \"${SUPABASE_URL:-}\" | tr -d '[:space:]')\necho \"Release SUPABASE_URL: '$URL'\"\ncase \"$URL\" in\n  \"\"|*YOUR_PROJECT_ID*|*your-project-id*|*YOUR_SUPABASE*|*placeholder*|*xxxxx*|*invalid.supabase*)\n    echo \"error: Release SUPABASE_URL is a placeholder/empty ('$URL'). Set MeetMemento/Config/Release.local.xcconfig to the production project. (spec-006)\"\n    exit 1 ;;\nesac\nif ! printf '%s' \"$URL\" | grep -Eq '^https://[a-z0-9-]+\\.supabase\\.co/?$'; then\n  echo \"error: Release SUPABASE_URL '$URL' is not a valid https://<project>.supabase.co URL. (spec-006)\"\n  exit 1\nfi\necho \"OK: Release endpoint is a real production URL.\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A52968602E8CCF12004F65BE /* Sources */ = {
@@ -452,7 +478,7 @@
 		};
 		A52968892E8CCF14004F65BE /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */;
+			baseConfigurationReference = B7F000012F00110000A00001 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -486,7 +512,7 @@
 		};
 		A529688A2E8CCF14004F65BE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */;
+			baseConfigurationReference = B7F000022F00110000A00001 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

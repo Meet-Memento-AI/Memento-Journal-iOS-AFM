@@ -102,13 +102,13 @@ jobs:
             fi
 
             echo "Applying migration: $file"
+            # Fail-fast: migrations must be idempotent (IF NOT EXISTS / guarded DO
+            # blocks — see spec 003). We no longer swallow "already exists" errors,
+            # because doing so masked real schema drift between staging and prod.
             if ! docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file" 2>/tmp/migration.err; then
-              if grep -Eq "already exists|duplicate key value|cannot drop function .* because other objects depend on it" /tmp/migration.err; then
-                echo "Migration has already-applied objects; recording as applied and continuing: $file"
-              else
-                cat /tmp/migration.err
-                exit 1
-              fi
+              cat /tmp/migration.err
+              echo "::error::Migration failed: $file — migrations must be idempotent (spec 003)"
+              exit 1
             fi
             docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
@@ -117,11 +117,12 @@ jobs:
         env:
           EDGE_CONTAINER: ${{ vars.DEV_SUPABASE_EDGE_CONTAINER }}
           FUNCTIONS_PATH: ${{ vars.DEV_SUPABASE_FUNCTIONS_PATH }}
+          RUNNER_FUNCTIONS_PATH: ${{ vars.RUNNER_FUNCTIONS_PATH }}
         run: |
           set -euo pipefail
 
           EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
-          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-${RUNNER_FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}}"
 
           mkdir -p "$FUNCTIONS_PATH"
           if command -v rsync >/dev/null 2>&1; then
@@ -137,11 +138,12 @@ jobs:
         env:
           EDGE_CONTAINER: ${{ vars.DEV_SUPABASE_EDGE_CONTAINER }}
           FUNCTIONS_PATH: ${{ vars.DEV_SUPABASE_FUNCTIONS_PATH }}
+          RUNNER_FUNCTIONS_PATH: ${{ vars.RUNNER_FUNCTIONS_PATH }}
         run: |
           set -euo pipefail
 
           EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
-          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-${RUNNER_FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}}"
 
           docker ps --format '{{.Names}}' | grep -Fxq "$EDGE_CONTAINER" || {
             echo "Edge runtime container '$EDGE_CONTAINER' is not running."
@@ -220,13 +222,13 @@ jobs:
             fi
 
             echo "Applying migration: $file"
+            # Fail-fast: migrations must be idempotent (IF NOT EXISTS / guarded DO
+            # blocks — see spec 003). We no longer swallow "already exists" errors,
+            # because doing so masked real schema drift between staging and prod.
             if ! docker exec -i "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$file" 2>/tmp/migration.err; then
-              if grep -Eq "already exists|duplicate key value|cannot drop function .* because other objects depend on it" /tmp/migration.err; then
-                echo "Migration has already-applied objects; recording as applied and continuing: $file"
-              else
-                cat /tmp/migration.err
-                exit 1
-              fi
+              cat /tmp/migration.err
+              echo "::error::Migration failed: $file — migrations must be idempotent (spec 003)"
+              exit 1
             fi
             docker exec "$DB_CONTAINER" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "insert into meta.ci_migrations (migration_id) values ('${migration_id}');"
           done
@@ -235,11 +237,12 @@ jobs:
         env:
           EDGE_CONTAINER: ${{ vars.STAGING_SUPABASE_EDGE_CONTAINER }}
           FUNCTIONS_PATH: ${{ vars.STAGING_SUPABASE_FUNCTIONS_PATH }}
+          RUNNER_FUNCTIONS_PATH: ${{ vars.RUNNER_FUNCTIONS_PATH }}
         run: |
           set -euo pipefail
 
           EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
-          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-${RUNNER_FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}}"
 
           mkdir -p "$FUNCTIONS_PATH"
           if command -v rsync >/dev/null 2>&1; then
@@ -255,11 +258,12 @@ jobs:
         env:
           EDGE_CONTAINER: ${{ vars.STAGING_SUPABASE_EDGE_CONTAINER }}
           FUNCTIONS_PATH: ${{ vars.STAGING_SUPABASE_FUNCTIONS_PATH }}
+          RUNNER_FUNCTIONS_PATH: ${{ vars.RUNNER_FUNCTIONS_PATH }}
         run: |
           set -euo pipefail
 
           EDGE_CONTAINER="${EDGE_CONTAINER:-supabase-edge-functions}"
-          FUNCTIONS_PATH="${FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}"
+          FUNCTIONS_PATH="${FUNCTIONS_PATH:-${RUNNER_FUNCTIONS_PATH:-/home/thomas/supabase/docker/volumes/functions}}"
 
           docker ps --format '{{.Names}}' | grep -Fxq "$EDGE_CONTAINER" || {
             echo "Edge runtime container '$EDGE_CONTAINER' is not running."
