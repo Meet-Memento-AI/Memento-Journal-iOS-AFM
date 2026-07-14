@@ -125,5 +125,12 @@ supabase/types/
 supabase/functions/.env
 supabase/.env
 
+# Test/analysis artifacts (spec-001)
+supabase/functions/**/coverage/
+.scannerwork/
+
+# Claude Code worktrees (embedded git repos)
+.claude/worktrees/
+
 # macOS
 .DS_Store
