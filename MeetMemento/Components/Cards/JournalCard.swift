@@ -51,7 +51,7 @@ struct JournalCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.white, lineWidth: 1.5)
+                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 1.5)
         )
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
