@@ -54,7 +54,7 @@ public struct ChatHistoryItem: View {
         if #available(iOS 26.0, *) {
             RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
                 .fill(Color.white.opacity(0.3))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+                .mementoGlassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
         } else {
             fallbackCardBackground
         }

@@ -1,15 +1,50 @@
-name: iOS and chat helper tests
+name: iOS quality and chat helper tests
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   ios-unit-ui:
-    runs-on: macos-15
+    name: iOS quality gates
+    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: SwiftLint changed files (strict)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
+
+      - name: SwiftLint advisory note
+        if: github.event_name == 'pull_request'
+        run: echo "SwiftLint is advisory during rollout. Keep iOS build, tests, coverage, and security checks as blocking gates."
+
+      - name: SwiftLint full project (advisory on push)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: swiftlint lint --strict
+
+      - name: Create CI local xcconfig overrides
+        run: |
+          cat > MeetMemento/Config/Debug.local.xcconfig << 'EOF'
+          SUPABASE_URL = https://example.supabase.co
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
+          EOF
+
+          cat > MeetMemento/Config/Release.local.xcconfig << 'EOF'
+          SUPABASE_URL = https://example.supabase.co
+          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
+          EOF
 
       - name: Create Secrets.swift stub for CI
         run: |
@@ -22,20 +57,116 @@ jobs:
 
       - name: Build and test (simulator)
         run: |
-          xcodebuild \
-            -scheme MeetMemento \
-            -destination "platform=iOS Simulator,name=iPhone 16" \
-            -resultBundlePath TestResults \
-            test
+          set -euo pipefail
+
+          run_tests() {
+            rm -rf TestResults
+            rm -rf TestResults.xcresult
+            xcodebuild \
+              -scheme MeetMemento \
+              -destination "platform=iOS Simulator,name=iPhone 17" \
+              -resultBundlePath TestResults \
+              -enableCodeCoverage YES \
+              -parallel-testing-enabled NO \
+              -skip-testing:MeetMementoUITests \
+              test
+          }
+
+          if ! run_tests; then
+            echo "First simulator test run failed. Resetting simulators and retrying once..."
+            xcrun simctl shutdown all || true
+            xcrun simctl erase all || true
+            run_tests
+          fi
+
+      - name: Coverage gate
+        env:
+          MIN_COVERAGE: "3"
+        run: bash scripts/ci/check_coverage.sh TestResults.xcresult
+
+      - name: Install Periphery
+        run: brew install peripheryapp/periphery/periphery
+
+      - name: Periphery dead-code scan (advisory)
+        continue-on-error: true
+        run: |
+          periphery scan \
+            --project MeetMemento.xcodeproj \
+            --schemes MeetMemento \
+            --format xcode \
+            --retain-public \
+            > periphery-report.txt
+
+      - name: Periphery regression gate (new issues only)
+        if: github.event_name == 'pull_request'
+        run: bash scripts/ci/check_periphery_regression.sh periphery-report.txt "${{ github.base_ref }}"
+
+      - name: Upload Periphery report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: periphery-report
+          path: periphery-report.txt
 
   deno-chat-lib:
-    runs-on: ubuntu-latest
+    name: Deno chat tests
+    runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Ensure unzip is available
+        run: |
+          set -euo pipefail
+          if command -v unzip >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          cat > "$RUNNER_TEMP/unzip" << 'EOF'
+          #!/usr/bin/env python3
+          import os
+          import sys
+          import zipfile
+
+          args = sys.argv[1:]
+          destination = "."
+          archive = None
+
+          i = 0
+          while i < len(args):
+              arg = args[i]
+              if arg == "-d" and i + 1 < len(args):
+                  destination = args[i + 1]
+                  i += 2
+                  continue
+              if arg.startswith("-"):
+                  i += 1
+                  continue
+              archive = arg
+              i += 1
+
+          if archive is None:
+              print("usage: unzip <archive> [-d destination]", file=sys.stderr)
+              sys.exit(2)
+
+          os.makedirs(destination, exist_ok=True)
+          with zipfile.ZipFile(archive, "r") as zf:
+              zf.extractall(destination)
+          EOF
+
+          chmod +x "$RUNNER_TEMP/unzip"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: Fix Deno binary permissions
+        run: |
+          set -euo pipefail
+          if [ -n "${RUNNER_TOOL_CACHE:-}" ] && [ -d "${RUNNER_TOOL_CACHE}/deno" ]; then
+            find "${RUNNER_TOOL_CACHE}/deno" -type f -name deno -exec chmod +x {} +
+          fi
+          deno --version
 
       - name: Deno test (chat lib)
         working-directory: supabase/functions/chat

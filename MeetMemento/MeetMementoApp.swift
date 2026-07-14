@@ -37,7 +37,8 @@ struct MeetMementoApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        let _ = { print("🔴 MeetMementoApp body evaluated") }()
+        return WindowGroup {
             ZStack {
                 // Full-screen background that extends under status bar/dynamic island
                 RootBackground()
@@ -48,6 +49,7 @@ struct MeetMementoApp: App {
                         LaunchLoadingView()
                             .useTheme()
                             .useTypography()
+                            .environmentObject(authViewModel)
                     } else if authViewModel.isAuthenticated && authViewModel.hasCompletedOnboarding {
                         // LOGGED IN: Show lock screen for verification, then main app
                         if lockScreenViewModel.shouldShowLockScreen {
@@ -98,8 +100,24 @@ struct MeetMementoApp: App {
                 #if DEBUG
                 print("🔴 .task block started")
                 #endif
+
+                // Watchdog: if initializeAuth() hangs for any reason, force the
+                // app past the loading screen after a short timeout.
+                let watchdog = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    if !authViewModel.hasCheckedAuth {
+                        print("⚠️ [Watchdog] initializeAuth() timed out — forcing unauthenticated state")
+                        authViewModel.isAuthenticated = false
+                        authViewModel.hasCompletedOnboarding = false
+                        authViewModel.authState = .unauthenticated
+                        authViewModel.hasCheckedAuth = true
+                        authViewModel.isInitializing = false
+                    }
+                }
+
                 await authViewModel.initializeAuth()
-                // Consume skip flag after auth initialization (handles post-onboarding state)
+                watchdog.cancel()
+
                 lockScreenViewModel.consumeSkipNextLockScreen()
                 #if DEBUG
                 print("🔴 .task block completed")

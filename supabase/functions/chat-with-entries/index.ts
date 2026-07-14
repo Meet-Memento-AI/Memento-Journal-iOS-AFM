@@ -182,6 +182,27 @@ function computeContextHash(ctx: SystemPromptContext | undefined): string {
   return ref + '|' + goals.join(',');
 }
 
+/** Merge client payload with user_profiles so onboarding personalization applies even if the client omitted it or raced the fetch. */
+function mergeSystemPromptContext(
+  fromBody: SystemPromptContext | undefined,
+  fromDb: { onboarding_self_reflection: string | null; selected_goals: string[] | null } | null
+): SystemPromptContext | undefined {
+  const dbReflection = fromDb?.onboarding_self_reflection?.trim() ?? '';
+  const dbGoals = (fromDb?.selected_goals ?? []).map(g => g.trim()).filter(Boolean);
+
+  const bodyReflection = fromBody?.onboardingSelfReflection?.trim() ?? '';
+  const bodyGoals = (fromBody?.selectedGoals ?? []).map(g => g.trim()).filter(Boolean);
+
+  const reflection = bodyReflection.length > 0 ? bodyReflection : dbReflection;
+  const goals = bodyGoals.length > 0 ? bodyGoals : dbGoals;
+
+  if (!reflection && goals.length === 0) return undefined;
+  return {
+    onboardingSelfReflection: reflection || undefined,
+    selectedGoals: goals.length > 0 ? goals : undefined
+  };
+}
+
 // ============================================================
 // GEMINI API HELPERS
 // ============================================================
@@ -338,7 +359,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid JSON body', code: 'INVALID_JSON' }, 400);
     }
 
-    const { messages, entries, systemPromptContext } = body;
+    const { messages, entries, systemPromptContext: systemPromptContextFromBody } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return jsonResponse({ error: 'Messages array required and must not be empty', code: 'MISSING_MESSAGES' }, 400);
@@ -356,6 +377,14 @@ serve(async (req) => {
         content: (e.content || '').substring(0, MAX_CONTENT_LENGTH),
         word_count: e.word_count ?? 0
       }));
+
+    const { data: profileRow } = await supabase
+      .from('user_profiles')
+      .select('onboarding_self_reflection, selected_goals')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const systemPromptContext = mergeSystemPromptContext(systemPromptContextFromBody, profileRow);
 
     const parsed = await loadSystemPrompt();
     const systemPrompt = buildSystemPrompt(systemPromptContext, parsed);

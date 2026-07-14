@@ -214,6 +214,7 @@ CREATE TRIGGER trigger_invalidate_insights_on_entry_delete
 -- ============================================================
 
 -- Function to get valid cached insight
+DROP FUNCTION IF EXISTS get_cached_insight(uuid, text, timestamptz, timestamptz);
 CREATE OR REPLACE FUNCTION get_cached_insight(
   p_user_id uuid,
   p_insight_type text,

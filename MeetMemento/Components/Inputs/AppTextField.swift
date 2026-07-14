@@ -41,13 +41,13 @@ public struct AppTextField: View {
             }
         }
         .font(type.h4)
-        .foregroundStyle(theme.foreground)
+        .foregroundStyle(theme.foreground) // Use semantic theme color for proper contrast
         .textInputAutocapitalization(textInputAutocapitalization)
         .keyboardType(keyboardType)
         .focused($isFocused)
         .accessibilityLabel(placeholder)
         .accessibilityHint(isSecure ? "Secure text field" : "Text field")
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Spacing.xs)
         .padding(.vertical, 14)
     }
 }

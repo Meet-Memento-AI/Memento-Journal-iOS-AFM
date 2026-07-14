@@ -335,7 +335,7 @@ public struct EditAboutYourselfView: View {
         if #available(iOS 26.0, *) {
             Capsule()
                 .fill(Color.white.opacity(0.3))
-                .glassEffect(.regular.interactive(), in: Capsule())
+                .mementoGlassEffect(.regular.interactive(), in: Capsule())
         } else {
             fallbackMicrophoneFABBackground
         }
