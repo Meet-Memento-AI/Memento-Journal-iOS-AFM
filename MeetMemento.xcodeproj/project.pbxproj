@@ -7,31 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A52219A22E8E0968009AE278 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A522199F2E8E0968009AE278 /* ContentView.swift */; };
-		A52219A32E8E0968009AE278 /* UIPlaygroundApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52219A02E8E0968009AE278 /* UIPlaygroundApp.swift */; };
-		A52219A42E8E0968009AE278 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A522199C2E8E0968009AE278 /* Preview Assets.xcassets */; };
-		A52219A52E8E0968009AE278 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A522199E2E8E0968009AE278 /* Assets.xcassets */; };
 		A52968F82E8D4769004F65BE /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A52968F72E8D4769004F65BE /* Supabase */; };
-		A5296C902E8D9B15004F65BE /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */; };
-		A5296C9A2E8D9B15004F65BE /* Sign In with Apple.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A5296C8D2E8D9B15004F65BE /* Sign In with Apple.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */ = {isa = PBXBuildFile; productRef = A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		A52219812E8E07C5009AE278 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A52219702E8E07C4009AE278;
-			remoteInfo = UIPlayground;
-		};
-		A522198B2E8E07C5009AE278 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A52219702E8E07C4009AE278;
-			remoteInfo = UIPlayground;
-		};
 		A52968752E8CCF13004F65BE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
@@ -46,41 +26,12 @@
 			remoteGlobalIDString = A52968632E8CCF12004F65BE;
 			remoteInfo = MeetMemento;
 		};
-		A5296C982E8D9B15004F65BE /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A5296C8C2E8D9B15004F65BE;
-			remoteInfo = "Sign In with Apple";
-		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		A5296C9F2E8D9B15004F65BE /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				A5296C9A2E8D9B15004F65BE /* Sign In with Apple.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		A52219712E8E07C4009AE278 /* UIPlayground.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UIPlayground.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A52219802E8E07C5009AE278 /* UIPlaygroundTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UIPlaygroundTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A522198A2E8E07C5009AE278 /* UIPlaygroundUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UIPlaygroundUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A522199C2E8E0968009AE278 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		A522199E2E8E0968009AE278 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A522199F2E8E0968009AE278 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A52219A02E8E0968009AE278 /* UIPlaygroundApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIPlaygroundApp.swift; sourceTree = "<group>"; };
 		A52968642E8CCF12004F65BE /* MeetMemento.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MeetMemento.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A5296C8D2E8D9B15004F65BE /* Sign In with Apple.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Sign In with Apple.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
 		B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
@@ -89,33 +40,25 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A5296C9E2E8D9B15004F65BE /* Exceptions for "Sign In with Apple" folder in "Sign In with Apple" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = A5296C8C2E8D9B15004F65BE /* Sign In with Apple */;
-		};
 		A55633722E8F75090007E35E /* Exceptions for "MeetMemento" folder in "MeetMemento" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Components/Buttons/Google/Google-Icon.svg",
+				"Components/Cards/MonthlyInsightCard+Usage.md",
 				Info.plist,
+				PLAN.md,
+				"Preview Content/PreviewMocks.json",
+				Resources/Fonts/README.md,
+				Resources/SupabaseConfig.swift.template,
+				Utilities/COMPONENT_TEMPLATE.md,
+				Utilities/UTILITIES_GUIDE.md,
+				Views/Monetization/Configuration.storekit,
 			);
 			target = A52968632E8CCF12004F65BE /* MeetMemento */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A52219832E8E07C5009AE278 /* UIPlaygroundTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = UIPlaygroundTests;
-			sourceTree = "<group>";
-		};
-		A522198D2E8E07C5009AE278 /* UIPlaygroundUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = UIPlaygroundUITests;
-			sourceTree = "<group>";
-		};
 		A52968662E8CCF12004F65BE /* MeetMemento */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -134,38 +77,9 @@
 			path = MeetMementoUITests;
 			sourceTree = "<group>";
 		};
-		A5296C912E8D9B15004F65BE /* Sign In with Apple */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				A5296C9E2E8D9B15004F65BE /* Exceptions for "Sign In with Apple" folder in "Sign In with Apple" target */,
-			);
-			path = "Sign In with Apple";
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A522196E2E8E07C4009AE278 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A522197D2E8E07C5009AE278 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A52219872E8E07C5009AE278 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A52968612E8CCF12004F65BE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -189,44 +103,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A5296C8A2E8D9B15004F65BE /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A5296C902E8D9B15004F65BE /* AuthenticationServices.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A522199D2E8E0968009AE278 /* Preview Content */ = {
-			isa = PBXGroup;
-			children = (
-				A522199C2E8E0968009AE278 /* Preview Assets.xcassets */,
-			);
-			path = "Preview Content";
-			sourceTree = "<group>";
-		};
-		A52219A12E8E0968009AE278 /* UIPlayground */ = {
-			isa = PBXGroup;
-			children = (
-				A52219A62E8E0972009AE278 /* Showcases */,
-				A522199D2E8E0968009AE278 /* Preview Content */,
-				A522199E2E8E0968009AE278 /* Assets.xcassets */,
-				A522199F2E8E0968009AE278 /* ContentView.swift */,
-				A52219A02E8E0968009AE278 /* UIPlaygroundApp.swift */,
-			);
-			path = UIPlayground;
-			sourceTree = "<group>";
-		};
-		A52219A62E8E0972009AE278 /* Showcases */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Showcases;
-			sourceTree = "<group>";
-		};
 		A529685B2E8CCF12004F65BE = {
 			isa = PBXGroup;
 			children = (
@@ -234,10 +113,6 @@
 				A52968662E8CCF12004F65BE /* MeetMemento */,
 				A52968772E8CCF14004F65BE /* MeetMementoTests */,
 				A52968812E8CCF14004F65BE /* MeetMementoUITests */,
-				A5296C912E8D9B15004F65BE /* Sign In with Apple */,
-				A52219A12E8E0968009AE278 /* UIPlayground */,
-				A52219832E8E07C5009AE278 /* UIPlaygroundTests */,
-				A522198D2E8E07C5009AE278 /* UIPlaygroundUITests */,
 				A5296C8E2E8D9B15004F65BE /* Frameworks */,
 				A52968652E8CCF12004F65BE /* Products */,
 			);
@@ -249,10 +124,6 @@
 				A52968642E8CCF12004F65BE /* MeetMemento.app */,
 				A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */,
 				A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */,
-				A5296C8D2E8D9B15004F65BE /* Sign In with Apple.appex */,
-				A52219712E8E07C4009AE278 /* UIPlayground.app */,
-				A52219802E8E07C5009AE278 /* UIPlaygroundTests.xctest */,
-				A522198A2E8E07C5009AE278 /* UIPlaygroundUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -279,71 +150,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A52219702E8E07C4009AE278 /* UIPlayground */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A52219982E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlayground" */;
-			buildPhases = (
-				A522196D2E8E07C4009AE278 /* Sources */,
-				A522196E2E8E07C4009AE278 /* Frameworks */,
-				A522196F2E8E07C4009AE278 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = UIPlayground;
-			packageProductDependencies = (
-			);
-			productName = UIPlayground;
-			productReference = A52219712E8E07C4009AE278 /* UIPlayground.app */;
-			productType = "com.apple.product-type.application";
-		};
-		A522197F2E8E07C5009AE278 /* UIPlaygroundTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A52219992E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlaygroundTests" */;
-			buildPhases = (
-				A522197C2E8E07C5009AE278 /* Sources */,
-				A522197D2E8E07C5009AE278 /* Frameworks */,
-				A522197E2E8E07C5009AE278 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A52219822E8E07C5009AE278 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				A52219832E8E07C5009AE278 /* UIPlaygroundTests */,
-			);
-			name = UIPlaygroundTests;
-			packageProductDependencies = (
-			);
-			productName = UIPlaygroundTests;
-			productReference = A52219802E8E07C5009AE278 /* UIPlaygroundTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		A52219892E8E07C5009AE278 /* UIPlaygroundUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A522199A2E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlaygroundUITests" */;
-			buildPhases = (
-				A52219862E8E07C5009AE278 /* Sources */,
-				A52219872E8E07C5009AE278 /* Frameworks */,
-				A52219882E8E07C5009AE278 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A522198C2E8E07C5009AE278 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				A522198D2E8E07C5009AE278 /* UIPlaygroundUITests */,
-			);
-			name = UIPlaygroundUITests;
-			packageProductDependencies = (
-			);
-			productName = UIPlaygroundUITests;
-			productReference = A522198A2E8E07C5009AE278 /* UIPlaygroundUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 		A52968632E8CCF12004F65BE /* MeetMemento */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMemento" */;
@@ -351,12 +157,10 @@
 				A52968602E8CCF12004F65BE /* Sources */,
 				A52968612E8CCF12004F65BE /* Frameworks */,
 				A52968622E8CCF12004F65BE /* Resources */,
-				A5296C9F2E8D9B15004F65BE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				A5296C992E8D9B15004F65BE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A52968662E8CCF12004F65BE /* MeetMemento */,
@@ -387,8 +191,6 @@
 				A52968772E8CCF14004F65BE /* MeetMementoTests */,
 			);
 			name = MeetMementoTests;
-			packageProductDependencies = (
-			);
 			productName = MeetMementoTests;
 			productReference = A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -410,33 +212,9 @@
 				A52968812E8CCF14004F65BE /* MeetMementoUITests */,
 			);
 			name = MeetMementoUITests;
-			packageProductDependencies = (
-			);
 			productName = MeetMementoUITests;
 			productReference = A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
-		};
-		A5296C8C2E8D9B15004F65BE /* Sign In with Apple */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A5296C9B2E8D9B15004F65BE /* Build configuration list for PBXNativeTarget "Sign In with Apple" */;
-			buildPhases = (
-				A5296C892E8D9B15004F65BE /* Sources */,
-				A5296C8A2E8D9B15004F65BE /* Frameworks */,
-				A5296C8B2E8D9B15004F65BE /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				A5296C912E8D9B15004F65BE /* Sign In with Apple */,
-			);
-			name = "Sign In with Apple";
-			packageProductDependencies = (
-			);
-			productName = "Sign In with Apple";
-			productReference = A5296C8D2E8D9B15004F65BE /* Sign In with Apple.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -448,17 +226,6 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
-					A52219702E8E07C4009AE278 = {
-						CreatedOnToolsVersion = 16.2;
-					};
-					A522197F2E8E07C5009AE278 = {
-						CreatedOnToolsVersion = 16.2;
-						TestTargetID = A52219702E8E07C4009AE278;
-					};
-					A52219892E8E07C5009AE278 = {
-						CreatedOnToolsVersion = 16.2;
-						TestTargetID = A52219702E8E07C4009AE278;
-					};
 					A52968632E8CCF12004F65BE = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -469,9 +236,6 @@
 					A529687D2E8CCF14004F65BE = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = A52968632E8CCF12004F65BE;
-					};
-					A5296C8C2E8D9B15004F65BE = {
-						CreatedOnToolsVersion = 16.2;
 					};
 				};
 			};
@@ -497,38 +261,11 @@
 				A52968632E8CCF12004F65BE /* MeetMemento */,
 				A52968732E8CCF13004F65BE /* MeetMementoTests */,
 				A529687D2E8CCF14004F65BE /* MeetMementoUITests */,
-				A5296C8C2E8D9B15004F65BE /* Sign In with Apple */,
-				A52219702E8E07C4009AE278 /* UIPlayground */,
-				A522197F2E8E07C5009AE278 /* UIPlaygroundTests */,
-				A52219892E8E07C5009AE278 /* UIPlaygroundUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A522196F2E8E07C4009AE278 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A52219A42E8E0968009AE278 /* Preview Assets.xcassets in Resources */,
-				A52219A52E8E0968009AE278 /* Assets.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A522197E2E8E07C5009AE278 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A52219882E8E07C5009AE278 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A52968622E8CCF12004F65BE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -550,39 +287,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A5296C8B2E8D9B15004F65BE /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A522196D2E8E07C4009AE278 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A52219A22E8E0968009AE278 /* ContentView.swift in Sources */,
-				A52219A32E8E0968009AE278 /* UIPlaygroundApp.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A522197C2E8E07C5009AE278 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A52219862E8E07C5009AE278 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A52968602E8CCF12004F65BE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -604,26 +311,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A5296C892E8D9B15004F65BE /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A52219822E8E07C5009AE278 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A52219702E8E07C4009AE278 /* UIPlayground */;
-			targetProxy = A52219812E8E07C5009AE278 /* PBXContainerItemProxy */;
-		};
-		A522198C2E8E07C5009AE278 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A52219702E8E07C4009AE278 /* UIPlayground */;
-			targetProxy = A522198B2E8E07C5009AE278 /* PBXContainerItemProxy */;
-		};
 		A52968762E8CCF13004F65BE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A52968632E8CCF12004F65BE /* MeetMemento */;
@@ -634,138 +324,9 @@
 			target = A52968632E8CCF12004F65BE /* MeetMemento */;
 			targetProxy = A529687F2E8CCF14004F65BE /* PBXContainerItemProxy */;
 		};
-		A5296C992E8D9B15004F65BE /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A5296C8C2E8D9B15004F65BE /* Sign In with Apple */;
-			targetProxy = A5296C982E8D9B15004F65BE /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		A52219922E8E07C5009AE278 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_ASSET_PATHS = "\"UIPlayground/Preview Content\"";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMemento;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		A52219932E8E07C5009AE278 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_ASSET_PATHS = "\"UIPlayground/Preview Content\"";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMemento;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		A52219942E8E07C5009AE278 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.testing.UIPlaygroundTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UIPlayground.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UIPlayground";
-			};
-			name = Debug;
-		};
-		A52219952E8E07C5009AE278 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.testing.UIPlaygroundTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UIPlayground.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UIPlayground";
-			};
-			name = Release;
-		};
-		A52219962E8E07C5009AE278 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.testing.UIPlaygroundUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = UIPlayground;
-			};
-			name = Debug;
-		};
-		A52219972E8E07C5009AE278 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.testing.UIPlaygroundUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = UIPlayground;
-			};
-			name = Release;
-		};
 		A52968862E8CCF14004F65BE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -905,8 +466,6 @@
 				INFOPLIST_FILE = MeetMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MeetMemento needs microphone access to transcribe your journal entries using voice.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MeetMemento uses speech recognition to convert your voice into text for journal entries.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -941,8 +500,6 @@
 				INFOPLIST_FILE = MeetMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MeetMemento needs microphone access to transcribe your journal entries using voice.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "MeetMemento uses speech recognition to convert your voice into text for journal entries.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -1029,84 +586,9 @@
 			};
 			name = Release;
 		};
-		A5296C9C2E8D9B15004F65BE /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Sign In with Apple/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Sign In with Apple";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sebastianmendo.MeetMemento.Sign-In-with-Apple";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		A5296C9D2E8D9B15004F65BE /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Sign In with Apple/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Sign In with Apple";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sebastianmendo.MeetMemento.Sign-In-with-Apple";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A52219982E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlayground" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A52219922E8E07C5009AE278 /* Debug */,
-				A52219932E8E07C5009AE278 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A52219992E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlaygroundTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A52219942E8E07C5009AE278 /* Debug */,
-				A52219952E8E07C5009AE278 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A522199A2E8E07C5009AE278 /* Build configuration list for PBXNativeTarget "UIPlaygroundUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A52219962E8E07C5009AE278 /* Debug */,
-				A52219972E8E07C5009AE278 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		A529685F2E8CCF12004F65BE /* Build configuration list for PBXProject "MeetMemento" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1139,15 +621,6 @@
 			buildConfigurations = (
 				A529688F2E8CCF14004F65BE /* Debug */,
 				A52968902E8CCF14004F65BE /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A5296C9B2E8D9B15004F65BE /* Build configuration list for PBXNativeTarget "Sign In with Apple" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A5296C9C2E8D9B15004F65BE /* Debug */,
-				A5296C9D2E8D9B15004F65BE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

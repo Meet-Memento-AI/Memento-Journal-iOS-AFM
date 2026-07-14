@@ -2,7 +2,7 @@
 id: 002
 title: Store Metadata and Binary Compliance
 tier: P0
-status: not-started
+status: in-progress
 effort: 1-2 sessions
 depends_on: [001]
 findings: [missing-encryption-compliance-key, jpg-app-icons, empty-dark-icon-slot, white-accent-color, sample-targets-in-project, duplicated-usage-strings, asc-support-url-gap]
@@ -31,6 +31,9 @@ uploads and processes cleanly. Blocks **Gate 1**. Prior rejection history in
 | 4 | Extra targets in the project: `Sign In with Apple` (Apple sample-code target, bundle id `com.sebastianmendo.MeetMemento.Sign-In-with-Apple`) and `UIPlayground`/`UIPlaygroundTests`/`UIPlaygroundUITests` (bundle ids under `com.testing.*`). Submission noise; must never enter the archive. | `MeetMemento.xcodeproj/project.pbxproj` targets list | HIGH |
 | 5 | Microphone/speech usage strings defined **twice with different wording**: pbxproj `INFOPLIST_KEY_NS{Microphone,SpeechRecognition}UsageDescription` ("…transcribe your journal entries using voice") vs `Info.plist` ("…transcribe your voice into journal entries"). `GENERATE_INFOPLIST_FILE = YES` merges both — winner unpredictable. | `project.pbxproj:908-909,944-945` vs `MeetMemento/Info.plist:44-47` | MEDIUM |
 | 6 | ASC listing needs a **Support URL** — only a support email is wired in-app (`support@sebastianmendo.com`, which differs from the dev account email; mailbox unverified). A ready support page exists at repo root (`support.html`) but is not hosted at a known URL. | `AboutSettingsView.swift:274`, `DataUsageInfoView.swift:242`, root `support.html` | MEDIUM |
+
+| 7 | **(found during implementation, 2026-07-13)** The Release app bundle shipped junk via the `MeetMemento/` synchronized group: 5 SQL migration files (from a previously unknown **third** migrations dir nested at `MeetMemento/supabase/` — see spec 003), `Debug/Release.xcconfig` + templates, `config.toml`, `cli-latest`, `PLAN.md`, `File.txt`, `Configuration.storekit`, `PreviewMocks.json`, dev docs (`COMPONENT_TEMPLATE.md`, `UTILITIES_GUIDE.md`, `MonthlyInsightCard+Usage.md`, `Fonts/README.md`), a loose `Google-Icon.svg`, and `SupabaseConfig.swift.template`. Shipping DB schema + internal docs in the binary is information disclosure and submission noise. | verified via Release bundle listing | HIGH |
+| 8 | **(found during implementation)** All four xcconfig files had the `//`-comment trap: `SUPABASE_URL = https://…` truncates to `https:` because xcconfig treats `//` as a comment — so following the documented local-xcconfig setup produced a silently broken backend URL. | `MeetMemento/Config/*` | HIGH (latent) |
 
 Also note (verified fine, no action): `PrivacyInfo.xcprivacy` complete; FaceID/mic/speech
 strings present; ATS on; `LaunchScreen.storyboard` wired; portrait-only iPhone +
@@ -82,36 +85,85 @@ bypass note is mandatory** per guideline 2.1).
 
 ## Tasks
 
-- [ ] 1. Add `ITSAppUsesNonExemptEncryption` = `false` to `MeetMemento/Info.plist`. (R1)
-- [ ] 2. Export/produce 1024×1024 PNG (no alpha) icons: light, dark, tinted. Replace the
-      JPGs, fix `Contents.json`, delete stale files. (R2)
-- [ ] 3. Set `AccentColor` to the brand primary (match `Theme.swift`'s primary token),
-      with a dark-appearance variant if needed. (R3)
-- [ ] 4. Remove the `Sign In with Apple` and `UIPlayground*` targets from
-      `MeetMemento.xcodeproj` (delete target + source folders if truly dead; keep the
-      folders out of the app target's compile sources either way). Verify the shared
-      `MeetMemento` scheme archive-builds only the app. (R4)
-- [ ] 5. Delete `INFOPLIST_KEY_NSMicrophoneUsageDescription` and
-      `INFOPLIST_KEY_NSSpeechRecognitionUsageDescription` from all build configurations;
-      settle final wording in `Info.plist`. (R5)
-- [ ] 6. Move `support.html` → `docs/support.html`; verify it renders on GitHub Pages;
-      test the support mailbox round-trip. (R6)
-- [ ] 7. Write the ASC metadata checklist (bottom of this spec): support URL, privacy
-      URL (`…/privacy.html` — already live), category `lifestyle`, age-rating answers,
-      demo account for review, export compliance answer. (R6)
-- [ ] 8. Archive → validate via Xcode Organizer "Validate App" against ASC. (all)
+- [x] 1. Add `ITSAppUsesNonExemptEncryption` = `false` to `MeetMemento/Info.plist`. (R1)
+      ✅ Verified in built product's Info.plist.
+- [x] 2. Icons: light JPG converted to PNG via sips (1024×1024, `hasAlpha: no`); the
+      empty dark slot and the byte-identical fake "tinted" entry **removed** from
+      `Contents.json` (R2 allows removal; iOS falls back to the light icon). Real
+      dark/tinted artwork can be added later as a design task. (R2)
+- [x] 3. `AccentColor` set to brand primary: light `#7B3EC9` (primary500), dark
+      `#9869D5` (primary400) — mirrors `Theme.swift`'s per-scheme `theme.primary`. (R3)
+- [x] 4. All four sample targets removed via `xcodeproj` gem (targets, build phases,
+      configs, product refs, `TargetAttributes`, groups). **Notable finding during
+      re-verify:** the app target *depended on and embedded* `Sign In with Apple.appex`
+      — a 100% inert Apple sample extension (© 2020, every override commented out) that
+      was shipping inside the app bundle. Dependency + "Embed Foundation Extensions"
+      phase removed; built product now has no `PlugIns/` dir. Source folders deleted
+      from disk; stale `Sign In with Apple.xcscheme` deleted. `xcodebuild -list` shows
+      only MeetMemento + its two test targets. (R4)
+- [x] 5. `INFOPLIST_KEY_NS{Microphone,SpeechRecognition}UsageDescription` deleted from
+      Debug + Release build settings; final wording settled in `Info.plist` (unified to
+      display name "Memento"). (R5)
+- [x] 6. `support.html` → `docs/support.html` (GitHub Pages root); support link added to
+      `docs/index.html`. ⚠️ Mailbox verification is a user action — see checklist:
+      three different addresses are currently in circulation. (R6)
+- [x] 7. ASC metadata checklist written (bottom of this spec). (R6)
+- [x] 9. **(added during implementation)** Bundle hygiene: stray `File.txt` deleted;
+      nested `MeetMemento/supabase/` moved to `supabase/UNRECONCILED-app-folder-copy/`
+      (content untouched — spec 003 reconciles it; its `.temp/` cache and empty
+      `functions/` dir dropped); everything else excluded from the app target via the
+      synchronized-group exception set (note: **directory-level membershipExceptions
+      don't work** — files must be listed individually). Clean Release rebuild verified:
+      bundle now contains only binary, plists, assets, fonts, launch storyboard,
+      `AISuggestionPrompts.json`, `welcome-bg.mp4`, and the crypto dependency bundle.
+      (evidence row 7)
+- [x] 10. **(added during implementation)** Fixed the xcconfig `//`-comment trap in all
+      four Config files using the `$()` empty-substitution escape
+      (`https:/$()/…`), with explanatory comments; verified the full URL now reaches
+      the built Info.plist. (evidence row 8; spec 006's CI assertion still pending)
+- [ ] 8. Archive → validate via Xcode Organizer "Validate App" against ASC.
+      **BLOCKED (user action):** archive signing fails with *"PLA Update available —
+      agree to the latest Program License Agreement"* at developer.apple.com, after
+      which the team provisioning profile can regenerate. Release device build compiles
+      clean (`CODE_SIGNING_ALLOWED=NO` → BUILD SUCCEEDED), so only signing +
+      Organizer validation remain. (all)
+
+## ASC metadata checklist (Task 7)
+
+Enter/verify in App Store Connect when creating the TestFlight/App Store record:
+
+| Field | Value | Status |
+|-------|-------|--------|
+| Bundle ID | `com.sebastianmendo.MeetMemento` | in project ✅ |
+| Display name | Memento | in project ✅ |
+| Category | Lifestyle (`public.app-category.lifestyle`) | in project ✅ |
+| Privacy Policy URL | `https://sebmendo1.github.io/MeetMemento/privacy.html` | live, linked in-app ✅ |
+| Support URL | `https://sebmendo1.github.io/MeetMemento/support.html` | file hosted this spec — **confirm it renders after push** |
+| Marketing URL (optional) | `https://sebmendo1.github.io/MeetMemento/` | live ✅ |
+| Export compliance | `ITSAppUsesNonExemptEncryption=false` in plist — answer "None of the above / standard encryption" if asked | ✅ |
+| Support email | ⚠️ **DECIDE + VERIFY**: three addresses in circulation — in-app `support@sebastianmendo.com` (`AboutSettingsView.swift`, `DataUsageInfoView.swift`), support page `support@meetmemento.app`, account `contact@sebastianmendo.design`. Pick one, update the other surfaces, send/receive test. | ☐ user |
+| Demo account for App Review | **MANDATORY** (app requires sign-in, guideline 2.1). Create a reviewer account (email+OTP is interactive — provide a test account with a fixed OTP path, or note Sign in with Apple; consider a review-notes explanation of the PIN step and provide the PIN). | ☐ user |
+| Age rating questionnaire | Expect 4+/9+: no UGC sharing (journal is private), no web browsing, AI chat is grounded on user's own content — answer "infrequent/mild" only if applicable | ☐ user |
+| Screenshots | 6.7" + 6.1" (+ iPad if keeping iPad support — note: project targets iPhone+iPad, so iPad screenshots are REQUIRED unless `TARGETED_DEVICE_FAMILY` drops to iPhone-only) | ☐ user |
+| App Review notes | Mention: PIN/FaceID lock (give PIN), mic/speech used for voice journaling, AI features call Supabase backend | ☐ user |
+| Prior rejection context | `.archive/APP_STORE_REJECTION_FIX.md` — review before submitting | ☐ user |
 
 ## Verification
 
-- [ ] `plutil -p <archive>/Products/Applications/MeetMemento.app/Info.plist | grep ITSApp`
-      → `false`.
-- [ ] `sips -g format -g hasAlpha MeetMemento/Assets.xcassets/AppIcon.appiconset/*.png`
-      → `png` / `hasAlpha: no` for every file; no `.jpg` remains in the appiconset.
-- [ ] `grep -c "com.testing" MeetMemento.xcodeproj/project.pbxproj` → 0.
-- [ ] `grep -c "INFOPLIST_KEY_NSMicrophone" MeetMemento.xcodeproj/project.pbxproj` → 0.
-- [ ] Xcode Organizer → Validate App passes with no icon or plist warnings.
-- [ ] Fresh simulator install: app icon renders correctly in light + dark home screens;
-      mic permission dialog shows the final wording.
+- [x] Built product's `Info.plist` shows `ITSAppUsesNonExemptEncryption => false`
+      (verified via `plutil -p` on the Debug product; key is in the source plist so it
+      carries to archives). ✅ 2026-07-13
+- [x] `sips -g format -g hasAlpha …/AppIcon.png` → `png` / `hasAlpha: no`; no `.jpg`
+      remains; asset catalog compiled icon variants present in built product. ✅
+- [x] `grep -c "com.testing" project.pbxproj` → 0; `xcodebuild -list` shows only
+      MeetMemento/MeetMementoTests/MeetMementoUITests; built product has no
+      `PlugIns/`. ✅
+- [x] `grep -c "INFOPLIST_KEY_NSMicrophone" project.pbxproj` → 0. ✅
+- [x] Debug sim build + unsigned Release device build both BUILD SUCCEEDED. ✅
+- [ ] Xcode Organizer → Validate App — **user action** (blocked on accepting the
+      Apple Program License Agreement at developer.apple.com; then archive + validate).
+- [ ] Fresh simulator install: icon renders in light + dark home screens; mic
+      permission dialog shows the final "Memento…" wording — quick user smoke check.
 
 ## Regression Guards
 

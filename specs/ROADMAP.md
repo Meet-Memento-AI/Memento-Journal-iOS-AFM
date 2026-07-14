@@ -7,7 +7,7 @@ Review date: **2026-07-13** · branch `sync/upstream-main` · workflow in `specs
 | Spec | Title | Tier | Effort | Depends on | Status |
 |------|-------|------|--------|------------|--------|
 | [001](001-repo-hygiene-and-secrets-audit.md) | Repo Hygiene and Secrets Audit | P0 | 1 | — | ✅ done (2026-07-13) |
-| [002](002-store-metadata-compliance.md) | Store Metadata and Binary Compliance | P0 | 1–2 | 001 | not-started |
+| [002](002-store-metadata-compliance.md) | Store Metadata and Binary Compliance | P0 | 1–2 | 001 | 🔶 in-progress — repo work done; blocked on user: accept Apple PLA → archive+validate; decide/verify support email |
 | [003](003-database-baseline-and-account-deletion.md) | Database Baseline and Account Deletion | P0 | 2 | — | not-started |
 | [004](004-edge-function-security-and-cost.md) | Edge Function Security and LLM Cost Controls | P1 | 2 | 003 | not-started |
 | [005](005-release-logging-privacy.md) | Release Logging Privacy | P1 | 1 | — | not-started |

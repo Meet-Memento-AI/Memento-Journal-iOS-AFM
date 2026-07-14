@@ -31,7 +31,8 @@ this alone is an App Store rejection, and it's a GDPR problem besides. Blocks **
 | 1 | Early migrations create/operate on `entries` (`20250117000000_create_entries_table.sql:9`, `20251021124456_remote_schema.sql:1-15`, `20251023000002_add_data_validation.sql:12+`); from `20260305000000_rag_chat_schema.sql:19` onward everything targets `journal_entries.content`. `grep -ri RENAME supabase/migrations/` → nothing. Fresh replay fails at `20260305000000` with `relation "journal_entries" does not exist`. | `supabase/migrations/` | BLOCKER |
 | 2 | `20260422201548_reconcile_remote_history.sql` is an intentional no-op (`select 1`) whose comment admits "a production-only migration history entry … applied outside this repository". | `supabase/migrations/20260422201548_reconcile_remote_history.sql` | evidence of #1 |
 | 3 | **Second, divergent migrations directory tracked at repo root**: `supabase_migrations/{001_create_journal_insights.sql, 20260305_rag_chat_schema.sql, README.md}` — overlaps/diverges from the canonical `supabase/migrations/`. | `supabase_migrations/` (git-tracked) | HIGH |
-| 4 | `delete_user()` runs `DELETE FROM public.users WHERE id = current_user_id;` but no migration creates `public.users` (only `auth.users` + `user_profiles` exist). The surrounding exception block makes the whole RPC raise and roll back → account deletion deletes nothing. | `supabase/migrations/20260308000001_update_delete_user_rpc.sql:24` (block `:19-34`) | BLOCKER (5.1.1(v) / GDPR) |
+| 3b | **(discovered 2026-07-13 during spec 002)** A **third** migrations directory was nested inside the app source folder at `MeetMemento/supabase/` (and shipping inside the app bundle!). Spec 002 relocated it verbatim to `supabase/UNRECONCILED-app-folder-copy/`. It contains 5 migrations **absent from the canonical dir**, including: `20260305000001_rename_entries_to_journal_entries.sql` — **the "missing" prod-only rename** (`entries→journal_entries`, `text→content`, +5 columns, soft-delete index) — plus `20260305000002_create_users_table.sql` (see row 4), `…03_create_ai_feedback_table.sql`, `…04_create_subscription_plans_table.sql`, and its own copy of `20260308000001_update_delete_user_rpc.sql`. These were very likely applied to prod by hand; reconciling THIS directory is most of R2's work. | `supabase/UNRECONCILED-app-folder-copy/migrations/` | HIGH |
+| 4 | `delete_user()` runs `DELETE FROM public.users WHERE id = current_user_id;` and **no canonical migration** creates `public.users`. **REVISED 2026-07-13:** the nested dir's `20260305000002_create_users_table.sql` DOES create `public.users` (RLS'd, `ON DELETE CASCADE` from `auth.users`). If that migration was applied to prod (likely — its sibling rename clearly was), account deletion probably **works on prod today** and the true defect is reproducibility: fresh replays of the canonical chain lack both the table and the rename, so the RPC breaks only on rebuilt environments. **Verify against prod first** (`select to_regclass('public.users')`) before touching the RPC; the fix may be purely "adopt the nested migrations into the canonical chain". | `supabase/migrations/20260308000001_update_delete_user_rpc.sql:24`; `supabase/UNRECONCILED-app-folder-copy/migrations/20260305000002_create_users_table.sql` | BLOCKER→**downgrade candidate** (verify on prod) |
 | 5 | `delete_user()` explicitly clears only `journal_entries`, `chat_messages`, `chat_sessions`, relying on `auth.users` CASCADE for the rest. Cascade coverage for `chat_feedback`, `user_stats`, `user_insights`, `user_chat_caches`, `user_profiles`, `themes` is unverified. | same file; table DDLs across `supabase/migrations/` | HIGH |
 | 6 | Ad-hoc SQL applied outside migrations historically — archived by spec 001 to `.archive/adhoc-sql/`. **Content summary (recorded 2026-07-13 before archiving):** `SETUP_JOURNAL_ENTRIES.sql` was dashboard-run SQL that created `public.entries` (columns incl. `text TEXT NOT NULL`), its 4 RLS policies, `get_user_entry_count()`, `get_user_entry_stats()` (both `SECURITY DEFINER` with `search_path` set), and the `update_entries_updated_at` trigger + `update_updated_at_column()` function. `DELETE_USER_SQL.sql` was an **earlier** dashboard-run `delete_user()` that deleted from `public.entries` + `auth.users` only — it did NOT reference `public.users`; that broken reference arrived later in migration `20260308000001`. Both prove prod schema was partly built via SQL Editor, outside migrations — exactly the drift R2's diff must reconcile (check whether `get_user_entry_count`/`get_user_entry_stats`/the trigger exist in prod but not in migrations). | `.archive/adhoc-sql/` | context |
 | 7 | dev/staging deploys mask migration errors, so this breakage is invisible in CI (grep-swallow — owned by spec 006, but be aware while testing here). | `.github/workflows/deploy-dev-staging.yml:105-112` | context |
@@ -73,12 +74,17 @@ by the R3 test.
 
 - [ ] 1. Inventory prod's real schema: `supabase db diff` / dashboard inspection; capture
       the authoritative current state (tables, columns, functions, policies).
-- [ ] 2. Reconcile `supabase_migrations/`: diff its 2 SQL files against canonical
-      migrations; port anything real; delete the directory. (R1)
-- [ ] 3. Write the missing baseline migration(s) capturing the prod-only rename
-      (`entries→journal_entries`, `text→content`) **idempotently** (guarded
-      `ALTER TABLE ... RENAME`) so it is a no-op on prod but fixes fresh replays.
-      Slot it with a timestamp *before* `20260305000000`. (R2)
+- [ ] 2. Reconcile **both** stray migration dirs against the canonical chain:
+      `supabase_migrations/` (2 SQL files) **and**
+      `supabase/UNRECONCILED-app-folder-copy/` (5 SQL files — likely the ones prod
+      actually got; start here). Port anything real into `supabase/migrations/` with
+      correct ordering + idempotency guards; then delete both stray dirs. (R1)
+- [ ] 3. Adopt the rename migration into the canonical chain: the nested copy
+      (`…app-folder-copy/migrations/20260305000001_rename_entries_to_journal_entries.sql`)
+      already contains the exact prod rename — port it **with idempotency guards**
+      (guarded `ALTER TABLE ... RENAME`) so it is a no-op on prod but fixes fresh
+      replays. Slot it with a timestamp *before* `20260305000000`. Do the same
+      adoption analysis for the other four nested migrations. (R2)
 - [ ] 4. Iterate `supabase db reset` locally until the full chain replays clean. (R2)
 - [ ] 5. Run `supabase db diff --linked` → resolve every drift item (each becomes either
       a migration or a documented intentional difference). (R2)
