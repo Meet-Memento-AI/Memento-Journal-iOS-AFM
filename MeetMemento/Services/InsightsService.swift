@@ -46,9 +46,7 @@ class InsightsService {
             throw AuthError.missingEmail
         }
         
-        #if DEBUG
-        print("🔍 [InsightsService] Starting insight generation for \(entries.count) entries")
-        #endif
+                AppLogger.log("🔍 [InsightsService] Starting insight generation for \(entries.count) entries")
         
         // 1. Prepare Payload
         // Format must match Edge Function's JournalEntry interface
@@ -56,9 +54,7 @@ class InsightsService {
         let validEntries = entries.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
         guard !validEntries.isEmpty else {
-            #if DEBUG
-            print("❌ [InsightsService] No valid entries with content")
-            #endif
+                        AppLogger.log("❌ [InsightsService] No valid entries with content")
             throw NSError(domain: "InsightsService", code: 400, userInfo: [NSLocalizedDescriptionKey: "No entries with content to analyze"])
         }
 
@@ -73,30 +69,13 @@ class InsightsService {
 
         let requestBody = GenerateInsightsRequest(entries: payloadEntries)
 
-        #if DEBUG
-        print("🔍 [InsightsService] Payload prepared: \(payloadEntries.count) entries")
+                AppLogger.log("🔍 [InsightsService] Payload prepared: \(payloadEntries.count) entries")
 
-        // Debug: Print the actual JSON being sent (only in DEBUG builds)
-        do {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            let jsonData = try encoder.encode(requestBody)
-            let jsonString = String(data: jsonData, encoding: .utf8) ?? "nil"
-            print("🔍 [InsightsService] Request JSON:\n\(jsonString)")
-        } catch {
-            print("❌ [InsightsService] Failed to encode request: \(error)")
-        }
-
-        // Check if user is authenticated
-        let currentUserId = client.auth.currentUser?.id.uuidString ?? "NOT AUTHENTICATED"
-        print("🔍 [InsightsService] Auth check - currentUser: \(currentUserId)")
-        #endif
+        AppLogger.log("[InsightsService] Request payload prepared")
 
         do {
             // 2. Invoke Edge Function
-            #if DEBUG
-            print("🔍 [InsightsService] Calling Edge Function...")
-            #endif
+                        AppLogger.log("🔍 [InsightsService] Calling Edge Function...")
 
             // The invoke method with a generic type parameter returns the decoded response
             let content: InsightContent = try await client.functions.invoke(
@@ -104,12 +83,10 @@ class InsightsService {
                 options: FunctionInvokeOptions(body: requestBody)
             )
 
-            #if DEBUG
-            print("✅ [InsightsService] Successfully decoded InsightContent")
-            print("   - Headline: \(content.headline)")
-            print("   - Themes: \(content.themes ?? [])")
-            print("   - Suggestions: \(content.suggestions ?? [])")
-            #endif
+                        AppLogger.log("✅ [InsightsService] Successfully decoded InsightContent")
+            AppLogger.log("   - Headline: \(content.headline)")
+            AppLogger.log("   - Themes: \(content.themes ?? [])")
+            AppLogger.log("   - Suggestions: \(content.suggestions ?? [])")
 
             // 3. Wrap in UserInsight model for the UI
             let newInsight = UserInsight(
@@ -119,36 +96,34 @@ class InsightsService {
                 entriesAnalyzedCount: entries.count
             )
 
-            #if DEBUG
-            print("✅ [InsightsService] UserInsight created successfully")
-            #endif
+                        AppLogger.log("✅ [InsightsService] UserInsight created successfully")
             return newInsight
             
         } catch let decodingError as DecodingError {
             #if DEBUG
-            print("❌ [InsightsService] Decoding error: \(decodingError)")
+            AppLogger.log("❌ [InsightsService] Decoding error: \(decodingError)")
             switch decodingError {
             case .keyNotFound(let key, let context):
-                print("   - Missing key: \(key.stringValue)")
-                print("   - Context: \(context.debugDescription)")
+                AppLogger.log("   - Missing key: \(key.stringValue)")
+                AppLogger.log("   - Context: \(context.debugDescription)")
             case .typeMismatch(let type, let context):
-                print("   - Type mismatch: expected \(type)")
-                print("   - Context: \(context.debugDescription)")
+                AppLogger.log("   - Type mismatch: expected \(type)")
+                AppLogger.log("   - Context: \(context.debugDescription)")
             case .valueNotFound(let type, let context):
-                print("   - Value not found: \(type)")
-                print("   - Context: \(context.debugDescription)")
+                AppLogger.log("   - Value not found: \(type)")
+                AppLogger.log("   - Context: \(context.debugDescription)")
             case .dataCorrupted(let context):
-                print("   - Data corrupted: \(context.debugDescription)")
+                AppLogger.log("   - Data corrupted: \(context.debugDescription)")
             @unknown default:
-                print("   - Unknown decoding error")
+                AppLogger.log("   - Unknown decoding error")
             }
             #endif
             throw decodingError
         } catch {
             #if DEBUG
-            print("❌ [InsightsService] Error: \(error)")
-            print("   - Error type: \(type(of: error))")
-            print("   - Error description: \(error.localizedDescription)")
+            AppLogger.log("❌ [InsightsService] Error: \(error)")
+            AppLogger.log("   - Error type: \(type(of: error))")
+            AppLogger.log("   - Error description: \(error.localizedDescription)")
 
             // Extract response data from FunctionsError.httpError tuple
             let mirror = Mirror(reflecting: error)
@@ -159,9 +134,9 @@ class InsightsService {
                     for tupleChild in tupleMirror.children {
                         if let data = tupleChild.value as? Data {
                             if let responseString = String(data: data, encoding: .utf8) {
-                                print("   - 📋 SERVER RESPONSE: \(responseString)")
+                                AppLogger.log("   - 📋 SERVER RESPONSE: \(responseString)")
                             } else {
-                                print("   - 📋 SERVER RESPONSE (hex): \(data.map { String(format: "%02x", $0) }.joined())")
+                                AppLogger.log("   - 📋 SERVER RESPONSE (hex): \(data.map { String(format: "%02x", $0) }.joined())")
                             }
                         }
                     }

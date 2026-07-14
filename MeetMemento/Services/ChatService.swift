@@ -106,10 +106,8 @@ class ChatService {
                 // Check if error is retryable
                 let isRetryable = isTransientError(error)
 
-                #if DEBUG
-                print("⚠️ [ChatService] Attempt \(attempt)/\(config.maxAttempts) failed: \(error.localizedDescription)")
-                print("   Retryable: \(isRetryable)")
-                #endif
+                                AppLogger.log("⚠️ [ChatService] Attempt \(attempt)/\(config.maxAttempts) failed: \(error.localizedDescription)")
+                AppLogger.log("   Retryable: \(isRetryable)")
 
                 // Don't retry on final attempt or non-transient errors
                 if attempt == config.maxAttempts || !isRetryable {
@@ -120,9 +118,7 @@ class ChatService {
                 let jitter = UInt64.random(in: 0...100)
                 let delay = min(currentDelay + jitter, config.maxDelayMs)
 
-                #if DEBUG
-                print("   Retrying in \(delay)ms...")
-                #endif
+                                AppLogger.log("   Retrying in \(delay)ms...")
 
                 try await Task.sleep(nanoseconds: delay * 1_000_000)
                 currentDelay = min(currentDelay * 2, config.maxDelayMs)
@@ -168,9 +164,7 @@ class ChatService {
     func sendMessage(_ text: String, sessionId: UUID? = nil) async throws -> ChatResponse {
         let requestBody = ChatRequestBody(message: text, sessionId: sessionId?.uuidString)
 
-        #if DEBUG
-        print("💬 [ChatService] Sending message to chat Edge Function (session: \(sessionId?.uuidString.prefix(8) ?? "new"))...")
-        #endif
+                AppLogger.log("💬 [ChatService] Sending message to chat Edge Function (session: \(sessionId?.uuidString.prefix(8) ?? "new"))...")
 
         // Refresh session to ensure we have a valid access token
         // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
@@ -186,9 +180,7 @@ class ChatService {
             )
         }
 
-        #if DEBUG
-        print("✅ [ChatService] Received reply (\(response.reply.count) chars), \(response.sources.count) sources, cited: \(response.citedEntryIds?.count ?? 0), session: \(response.sessionId.prefix(8))...")
-        #endif
+                AppLogger.log("✅ [ChatService] Received reply (\(response.reply.count) chars), \(response.sources.count) sources, cited: \(response.citedEntryIds?.count ?? 0), session: \(response.sessionId.prefix(8))...")
 
         return response
     }
@@ -198,9 +190,7 @@ class ChatService {
     /// Triggers embedding generation for a specific journal entry
     /// Called after saving entries to ensure embeddings are generated
     func triggerEmbedding(entryId: UUID) async throws {
-        #if DEBUG
-        print("🔄 [ChatService] Triggering embedding for entry \(entryId.uuidString.prefix(8))...")
-        #endif
+                AppLogger.log("🔄 [ChatService] Triggering embedding for entry \(entryId.uuidString.prefix(8))...")
 
         struct EmbedRequest: Codable {
             let entryId: String
@@ -222,18 +212,14 @@ class ChatService {
             )
         }
 
-        #if DEBUG
-        print("✅ [ChatService] Embedding triggered for entry \(entryId.uuidString.prefix(8))")
-        #endif
+                AppLogger.log("✅ [ChatService] Embedding triggered for entry \(entryId.uuidString.prefix(8))")
     }
 
     // MARK: - History Management
 
     func clearHistory() async throws {
         guard let userId = client.auth.currentUser?.id else {
-            #if DEBUG
-            print("⚠️ [ChatService] Cannot clear history — no authenticated user")
-            #endif
+                        AppLogger.log("⚠️ [ChatService] Cannot clear history — no authenticated user")
             return
         }
 
@@ -243,9 +229,7 @@ class ChatService {
             .eq("user_id", value: userId)
             .execute()
 
-        #if DEBUG
-        print("🗑️ [ChatService] Chat history cleared for user \(userId.uuidString.prefix(8))...")
-        #endif
+                AppLogger.log("🗑️ [ChatService] Chat history cleared for user \(userId.uuidString.prefix(8))...")
     }
 
     // MARK: - Session Management
@@ -253,15 +237,11 @@ class ChatService {
     /// Fetches all chat sessions for the current user, sorted by most recent first
     func fetchSessions() async throws -> [ChatSession] {
         guard let userId = client.auth.currentUser?.id else {
-            #if DEBUG
-            print("⚠️ [ChatService] Cannot fetch sessions — no authenticated user")
-            #endif
+                        AppLogger.log("⚠️ [ChatService] Cannot fetch sessions — no authenticated user")
             return []
         }
 
-        #if DEBUG
-        print("📋 [ChatService] Fetching chat sessions...")
-        #endif
+                AppLogger.log("📋 [ChatService] Fetching chat sessions...")
 
         let response: [ChatSession] = try await client
             .from("chat_sessions")
@@ -271,9 +251,7 @@ class ChatService {
             .execute()
             .value
 
-        #if DEBUG
-        print("✅ [ChatService] Fetched \(response.count) sessions")
-        #endif
+                AppLogger.log("✅ [ChatService] Fetched \(response.count) sessions")
 
         return response
     }
@@ -281,15 +259,11 @@ class ChatService {
     /// Loads all messages for a specific session
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO] {
         guard let userId = client.auth.currentUser?.id else {
-            #if DEBUG
-            print("⚠️ [ChatService] Cannot load session messages — no authenticated user")
-            #endif
+                        AppLogger.log("⚠️ [ChatService] Cannot load session messages — no authenticated user")
             return []
         }
 
-        #if DEBUG
-        print("📖 [ChatService] Loading messages for session \(sessionId.uuidString.prefix(8))...")
-        #endif
+                AppLogger.log("📖 [ChatService] Loading messages for session \(sessionId.uuidString.prefix(8))...")
 
         let response: [ChatMessageDTO] = try await client
             .from("chat_messages")
@@ -300,9 +274,7 @@ class ChatService {
             .execute()
             .value
 
-        #if DEBUG
-        print("✅ [ChatService] Loaded \(response.count) messages")
-        #endif
+                AppLogger.log("✅ [ChatService] Loaded \(response.count) messages")
 
         return response
     }
@@ -310,15 +282,11 @@ class ChatService {
     /// Deletes a chat session and all its messages (cascade delete via FK)
     func deleteSession(sessionId: UUID) async throws {
         guard let userId = client.auth.currentUser?.id else {
-            #if DEBUG
-            print("⚠️ [ChatService] Cannot delete session — no authenticated user")
-            #endif
+                        AppLogger.log("⚠️ [ChatService] Cannot delete session — no authenticated user")
             return
         }
 
-        #if DEBUG
-        print("🗑️ [ChatService] Deleting session \(sessionId.uuidString.prefix(8))...")
-        #endif
+                AppLogger.log("🗑️ [ChatService] Deleting session \(sessionId.uuidString.prefix(8))...")
 
         try await client
             .from("chat_sessions")
@@ -327,18 +295,14 @@ class ChatService {
             .eq("user_id", value: userId)
             .execute()
 
-        #if DEBUG
-        print("✅ [ChatService] Session deleted")
-        #endif
+                AppLogger.log("✅ [ChatService] Session deleted")
     }
 
     // MARK: - Chat Summary
 
     /// Summarizes a chat conversation into a journal entry using AI
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse {
-        #if DEBUG
-        print("📝 [ChatService] Summarizing chat (\(messages.count) messages)...")
-        #endif
+                AppLogger.log("📝 [ChatService] Summarizing chat (\(messages.count) messages)...")
 
         let summaryMessages = messages.map { msg in
             SummaryMessage(role: msg.isFromUser ? "user" : "assistant", content: msg.content)
@@ -363,9 +327,7 @@ class ChatService {
             )
         }
 
-        #if DEBUG
-        print("✅ [ChatService] Summary generated (\(response.content.count) chars)")
-        #endif
+                AppLogger.log("✅ [ChatService] Summary generated (\(response.content.count) chars)")
 
         return response
     }
@@ -375,9 +337,7 @@ class ChatService {
     /// Submits feedback (thumbs up/down) for a message
     /// Returns the resulting feedback type (nil if toggled off)
     func submitFeedback(messageId: UUID, type: FeedbackType) async throws -> FeedbackType? {
-        #if DEBUG
-        print("👍 [ChatService] Submitting \(type.rawValue) feedback for message \(messageId.uuidString.prefix(8))...")
-        #endif
+                AppLogger.log("👍 [ChatService] Submitting \(type.rawValue) feedback for message \(messageId.uuidString.prefix(8))...")
 
         struct FeedbackRequest: Codable {
             let messageId: String
@@ -409,9 +369,7 @@ class ChatService {
             )
         }
 
-        #if DEBUG
-        print("✅ [ChatService] Feedback \(response.action): \(response.feedbackType ?? "none")")
-        #endif
+                AppLogger.log("✅ [ChatService] Feedback \(response.action): \(response.feedbackType ?? "none")")
 
         guard let feedbackTypeString = response.feedbackType else {
             return nil
@@ -423,9 +381,7 @@ class ChatService {
     /// Returns a dictionary mapping message ID to feedback type
     func fetchFeedback(messageIds: [UUID]) async throws -> [UUID: FeedbackType] {
         guard let userId = client.auth.currentUser?.id else {
-            #if DEBUG
-            print("⚠️ [ChatService] Cannot fetch feedback — no authenticated user")
-            #endif
+                        AppLogger.log("⚠️ [ChatService] Cannot fetch feedback — no authenticated user")
             return [:]
         }
 
@@ -433,9 +389,7 @@ class ChatService {
             return [:]
         }
 
-        #if DEBUG
-        print("📋 [ChatService] Fetching feedback for \(messageIds.count) messages...")
-        #endif
+                AppLogger.log("📋 [ChatService] Fetching feedback for \(messageIds.count) messages...")
 
         struct FeedbackRow: Codable {
             let messageId: UUID
@@ -464,9 +418,7 @@ class ChatService {
             }
         }
 
-        #if DEBUG
-        print("✅ [ChatService] Fetched \(result.count) feedback entries")
-        #endif
+                AppLogger.log("✅ [ChatService] Fetched \(result.count) feedback entries")
 
         return result
     }

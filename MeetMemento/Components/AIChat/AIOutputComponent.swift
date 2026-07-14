@@ -323,7 +323,7 @@ public struct AIOutputComponent: View {
             ]
         ),
         onCitationsTapped: {
-            print("Citations tapped")
+            AppLogger.log("Citations tapped")
         }
     )
     .padding()

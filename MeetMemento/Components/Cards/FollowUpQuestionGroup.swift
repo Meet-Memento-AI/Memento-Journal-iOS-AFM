@@ -55,7 +55,7 @@ struct FollowUpQuestionGroup: View {
                     "What are you afraid to admit to yourself?"
                 ],
                 onQuestionTap: { index, question in
-                    print("Question \(index + 1) tapped: \(question)")
+                    AppLogger.log("Question \(index + 1) tapped: \(question)")
                 }
             )
         }
@@ -75,7 +75,7 @@ struct FollowUpQuestionGroup: View {
                     "What are you avoiding by staying busy?"
                 ],
                 onQuestionTap: { index, question in
-                    print("Tapped: \(question)")
+                    AppLogger.log("Tapped: \(question)")
                 }
             )
         }
@@ -122,7 +122,7 @@ struct FollowUpQuestionGroup: View {
                         "What are you afraid to admit to yourself?"
                     ],
                     onQuestionTap: { index, question in
-                        print("Reflection \(index + 1) selected")
+                        AppLogger.log("Reflection \(index + 1) selected")
                     }
                 )
 

@@ -59,7 +59,7 @@ class UserService {
             .insert(newProfileDTO)
             .execute()
             
-        print("✅ Created new user profile for \(email)")
+        AppLogger.log("[UserService] Created new user profile")
     }
 
     /// Ensures user exists with OAuth profile data (Apple/Google Sign In).
@@ -87,7 +87,7 @@ class UserService {
                     .update(["full_name": fullName, "updated_at": ISO8601DateFormatter().string(from: Date())])
                     .eq("id", value: id)
                     .execute()
-                print("✅ Updated user profile name for \(email)")
+                AppLogger.log("[UserService] Updated user profile name")
             }
             return
         }
@@ -108,7 +108,7 @@ class UserService {
             .insert(newProfileDTO)
             .execute()
 
-        print("✅ Created new OAuth user profile for \(email)")
+        AppLogger.log("[UserService] Created new OAuth user profile")
     }
 
     /// Checks if user has completed onboarding

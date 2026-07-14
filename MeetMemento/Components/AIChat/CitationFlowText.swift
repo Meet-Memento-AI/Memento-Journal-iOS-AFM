@@ -283,7 +283,7 @@ struct CitationFlowLayout<Content: View>: View {
         boldFont: Typography().body1Bold,
         textColor: GrayScale.gray800
     ) { data in
-        print("Tapped citation \(data.index)")
+        AppLogger.log("Tapped citation \(data.index)")
     }
     .padding()
     .useTheme()

@@ -195,9 +195,9 @@ public struct DrawerMenuView: View {
         Color.gray.opacity(0.3).ignoresSafeArea()
 
         DrawerMenuView(
-            onAboutYourselfTapped: { print("About yourself") },
-            onJournalGoalsTapped: { print("Journal goals") },
-            onSettingsTapped: { print("Settings") },
+            onAboutYourselfTapped: { AppLogger.log("About yourself") },
+            onJournalGoalsTapped: { AppLogger.log("Journal goals") },
+            onSettingsTapped: { AppLogger.log("Settings") },
             onClose: {}
         )
     }
@@ -210,9 +210,9 @@ public struct DrawerMenuView: View {
         Color.black.ignoresSafeArea()
 
         DrawerMenuView(
-            onAboutYourselfTapped: { print("About yourself") },
-            onJournalGoalsTapped: { print("Journal goals") },
-            onSettingsTapped: { print("Settings") },
+            onAboutYourselfTapped: { AppLogger.log("About yourself") },
+            onJournalGoalsTapped: { AppLogger.log("Journal goals") },
+            onSettingsTapped: { AppLogger.log("Settings") },
             onClose: {}
         )
     }

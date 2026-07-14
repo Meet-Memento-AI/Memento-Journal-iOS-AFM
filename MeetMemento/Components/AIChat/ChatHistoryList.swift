@@ -79,7 +79,7 @@ public struct ChatHistoryList: View {
     ChatHistoryList(
         sessions: ChatSession.mockSessions,
         onSessionSelect: { session in
-            print("Selected: \(session.title)")
+            AppLogger.log("[ChatHistory] Session selected")
         }
     )
     .useTheme()

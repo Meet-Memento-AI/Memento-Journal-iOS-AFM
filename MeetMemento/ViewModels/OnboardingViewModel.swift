@@ -65,7 +65,7 @@ class OnboardingViewModel: ObservableObject {
                 personalizationText = reflection
             }
         } catch {
-            print("⚠️ [OnboardingViewModel] Failed to load state: \(error)")
+            AppLogger.log("⚠️ [OnboardingViewModel] Failed to load state: \(error)")
         }
     }
 
@@ -77,9 +77,7 @@ class OnboardingViewModel: ObservableObject {
         try await UserService.shared.updateFullName(firstName: firstName, lastName: lastName)
         hasProfile = true
 
-        #if DEBUG
-        print("✅ [OnboardingViewModel] Profile saved: \(firstName) \(lastName)")
-        #endif
+                AppLogger.log("✅ [OnboardingViewModel] Profile saved: \(firstName) \(lastName)")
     }
 
     /// Persists the personalization reflection text to `user_profiles`.
@@ -90,9 +88,7 @@ class OnboardingViewModel: ObservableObject {
         )
         hasPersonalization = true
 
-        #if DEBUG
-        print("✅ [OnboardingViewModel] Personalization text saved")
-        #endif
+                AppLogger.log("✅ [OnboardingViewModel] Personalization text saved")
     }
 
     /// Persists selected goals to the `users` table.
@@ -101,9 +97,7 @@ class OnboardingViewModel: ObservableObject {
         try await UserService.shared.updateGoals(selectedGoals)
         hasGoals = true
 
-        #if DEBUG
-        print("✅ [OnboardingViewModel] Goals saved: \(selectedGoals)")
-        #endif
+                AppLogger.log("✅ [OnboardingViewModel] Goals saved: \(selectedGoals)")
     }
 
     /// Creates the first journal entry from the personalization text.
@@ -121,17 +115,13 @@ class OnboardingViewModel: ObservableObject {
         )
         try await JournalService.shared.createEntry(entry)
 
-        #if DEBUG
-        print("✅ [OnboardingViewModel] First journal entry created")
-        #endif
+                AppLogger.log("✅ [OnboardingViewModel] First journal entry created")
     }
 
     /// Marks onboarding as complete in the database.
     func completeOnboarding() async throws {
         try await UserService.shared.markOnboardingComplete()
 
-        #if DEBUG
-        print("✅ [OnboardingViewModel] Onboarding marked complete in DB")
-        #endif
+                AppLogger.log("✅ [OnboardingViewModel] Onboarding marked complete in DB")
     }
 }

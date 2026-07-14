@@ -86,24 +86,24 @@ class AuthViewModel: ObservableObject {
 
         self.isInitializing = true
 
-        print("🔵 [Auth] Checking Supabase config...")
+        AppLogger.log("[Auth] Checking Supabase config...")
         if let configError = SupabaseService.shared.configurationError {
-            print("⚠️ [Auth] Skipping session restore due to invalid Supabase config: \(configError.localizedDescription)")
+            AppLogger.log("[Auth] Skipping session restore due to invalid Supabase config: \(configError.localizedDescription)", type: .error)
             self.isAuthenticated = false
             self.hasCompletedOnboarding = false
             self.authState = .unauthenticated
             return
         }
-        print("🔵 [Auth] Config OK. Checking inactivity...")
+        AppLogger.log("[Auth] Config OK. Checking inactivity...")
 
         // Check for inactivity timeout FIRST (14+ days of inactivity)
         if SecurityService.shared.shouldAutoLogout() {
-            print("⏰ [Auth] Auto-logout triggered: 14+ days of inactivity")
+            AppLogger.log("[Auth] Auto-logout triggered: 14+ days of inactivity")
             await performAutoLogout()
             return
         }
 
-        print("🔵 [Auth] Fetching session (8s timeout)...")
+        AppLogger.log("[Auth] Fetching session (8s timeout)...")
         // Capture client before entering task group to avoid @MainActor isolation issues
         let supabaseClient = self.client
         do {
@@ -118,12 +118,12 @@ class AuthViewModel: ObservableObject {
                 return result
             }
 
-            print("🔵 [Auth] Session found. Ensuring user exists...")
+            AppLogger.log("[Auth] Session found. Ensuring user exists...")
             if let email = session.user.email {
                 try? await UserService.shared.ensureUserExists(id: session.user.id, email: email)
             }
 
-            print("🔵 [Auth] Checking onboarding status...")
+            AppLogger.log("[Auth] Checking onboarding status...")
             let hasOnboarded = try await UserService.shared.hasCompletedOnboarding(userId: session.user.id)
 
             self.isAuthenticated = true
@@ -132,9 +132,9 @@ class AuthViewModel: ObservableObject {
 
             SecurityService.shared.updateActivityTimestamp()
 
-            print("✅ Supabase Session Restored: \(session.user.id), onboarded: \(hasOnboarded)")
+            AppLogger.log("[Auth] Session restored, onboarded: \(hasOnboarded)")
         } catch {
-            print("ℹ️ No active Supabase session found or timed out: \(error)")
+            AppLogger.log("[Auth] No active session found or timed out: \(error)")
             self.isAuthenticated = false
             self.hasCompletedOnboarding = false
             self.authState = .unauthenticated
@@ -162,7 +162,7 @@ class AuthViewModel: ObservableObject {
         self.currentEmail = email
         // Using Email OTP (Magic Link logic can differ, standard is OTP)
         try await client.auth.signInWithOTP(email: email)
-        print("✅ OTP sent to \(email)")
+        AppLogger.log("[Auth] OTP sent")
     }
 
     /// Verifies the OTP code and dynamically checks DB for onboarding status.
@@ -177,7 +177,7 @@ class AuthViewModel: ObservableObject {
         do {
             try await UserService.shared.ensureUserExists(id: session.user.id, email: email)
         } catch {
-            print("⚠️ Failed to ensure user profile exists: \(error)")
+            AppLogger.log("[Auth] Failed to ensure user profile exists: \(error)", type: .error)
         }
 
         let hasOnboarded = try await UserService.shared.hasCompletedOnboarding(userId: session.user.id)
@@ -290,7 +290,7 @@ class AuthViewModel: ObservableObject {
         // Update activity timestamp on successful sign-in
         SecurityService.shared.updateActivityTimestamp()
 
-        print("✅ Apple Sign In successful for user: \(session.user.id)")
+        AppLogger.log("[Auth] Apple Sign In successful")
     }
 
     // MARK: - Google Sign In
@@ -333,7 +333,7 @@ class AuthViewModel: ObservableObject {
         // Update activity timestamp on successful sign-in
         SecurityService.shared.updateActivityTimestamp()
 
-        print("✅ Google Sign In successful for user: \(session.user.id)")
+        AppLogger.log("[Auth] Google Sign In successful")
     }
 
     /// Deletes the user's account and all associated data
@@ -346,10 +346,10 @@ class AuthViewModel: ObservableObject {
         // Try to call the delete_user() RPC (deletes auth.users and cascades)
         do {
             try await client.rpc("delete_user").execute()
-            print("✅ [Auth] User deleted via RPC")
+            AppLogger.log("[Auth] User deleted via RPC")
         } catch {
             // Fallback: manually delete app data if RPC fails
-            print("⚠️ [Auth] RPC failed, falling back to manual deletion: \(error)")
+            AppLogger.log("[Auth] RPC failed, falling back to manual deletion: \(error)", type: .error)
 
             // Delete chat data first (foreign key order)
             _ = try? await client

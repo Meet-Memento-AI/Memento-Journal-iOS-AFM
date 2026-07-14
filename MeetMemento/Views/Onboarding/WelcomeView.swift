@@ -290,9 +290,7 @@ public struct WelcomeView: View {
                     }
                 }
             } catch {
-                #if DEBUG
-                print("🔴 Apple Sign In error: \(error)")
-                #endif
+                                AppLogger.log("🔴 Apple Sign In error: \(error)")
                 await MainActor.run {
                     isAppleLoading = false
                     authError = error.localizedDescription
@@ -313,9 +311,7 @@ public struct WelcomeView: View {
                     handleAuthSuccess()
                 }
             } catch {
-                #if DEBUG
-                print("🔴 Google Sign In error: \(error)")
-                #endif
+                                AppLogger.log("🔴 Google Sign In error: \(error)")
                 await MainActor.run {
                     isGoogleLoading = false
                     authError = error.localizedDescription

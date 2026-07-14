@@ -151,7 +151,7 @@ public struct OnboardingCoordinatorView: View {
                 try await onboardingViewModel.saveProfileData()
                 navigationPath.append(OnboardingRoute.learnAboutYourself)
             } catch {
-                print("⚠️ Failed to save profile: \(error)")
+                AppLogger.log("⚠️ Failed to save profile: \(error)")
                 saveErrorMessage = "Failed to save your profile. Please try again."
                 showSaveError = true
             }
@@ -165,7 +165,7 @@ public struct OnboardingCoordinatorView: View {
                 try await onboardingViewModel.savePersonalizationText()
                 navigationPath.append(OnboardingRoute.yourGoals)
             } catch {
-                print("⚠️ Failed to save personalization: \(error)")
+                AppLogger.log("⚠️ Failed to save personalization: \(error)")
                 saveErrorMessage = "Failed to save your preferences. Please try again."
                 showSaveError = true
             }
@@ -178,7 +178,7 @@ public struct OnboardingCoordinatorView: View {
                 try await onboardingViewModel.saveGoals()
                 navigationPath.append(OnboardingRoute.faceID)
             } catch {
-                print("⚠️ Failed to save goals: \(error)")
+                AppLogger.log("⚠️ Failed to save goals: \(error)")
                 saveErrorMessage = "Failed to save your goals. Please try again."
                 showSaveError = true
             }
@@ -210,7 +210,7 @@ public struct OnboardingCoordinatorView: View {
             if !saved {
                 // Log error but continue - security mode will still be set
                 // User can reset PIN later if needed
-                print("⚠️ Failed to save PIN to Keychain")
+                AppLogger.log("⚠️ Failed to save PIN to Keychain")
             }
             // Only set to PIN mode if user chose PIN-only (not FaceID backup)
             // FaceID users already have their mode set in handleUseFaceID()
@@ -244,7 +244,7 @@ public struct OnboardingCoordinatorView: View {
                     )
                 }
             } catch {
-                print("⚠️ Failed to create first journal entry: \(error)")
+                AppLogger.log("⚠️ Failed to create first journal entry: \(error)")
             }
             await MainActor.run {
                 navigationPath.append(OnboardingRoute.loading)
@@ -264,7 +264,7 @@ public struct OnboardingCoordinatorView: View {
                     authViewModel.clearPendingProfile()
                 }
             } catch {
-                print("⚠️ Failed to mark onboarding complete: \(error)")
+                AppLogger.log("⚠️ Failed to mark onboarding complete: \(error)")
                 await MainActor.run {
                     lockScreenViewModel.skipNextLockScreen = true
                     authViewModel.hasCompletedOnboarding = true

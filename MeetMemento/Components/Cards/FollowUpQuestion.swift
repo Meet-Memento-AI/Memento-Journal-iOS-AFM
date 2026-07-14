@@ -62,7 +62,7 @@ struct FollowUpQuestion: View {
         FollowUpQuestion(
             question: "What would happen if you let go of the need to control everything?",
             onTap: {
-                print("Question tapped")
+                AppLogger.log("Question tapped")
             }
         )
         .padding(.horizontal, 20)
@@ -78,7 +78,7 @@ struct FollowUpQuestion: View {
         FollowUpQuestion(
             question: "How might your relationships change if you prioritized vulnerability over perfection?",
             onTap: {
-                print("Question tapped")
+                AppLogger.log("Question tapped")
             }
         )
         .padding(.horizontal, 20)

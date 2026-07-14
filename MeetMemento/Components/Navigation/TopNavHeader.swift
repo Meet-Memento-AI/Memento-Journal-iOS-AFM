@@ -194,8 +194,8 @@ public struct TopNavHeader: View {
         VStack {
             TopNavHeader(
                 selection: .constant(.yourEntries),
-                onMenuTapped: { print("Menu tapped") },
-                onActionTapped: { print("Search tapped") }
+                onMenuTapped: { AppLogger.log("Menu tapped") },
+                onActionTapped: { AppLogger.log("Search tapped") }
             )
             .padding(.top, 60)
 
@@ -213,8 +213,8 @@ public struct TopNavHeader: View {
         VStack {
             TopNavHeader(
                 selection: .constant(.digDeeper),
-                onMenuTapped: { print("Menu tapped") },
-                onActionTapped: { print("New Entry tapped") }
+                onMenuTapped: { AppLogger.log("Menu tapped") },
+                onActionTapped: { AppLogger.log("New Entry tapped") }
             )
             .padding(.top, 60)
 

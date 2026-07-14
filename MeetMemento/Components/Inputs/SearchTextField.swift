@@ -80,7 +80,7 @@ struct SearchTextField: View {
     VStack {
         SearchTextField(
             text: .constant(""),
-            onCancel: { print("Cancelled") }
+            onCancel: { AppLogger.log("Cancelled") }
         )
         .padding()
     }
@@ -93,7 +93,7 @@ struct SearchTextField: View {
     VStack {
         SearchTextField(
             text: .constant("morning reflection"),
-            onCancel: { print("Cancelled") }
+            onCancel: { AppLogger.log("Cancelled") }
         )
         .padding()
     }
@@ -106,7 +106,7 @@ struct SearchTextField: View {
     VStack {
         SearchTextField(
             text: .constant(""),
-            onCancel: { print("Cancelled") }
+            onCancel: { AppLogger.log("Cancelled") }
         )
         .padding()
     }

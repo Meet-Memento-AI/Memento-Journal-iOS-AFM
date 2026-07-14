@@ -84,7 +84,7 @@ struct InsightMonthPickerSheet: View {
                 selectedYear: $year,
                 isPresented: $isPresented,
                 availableYears: [2026, 2027, 2028],
-                onDone: { print("Done pressed") }
+                onDone: { AppLogger.log("Done pressed") }
             )
             .useTheme()
         }

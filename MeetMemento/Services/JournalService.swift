@@ -42,10 +42,8 @@ class JournalService {
                 // Check if error is retryable
                 let isRetryable = isTransientError(error)
 
-                #if DEBUG
-                print("⚠️ [JournalService] Attempt \(attempt)/\(config.maxAttempts) failed: \(error.localizedDescription)")
-                print("   Retryable: \(isRetryable)")
-                #endif
+                                AppLogger.log("⚠️ [JournalService] Attempt \(attempt)/\(config.maxAttempts) failed: \(error.localizedDescription)")
+                AppLogger.log("   Retryable: \(isRetryable)")
 
                 // Don't retry on final attempt or non-transient errors
                 if attempt == config.maxAttempts || !isRetryable {
@@ -56,9 +54,7 @@ class JournalService {
                 let jitter = UInt64.random(in: 0...100)
                 let delay = min(currentDelay + jitter, config.maxDelayMs)
 
-                #if DEBUG
-                print("   Retrying in \(delay)ms...")
-                #endif
+                                AppLogger.log("   Retrying in \(delay)ms...")
 
                 try await Task.sleep(nanoseconds: delay * 1_000_000)
                 currentDelay = min(currentDelay * 2, config.maxDelayMs)
@@ -143,9 +139,7 @@ class JournalService {
             do {
                 try await ChatService.shared.triggerEmbedding(entryId: created.id)
             } catch {
-                #if DEBUG
-                print("⚠️ [JournalService] Failed to trigger embedding: \(error)")
-                #endif
+                                AppLogger.log("⚠️ [JournalService] Failed to trigger embedding: \(error)")
             }
         }
 
@@ -174,9 +168,7 @@ class JournalService {
             do {
                 try await ChatService.shared.triggerEmbedding(entryId: entry.id)
             } catch {
-                #if DEBUG
-                print("⚠️ [JournalService] Failed to trigger embedding: \(error)")
-                #endif
+                                AppLogger.log("⚠️ [JournalService] Failed to trigger embedding: \(error)")
             }
         }
     }
@@ -231,9 +223,7 @@ class JournalService {
             do {
                 try LocalJournalStorage.shared.saveEncrypted(entryId: created.id, encryptedData: encrypted)
             } catch {
-                #if DEBUG
-                print("⚠️ [JournalService] Failed to save encrypted content locally: \(error)")
-                #endif
+                                AppLogger.log("⚠️ [JournalService] Failed to save encrypted content locally: \(error)")
                 // Don't fail the operation - Supabase has the backup
             }
         }
@@ -254,9 +244,7 @@ class JournalService {
             do {
                 try LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
             } catch {
-                #if DEBUG
-                print("⚠️ [JournalService] Failed to update encrypted content locally: \(error)")
-                #endif
+                                AppLogger.log("⚠️ [JournalService] Failed to update encrypted content locally: \(error)")
             }
         }
     }
@@ -315,9 +303,7 @@ class JournalService {
             }
         }
 
-        #if DEBUG
-        print("🔐 [JournalService] Re-encrypted \(entries.count) entries with new PIN")
-        #endif
+                AppLogger.log("🔐 [JournalService] Re-encrypted \(entries.count) entries with new PIN")
     }
 }
 

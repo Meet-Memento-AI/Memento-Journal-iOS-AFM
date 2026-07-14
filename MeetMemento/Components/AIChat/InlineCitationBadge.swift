@@ -139,7 +139,7 @@ struct InlineCitationThemeTag: View {
         HStack(spacing: 8) {
             Text("You mentioned feeling stressed")
             InlineCitationDateBadge(date: Date()) {
-                print("Tapped citation")
+                AppLogger.log("Tapped citation")
             }
             Text("about work.")
         }
@@ -149,7 +149,7 @@ struct InlineCitationThemeTag: View {
             InlineCitationDateBadge(
                 date: Calendar.current.date(byAdding: .day, value: -5, to: Date())!
             ) {
-                print("Tapped citation 2")
+                AppLogger.log("Tapped citation 2")
             }
             Text("taking a walk.")
         }

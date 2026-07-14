@@ -49,7 +49,7 @@ struct LaunchLoadingView: View {
 
                 // Secondary failsafe in case root-level startup task gets interrupted.
                 if secondsVisible >= 6 && !authViewModel.hasCheckedAuth {
-                    print("⚠️ [LaunchLoadingView] Failsafe fired after \(secondsVisible)s")
+                    AppLogger.log("⚠️ [LaunchLoadingView] Failsafe fired after \(secondsVisible)s")
                     authViewModel.isAuthenticated = false
                     authViewModel.hasCompletedOnboarding = false
                     authViewModel.authState = .unauthenticated

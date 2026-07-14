@@ -248,7 +248,7 @@ private struct InteractiveDemoView: View {
                     minimumCharacters: 100,
                     buttonSize: 50,
                     onTap: {
-                        print("✅ Minimum character count reached!")
+                        AppLogger.log("✅ Minimum character count reached!")
                     }
                 )
 

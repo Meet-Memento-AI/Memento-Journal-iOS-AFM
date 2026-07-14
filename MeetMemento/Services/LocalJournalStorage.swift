@@ -23,7 +23,7 @@ class LocalJournalStorage {
             do {
                 try fileManager.createDirectory(at: storageURL, withIntermediateDirectories: true)
             } catch {
-                print("⚠️ [LocalJournalStorage] Failed to create storage directory: \(error)")
+                AppLogger.log("⚠️ [LocalJournalStorage] Failed to create storage directory: \(error)")
             }
         }
 
@@ -46,9 +46,7 @@ class LocalJournalStorage {
     func saveEncrypted(entryId: UUID, encryptedData: Data) throws {
         let url = fileURL(for: entryId)
         try encryptedData.write(to: url, options: .completeFileProtection)
-        #if DEBUG
-        print("📁 [LocalJournalStorage] Saved encrypted entry: \(entryId)")
-        #endif
+                AppLogger.log("📁 [LocalJournalStorage] Saved encrypted entry: \(entryId)")
     }
 
     /// Loads encrypted journal content
@@ -64,7 +62,7 @@ class LocalJournalStorage {
         do {
             return try Data(contentsOf: url)
         } catch {
-            print("⚠️ [LocalJournalStorage] Failed to load encrypted entry \(entryId): \(error)")
+            AppLogger.log("⚠️ [LocalJournalStorage] Failed to load encrypted entry \(entryId): \(error)")
             return nil
         }
     }
@@ -86,11 +84,9 @@ class LocalJournalStorage {
 
         do {
             try fileManager.removeItem(at: url)
-            #if DEBUG
-            print("🗑️ [LocalJournalStorage] Deleted encrypted entry: \(entryId)")
-            #endif
+                        AppLogger.log("🗑️ [LocalJournalStorage] Deleted encrypted entry: \(entryId)")
         } catch {
-            print("⚠️ [LocalJournalStorage] Failed to delete encrypted entry \(entryId): \(error)")
+            AppLogger.log("⚠️ [LocalJournalStorage] Failed to delete encrypted entry \(entryId): \(error)")
         }
     }
 
@@ -106,11 +102,9 @@ class LocalJournalStorage {
                 try fileManager.removeItem(at: file)
             }
 
-            #if DEBUG
-            print("🗑️ [LocalJournalStorage] Cleared all encrypted entries (\(contents.count) files)")
-            #endif
+                        AppLogger.log("🗑️ [LocalJournalStorage] Cleared all encrypted entries (\(contents.count) files)")
         } catch {
-            print("⚠️ [LocalJournalStorage] Failed to clear all: \(error)")
+            AppLogger.log("⚠️ [LocalJournalStorage] Failed to clear all: \(error)")
         }
     }
 

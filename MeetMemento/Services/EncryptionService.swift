@@ -52,7 +52,7 @@ class EncryptionService {
         }
 
         guard derivationStatus == kCCSuccess else {
-            print("PBKDF2 key derivation failed with status: \(derivationStatus)")
+            AppLogger.log("PBKDF2 key derivation failed with status: \(derivationStatus)")
             return nil
         }
 
@@ -77,7 +77,7 @@ class EncryptionService {
             // Return combined format: nonce || ciphertext || tag
             return sealedBox.combined
         } catch {
-            print("⚠️ [EncryptionService] Encryption failed: \(error)")
+            AppLogger.log("⚠️ [EncryptionService] Encryption failed: \(error)")
             return nil
         }
     }
@@ -97,7 +97,7 @@ class EncryptionService {
             let decryptedData = try AES.GCM.open(sealedBox, using: key)
             return String(data: decryptedData, encoding: .utf8)
         } catch {
-            print("⚠️ [EncryptionService] Decryption failed: \(error)")
+            AppLogger.log("⚠️ [EncryptionService] Decryption failed: \(error)")
             return nil
         }
     }
@@ -127,7 +127,7 @@ class EncryptionService {
         }
 
         guard result == errSecSuccess else {
-            print("⚠️ [EncryptionService] Failed to generate random salt")
+            AppLogger.log("⚠️ [EncryptionService] Failed to generate random salt")
             return nil
         }
 
@@ -174,7 +174,7 @@ class EncryptionService {
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
         if status != errSecSuccess {
-            print("⚠️ [EncryptionService] Failed to save salt: \(status)")
+            AppLogger.log("⚠️ [EncryptionService] Failed to save salt: \(status)")
         }
         return status == errSecSuccess
     }

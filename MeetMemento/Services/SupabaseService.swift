@@ -103,13 +103,11 @@ class SupabaseService {
             // Log the error and use a placeholder URL to prevent crash
             // The configurationError will be checked by callers
             let badValue = configuredURLString ?? "<missing>"
-            print("CRITICAL ERROR: Invalid or missing SUPABASE_URL in Info.plist/xcconfig: '\(badValue)'")
+            AppLogger.log("[SupabaseService] Invalid or missing SUPABASE_URL: '\(badValue)'", type: .error)
             self.supabaseUrl = URL(string: "https://invalid.supabase.co")!
             self.configurationError = self.configurationError ?? .invalidSupabaseURL(badValue)
 
-            #if DEBUG
-            print("⚠️ SUPABASE CONFIG ERROR: Check SUPABASE_URL and SUPABASE_ANON_KEY in your local xcconfig files.")
-            #endif
+            AppLogger.log("[SupabaseService] Check SUPABASE_URL and SUPABASE_ANON_KEY in your local xcconfig files.", type: .error)
         }
 
         self.client = SupabaseClient(

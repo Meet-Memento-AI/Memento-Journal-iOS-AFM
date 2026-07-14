@@ -134,8 +134,8 @@ struct ListeningPanel: View {
     VStack {
         Spacer()
         ListeningPanel(
-            onBack: { print("Back tapped") },
-            onDone: { print("Done tapped") },
+            onBack: { AppLogger.log("Back tapped") },
+            onDone: { AppLogger.log("Done tapped") },
             audioLevel: 0.5
         )
         .padding(.horizontal, 20)
@@ -156,8 +156,8 @@ private struct ListeningPanelAnimatedPreview: View {
         VStack {
             Spacer()
             ListeningPanel(
-                onBack: { print("Back tapped") },
-                onDone: { print("Done tapped") },
+                onBack: { AppLogger.log("Back tapped") },
+                onDone: { AppLogger.log("Done tapped") },
                 audioLevel: audioLevel
             )
             .padding(.horizontal, 20)
@@ -180,8 +180,8 @@ private struct ListeningPanelAnimatedPreview: View {
     VStack {
         Spacer()
         ListeningPanel(
-            onBack: { print("Back tapped") },
-            onDone: { print("Done tapped") },
+            onBack: { AppLogger.log("Back tapped") },
+            onDone: { AppLogger.log("Done tapped") },
             audioLevel: 0.6
         )
         .padding(.horizontal, 20)

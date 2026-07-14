@@ -89,7 +89,7 @@ public struct ChatSummarySheet: View {
 
 #Preview("Default") {
     ChatSummarySheet(
-        onSummarize: { print("Summarize tapped") },
+        onSummarize: { AppLogger.log("Summarize tapped") },
         isSummarizing: false
     )
     .useTheme()
@@ -98,7 +98,7 @@ public struct ChatSummarySheet: View {
 
 #Preview("Loading") {
     ChatSummarySheet(
-        onSummarize: { print("Summarize tapped") },
+        onSummarize: { AppLogger.log("Summarize tapped") },
         isSummarizing: true
     )
     .useTheme()
@@ -107,7 +107,7 @@ public struct ChatSummarySheet: View {
 
 #Preview("Dark Mode") {
     ChatSummarySheet(
-        onSummarize: { print("Summarize tapped") },
+        onSummarize: { AppLogger.log("Summarize tapped") },
         isSummarizing: false
     )
     .useTheme()

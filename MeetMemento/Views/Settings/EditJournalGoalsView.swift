@@ -173,7 +173,7 @@ public struct EditJournalGoalsView: View {
                     }
                 }
             } catch {
-                print("⚠️ Failed to load user profile: \(error)")
+                AppLogger.log("⚠️ Failed to load user profile: \(error)")
                 await MainActor.run {
                     isLoading = false
                 }
@@ -193,7 +193,7 @@ public struct EditJournalGoalsView: View {
                     dismiss()
                 }
             } catch {
-                print("⚠️ Failed to save goals: \(error)")
+                AppLogger.log("⚠️ Failed to save goals: \(error)")
                 await MainActor.run {
                     isSaving = false
                 }

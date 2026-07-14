@@ -45,7 +45,7 @@ public struct CitationLink: View {
 
 #Preview("Single Citation") {
     CitationLink(count: 1) {
-        print("Citation tapped")
+        AppLogger.log("Citation tapped")
     }
     .useTheme()
     .useTypography()
@@ -53,7 +53,7 @@ public struct CitationLink: View {
 
 #Preview("Multiple Citations") {
     CitationLink(count: 5) {
-        print("Citations tapped")
+        AppLogger.log("Citations tapped")
     }
     .useTheme()
     .useTypography()
@@ -61,7 +61,7 @@ public struct CitationLink: View {
 
 #Preview("Many Citations") {
     CitationLink(count: 12) {
-        print("Citations tapped")
+        AppLogger.log("Citations tapped")
     }
     .useTheme()
     .useTypography()

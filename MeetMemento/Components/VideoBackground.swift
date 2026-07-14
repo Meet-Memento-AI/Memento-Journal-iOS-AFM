@@ -74,9 +74,7 @@ class PlayerUIView: UIView {
 
     private func setupPlayer() {
         guard let url = Bundle.main.url(forResource: videoName, withExtension: videoExtension) else {
-            #if DEBUG
-            print("⚠️ VideoBackground: Could not find \(videoName).\(videoExtension) in bundle")
-            #endif
+                        AppLogger.log("⚠️ VideoBackground: Could not find \(videoName).\(videoExtension) in bundle")
             return
         }
 
@@ -106,9 +104,7 @@ class PlayerUIView: UIView {
                 self.videoDuration = CMTimeGetSeconds(duration)
                 self.setupTimeObserver()
             } catch {
-                #if DEBUG
-                print("⚠️ VideoBackground: Failed to load duration: \(error)")
-                #endif
+                                AppLogger.log("⚠️ VideoBackground: Failed to load duration: \(error)")
             }
         }
     }

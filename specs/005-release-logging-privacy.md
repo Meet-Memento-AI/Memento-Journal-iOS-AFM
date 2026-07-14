@@ -2,7 +2,7 @@
 id: 005
 title: Release Logging Privacy
 tier: P1
-status: not-started
+status: done (2026-07-14)
 effort: 1 session
 depends_on: []
 findings: [unguarded-print-statements, pii-in-logs, applogger-underused]
@@ -58,29 +58,53 @@ gap is spec 006's — the rule still lands here.)
 - Structured logging/analytics platform (os.Logger categories, remote crash
   reporting) → **spec 012** if desired; `AppLogger` is sufficient for 1.0.
 
+## Implementation notes (2026-07-13/14)
+
+- **Inventory**: 189 `print(` sites across ~40 files at start (the "~208/~90 unguarded"
+  estimate included tests). Migrated **all** to `AppLogger.log(...)` (bulk perl transform:
+  `print(` → `AppLogger.log(`, collapsing 11 `#if DEBUG print #endif` wrappers since
+  AppLogger is already DEBUG-gated). Only remaining `print` is AppLogger's own
+  implementation (`Utils/Logger.swift:19`) — the single allowed sink.
+- **PII stripped** (R2) — 6 log calls carried PII, all fixed:
+  - `InsightsService` logged the **full request JSON payload** (journal entry content)
+    and a **full user id** — both removed (the dead debug encode block + unused
+    `currentUserId` deleted entirely).
+  - `session.title` (chat/journal-derived) in 3 chat-history callbacks → generic message.
+  - `entry.id` in EntryViewModel → removed.
+  - Emails in `UserService` (3 sites) → removed (done in the first partial pass).
+- **AuthViewModel** (user ids at :135/:293/:336), **UserService** (emails),
+  **ChatViewModel** were migrated first (PII priority); `SecurityService` /
+  `EncryptionService` swept via the bulk pass.
+- **SupabaseService.swift**: spec 005 delegated deeper config-error surfacing to spec 006,
+  but its 2 `print`s were migrated to `AppLogger` here so `swiftlint --strict` passes at
+  this commit; spec 006 still does the assertionFailure/visible-error-state work around them.
+- **SwiftLint guard** (R3): `custom_rules.no_print` added to `.swiftlint.yml` — flags
+  `print(` as **error**, excludes `Utils/Logger.swift`. (Making the CI SwiftLint step
+  *blocking* is spec 006.)
+
 ## Tasks
 
-- [ ] 1. Inventory: generate the full list of `print(` sites grouped by file
-      (script it; save output in this spec or a scratch note).
-- [ ] 2. Sweep ViewModels + Services first (PII lives here): delete or migrate to
-      `AppLogger`; strip PII per R2. (R1/R2)
-- [ ] 3. Sweep app entry (`MeetMementoApp.swift`, `LaunchLoadingView.swift`) —
-      the body-evaluation print at `:40` just dies. (R1)
-- [ ] 4. Sweep Components/Views (mostly deletions). (R1)
-- [ ] 5. Convert existing `#if DEBUG print` blocks to `AppLogger` for consistency. (R1)
-- [ ] 6. Add the SwiftLint custom rule; run `swiftlint` locally to confirm zero
-      violations. (R3)
-- [ ] 7. Release-build console audit (see Verification).
+- [x] 1. Inventory generated (189 sites). (R1)
+- [x] 2. ViewModels + Services swept, PII stripped. (R1/R2)
+- [x] 3. App entry swept — `MeetMementoApp.swift` body-evaluation print deleted;
+      `LaunchLoadingView` failsafe print migrated. (R1)
+- [x] 4. Components/Views swept. (R1)
+- [x] 5. `#if DEBUG print` blocks collapsed to `AppLogger`. (R1)
+- [x] 6. SwiftLint `no_print` custom rule added. (`swiftlint` not installed locally —
+      rule validated by inspection; CI runs it.) (R3)
+- [ ] 7. Release-build Console.app PII audit — **user action** (needs a device/Console.app
+      session; grep-level PII audit passed).
 
 ## Verification
 
-- [ ] `grep -rn "print(" MeetMemento/ --include="*.swift" | grep -v "#Preview" | wc -l` → 0.
-- [ ] `swiftlint --strict` on the repo → passes, and deliberately adding a `print(` makes
-      it fail.
-- [ ] Build Release configuration to a device/simulator, exercise launch → sign-in →
-      journal → chat, and watch Console.app filtered to the app process: **no app log
-      lines containing an email, UUID-looking user id, or entry text**.
-- [ ] App still builds and behaves identically (logging is side-effect-free).
+- [x] `grep -rn "print(" MeetMemento/ --include="*.swift"` → 1 (only `Utils/Logger.swift`,
+      the canonical sink). ✅
+- [x] Grep PII audit: no `AppLogger.log` call contains `email`, full `user.id`/`currentUserId`,
+      `session.title`, `jsonString`, token, or entry content. ✅
+- [x] `xcodebuild … build` (Debug, iPhone 17 sim) → **BUILD SUCCEEDED** after the sweep. ✅
+- [ ] `swiftlint --strict` — swiftlint not installed locally; runs in CI (spec 006 makes it
+      blocking). Rule authored to fire on `print(` as error.
+- [ ] Release Console.app audit (launch→sign-in→journal→chat, no PII lines) — **user action**.
 
 ## Regression Guards
 

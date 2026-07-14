@@ -50,9 +50,7 @@ class ChatViewModel: ObservableObject {
                 userName = parts.first.map(String.init)
             }
         } catch {
-            #if DEBUG
-            print("⚠️ [ChatViewModel] Failed to fetch user name: \(error)")
-            #endif
+            AppLogger.log("[ChatViewModel] Failed to fetch user name: \(error)", type: .error)
         }
     }
 
@@ -132,9 +130,7 @@ class ChatViewModel: ObservableObject {
             }
 
             // Raw JSON leaked through - regex extraction failed, show user-friendly message
-            #if DEBUG
-            print("⚠️ [ChatViewModel] Raw JSON detected but body extraction failed")
-            #endif
+            AppLogger.log("[ChatViewModel] Raw JSON detected but body extraction failed", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
             return (fallbackBody, aiContent, nil)
@@ -143,9 +139,7 @@ class ChatViewModel: ObservableObject {
         // Final check: if content still looks like raw JSON (starts with '{'), sanitize
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix("{") {
-            #if DEBUG
-            print("⚠️ [ChatViewModel] Unexpected JSON-like content in message")
-            #endif
+            AppLogger.log("[ChatViewModel] Unexpected JSON-like content in message", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
             return (fallbackBody, aiContent, nil)
@@ -205,9 +199,7 @@ class ChatViewModel: ObservableObject {
                     messageCache[sessionId] = messages
                 }
             } catch {
-                #if DEBUG
-                print("❌ [ChatViewModel] sendMessage error: \(error)")
-                #endif
+                AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
                 errorMessage = chatErrorMessage(for: error)
                 showingError = true
             }
@@ -230,9 +222,7 @@ class ChatViewModel: ObservableObject {
         do {
             sessions = try await chatService.fetchSessions()
         } catch {
-            #if DEBUG
-            print("❌ [ChatViewModel] fetchSessions error: \(error)")
-            #endif
+            AppLogger.log("[ChatViewModel] fetchSessions error: \(error)", type: .error)
         }
         isLoadingSessions = false
     }
@@ -278,9 +268,7 @@ class ChatViewModel: ObservableObject {
             // Load feedback state for the messages
             await loadFeedbackForMessages()
         } catch {
-            #if DEBUG
-            print("❌ [ChatViewModel] loadSession error: \(error)")
-            #endif
+            AppLogger.log("[ChatViewModel] loadSession error: \(error)", type: .error)
             errorMessage = "Failed to load conversation history."
             showingError = true
         }
@@ -309,9 +297,7 @@ class ChatViewModel: ObservableObject {
                 startNewChat()
             }
         } catch {
-            #if DEBUG
-            print("❌ [ChatViewModel] deleteSession error: \(error)")
-            #endif
+            AppLogger.log("[ChatViewModel] deleteSession error: \(error)", type: .error)
             errorMessage = "Failed to delete conversation."
             showingError = true
         }
@@ -380,9 +366,7 @@ class ChatViewModel: ObservableObject {
                     _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .positive)
                 }
             } catch {
-                #if DEBUG
-                print("❌ [ChatViewModel] toggleThumbsUp error: \(error)")
-                #endif
+                AppLogger.log("[ChatViewModel] toggleThumbsUp error: \(error)", type: .error)
             }
         }
     }
@@ -409,9 +393,7 @@ class ChatViewModel: ObservableObject {
                     _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .negative)
                 }
             } catch {
-                #if DEBUG
-                print("❌ [ChatViewModel] toggleThumbsDown error: \(error)")
-                #endif
+                AppLogger.log("[ChatViewModel] toggleThumbsDown error: \(error)", type: .error)
             }
         }
     }
@@ -446,9 +428,7 @@ class ChatViewModel: ObservableObject {
                 }
             }
         } catch {
-            #if DEBUG
-            print("⚠️ [ChatViewModel] loadFeedbackForMessages error: \(error)")
-            #endif
+            AppLogger.log("[ChatViewModel] loadFeedbackForMessages error: \(error)", type: .error)
         }
     }
 
@@ -462,14 +442,10 @@ class ChatViewModel: ObservableObject {
     }
 
     private func chatErrorMessage(for error: Error) -> String {
-        #if DEBUG
-        print("❌ [ChatViewModel] Error details: \(String(describing: error))")
-        #endif
+        AppLogger.log("[ChatViewModel] Error details: \(String(describing: error))", type: .error)
 
         let code = extractHTTPStatusCode(from: error)
-        #if DEBUG
-        print("❌ [ChatViewModel] Extracted HTTP code: \(code ?? -1)")
-        #endif
+        AppLogger.log("[ChatViewModel] Extracted HTTP code: \(code ?? -1)", type: .error)
 
         switch code {
         case 404:

@@ -61,3 +61,15 @@ identifier_name:
 force_cast: error
 force_try: error
 trailing_whitespace: error
+
+custom_rules:
+  # spec-005: no raw print() in the shipping app target — use AppLogger (DEBUG-gated).
+  # AppLogger's own implementation (Utils/Logger.swift) is the single allowed print site.
+  no_print:
+    name: "Use AppLogger, not print()"
+    regex: '(?<![A-Za-z0-9_.])print\s*\('
+    message: "Use AppLogger.log(...) instead of print() — print ships in Release and can leak PII (spec-005)."
+    severity: error
+    match_kinds:
+      - identifier
+    excluded: ".*/Utils/Logger\\.swift"

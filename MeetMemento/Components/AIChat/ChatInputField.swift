@@ -691,7 +691,7 @@ private struct SpeechAlertsModifier: ViewModifier {
         ChatInputField(
             text: .constant(""),
             onSend: {},
-            onHistoryTap: { print("History tapped") },
+            onHistoryTap: { AppLogger.log("History tapped") },
             hasExistingChats: true
         )
         .padding(.horizontal, 20)
@@ -706,7 +706,7 @@ private struct SpeechAlertsModifier: ViewModifier {
         ChatInputField(
             text: .constant(""),
             onSend: {},
-            onHistoryTap: { print("History tapped") },
+            onHistoryTap: { AppLogger.log("History tapped") },
             hasExistingChats: true
         )
         .padding(.horizontal, 20)
@@ -725,7 +725,7 @@ private struct ChatInputFieldPreview: View {
             Spacer()
             ChatInputField(
                 text: $text,
-                onSend: { print("Send: \(text)") },
+                onSend: { AppLogger.log("Send: \(text)") },
                 initialState: initialState
             )
             .padding(.horizontal, 20)
@@ -748,11 +748,11 @@ private struct ChatInputFieldInteractivePreview: View {
             ChatInputField(
                 text: $text,
                 onSend: {
-                    print("Sent: \(text)")
+                    AppLogger.log("Sent: \(text)")
                     text = ""
                 },
                 onHistoryTap: {
-                    print("History tapped")
+                    AppLogger.log("History tapped")
                 },
                 hasExistingChats: true
             )

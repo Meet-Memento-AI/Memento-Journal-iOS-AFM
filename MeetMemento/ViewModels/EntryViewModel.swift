@@ -51,17 +51,13 @@ class EntryViewModel: ObservableObject {
     /// Sets the session PIN for encryption operations (call after unlock)
     func setSessionPIN(_ pin: String) {
         self.sessionPIN = pin
-        #if DEBUG
-        print("🔐 [EntryViewModel] Session PIN set")
-        #endif
+                AppLogger.log("🔐 [EntryViewModel] Session PIN set")
     }
 
     /// Clears the session PIN (call on app lock)
     func clearSessionPIN() {
         self.sessionPIN = nil
-        #if DEBUG
-        print("🔐 [EntryViewModel] Session PIN cleared")
-        #endif
+                AppLogger.log("🔐 [EntryViewModel] Session PIN cleared")
     }
 
     // MARK: - Search
@@ -86,7 +82,7 @@ class EntryViewModel: ObservableObject {
     func loadEntries() async {
         // Prevent concurrent load operations
         guard !isLoadingEntries else {
-            print("⚠️ [EntryViewModel] Concurrent load blocked - already loading")
+            AppLogger.log("⚠️ [EntryViewModel] Concurrent load blocked - already loading")
             return
         }
 
@@ -102,7 +98,7 @@ class EntryViewModel: ObservableObject {
         self.entries = MockDataProvider.shared.mockEntries
         self.userFirstName = MockDataProvider.shared.mockUserFirstName
         updateEntriesByMonth()
-        print("📱 UI Mode: Loaded \(entries.count) mock entries")
+        AppLogger.log("📱 UI Mode: Loaded \(entries.count) mock entries")
         #else
         // Production Mode - Use Supabase with retry for cancelled requests
         var retryCount = 0
@@ -126,17 +122,17 @@ class EntryViewModel: ObservableObject {
             } catch let error as NSError where error.code == NSURLErrorCancelled {
                 // Request was cancelled (often during auth state transitions)
                 retryCount += 1
-                print("⚠️ Request cancelled (attempt \(retryCount)/\(maxRetries)), retrying...")
+                AppLogger.log("⚠️ Request cancelled (attempt \(retryCount)/\(maxRetries)), retrying...")
 
                 if retryCount < maxRetries {
                     // Wait briefly for session to stabilize before retrying
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
                 } else {
-                    print("Error loading entries after \(maxRetries) retries: \(error)")
+                    AppLogger.log("Error loading entries after \(maxRetries) retries: \(error)")
                     self.errorMessage = "Failed to load. Please pull to refresh."
                 }
             } catch {
-                print("Error loading entries: \(error)")
+                AppLogger.log("Error loading entries: \(error)")
                 self.errorMessage = "Failed to load: \(error.localizedDescription)"
                 break // Non-retryable error, exit loop
             }
@@ -157,7 +153,7 @@ class EntryViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("Error loading user profile: \(error)")
+            AppLogger.log("Error loading user profile: \(error)")
             // Don't set errorMessage - this is non-critical
         }
     }
@@ -179,7 +175,7 @@ class EntryViewModel: ObservableObject {
 
         // Prevent duplicate operations for the same entry
         guard !pendingOperations.contains(tempId) else {
-            print("⚠️ [EntryViewModel] Duplicate create operation blocked for \(tempId)")
+            AppLogger.log("⚠️ [EntryViewModel] Duplicate create operation blocked for \(tempId)")
             return
         }
 
@@ -209,7 +205,7 @@ class EntryViewModel: ObservableObject {
             #if DISABLE_SUPABASE
             // UI Testing Mode - Add to mock data
             MockDataProvider.shared.addMockEntry(newEntry)
-            print("📱 UI Mode: Created mock entry")
+            AppLogger.log("📱 UI Mode: Created mock entry")
             #else
             // Production Mode - Use Supabase
             guard let userId = SupabaseService.shared.client.auth.currentUser?.id else {
@@ -217,7 +213,7 @@ class EntryViewModel: ObservableObject {
                 await MainActor.run {
                     self.entries.removeAll { $0.id == tempId }
                     self.updateEntriesByMonth()
-                    print("Error: No authenticated user found.")
+                    AppLogger.log("Error: No authenticated user found.")
                     self.errorMessage = "You must be signed in to save entries."
                 }
                 return
@@ -250,7 +246,7 @@ class EntryViewModel: ObservableObject {
                 await MainActor.run {
                     self.entries.removeAll { $0.id == tempId }
                     self.updateEntriesByMonth()
-                    print("Error creating entry: \(error)")
+                    AppLogger.log("Error creating entry: \(error)")
                     self.errorMessage = "Failed to save: \(error.localizedDescription)"
                 }
             }
@@ -261,7 +257,7 @@ class EntryViewModel: ObservableObject {
     func updateEntry(_ entry: Entry) {
         // Prevent concurrent operations on the same entry
         guard !pendingOperations.contains(entry.id) else {
-            print("⚠️ [EntryViewModel] Duplicate update operation blocked for \(entry.id)")
+                       AppLogger.log("⚠️ [EntryViewModel] Duplicate update operation blocked", type: .error)
             return
         }
 
@@ -287,7 +283,7 @@ class EntryViewModel: ObservableObject {
                     self.updateEntriesByMonth()
                 }
             }
-            print("📱 UI Mode: Updated mock entry")
+            AppLogger.log("📱 UI Mode: Updated mock entry")
             #else
             // Production Mode - Use Supabase
             guard let userId = SupabaseService.shared.client.auth.currentUser?.id else {
@@ -324,7 +320,7 @@ class EntryViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
-                    print("Error updating entry: \(error)")
+                    AppLogger.log("Error updating entry: \(error)")
                     self.errorMessage = "Failed to update entry."
                 }
             }
@@ -337,7 +333,7 @@ class EntryViewModel: ObservableObject {
     func deleteEntry(id: UUID) {
         // Prevent concurrent operations on the same entry
         guard !pendingOperations.contains(id) else {
-            print("⚠️ [EntryViewModel] Duplicate delete operation blocked for \(id)")
+            AppLogger.log("⚠️ [EntryViewModel] Duplicate delete operation blocked for \(id)")
             return
         }
 
@@ -363,7 +359,7 @@ class EntryViewModel: ObservableObject {
             #if DISABLE_SUPABASE
             // UI Testing Mode - Remove from mock data
             MockDataProvider.shared.deleteMockEntry(id: id)
-            print("📱 UI Mode: Deleted mock entry")
+            AppLogger.log("📱 UI Mode: Deleted mock entry")
             #else
             // Production Mode - Use Supabase
             do {
@@ -373,7 +369,7 @@ class EntryViewModel: ObservableObject {
                 await MainActor.run {
                     self.entries.insert(deletedEntry, at: min(deletedIndex, self.entries.count))
                     self.updateEntriesByMonth()
-                    print("Error deleting entry: \(error)")
+                    AppLogger.log("Error deleting entry: \(error)")
                     self.errorMessage = "Failed to delete entry."
                 }
             }

@@ -236,7 +236,7 @@ public struct EditAboutYourselfView: View {
                     }
                 }
             } catch {
-                print("⚠️ Failed to load personalization text: \(error)")
+                AppLogger.log("⚠️ Failed to load personalization text: \(error)")
                 await MainActor.run {
                     isLoading = false
                 }
@@ -257,7 +257,7 @@ public struct EditAboutYourselfView: View {
                     dismiss()
                 }
             } catch {
-                print("⚠️ Failed to save personalization text: \(error)")
+                AppLogger.log("⚠️ Failed to save personalization text: \(error)")
                 await MainActor.run {
                     isSaving = false
                 }

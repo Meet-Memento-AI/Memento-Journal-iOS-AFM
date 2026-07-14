@@ -108,7 +108,7 @@ class SecurityService {
                 localizedReason: reason
             )
         } catch {
-            print("⚠️ [SecurityService] Biometric auth failed: \(error)")
+            AppLogger.log("⚠️ [SecurityService] Biometric auth failed: \(error)")
             return false
         }
     }
@@ -136,7 +136,7 @@ class SecurityService {
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
         if status != errSecSuccess {
-            print("⚠️ [SecurityService] Failed to save PIN: \(status)")
+            AppLogger.log("⚠️ [SecurityService] Failed to save PIN: \(status)")
         }
         return status == errSecSuccess
     }

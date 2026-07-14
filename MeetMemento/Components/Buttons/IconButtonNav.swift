@@ -107,7 +107,7 @@ struct IconButtonPressStyle: ButtonStyle {
                     icon: "chevron.left",
                     iconSize: 18,
                     buttonSize: 40,
-                    onTap: { print("Back") }
+                    onTap: { AppLogger.log("Back") }
                 )
 
                 Spacer()
@@ -139,14 +139,14 @@ struct IconButtonPressStyle: ButtonStyle {
                 icon: "line.3.horizontal",
                 iconSize: 20,
                 buttonSize: 40,
-                onTap: { print("Menu") }
+                onTap: { AppLogger.log("Menu") }
             )
 
             IconButtonNav(
                 icon: "sparkles",
                 iconSize: 22,
                 buttonSize: 40,
-                onTap: { print("AI") }
+                onTap: { AppLogger.log("AI") }
             )
         }
     }
@@ -166,7 +166,7 @@ struct IconButtonPressStyle: ButtonStyle {
                 foregroundColor: .white,
                 useDarkBackground: true,
                 enableHaptic: true,
-                onTap: { print("Menu") }
+                onTap: { AppLogger.log("Menu") }
             )
 
             IconButtonNav(
@@ -176,7 +176,7 @@ struct IconButtonPressStyle: ButtonStyle {
                 foregroundColor: .white,
                 useDarkBackground: true,
                 enableHaptic: true,
-                onTap: { print("AI") }
+                onTap: { AppLogger.log("AI") }
             )
         }
     }

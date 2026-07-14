@@ -56,7 +56,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { print("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -69,7 +69,7 @@ struct AIChatFooter: View {
         AIChatFooter(
             inputText: .constant("What patterns do you see?"),
             isSending: true,
-            onSend: { print("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -81,7 +81,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { print("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -94,9 +94,9 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { print("Send tapped") },
+            onSend: { AppLogger.log("Send tapped") },
             hasExistingChats: true,
-            onHistoryTap: { print("History tapped") }
+            onHistoryTap: { AppLogger.log("History tapped") }
         )
     }
     .useTheme()

@@ -31,13 +31,11 @@ struct MeetMementoApp: App {
         // Using clear allows SwiftUI to manage the background dynamically
         UIWindow.appearance().backgroundColor = .clear
 
-        #if DEBUG
-        print("🔴 MeetMementoApp init() called")
-        #endif
+                AppLogger.log("🔴 MeetMementoApp init() called")
     }
 
     var body: some Scene {
-        let _ = { print("🔴 MeetMementoApp body evaluated") }()
+        let _ = { AppLogger.log("🔴 MeetMementoApp body evaluated") }()
         return WindowGroup {
             ZStack {
                 // Full-screen background that extends under status bar/dynamic island
@@ -65,9 +63,7 @@ struct MeetMementoApp: App {
                                 .environmentObject(authViewModel)
                                 .transition(.opacity)
                                 .onAppear {
-                                    #if DEBUG
-                                    print("🔴 ContentView appeared")
-                                    #endif
+                                                                        AppLogger.log("🔴 ContentView appeared")
                                 }
                         }
                     } else if authViewModel.isAuthenticated && !authViewModel.hasCompletedOnboarding {
@@ -85,10 +81,8 @@ struct MeetMementoApp: App {
                             .environmentObject(authViewModel)
                             .transition(.opacity.animation(.easeInOut(duration: 0.4)))
                             .onAppear {
-                                #if DEBUG
-                                print("🔴 WelcomeView appeared")
-                                print("🔴 Auth state: isAuthenticated=\(authViewModel.isAuthenticated), hasCompletedOnboarding=\(authViewModel.hasCompletedOnboarding)")
-                                #endif
+                                                                AppLogger.log("🔴 WelcomeView appeared")
+                                AppLogger.log("🔴 Auth state: isAuthenticated=\(authViewModel.isAuthenticated), hasCompletedOnboarding=\(authViewModel.hasCompletedOnboarding)")
                             }
                     }
                 }
@@ -97,16 +91,14 @@ struct MeetMementoApp: App {
             }
             .ignoresSafeArea()
             .task {
-                #if DEBUG
-                print("🔴 .task block started")
-                #endif
+                                AppLogger.log("🔴 .task block started")
 
                 // Watchdog: if initializeAuth() hangs for any reason, force the
                 // app past the loading screen after a short timeout.
                 let watchdog = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 3_000_000_000)
                     if !authViewModel.hasCheckedAuth {
-                        print("⚠️ [Watchdog] initializeAuth() timed out — forcing unauthenticated state")
+                        AppLogger.log("⚠️ [Watchdog] initializeAuth() timed out — forcing unauthenticated state")
                         authViewModel.isAuthenticated = false
                         authViewModel.hasCompletedOnboarding = false
                         authViewModel.authState = .unauthenticated
@@ -119,9 +111,7 @@ struct MeetMementoApp: App {
                 watchdog.cancel()
 
                 lockScreenViewModel.consumeSkipNextLockScreen()
-                #if DEBUG
-                print("🔴 .task block completed")
-                #endif
+                                AppLogger.log("🔴 .task block completed")
             }
             .onChange(of: authViewModel.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
@@ -130,9 +120,7 @@ struct MeetMementoApp: App {
                 }
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
-                #if DEBUG
-                print("🔴 Scene phase changed: \(oldPhase) -> \(newPhase)")
-                #endif
+                                AppLogger.log("🔴 Scene phase changed: \(oldPhase) -> \(newPhase)")
                 if newPhase == .background || newPhase == .inactive {
                     lockScreenViewModel.lock()
                 }
@@ -142,9 +130,7 @@ struct MeetMementoApp: App {
                 }
             }
             .onOpenURL { url in
-                #if DEBUG
-                print("🔴 Received deep link URL: \(url)")
-                #endif
+                                AppLogger.log("🔴 Received deep link URL: \(url)")
                 SupabaseService.shared.client.auth.handle(url)
             }
         }

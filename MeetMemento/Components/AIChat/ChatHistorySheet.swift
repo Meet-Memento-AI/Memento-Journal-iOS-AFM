@@ -147,10 +147,10 @@ public struct ChatHistorySheet: View {
     ChatHistorySheet(
         sessions: ChatSession.mockSessions,
         onSessionSelect: { session in
-            print("Selected: \(session.title)")
+            AppLogger.log("[ChatHistory] Session selected")
         },
         onNewChat: {
-            print("New chat")
+            AppLogger.log("New chat")
         }
     )
     .useTheme()

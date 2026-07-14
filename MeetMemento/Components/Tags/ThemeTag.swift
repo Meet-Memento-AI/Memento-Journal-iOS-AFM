@@ -43,13 +43,13 @@ public struct ThemeTag: View {
 #Preview("Light") {
     VStack(spacing: 24) {
         ThemeTag("Work related stress") {
-            print("Tapped: Work related stress")
+            AppLogger.log("Tapped: Work related stress")
         }
         ThemeTag("Morning routine") {
-            print("Tapped: Morning routine")
+            AppLogger.log("Tapped: Morning routine")
         }
         ThemeTag("Deadlines") {
-            print("Tapped: Deadlines")
+            AppLogger.log("Tapped: Deadlines")
         }
     }
     .padding(24)
@@ -60,13 +60,13 @@ public struct ThemeTag: View {
 #Preview("Dark") {
     VStack(spacing: 24) {
         ThemeTag("Work related stress") {
-            print("Tapped: Work related stress")
+            AppLogger.log("Tapped: Work related stress")
         }
         ThemeTag("Morning routine") {
-            print("Tapped: Morning routine")
+            AppLogger.log("Tapped: Morning routine")
         }
         ThemeTag("Deadlines") {
-            print("Tapped: Deadlines")
+            AppLogger.log("Tapped: Deadlines")
         }
     }
     .padding(24)

@@ -172,7 +172,7 @@ public struct LoadingStateView: View {
 
 #Preview("Light") {
     LoadingStateView {
-        print("Onboarding complete!")
+        AppLogger.log("Onboarding complete!")
     }
     .useTheme()
     .useTypography()
@@ -181,7 +181,7 @@ public struct LoadingStateView: View {
 
 #Preview("Dark") {
     LoadingStateView {
-        print("Onboarding complete!")
+        AppLogger.log("Onboarding complete!")
     }
     .useTheme()
     .useTypography()

@@ -533,10 +533,10 @@ public struct AIChatView: View {
     ChatHistorySheet(
         sessions: ChatSession.mockSessions,
         onSessionSelect: { session in
-            print("Selected: \(session.title)")
+            AppLogger.log("[ChatHistory] Session selected")
         },
         onNewChat: {
-            print("New chat started")
+            AppLogger.log("New chat started")
         }
     )
     .useTheme()
