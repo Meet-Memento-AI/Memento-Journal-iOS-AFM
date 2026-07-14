@@ -1,3 +1,11 @@
+> ⚠️ **SUPERSEDED (2026-07-13):** Status tracking has moved to
+> [`specs/ROADMAP.md`](specs/ROADMAP.md). A full three-track readiness review
+> (store config, iOS code quality, backend/data layer) found this report's
+> "82% ready" assessment outdated — see the twelve executable specs in
+> [`specs/`](specs/). This file is kept only as a historical record of the
+> pre-beta work completed in October 2025 (deployment target, hosted legal
+> docs, bundle-id fixes).
+
 # 🚀 TestFlight Readiness Report
 
 **Generated:** October 23, 2025 (Updated)
