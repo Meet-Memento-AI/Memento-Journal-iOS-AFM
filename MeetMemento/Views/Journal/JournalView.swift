@@ -235,17 +235,17 @@ public struct JournalView: View {
         .toolbar {
                 // Only show toolbar when NOT embedded (embedded uses TopNavHeader)
                 if !isEmbedded {
-                    // Leading: Hamburger menu (placeholder for future features)
+                    // Leading: User avatar (placeholder for future features)
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            // Future: Open side menu or feature panel
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                                .font(type.h5)
-                                .foregroundStyle(theme.foreground)
-                        }
-                        .accessibilityLabel("Menu")
+                        AvatarInitialButton(
+                            initial: authViewModel.firstName?.first.map { String($0) },
+                            size: 32,
+                            enableHaptic: true,
+                            accessibilityLabel: "Menu",
+                            onTap: {
+                                // Future: Open side menu or feature panel
+                            }
+                        )
                     }
 
                     // Trailing: Settings button

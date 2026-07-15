@@ -12,6 +12,7 @@ public struct ProfileSettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject var authViewModel: AuthViewModel
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
@@ -167,6 +168,7 @@ public struct ProfileSettingsView: View {
             UserDefaults.standard.set(trimmedLastName, forKey: "memento_last_name")
 
             await MainActor.run {
+                authViewModel.firstName = trimmedFirstName
                 isSaving = false
                 showSuccessMessage = true
 
@@ -188,6 +190,7 @@ public struct ProfileSettingsView: View {
         ProfileSettingsView()
             .useTheme()
             .useTypography()
+            .environmentObject(AuthViewModel())
     }
     .preferredColorScheme(.light)
 }
@@ -197,6 +200,7 @@ public struct ProfileSettingsView: View {
         ProfileSettingsView()
             .useTheme()
             .useTypography()
+            .environmentObject(AuthViewModel())
     }
     .preferredColorScheme(.dark)
 }

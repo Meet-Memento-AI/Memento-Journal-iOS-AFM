@@ -250,6 +250,7 @@ public struct ContentView: View {
                         TopNavHeader(
                             selection: $selectedTab,
                             hasActiveChat: chatViewModel.hasActiveChat,
+                            userInitial: authViewModel.firstName?.first.map { String($0) },
                             onMenuTapped: {
                                 // Toggle drawer
                                 if isDrawerOpen {
@@ -346,6 +347,11 @@ public struct ContentView: View {
             }
             // Update activity timestamp when ContentView appears
             SecurityService.shared.updateActivityTimestamp()
+        }
+        .task {
+            // Backfills the avatar's cached first name for accounts that finished
+            // onboarding before the local cache existed (no-ops if already cached).
+            await authViewModel.refreshFirstNameIfMissing()
         }
         .onChange(of: selectedTab) { _, newTab in
             // Sync swipeProgress when tab changes via pill tap (fallback for geometry tracking)

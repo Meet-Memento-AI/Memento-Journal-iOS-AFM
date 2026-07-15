@@ -149,6 +149,9 @@ public struct OnboardingCoordinatorView: View {
         Task {
             do {
                 try await onboardingViewModel.saveProfileData()
+                UserDefaults.standard.set(onboardingViewModel.firstName, forKey: "memento_first_name")
+                UserDefaults.standard.set(onboardingViewModel.lastName, forKey: "memento_last_name")
+                authViewModel.firstName = onboardingViewModel.firstName
                 navigationPath.append(OnboardingRoute.learnAboutYourself)
             } catch {
                 AppLogger.log("⚠️ Failed to save profile: \(error)")

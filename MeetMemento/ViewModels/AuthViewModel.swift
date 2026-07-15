@@ -38,6 +38,24 @@ class AuthViewModel: ObservableObject {
     var pendingFirstName: String?
     var pendingLastName: String?
 
+    /// Persisted first name for the signed-in user (set during onboarding/profile edits).
+    /// Stored (not computed) so UI observing `authViewModel` updates immediately when it changes,
+    /// rather than only after the next app launch re-reads UserDefaults.
+    @Published var firstName: String? = UserDefaults.standard.string(forKey: "memento_first_name")
+
+    /// Fetches the name from Supabase and caches it locally, for accounts that finished
+    /// onboarding before the local cache was populated at that step (or a reinstalled app).
+    /// No-ops if a name is already cached.
+    func refreshFirstNameIfMissing() async {
+        guard firstName == nil || firstName?.isEmpty == true else { return }
+        guard let profile = try? await UserService.shared.getCurrentProfile(),
+              let fullName = profile.fullName, !fullName.isEmpty else { return }
+        let first = String(fullName.split(separator: " ", maxSplits: 1).first ?? "")
+        guard !first.isEmpty else { return }
+        UserDefaults.standard.set(first, forKey: "memento_first_name")
+        firstName = first
+    }
+
     private var client: SupabaseClient {
         SupabaseService.shared.client
     }
@@ -388,6 +406,7 @@ class AuthViewModel: ObservableObject {
         // Clear local data
         UserDefaults.standard.removeObject(forKey: "memento_first_name")
         UserDefaults.standard.removeObject(forKey: "memento_last_name")
+        firstName = nil
         SecurityService.shared.clearAll()
         LocalJournalStorage.shared.clearAll()
 

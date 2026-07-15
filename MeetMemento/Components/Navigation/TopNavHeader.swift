@@ -11,6 +11,7 @@ import SwiftUI
 public struct TopNavHeader: View {
     @Binding var selection: JournalTopTab
     var hasActiveChat: Bool
+    var userInitial: String?
     var onMenuTapped: () -> Void
     var onActionTapped: () -> Void
 
@@ -20,30 +21,26 @@ public struct TopNavHeader: View {
     public init(
         selection: Binding<JournalTopTab>,
         hasActiveChat: Bool = false,
+        userInitial: String? = nil,
         onMenuTapped: @escaping () -> Void,
         onActionTapped: @escaping () -> Void
     ) {
         self._selection = selection
         self.hasActiveChat = hasActiveChat
+        self.userInitial = userInitial
         self.onMenuTapped = onMenuTapped
         self.onActionTapped = onActionTapped
     }
 
     public var body: some View {
         HStack(spacing: 12) {
-            // Hamburger menu (placeholder for future features)
-            Button(action: {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                onMenuTapped()
-            }) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(theme.foreground)
-                    .frame(width: 44, height: 44)
-                    .background(iconButtonBackground)
-            }
-            .accessibilityLabel("Menu")
+            AvatarInitialButton(
+                initial: userInitial,
+                size: 44,
+                enableHaptic: true,
+                accessibilityLabel: "Menu",
+                onTap: onMenuTapped
+            )
 
             Spacer()
 
@@ -194,6 +191,7 @@ public struct TopNavHeader: View {
         VStack {
             TopNavHeader(
                 selection: .constant(.yourEntries),
+                userInitial: "S",
                 onMenuTapped: { AppLogger.log("Menu tapped") },
                 onActionTapped: { AppLogger.log("Search tapped") }
             )
@@ -213,6 +211,7 @@ public struct TopNavHeader: View {
         VStack {
             TopNavHeader(
                 selection: .constant(.digDeeper),
+                userInitial: nil,
                 onMenuTapped: { AppLogger.log("Menu tapped") },
                 onActionTapped: { AppLogger.log("New Entry tapped") }
             )
