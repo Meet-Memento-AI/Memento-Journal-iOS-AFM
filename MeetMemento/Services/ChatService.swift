@@ -153,9 +153,12 @@ class ChatService {
             return true
         }
 
-        // HTTP 5xx errors and 429 (rate limit) are retryable
+        // HTTP 5xx errors are retryable. 429 is NOT: the server's rate-limit
+        // window (minutes to a day, see spec-004 R2) is far longer than this
+        // backoff's few seconds, so retrying just delays the same rejection
+        // and burns the user's remaining quota. Let it surface immediately.
         if let httpCode = (error as? URLError)?.errorCode {
-            return httpCode >= 500 || httpCode == 429
+            return httpCode >= 500
         }
 
         return false

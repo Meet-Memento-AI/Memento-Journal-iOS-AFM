@@ -59,6 +59,10 @@ jobs:
         working-directory: supabase/functions/chat
         run: deno test --allow-read --allow-net lib_test.ts
 
+      - name: Deno test (shared rate limit + auth)
+        working-directory: supabase/functions
+        run: deno test --no-check --allow-net --allow-env _shared/rate_limit_test.ts _shared/auth_test.ts
+
       - name: Require the iOS test workflow to have passed for this SHA
         uses: actions/github-script@v7
         with:

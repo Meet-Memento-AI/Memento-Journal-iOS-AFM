@@ -8,8 +8,8 @@ Review date: **2026-07-13** · branch `sync/upstream-main` · workflow in `specs
 |------|-------|------|--------|------------|--------|
 | [001](001-repo-hygiene-and-secrets-audit.md) | Repo Hygiene and Secrets Audit | P0 | 1 | — | ✅ done (2026-07-13) |
 | [002](002-store-metadata-compliance.md) | Store Metadata and Binary Compliance | P0 | 1–2 | 001 | 🔶 in-progress — repo work done; blocked on user: accept Apple PLA → archive+validate; decide/verify support email |
-| [003](003-database-baseline-and-account-deletion.md) | Database Baseline and Account Deletion | P0 | 2 | — | not-started |
-| [004](004-edge-function-security-and-cost.md) | Edge Function Security and LLM Cost Controls | P1 | 2 | 003 | not-started |
+| [003](003-database-baseline-and-account-deletion.md) | Database Baseline and Account Deletion | P0 | 2 | — | 🔶 in-progress — repo work done; blocked on user: `db diff --linked`, in-app e2e deletion test, prod apply |
+| [004](004-edge-function-security-and-cost.md) | Edge Function Security and LLM Cost Controls | P1 | 2 | 003 | 🔶 in-progress — repo work done; blocked on user: curl/staging burst verification |
 | [005](005-release-logging-privacy.md) | Release Logging Privacy | P1 | 1 | — | ✅ done (2026-07-14) |
 | [006](006-ci-and-build-config-integrity.md) | CI and Build Configuration Integrity | P1 | 1–2 | 003 | ✅ done (2026-07-14) — CI-live checks are user actions |
 | [007](007-offline-resilience.md) | Offline Resilience | P2 | 2 | — | not-started |
@@ -37,6 +37,14 @@ Rationale highlights:
 - **004 before external testers**: unauthenticated service-role endpoint + unlimited
   LLM spend is tolerable for you alone, not for a public beta link.
 - 007–011 are parallelizable during the beta feedback window (see dependencies).
+
+**Note (2026-07-14):** 006 and (uncommitted) 004 work landed before 003 was started,
+ahead of the dependency graph above. 003's repo-side work (migration reconciliation,
+`delete_user()` fix) is now done too, so the ordering gap has mostly closed — but
+003 still isn't formally `done` (its live-prod verification steps are pending), so
+006/004 are shipping on the assumption 003's local-only fixes hold once verified
+against prod. Gate 1 itself is still not unlocked: it needs 001✅, 002 (blocked on
+user: Apple PLA), and 003 (blocked on user: `db diff --linked` + e2e test).
 
 ## Dependency graph
 

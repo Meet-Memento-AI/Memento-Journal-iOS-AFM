@@ -2,7 +2,7 @@
 id: 003
 title: Database Baseline Reproducibility and Account Deletion
 tier: P0
-status: not-started
+status: in-progress (2026-07-14) — repo work done; blocked on user: supabase db diff --linked and prod apply
 effort: 2 sessions
 depends_on: []
 findings: [migrations-not-reproducible, prod-only-table-rename, dual-migrations-dirs, delete-user-rpc-broken, cascade-coverage-unverified, reconcile-noop-migration]
@@ -32,7 +32,7 @@ this alone is an App Store rejection, and it's a GDPR problem besides. Blocks **
 | 2 | `20260422201548_reconcile_remote_history.sql` is an intentional no-op (`select 1`) whose comment admits "a production-only migration history entry … applied outside this repository". | `supabase/migrations/20260422201548_reconcile_remote_history.sql` | evidence of #1 |
 | 3 | **Second, divergent migrations directory tracked at repo root**: `supabase_migrations/{001_create_journal_insights.sql, 20260305_rag_chat_schema.sql, README.md}` — overlaps/diverges from the canonical `supabase/migrations/`. | `supabase_migrations/` (git-tracked) | HIGH |
 | 3b | **(discovered 2026-07-13 during spec 002)** A **third** migrations directory was nested inside the app source folder at `MeetMemento/supabase/` (and shipping inside the app bundle!). Spec 002 relocated it verbatim to `supabase/UNRECONCILED-app-folder-copy/`. It contains 5 migrations **absent from the canonical dir**, including: `20260305000001_rename_entries_to_journal_entries.sql` — **the "missing" prod-only rename** (`entries→journal_entries`, `text→content`, +5 columns, soft-delete index) — plus `20260305000002_create_users_table.sql` (see row 4), `…03_create_ai_feedback_table.sql`, `…04_create_subscription_plans_table.sql`, and its own copy of `20260308000001_update_delete_user_rpc.sql`. These were very likely applied to prod by hand; reconciling THIS directory is most of R2's work. | `supabase/UNRECONCILED-app-folder-copy/migrations/` | HIGH |
-| 4 | `delete_user()` runs `DELETE FROM public.users WHERE id = current_user_id;` and **no canonical migration** creates `public.users`. **REVISED 2026-07-13:** the nested dir's `20260305000002_create_users_table.sql` DOES create `public.users` (RLS'd, `ON DELETE CASCADE` from `auth.users`). If that migration was applied to prod (likely — its sibling rename clearly was), account deletion probably **works on prod today** and the true defect is reproducibility: fresh replays of the canonical chain lack both the table and the rename, so the RPC breaks only on rebuilt environments. **Verify against prod first** (`select to_regclass('public.users')`) before touching the RPC; the fix may be purely "adopt the nested migrations into the canonical chain". | `supabase/migrations/20260308000001_update_delete_user_rpc.sql:24`; `supabase/UNRECONCILED-app-folder-copy/migrations/20260305000002_create_users_table.sql` | BLOCKER→**downgrade candidate** (verify on prod) |
+| 4 | `delete_user()` runs `DELETE FROM public.users WHERE id = current_user_id;` and **no canonical migration** creates `public.users`. **REVISED 2026-07-13:** the nested dir's `20260305000002_create_users_table.sql` DOES create `public.users` (RLS'd, `ON DELETE CASCADE` from `auth.users`). If that migration was applied to prod (likely — its sibling rename clearly was), account deletion probably **works on prod today** and the true defect is reproducibility: fresh replays of the canonical chain lack both the table and the rename, so the RPC breaks only on rebuilt environments. **Verify against prod first** (`select to_regclass('public.users')`) before touching the RPC; the fix may be purely "adopt the nested migrations into the canonical chain". **RESOLVED 2026-07-14:** adopted as `20260304000001_create_users_table.sql`; `delete_user()` rewritten in `20260714000002_fix_delete_user_cascade_audit.sql`. Still needs the prod-side `select to_regclass('public.users')` check (task 5, user action) to confirm no drift. | `supabase/migrations/20260308000001_update_delete_user_rpc.sql:24`; `supabase/migrations/20260304000001_create_users_table.sql`; `supabase/migrations/20260714000002_fix_delete_user_cascade_audit.sql` | BLOCKER→**downgrade candidate** (verify on prod) |
 | 5 | `delete_user()` explicitly clears only `journal_entries`, `chat_messages`, `chat_sessions`, relying on `auth.users` CASCADE for the rest. Cascade coverage for `chat_feedback`, `user_stats`, `user_insights`, `user_chat_caches`, `user_profiles`, `themes` is unverified. | same file; table DDLs across `supabase/migrations/` | HIGH |
 | 6 | Ad-hoc SQL applied outside migrations historically — archived by spec 001 to `.archive/adhoc-sql/`. **Content summary (recorded 2026-07-13 before archiving):** `SETUP_JOURNAL_ENTRIES.sql` was dashboard-run SQL that created `public.entries` (columns incl. `text TEXT NOT NULL`), its 4 RLS policies, `get_user_entry_count()`, `get_user_entry_stats()` (both `SECURITY DEFINER` with `search_path` set), and the `update_entries_updated_at` trigger + `update_updated_at_column()` function. `DELETE_USER_SQL.sql` was an **earlier** dashboard-run `delete_user()` that deleted from `public.entries` + `auth.users` only — it did NOT reference `public.users`; that broken reference arrived later in migration `20260308000001`. Both prove prod schema was partly built via SQL Editor, outside migrations — exactly the drift R2's diff must reconcile (check whether `get_user_entry_count`/`get_user_entry_stats`/the trigger exist in prod but not in migrations). | `.archive/adhoc-sql/` | context |
 | 7 | dev/staging deploys mask migration errors, so this breakage is invisible in CI (grep-swallow — owned by spec 006, but be aware while testing here). | `.github/workflows/deploy-dev-staging.yml:105-112` | context |
@@ -70,44 +70,105 @@ by the R3 test.
 - Edge-function/RPC security hardening (`search_path`, `auth.uid()` pinning) → **spec 004**.
 - Removing the ad-hoc SQL files from root → **spec 001** (content preserved as evidence).
 
+## Cascade audit (Task 7 / R4)
+
+Every user-owned table, verified against the canonical migration chain after
+reconciliation. All 11 already carry `ON DELETE CASCADE` to `auth.users(id)` —
+`delete_user()` (below) explicitly clears each anyway as defense-in-depth, with the
+`auth.users` delete last as a backstop for anything future tables miss.
+
+| Table | Cleared by |
+|-------|------------|
+| `chat_feedback` | explicit DELETE + FK CASCADE (`user_id`, and `message_id → chat_messages`) |
+| `chat_messages` | explicit DELETE + FK CASCADE (`user_id`) |
+| `chat_sessions` | explicit DELETE + FK CASCADE (`user_id`) |
+| `journal_entries` | explicit DELETE + FK CASCADE (`user_id`) |
+| `user_chat_caches` | explicit DELETE + FK CASCADE (`user_id`) |
+| `user_insights` | explicit DELETE + FK CASCADE (`user_id`) |
+| `user_stats` | explicit DELETE + FK CASCADE (`user_id` PK) |
+| `user_profiles` | explicit DELETE + FK CASCADE (`user_id` PK) |
+| `rate_limits` | explicit DELETE + FK CASCADE (`user_id`) — added by spec 004 |
+| `ai_feedback` | explicit DELETE + FK CASCADE (`user_id`) |
+| `public.users` | explicit DELETE + FK CASCADE (`id` PK) |
+| `themes` | global reference data, not user-owned — excluded |
+| `subscription_plans` | global reference data, not user-owned — excluded |
+| `follow_up_questions` | dropped by `20251023000000_cleanup_deprecated_schema.sql` — not live, excluded |
+
+## Implementation notes (2026-07-14)
+
+- **R1/R2 reconciliation**: both stray directories are gone. `supabase_migrations/`
+  (`001_create_journal_insights.sql` — dead table, zero app references, not adopted;
+  `20260305_rag_chat_schema.sql` — an earlier draft fully superseded by canonical
+  `20260305000000_rag_chat_schema.sql`, not adopted) and
+  `supabase/UNRECONCILED-app-folder-copy/` (all 5 migrations adopted — see below).
+- Four new idempotent migrations port the nested copy's content, timestamped
+  `20260304000000-3` (before `20260305000000`, which already assumes the rename):
+  rename `entries→journal_entries` (+columns), create `public.users`, create
+  `ai_feedback`, create `subscription_plans`. `ai_feedback`/`subscription_plans` have
+  live Swift models (`AIFeedback.swift`, `SubscriptionPlan.swift`) but **zero service
+  call sites today** — adopted for reproducibility since they were deployed the same
+  day as their siblings, but flagged in each migration's header to confirm against
+  prod via `db diff --linked` and drop if prod doesn't actually have them.
+  `public.users` and the rename are confirmed live (`UserService.swift`,
+  `AuthViewModel.swift` query `.from("users")` constantly).
+- The already-canonical `20260308000001_update_delete_user_rpc.sql` (which referenced
+  the not-yet-existing `public.users`) is left untouched (never edit a shipped
+  migration) — a new migration `20260714000002_fix_delete_user_cascade_audit.sql`
+  supersedes it with the cascade-complete version below.
+- **`supabase db reset` (local) verified clean** on 2026-07-14: all 29 migrations,
+  including the 5 new ones, replayed with zero errors — "Finished supabase db reset
+  on branch main." Local reproducibility (R2's first acceptance clause) is confirmed.
+- **Not done, requires live prod credentials this session didn't have**:
+  `supabase db diff --linked` (task 5), the prod apply (task 9), and the in-app
+  end-to-end deletion test (task 8) against a real Auth-backed account. These are the
+  remaining user actions before this spec can close.
+
 ## Tasks
 
-- [ ] 1. Inventory prod's real schema: `supabase db diff` / dashboard inspection; capture
+- [x] 1. Inventory prod's real schema: `supabase db diff` / dashboard inspection; capture
       the authoritative current state (tables, columns, functions, policies).
-- [ ] 2. Reconcile **both** stray migration dirs against the canonical chain:
+      **Partial** — inferred from live Swift call sites + migration history rather than
+      a live `db diff` (no prod credentials this session); see task 5.
+- [x] 2. Reconcile **both** stray migration dirs against the canonical chain:
       `supabase_migrations/` (2 SQL files) **and**
       `supabase/UNRECONCILED-app-folder-copy/` (5 SQL files — likely the ones prod
       actually got; start here). Port anything real into `supabase/migrations/` with
       correct ordering + idempotency guards; then delete both stray dirs. (R1)
-- [ ] 3. Adopt the rename migration into the canonical chain: the nested copy
+- [x] 3. Adopt the rename migration into the canonical chain: the nested copy
       (`…app-folder-copy/migrations/20260305000001_rename_entries_to_journal_entries.sql`)
       already contains the exact prod rename — port it **with idempotency guards**
       (guarded `ALTER TABLE ... RENAME`) so it is a no-op on prod but fixes fresh
       replays. Slot it with a timestamp *before* `20260305000000`. Do the same
       adoption analysis for the other four nested migrations. (R2)
-- [ ] 4. Iterate `supabase db reset` locally until the full chain replays clean. (R2)
+- [x] 4. Iterate `supabase db reset` locally until the full chain replays clean. (R2)
 - [ ] 5. Run `supabase db diff --linked` → resolve every drift item (each becomes either
-      a migration or a documented intentional difference). (R2)
-- [ ] 6. Fix `delete_user()`: drop the `public.users` DELETE; explicitly handle every
+      a migration or a documented intentional difference). **User action** (needs
+      `supabase link` + prod DB password, not available in this session).
+- [x] 6. Fix `delete_user()`: drop the `public.users` DELETE; explicitly handle every
       table from the R4 audit that lacks a verified cascade; keep
       `SECURITY DEFINER` + pinned `search_path`; ship as a new migration. (R3)
-- [ ] 7. Write the cascade-audit table into this spec. (R4)
+- [x] 7. Write the cascade-audit table into this spec. (R4)
 - [ ] 8. End-to-end test on local/staging: create account → journal entries (incl. one
       with an embedding) → chat with feedback → delete account → assert zero rows
-      per table + auth user gone. (R3)
+      per table + auth user gone. (R3) **User action** — needs a live Auth flow
+      (email OTP / Apple sign-in) this session cannot drive.
 - [ ] 9. Apply to prod via the manual `deploy-prod.yml` flow; re-run the in-app
-      deletion test against prod with a throwaway account.
+      deletion test against prod with a throwaway account. **User action** — the
+      workflow's typed confirmation is a deliberate human gate (spec 006).
 
 ## Verification
 
-- [ ] `supabase db reset` → exit 0, no errored statements in output.
-- [ ] `supabase db diff --linked` → no unexplained drift.
-- [ ] `ls supabase_migrations 2>/dev/null` → gone; `git ls-files supabase_migrations/` → empty.
+- [x] `supabase db reset` → exit 0, no errored statements in output. ✅ 2026-07-14
+      (all 29 migrations applied clean, including the 5 new ones).
+- [ ] `supabase db diff --linked` → no unexplained drift. **User action.**
+- [x] `ls supabase_migrations 2>/dev/null` → gone; `git ls-files supabase_migrations/` → empty. ✅
 - [ ] In-app account deletion on a seeded test account succeeds; SQL assertion script
       (commit it under `scripts/`) returns zero rows for the deleted user id across all
       user-owned tables; signing in with the deleted account no longer works.
+      **User action.**
 - [ ] Fresh clone + `supabase start` + `db reset` on a machine with no prior state
-      reaches a working local stack (the true reproducibility test).
+      reaches a working local stack (the true reproducibility test). **User action**
+      (this session reused an already-running local stack rather than a fresh clone).
 
 ## Regression Guards
 

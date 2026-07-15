@@ -452,6 +452,8 @@ class ChatViewModel: ObservableObject {
             return "Chat service is not set up yet. Please ensure Edge Functions are deployed."
         case 401:
             return "Please sign in again."
+        case 429:
+            return "You've sent a lot of messages recently. Please wait a bit and try again."
         default:
             return "Unable to get a response. Please check your connection and try again."
         }

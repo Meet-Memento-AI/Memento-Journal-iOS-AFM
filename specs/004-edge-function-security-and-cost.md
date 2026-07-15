@@ -2,7 +2,7 @@
 id: 004
 title: Edge Function Security and LLM Cost Controls
 tier: P1
-status: not-started
+status: in-progress (2026-07-14) — repo work done; blocked on user: curl/staging burst verification
 effort: 2 sessions
 depends_on: [003]
 findings: [sync-embedding-unauthenticated, no-verify-jwt-config-drift, no-llm-rate-limiting, new-user-insights-limit-disabled, gemini-key-in-query-param, match-entries-caller-user-id, security-definer-search-path, shared-auth-dead-code, cors-wildcard-note]
@@ -74,35 +74,83 @@ no two functions carry divergent auth code.
 - Prompt-injection hardening beyond current state — reviewed as LOW (self-targeted;
   citation filtering already prevents fabrication); revisit post-launch (spec 012).
 
+## Implementation notes (2026-07-14)
+
+- **R1**: `sync-embedding` already had the hybrid webhook-secret-or-JWT auth gate
+  from an earlier uncommitted pass this session picked up.
+- **R2**: `_shared/rate_limit.ts` (fail-open sliding-window limiter) +
+  `20260714000000_add_rate_limits.sql` were already present; this session **wired
+  the limiter into `chat` (30/hr), `chat-with-entries` (30/hr), `summarize-chat`
+  (10/hr), and `generate-insights` (4/day)** — none of the four were actually calling
+  it yet despite the helper existing. `new-user-insights` keeps its own bespoke 24h
+  guard (business-rule-based: allows early re-run if the reflection text changed)
+  rather than the generic table-backed limiter, since that's a better fit for a
+  one-time onboarding flow.
+- **R3**: Gemini header sweep (`?key=` → `x-goog-api-key`) was already done across
+  all four functions + sync-embedding. Fixed a real regression this uncovered: the
+  iOS `ChatService.swift` retry helper treated HTTP 429 as retryable alongside 5xx,
+  which just re-triggers the same rate limit 3 times before giving up with a
+  misleading "check your connection" message. 429 is no longer retried, and
+  `ChatViewModel.chatErrorMessage` now returns "You've sent a lot of messages
+  recently. Please wait a bit and try again." for it.
+- **R4**: `match_journal_entries` hardening (`auth.uid()` pin + explicit grants) was
+  already done via `20260714000001_harden_match_journal_entries.sql`. Ran the actual
+  SQL audit this session and found the search_path half of R4 was **not** done: 10 of
+  14 `SECURITY DEFINER` functions in `public` had no `search_path` set (a real
+  privilege-escalation vector — caller-controlled search_path resolution). Fixed via
+  `20260714000003_pin_search_path_on_security_definer_functions.sql`
+  (`ALTER FUNCTION ... SET search_path = public` — config-only, no body changes).
+  Verified locally: `SELECT count(*) ... WHERE prosecdef AND proconfig IS NULL` → 0.
+- **R5**: `_shared/auth.ts` was dead code (zero importers) with every function
+  duplicating its own inline JWT-verify block. Consolidated: `auth.ts` now exports
+  `requireAuth()`, and all 6 functions that need user-JWT auth (`chat`,
+  `chat-with-entries`, `chat-feedback`, `generate-insights`, `new-user-insights`,
+  `summarize-chat`) import it instead of duplicating the block. `sync-embedding`
+  correctly stays on its own inline hybrid auth (genuinely different mode).
+- **Tests**: added `_shared/rate_limit_test.ts` (7 cases: under/at/over limit,
+  select-error/insert-error/exception fail-open, 429 response shape) and
+  `_shared/auth_test.ts` (4 cases: missing-header 401 with/without code, CORS
+  headers). Wired into both `ios-tests.yml` and `deploy-prod.yml`'s test gate.
+  Needed `--no-check` — a `deno test` type-check-only quirk resolving
+  `@supabase/auth-js`'s type graph (`deno check` on the function entrypoints that
+  import the same modules is unaffected); documented inline in the workflow step.
+
 ## Tasks
 
-- [ ] 1. Decide `sync-embedding` mode: (a) webhook w/ shared-secret header checked in
+- [x] 1. Decide `sync-embedding` mode: (a) webhook w/ shared-secret header checked in
       code + `--no-verify-jwt` recorded in `supabase/config.toml`, or (b) user-JWT like
       the rest (iOS direct-invoke already sends one). Implement + align deploy config. (R1)
-- [ ] 2. Create the rate-limit table migration + shared limiter helper in `_shared/`. (R2)
-- [ ] 3. Wire the limiter into `chat`, `chat-with-entries`, `summarize-chat`,
+- [x] 2. Create the rate-limit table migration + shared limiter helper in `_shared/`. (R2)
+- [x] 3. Wire the limiter into `chat`, `chat-with-entries`, `summarize-chat`,
       `generate-insights`; re-enable `new-user-insights` 24h guard. (R2)
-- [ ] 4. Sweep all Gemini calls to `x-goog-api-key` header. (R3)
-- [ ] 5. Migration: `match_journal_entries` → `auth.uid()`, explicit grants;
+- [x] 4. Sweep all Gemini calls to `x-goog-api-key` header. (R3)
+- [x] 5. Migration: `match_journal_entries` → `auth.uid()`, explicit grants;
       `search_path` on all SECURITY DEFINER functions. (R4)
-- [ ] 6. Consolidate on `_shared/auth.ts` (or delete + document). (R5)
-- [ ] 7. Add Deno tests: limiter allows/blocks correctly; auth helper rejects
+- [x] 6. Consolidate on `_shared/auth.ts` (or delete + document). (R5)
+- [x] 7. Add Deno tests: limiter allows/blocks correctly; auth helper rejects
       missing/expired JWT. (R2/R5)
-- [ ] 8. Client sanity pass: iOS handles a 429 from chat gracefully
+- [x] 8. Client sanity pass: iOS handles a 429 from chat gracefully
       (`ChatService.swift` retry classifies 429 — confirm UX shows a friendly
       "slow down" message, not a crash or silent stall).
 
 ## Verification
 
 - [ ] For each of the 7 functions: `curl -X POST <fn-url>` with no auth → 401.
+      **User action** (needs `supabase functions serve` or a staging deploy).
+      Statically verified instead: every function file either imports
+      `requireAuth` or checks `X-Webhook-Secret`/JWT inline (sync-embedding) —
+      `grep -rL "requireAuth\|x-webhook-secret" */index.ts` → empty.
 - [ ] Scripted burst (limit+1 requests, valid JWT) against `chat` on staging → last
-      request 429 with `retry_after`; iOS shows friendly copy.
-- [ ] `new-user-insights` second call within 24h → 429/limited response.
-- [ ] `grep -rn "key=" supabase/functions/ --include="*.ts" | grep -v x-goog` → no API
-      keys in URLs.
-- [ ] SQL: `SELECT proname, proconfig FROM pg_proc WHERE prosecdef` → every definer
-      function shows `search_path` in proconfig.
-- [ ] `deno test` suite green including new limiter/auth tests.
+      request 429 with `retry_after`; iOS shows friendly copy. **User action**
+      (needs a live staging deploy + valid JWT). Logic covered by
+      `rate_limit_test.ts`'s at/over-limit cases instead.
+- [ ] `new-user-insights` second call within 24h → 429/limited response. **User
+      action** (needs a live deploy + real profile row).
+- [x] `grep -rn "key=\${" supabase/functions/ --include="*.ts"` → empty. ✅ 2026-07-14
+- [x] SQL: `SELECT proname, proconfig FROM pg_proc WHERE prosecdef` → every definer
+      function shows `search_path` in proconfig. ✅ 2026-07-14 (0 without, was 10).
+- [x] `deno test` suite green including new limiter/auth tests. ✅ 2026-07-14
+      (11 passed: 7 rate-limit + 4 auth; requires `--no-check`, documented in CI).
 
 ## Regression Guards
 

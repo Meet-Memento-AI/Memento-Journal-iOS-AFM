@@ -12,7 +12,8 @@
 //
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth } from '../_shared/auth.ts';
+import { checkRateLimit, rateLimitedResponse } from '../_shared/rate_limit.ts';
 import type {
   ChatWithEntriesRequest,
   ChatResponse,
@@ -30,6 +31,10 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// spec-004 R2: per-user cost guard on this LLM endpoint.
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60; // 1 hour
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -212,7 +217,7 @@ async function createCache(
   systemPrompt: string,
   entriesText: string
 ): Promise<{ name: string; expireTime?: string }> {
-  const url = `${GEMINI_BASE}/cachedContents?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/cachedContents`;
   const body = {
     model: `models/${GEMINI_MODEL}`,
     systemInstruction: {
@@ -230,7 +235,7 @@ async function createCache(
   };
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body)
   });
   if (!res.ok) {
@@ -251,7 +256,7 @@ async function generateWithCache(
     parts: [{ text: m.content }]
   }));
 
-  const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`;
   const body = {
     cachedContent: cacheName,
     contents,
@@ -262,7 +267,7 @@ async function generateWithCache(
   };
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body)
   });
   if (!res.ok) {
@@ -292,7 +297,7 @@ async function generateWithoutCache(
     }))
   ];
 
-  const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`;
   const body = {
     contents,
     generationConfig: {
@@ -302,7 +307,7 @@ async function generateWithoutCache(
   };
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body)
   });
   if (!res.ok) {
@@ -327,20 +332,19 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header', code: 'AUTH_REQUIRED' }, 401);
-    }
+    const auth = await requireAuth(req, corsHeaders, { missing: 'AUTH_REQUIRED', invalid: 'AUTH_FAILED' });
+    if (auth instanceof Response) return auth;
+    const { user, supabase } = auth;
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+    const rateLimit = await checkRateLimit(
+      supabase,
+      user.id,
+      'chat-with-entries',
+      RATE_LIMIT_MAX_REQUESTS,
+      RATE_LIMIT_WINDOW_SECONDS
     );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return jsonResponse({ error: 'Unauthorized', code: 'AUTH_FAILED' }, 401);
+    if (!rateLimit.allowed) {
+      return rateLimitedResponse(rateLimit, corsHeaders);
     }
 
     const apiKey = Deno.env.get('GEMINI_API_KEY');

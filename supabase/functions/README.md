@@ -117,7 +117,11 @@ Functions in `_shared/` are not deployable - they're imported by other functions
 ```typescript
 // In your function's index.ts
 import { corsHeaders } from '../_shared/cors.ts'
-import { authenticateUser } from '../_shared/auth.ts'
+import { requireAuth } from '../_shared/auth.ts'
+
+const auth = await requireAuth(req, corsHeaders, { missing: 'AUTH_REQUIRED', invalid: 'AUTH_FAILED' });
+if (auth instanceof Response) return auth;
+const { user, supabase } = auth;
 ```
 
 ## Debugging

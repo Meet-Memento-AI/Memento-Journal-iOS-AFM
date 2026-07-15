@@ -172,3 +172,11 @@ jobs:
       - name: Deno test (chat lib)
         working-directory: supabase/functions/chat
         run: deno test --allow-read --allow-net lib_test.ts
+
+      - name: Deno test (shared rate limit + auth)
+        working-directory: supabase/functions
+        # --no-check: supabase-js's type graph pulls in npm:@types/node in a way
+        # `deno test` can't resolve without a node_modules dir (spec-004 R2/R5).
+        # `deno check` on the function entrypoints (which import these same
+        # modules) is unaffected — only the test-runner's type-check path hits this.
+        run: deno test --no-check --allow-net --allow-env _shared/rate_limit_test.ts _shared/auth_test.ts

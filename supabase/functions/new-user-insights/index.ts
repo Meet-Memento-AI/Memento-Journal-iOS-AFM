@@ -13,7 +13,7 @@
 // Deploy: supabase functions deploy new-user-insights
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth } from '../_shared/auth.ts';
 import type { Theme, ThemeScore, AnalysisResponse, ErrorResponse } from './types.ts';
 
 // ============================================================
@@ -30,7 +30,7 @@ const corsHeaders = {
 const MAX_TEXT_LENGTH = 2000;
 const MIN_TEXT_LENGTH = 20;
 const MIN_ALPHA_CHARS = 10;
-const RATE_LIMIT_HOURS = 0;  // Disabled for testing
+const RATE_LIMIT_HOURS = 24;  // spec-004 R3: re-enabled (was 0 "for testing")
 
 // Theme cache (loaded once, reused across requests)
 let themesCache: Theme[] | null = null;
@@ -50,29 +50,9 @@ serve(async (req) => {
     // 1. AUTHENTICATE USER
     // ============================================================
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse(
-        { error: 'Missing authorization header', code: 'AUTH_REQUIRED' },
-        401
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      return jsonResponse(
-        { error: 'Unauthorized', code: 'AUTH_FAILED' },
-        401
-      );
-    }
+    const auth = await requireAuth(req, corsHeaders, { missing: 'AUTH_REQUIRED', invalid: 'AUTH_FAILED' });
+    if (auth instanceof Response) return auth;
+    const { user, supabase } = auth;
 
     console.log(`📝 Theme analysis request from user: ${user.id.substring(0, 8)}...`);
 
@@ -163,14 +143,25 @@ serve(async (req) => {
       );
     }
 
-    // Rate limiting disabled for testing
-    // Check if text has changed for logging purposes
-    if (profile?.themes_analyzed_at && profile.onboarding_self_reflection) {
-      const textChanged = calculateSimilarity(sanitized, profile.onboarding_self_reflection) < 0.7;
-      if (textChanged) {
-        console.log('📝 Text changed significantly from previous analysis');
-      } else {
-        console.log('📝 Text similar to previous analysis, re-running anyway (rate limit disabled)');
+    // Rate limiting (spec-004 R3): re-enabled. Re-analysis is blocked within
+    // RATE_LIMIT_HOURS UNLESS the self-reflection text changed materially — that
+    // preserves the intended "let users re-run after editing" behavior while
+    // stopping unbounded LLM spend from repeated identical requests.
+    if (RATE_LIMIT_HOURS > 0 && profile?.themes_analyzed_at) {
+      const lastAnalyzed = new Date(profile.themes_analyzed_at).getTime();
+      const hoursSince = (Date.now() - lastAnalyzed) / (1000 * 60 * 60);
+      const textChanged = profile.onboarding_self_reflection
+        ? calculateSimilarity(sanitized, profile.onboarding_self_reflection) < 0.7
+        : true;
+      if (hoursSince < RATE_LIMIT_HOURS && !textChanged) {
+        return jsonResponse(
+          {
+            error: 'Insights were generated recently. Try again later or edit your reflection.',
+            code: 'RATE_LIMITED',
+            retryAfter: `${Math.ceil(RATE_LIMIT_HOURS - hoursSince)}h`,
+          },
+          429
+        );
       }
     }
 

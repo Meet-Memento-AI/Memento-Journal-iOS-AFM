@@ -13,7 +13,8 @@
 //
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth } from '../_shared/auth.ts';
+import { checkRateLimit, rateLimitedResponse } from '../_shared/rate_limit.ts';
 import OpenAI from 'https://deno.land/x/openai@v4.20.1/mod.ts';
 import type {
   GenerateInsightsRequest,
@@ -40,6 +41,10 @@ const MAX_CONTENT_LENGTH = 500;       // Chars per entry (token optimization)
 const CACHE_TTL_HOURS = 168;          // 7 days = 168 hours
 const CACHE_STALE_HOURS = 24;         // Refresh if older than 24 hours
 
+// spec-004 R2: per-user cost guard (7-day cache already absorbs most repeat calls).
+const RATE_LIMIT_MAX_REQUESTS = 4;
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60 * 24; // 1 day
+
 // ============================================================
 // MAIN HANDLER
 // ============================================================
@@ -55,31 +60,26 @@ serve(async (req) => {
     // 1. AUTHENTICATE USER
     // ============================================================
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse(
-        { error: 'Missing authorization header', code: 'AUTH_REQUIRED' },
-        401
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      return jsonResponse(
-        { error: 'Unauthorized', code: 'AUTH_FAILED' },
-        401
-      );
-    }
+    const auth = await requireAuth(req, corsHeaders, { missing: 'AUTH_REQUIRED', invalid: 'AUTH_FAILED' });
+    if (auth instanceof Response) return auth;
+    const { user, supabase } = auth;
 
     console.log(`📝 Insights request from user: ${user.id.substring(0, 8)}...`);
+
+    // ============================================================
+    // 1b. RATE LIMIT (spec-004 R2)
+    // ============================================================
+
+    const rateLimit = await checkRateLimit(
+      supabase,
+      user.id,
+      'generate-insights',
+      RATE_LIMIT_MAX_REQUESTS,
+      RATE_LIMIT_WINDOW_SECONDS
+    );
+    if (!rateLimit.allowed) {
+      return rateLimitedResponse(rateLimit, corsHeaders);
+    }
 
     // ============================================================
     // 2. VALIDATE INPUT

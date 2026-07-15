@@ -15,7 +15,8 @@
 //
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth } from '../_shared/auth.ts';
+import { checkRateLimit, rateLimitedResponse } from '../_shared/rate_limit.ts';
 import {
   buildContextBlock,
   buildGeminiContents,
@@ -43,6 +44,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// spec-004 R2: per-user cost guard on this LLM endpoint.
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60; // 1 hour
 
 const GEMINI_EMBEDDING_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
@@ -139,9 +144,9 @@ async function createGeminiSystemCache(
     ttl: '86400s',
   };
 
-  const res = await fetch(`${GEMINI_CACHED_CONTENTS_URL}?key=${apiKey}`, {
+  const res = await fetch(`${GEMINI_CACHED_CONTENTS_URL}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
   });
 
@@ -185,9 +190,9 @@ async function generateGeminiChat(
   };
 
   const tryWithCache = async (cacheName: string) => {
-    const res = await fetch(`${GEMINI_CHAT_URL}?key=${apiKey}`, {
+    const res = await fetch(`${GEMINI_CHAT_URL}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         cachedContent: cacheName,
         contents,
@@ -232,9 +237,9 @@ async function generateGeminiChat(
     console.warn('Gemini cached generateContent failed; falling back to inline system_instruction:', res.status, errorText?.substring(0, 400));
   }
 
-  const res = await fetch(`${GEMINI_CHAT_URL}?key=${apiKey}`, {
+  const res = await fetch(`${GEMINI_CHAT_URL}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPromptText }] },
       contents,
@@ -292,21 +297,23 @@ serve(async (req) => {
     // 1. AUTHENTICATE
     // ============================================================
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header', code: 'AUTH_REQUIRED' }, 401);
-    }
+    const auth = await requireAuth(req, corsHeaders, { missing: 'AUTH_REQUIRED', invalid: 'AUTH_FAILED' });
+    if (auth instanceof Response) return auth;
+    const { user, supabase } = auth;
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+    // ============================================================
+    // 1b. RATE LIMIT (spec-004 R2)
+    // ============================================================
+
+    const rateLimit = await checkRateLimit(
+      supabase,
+      user.id,
+      'chat',
+      RATE_LIMIT_MAX_REQUESTS,
+      RATE_LIMIT_WINDOW_SECONDS
     );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      return jsonResponse({ error: 'Unauthorized', code: 'AUTH_FAILED' }, 401);
+    if (!rateLimit.allowed) {
+      return rateLimitedResponse(rateLimit, corsHeaders);
     }
 
     // ============================================================
@@ -608,9 +615,9 @@ serve(async (req) => {
 // ============================================================
 
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch(`${GEMINI_EMBEDDING_URL}?key=${apiKey}`, {
+  const response = await fetch(`${GEMINI_EMBEDDING_URL}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       model: 'models/gemini-embedding-001',
       content: { parts: [{ text }] },

@@ -61,6 +61,35 @@ serve(async (req) => {
     return jsonResponse({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }, 500);
   }
 
+  // ============================================================
+  // AUTH GATE (spec-004 R1)
+  // This function runs with the service-role key, so it MUST authenticate the
+  // caller itself regardless of the gateway's --no-verify-jwt setting. Two paths:
+  //   * DB webhook  -> shared secret header `X-Webhook-Secret` == SYNC_EMBEDDING_SECRET
+  //   * iOS direct  -> a valid user JWT in `Authorization` (the app sends one)
+  // If a secret is configured we accept either; without it we require a user JWT.
+  // ============================================================
+  const webhookSecret = Deno.env.get('SYNC_EMBEDDING_SECRET');
+  const providedSecret = req.headers.get('x-webhook-secret');
+  const authHeader = req.headers.get('Authorization');
+  let authorized = false;
+
+  if (webhookSecret && providedSecret && providedSecret === webhookSecret) {
+    authorized = true; // trusted webhook
+  } else if (authHeader) {
+    // Verify the user JWT with an anon client scoped to this request.
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userErr } = await userClient.auth.getUser();
+    authorized = !userErr && !!user;
+  }
+
+  if (!authorized) {
+    return jsonResponse({ error: 'Unauthorized', code: 'AUTH_ERROR' }, 401);
+  }
+
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let recordId: string | undefined;
@@ -138,10 +167,10 @@ serve(async (req) => {
     }
 
     const embeddingResponse = await fetch(
-      `${GEMINI_EMBEDDING_URL}?key=${geminiApiKey}`,
+      `${GEMINI_EMBEDDING_URL}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
         body: JSON.stringify({
           model: 'models/gemini-embedding-001',
           content: { parts: [{ text: content }] },

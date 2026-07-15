@@ -9,7 +9,7 @@
 //
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAuth } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,22 +35,9 @@ serve(async (req) => {
 
   try {
     // 1. Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401);
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
+    const auth = await requireAuth(req, corsHeaders);
+    if (auth instanceof Response) return auth;
+    const { user, supabase } = auth;
 
     // 2. Parse request
     if (req.method !== 'POST' && req.method !== 'DELETE') {
