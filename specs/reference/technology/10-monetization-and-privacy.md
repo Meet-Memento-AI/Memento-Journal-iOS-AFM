@@ -24,7 +24,30 @@ Free Private Cloud Compute inference
 
 **REQ-MON-002: Small Business Program enrollment is mandatory** — not merely a commission benefit. It is the eligibility condition for the architecture.
 
-🔴 **Week 1 action:** verify enrollment status and file the PCC application at the Apple developer site. Lead time unknown. This is the single longest-lead dependency in the whole plan.
+🟡 **Researched 2026-07-23** (see spec 013 R5 for full sourcing) — corrects
+the "verify enrollment status" gap above with concrete process detail, still
+🟡 not ✅ because Apple's own pages disagree slightly on timing:
+
+- **Small Business Program enrollment**: self-serve at
+  `developer.apple.com/app-store/small-business-program/enroll/` — Account
+  Holder, accept the Paid Apps Agreement (Schedule 2), disclose Associated
+  Developer Accounts. One Apple page frames this as "free and takes about
+  five minutes"; Apple's own enrollment terms elsewhere describe an
+  **approval** step and a stated commission-adjustment lag of 15 days after
+  the calendar month in which enrollment is approved — i.e. enrollment may
+  not be instant even though the form itself is short. Eligibility: ≤$1M
+  prior-calendar-year proceeds, or new to the App Store.
+- **PCC access is a genuinely separate, gated request** — not automatic once
+  SBP-enrolled. Submitted via
+  `developer.apple.com/contact/request/private-cloud-compute/`. No lead time
+  is stated anywhere in Apple's docs (a real gap, not just unresearched —
+  worth noting in the filing that the timeline is unknown going in).
+
+**Revised action**: enroll in the Small Business Program immediately (low
+cost either way, short form, no reason to delay) — this unblocks filing the
+PCC request, which is genuinely the step with unknown/unbounded lead time and
+should follow right behind it, not be treated as a single combined "week 1"
+action with SBP.
 
 ---
 

@@ -134,12 +134,85 @@ running frequency) into `gold/questions.resolved.json` — all four resolved to
 non-trivial match sets (10–16 entries each). All checks pass.
 
 ### R5. File entitlement and program applications
-File: (a) App Store Small Business Program enrollment / PCC access verification,
-(b) Journaling Suggestions entitlement request.
-**Acceptance:** both filed, with the filing date and any stated review lead time
-recorded in this spec. This is a scheduling dependency for Phases 2–4, not merely
-an implementation detail — filing late risks blocking later phases on Apple's
-review clock, not on our own work.
+File: (a) App Store Small Business Program enrollment, (b) Private Cloud
+Compute access request. (c) The Journaling Suggestions entitlement, previously
+assumed to need a similar filing, turned out on research not to — see below.
+**Acceptance:** (a) and (b) filed, with the filing date and any stated review
+lead time recorded in this spec. This is a scheduling dependency for Phases
+2–4, not merely an implementation detail — filing late risks blocking later
+phases on Apple's review clock, not on our own work.
+
+**Researched 2026-07-23** (via Apple Developer documentation + forum search —
+🟡 confidence throughout; Apple's docs site didn't render fetchable body
+content for one page, noted below where that applies). This replaces the
+prior "unverified process, unknown lead time" state for all three items with
+concrete process detail — two are real filings to make, one turned out to be
+a non-issue:
+
+**(a) App Store Small Business Program — eligibility confirmed, low-risk to
+start immediately.**
+- Eligibility: ≤$1,000,000 USD in App Store proceeds in the prior calendar
+  year (proceeds = sales net of Apple's commission/taxes), **or** new to the
+  App Store — Memento qualifies either way pre-launch.
+- Requirements to enroll: be the Account Holder (not just a team member) of
+  the Apple Developer Program membership; accept the current Paid Apps
+  Agreement (Schedule 2) in App Store Connect; disclose any Associated
+  Developer Accounts (>50% ownership or decision-making overlap with other
+  developer accounts — presumed none for this solo project, confirm at
+  filing time).
+- Process: `developer.apple.com/app-store/small-business-program/enroll/` —
+  Apple's own marketing copy calls this "free and takes about five minutes,"
+  but Apple's program terms elsewhere describe an **approval** step, with
+  commission-rate changes taking effect "fifteen (15) days after the end of
+  the fiscal calendar month in which enrollment is approved" — i.e. the form
+  itself may be short, but "enrolled" and "approved" aren't necessarily the
+  same instant. Not fully reconciled from documentation alone.
+- **Action:** file this first, immediately — it's free, low-effort, and is
+  the eligibility gate for (b). No reason to wait on anything else in this
+  spec.
+
+**(b) Private Cloud Compute access — the genuinely gated, unknown-lead-time
+filing.**
+- Eligibility (all three required): enrolled in the Small Business Program;
+  fewer than 2,000,000 first-time downloads across all apps (trivially true
+  pre-launch); the PCC entitlement itself assigned to the developer account.
+- This does **not** happen automatically upon SBP enrollment — it is a
+  separate, explicit request: `developer.apple.com/contact/request/private-cloud-compute/`.
+- No lead time is stated anywhere in Apple's own documentation — this is a
+  real, confirmed gap (not merely something this research pass didn't get
+  to), consistent with `technology/10-monetization-and-privacy.md`'s original
+  flag that this is the architecture's least-controllable dependency.
+- Testing via TestFlight/ad hoc distribution doesn't count against the 2M
+  download threshold. If downloads later exceed 2M, or SBP enrollment lapses,
+  Apple gives a 6-month migration window before cutting off access — worth
+  noting as an ongoing operational constraint (`DEC-006`-adjacent), not just
+  a one-time filing concern.
+- **Action:** file immediately after (a) is confirmed enrolled — this is the
+  step to start the "unknown lead time" clock on as early as possible.
+
+**(c) Journaling Suggestions entitlement — corrected: likely does NOT need a
+filing at all.**
+Spec 018 Task 2 and the source tech doc both previously flagged this as
+needing "a request to Apple with review lead time," treated as urgent as the
+PCC filing. Research didn't support that: `com.apple.developer.journal.allow`
+appears to be a **standard Xcode-addable capability** (Signing & Capabilities
+→ "+ Capability" → Journal), available since Xcode 15.1 beta / iOS 17.2, with
+no discoverable request-form URL or approval-queue reference anywhere in
+Apple's docs or developer-forum discussion — unlike PCC, which has an
+explicit, named request endpoint. 🟡 not ✅ because Apple's entitlement
+reference page is a JS-rendered SPA that didn't yield fetchable body text
+through available tooling, so this rests on converging indirect evidence
+(search-result summaries, absence of a request-form link, general developer
+community usage since iOS 17.2) rather than a direct doc citation.
+- **Action — cheap, do this whenever spec 018 is picked up, not urgently
+  now:** open Xcode → target → Signing & Capabilities → search "Journal". If
+  addable directly, this confirms the correction and the item drops off the
+  filing-dependency list entirely; if Xcode instead surfaces a request/
+  approval prompt, that's the actual process to follow (and would mean this
+  research pass's conclusion was wrong — re-flag as 🔴 and file properly).
+Full detail and sourcing: `specs/reference/technology/08-context-frameworks.md`
+§2 and `specs/reference/technology/10-monetization-and-privacy.md` §1 (both
+updated 2026-07-23 with this same research).
 
 ### R6. Re-audit legacy specs for 2.0 relevance
 Specs 003, 004, and 010 are already marked obsolete (superseded by 015, 016, and
@@ -197,7 +270,19 @@ made and already reflected in each spec's front-matter/body:
 - [ ] 4. Run Spike B (reflection quality comparison) and record the routing
       recommendation (R3).
 - [ ] 5. File Small Business Program / PCC verification and the Journaling
-      Suggestions entitlement request; record filing dates (R5).
+      Suggestions entitlement request; record filing dates (R5). **Research
+      done 2026-07-23** (see R5 above for full detail, sourcing, and links):
+      Small Business Program is a self-serve enrollment (eligibility
+      confirmed: ≤$1M prior-year proceeds or new developer) — file
+      immediately, it's low-cost and unblocks PCC; PCC access is a genuinely
+      separate, gated request with no stated lead time
+      (`developer.apple.com/contact/request/private-cloud-compute/`) — file
+      right after SBP; Journaling Suggestions turned out to likely **not**
+      need a filing at all (standard Xcode capability, not a gated
+      entitlement — 🟡, verify with one click in Xcode's Signing &
+      Capabilities). **The actual filings/submissions still require the
+      account holder's Apple Developer login — not agent-executable; the two
+      real filings (a, b) remain open user actions.**
 - [x] 6. Re-audit specs 002, 007, 008, 009, 011, 012 for 2.0 relevance; record a
       decision for each (R6). **Resolved 2026-07-23, ahead of formal execution of
       this spec's other tasks — see "Legacy spec disposition" below.**

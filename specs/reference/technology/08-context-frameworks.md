@@ -37,11 +37,31 @@ That means rich personal context at **zero privacy cost to Memento** — no Heal
 
 It is the highest ratio of contextual value to privacy surface available on the platform, and almost nobody in this category uses it.
 
-### 🔴 SCHEDULING DEPENDENCY — act in week 1
+### 🟡 LIKELY NOT a gated entitlement — corrected 2026-07-23
 
-The Journaling Suggestions entitlement **requires a request to Apple with review lead time**. This is not an implementation detail; it is a calendar dependency that can block Phase 4. File it in the same week as the PCC application.
+Researched via Apple Developer documentation and forum search (see spec 013
+R5). `com.apple.developer.journal.allow` appears to be a **standard Xcode
+capability**, addable directly in Signing & Capabilities since Xcode 15.1
+beta / iOS 17.2, with no discoverable request-form URL or approval-queue
+mention anywhere in Apple's docs or developer-forum discussion — unlike
+Private Cloud Compute, which has an explicit `/contact/request/` form. This
+contradicts the "requires a request to Apple with review lead time" claim
+this section previously made (that claim's origin is unclear; possibly
+conflated with PCC's genuinely gated process, or based on an earlier/stricter
+policy that's since relaxed).
 
-🔴 Verify: current request process, expected lead time, and eligibility criteria.
+**Not ✅ VERIFIED** because Apple's entitlement reference page didn't render
+fetchable body content (JS-rendered SPA) — the 🟡 confidence reflects
+converging indirect evidence (search snippets, absence of a request-form
+link, community usage since iOS 17.2) rather than a direct doc citation.
+**Cheapest way to fully verify:** open Xcode → target → Signing &
+Capabilities → "+ Capability" → search "Journal" — if it's addable without
+an external request, this is confirmed and the scheduling-dependency framing
+below should be deleted from the plan entirely.
+
+~~The Journaling Suggestions entitlement requires a request to Apple with
+review lead time. File it in the same week as the PCC application.~~ —
+superseded pending the one-click Xcode check above.
 
 ### Rules
 
