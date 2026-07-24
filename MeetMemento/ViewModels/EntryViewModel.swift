@@ -3,13 +3,13 @@
 //  EntryViewModel.swift
 //  MeetMemento
 //
-//  Manages journal entries using Supabase JournalService.
-//  Bridges local 'Entry' model with remote 'JournalEntry' model.
+//  Manages journal entries. No accounts (spec 023): entries are read from
+//  and written to on-device encrypted storage only, via JournalService's
+//  local-only methods — there is no server.
 //
 
 import Foundation
 import SwiftUI
-import Supabase
 
 @MainActor
 class EntryViewModel: ObservableObject {
@@ -48,10 +48,18 @@ class EntryViewModel: ObservableObject {
 
     // MARK: - Session PIN Management
 
-    /// Sets the session PIN for encryption operations (call after unlock)
+    /// Sets the session PIN for encryption operations (call after unlock).
+    /// Self-healing: if the entry list hasn't been populated yet (e.g. an
+    /// earlier `loadEntries` ran before any PIN existed and had nothing to
+    /// decrypt with), kick a load now. This resolves every ordering race
+    /// between view-appear loads and PIN delivery in one place, instead of
+    /// requiring each PIN call site to remember to also reload.
     func setSessionPIN(_ pin: String) {
         self.sessionPIN = pin
-                AppLogger.log("🔐 [EntryViewModel] Session PIN set")
+        AppLogger.log("🔐 [EntryViewModel] Session PIN set")
+        if entries.isEmpty {
+            Task { await loadEntries() }
+        }
     }
 
     /// Clears the session PIN (call on app lock)
@@ -100,140 +108,30 @@ class EntryViewModel: ObservableObject {
         updateEntriesByMonth()
         AppLogger.log("📱 UI Mode: Loaded \(entries.count) mock entries")
         #else
-        // Production Mode - Use Supabase with retry for cancelled requests
-        var retryCount = 0
-        let maxRetries = 3
-
-        while retryCount < maxRetries {
-            do {
-                // Use PIN-encrypted fetch if session PIN is available
-                let userEntries: [JournalEntry]
-                if let pin = sessionPIN {
-                    userEntries = try await JournalService.shared.fetchEntries(withPIN: pin)
-                } else {
-                    userEntries = try await JournalService.shared.fetchEntries()
-                }
-                var mapped = userEntries.map { mapToEntry($0) }
-                if let pin = sessionPIN {
-                    mapped = mergeInPendingSync(into: mapped, pin: pin)
-                }
-                self.entries = mapped
-                updateEntriesByMonth()
-
-                // Load user profile to get first name
-                await loadUserProfile()
-                break // Success, exit retry loop
-            } catch let error as NSError where error.code == NSURLErrorCancelled {
-                // Request was cancelled (often during auth state transitions)
-                retryCount += 1
-                AppLogger.log("⚠️ Request cancelled (attempt \(retryCount)/\(maxRetries)), retrying...")
-
-                if retryCount < maxRetries {
-                    // Wait briefly for session to stabilize before retrying
-                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
-                } else {
-                    AppLogger.log("Error loading entries after \(maxRetries) retries: \(error)")
-                    self.errorMessage = "Failed to load. Please pull to refresh."
-                }
-            } catch {
-                AppLogger.log("Error loading entries: \(error)")
-                self.errorMessage = "Failed to load: \(error.localizedDescription)"
-                break // Non-retryable error, exit loop
-            }
+        // Production Mode — local-only (no accounts, spec 023): entries are
+        // read directly from on-device encrypted storage. There is no server
+        // to fetch from anymore, so this is authoritative, not a cache.
+        if let pin = sessionPIN {
+            let localEntries = JournalService.shared.loadAllEntriesLocally(withPIN: pin)
+            self.entries = localEntries.sorted { $0.createdAt > $1.createdAt }
+            updateEntriesByMonth()
+            await loadUserProfile()
+            hasInitiallyLoaded = true
+        } else {
+            // No session PIN yet (e.g. this view loaded before PIN delivery
+            // finished) — nothing can be decrypted, so this wasn't a real
+            // load attempt. Deliberately do NOT set `hasInitiallyLoaded`:
+            // that would flip the UI to the "no entries yet" empty state,
+            // which is a lie. Leaving it false keeps the loading state until
+            // `setSessionPIN` triggers the real load.
+            AppLogger.log("⚠️ [EntryViewModel] loadEntries called with no session PIN")
         }
         #endif
 
+        #if DISABLE_SUPABASE
         hasInitiallyLoaded = true
+        #endif
         isLoading = false
-    }
-
-    // MARK: - Offline Resilience (spec-007)
-
-    /// Reconciles a freshly-fetched server entry list with anything still
-    /// queued locally: drops entries queued for deletion (so an offline
-    /// delete doesn't reappear after a fetch), marks entries with a queued
-    /// update as pending, and injects entries that only exist locally
-    /// because their create never reached the server yet.
-    private func mergeInPendingSync(into serverEntries: [Entry], pin: String) -> [Entry] {
-        let pendingOps = LocalJournalStorage.shared.allPendingSyncOperations()
-        guard !pendingOps.isEmpty else { return serverEntries }
-
-        let opsByEntryId = Dictionary(uniqueKeysWithValues: pendingOps.map { ($0.entryId, $0) })
-        let serverEntryIds = Set(serverEntries.map(\.id))
-
-        var merged = serverEntries.compactMap { entry -> Entry? in
-            guard let op = opsByEntryId[entry.id] else { return entry }
-            if op.opType == .delete { return nil }
-            var pending = entry
-            pending.syncStatus = .pending
-            return pending
-        }
-
-        // Entries queued as `.create` that never reached the server aren't
-        // in `serverEntries` at all — reconstruct them from local storage.
-        for op in pendingOps where op.opType == .create && !serverEntryIds.contains(op.entryId) {
-            guard let title = EncryptionService.shared.decrypt(op.encryptedTitle, withPIN: pin),
-                  let contentData = LocalJournalStorage.shared.loadEncrypted(entryId: op.entryId),
-                  let content = EncryptionService.shared.decrypt(contentData, withPIN: pin) else {
-                continue
-            }
-            merged.append(Entry(id: op.entryId, title: title, text: content, createdAt: op.timestamp, updatedAt: op.timestamp, syncStatus: .pending))
-        }
-
-        return merged.sorted { $0.createdAt > $1.createdAt }
-    }
-
-    /// Retries every queued write. Called on reconnect and app-foreground
-    /// (see `ContentView`). Safe to call opportunistically — it's a no-op
-    /// when the queue is empty, and each operation is independent so one
-    /// failure doesn't block the rest.
-    func drainPendingSync() async {
-        guard let pin = sessionPIN else { return }
-        let pendingOps = LocalJournalStorage.shared.allPendingSyncOperations()
-        guard !pendingOps.isEmpty else { return }
-
-        // No accounts (spec 023) — this is a stable local identifier, not an
-        // authenticated session. The subsequent JournalService network calls
-        // will fail (no valid Supabase session) until spec 015 replaces this
-        // sync target with SwiftData/CloudKit; each failure re-queues below,
-        // exactly as it already does for any other transient sync failure.
-        let userId = AppStateStore.localUserID
-
-        for op in pendingOps {
-            switch op.opType {
-            case .create, .update:
-                guard let title = EncryptionService.shared.decrypt(op.encryptedTitle, withPIN: pin),
-                      let contentData = LocalJournalStorage.shared.loadEncrypted(entryId: op.entryId),
-                      let content = EncryptionService.shared.decrypt(contentData, withPIN: pin) else {
-                    // Can't reconstruct this op (e.g. content was deleted locally
-                    // some other way) — drop it rather than retry forever.
-                    LocalJournalStorage.shared.dequeuePendingSync(entryId: op.entryId)
-                    continue
-                }
-
-                let journalEntry = JournalEntry(id: op.entryId, userId: userId, title: title, content: content)
-                do {
-                    if op.opType == .create {
-                        let created = try await JournalService.shared.createEntry(journalEntry)
-                        markSynced(created.id)
-                    } else {
-                        try await JournalService.shared.updateEntry(journalEntry)
-                        markSynced(op.entryId)
-                    }
-                    LocalJournalStorage.shared.dequeuePendingSync(entryId: op.entryId)
-                } catch {
-                    AppLogger.log("⚠️ [EntryViewModel] Drain retry failed for \(op.entryId), will retry later: \(error)")
-                }
-
-            case .delete:
-                do {
-                    try await JournalService.shared.deleteEntry(id: op.entryId)
-                    LocalJournalStorage.shared.dequeuePendingSync(entryId: op.entryId)
-                } catch {
-                    AppLogger.log("⚠️ [EntryViewModel] Drain delete retry failed for \(op.entryId), will retry later: \(error)")
-                }
-            }
-        }
     }
 
     /// No accounts (spec 023) — the display name is a local cache, not a
@@ -294,52 +192,32 @@ class EntryViewModel: ObservableObject {
             await MainActor.run { self.markSynced(entryId) }
             AppLogger.log("📱 UI Mode: Created mock entry")
             #else
-            // Production Mode — no accounts (spec 023): this is a stable local
-            // identifier, not an authenticated session. The JournalService
-            // network call below will fail until spec 015 replaces the sync
-            // target with SwiftData/CloudKit; that failure is caught and the
-            // entry is queued for retry via the existing pending-sync path,
-            // same as any other transient sync failure — it is never rolled back.
-            let userId = AppStateStore.localUserID
-
-            let newJournalEntry = JournalEntry(
-                id: entryId,
-                userId: userId,
-                title: resolvedTitle,
-                content: text,
-                createdAt: now,
-                updatedAt: now
-            )
-
-            // Local-first: encrypt and persist immediately, before attempting the network.
+            // Production Mode — local-only (no accounts, spec 023). There is
+            // no server: the local encrypted save below is the entire
+            // operation, not a fallback for a failed network call.
             if let pin = self.sessionPIN {
-                JournalService.shared.saveEncryptedLocally(entryId: entryId, content: text, withPIN: pin)
-            }
-
-            do {
-                let created = try await JournalService.shared.createEntry(newJournalEntry)
-                await MainActor.run {
-                    if let index = self.entries.firstIndex(where: { $0.id == entryId }) {
-                        var serverEntry = self.mapToEntry(created)
-                        serverEntry.syncStatus = .synced
-                        self.entries[index] = serverEntry
-                    }
-                }
-                LocalJournalStorage.shared.dequeuePendingSync(entryId: entryId)
-            } catch {
-                AppLogger.log("⚠️ [EntryViewModel] Create sync failed, queuing for retry: \(error)")
-                if let pin = self.sessionPIN {
-                    JournalService.shared.queuePendingSync(entryId: entryId, opType: .create, title: resolvedTitle, withPIN: pin)
-                    await MainActor.run { self.markPending(entryId) }
+                let saved = JournalService.shared.saveEntryLocally(
+                    entryId: entryId, title: resolvedTitle, content: text,
+                    createdAt: now, updatedAt: now, withPIN: pin
+                )
+                if saved {
+                    await MainActor.run { self.markSynced(entryId) }
                 } else {
-                    // No PIN session means no local encrypted copy exists to retry from —
-                    // there's nothing durable to keep, so this falls back to the old
-                    // rollback behavior rather than silently pretending it's queued.
+                    // Local save itself failed (e.g. disk/Keychain issue) — this is
+                    // a real failure, not a network hiccup to retry later.
                     await MainActor.run {
                         self.entries.removeAll { $0.id == entryId }
                         self.updateEntriesByMonth()
-                        self.errorMessage = "Failed to save: \(error.localizedDescription)"
+                        self.errorMessage = "Failed to save entry."
                     }
+                }
+            } else {
+                // No PIN session means nothing can be encrypted/persisted —
+                // there's nothing durable to keep.
+                await MainActor.run {
+                    self.entries.removeAll { $0.id == entryId }
+                    self.updateEntriesByMonth()
+                    self.errorMessage = "Failed to save: no active session."
                 }
             }
             #endif
@@ -350,13 +228,6 @@ class EntryViewModel: ObservableObject {
     private func markSynced(_ entryId: UUID) {
         if let index = entries.firstIndex(where: { $0.id == entryId }) {
             entries[index].syncStatus = .synced
-        }
-    }
-
-    /// Marks an entry as pending sync in the in-memory list, if still present.
-    private func markPending(_ entryId: UUID) {
-        if let index = entries.firstIndex(where: { $0.id == entryId }) {
-            entries[index].syncStatus = .pending
         }
     }
 
@@ -391,51 +262,27 @@ class EntryViewModel: ObservableObject {
             }
             AppLogger.log("📱 UI Mode: Updated mock entry")
             #else
-            // Production Mode — no accounts (spec 023); see createEntry's comment above.
-            let userId = AppStateStore.localUserID
-
-            // Map back to JournalEntry
-            let updatedJournalEntry = JournalEntry(
-                id: entry.id,
-                userId: userId,
-                title: entry.title,
-                content: entry.text,
-                createdAt: entry.createdAt,
-                updatedAt: Date()
-            )
-
-            // Local-first: encrypt and persist immediately, before attempting the network.
+            // Production Mode — local-only (no accounts, spec 023). No server:
+            // the local encrypted save below is the entire operation.
             if let pin = self.sessionPIN {
-                JournalService.shared.saveEncryptedLocally(entryId: entry.id, content: entry.text, withPIN: pin)
-            }
-
-            do {
-                try await JournalService.shared.updateEntry(updatedJournalEntry)
+                let saved = JournalService.shared.saveEntryLocally(
+                    entryId: entry.id, title: entry.title, content: entry.text,
+                    createdAt: entry.createdAt, updatedAt: Date(), withPIN: pin
+                )
                 await MainActor.run {
                     if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                        var synced = entry
-                        synced.syncStatus = .synced
-                        self.entries[i] = synced
+                        var updated = entry
+                        updated.syncStatus = saved ? .synced : entry.syncStatus
+                        self.entries[i] = updated
                         self.updateEntriesByMonth()
                     }
-                }
-                LocalJournalStorage.shared.dequeuePendingSync(entryId: entry.id)
-            } catch {
-                AppLogger.log("⚠️ [EntryViewModel] Update sync failed, queuing for retry: \(error)")
-                if let pin = self.sessionPIN {
-                    JournalService.shared.queuePendingSync(entryId: entry.id, opType: .update, title: entry.title, withPIN: pin)
-                    await MainActor.run {
-                        if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                            var pending = entry
-                            pending.syncStatus = .pending
-                            self.entries[i] = pending
-                            self.updateEntriesByMonth()
-                        }
-                    }
-                } else {
-                    await MainActor.run {
+                    if !saved {
                         self.errorMessage = "Failed to update entry."
                     }
+                }
+            } else {
+                await MainActor.run {
+                    self.errorMessage = "Failed to update entry: no active session."
                 }
             }
             #endif
@@ -451,13 +298,11 @@ class EntryViewModel: ObservableObject {
             return
         }
 
-        // Store for rollback
-        guard let deletedEntry = entries.first(where: { $0.id == id }),
-              let deletedIndex = entries.firstIndex(where: { $0.id == id }) else { return }
-
         pendingOperations.insert(id)
 
-        // Optimistic + local-first delete - UI and local copy update instantly.
+        // Local-only (no accounts, spec 023): deleting the on-device encrypted
+        // file *is* the entire operation — there's no server copy to also
+        // delete, so this never fails in a way that needs a retry or rollback.
         entries.removeAll { $0.id == id }
         updateEntriesByMonth()
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
@@ -475,44 +320,10 @@ class EntryViewModel: ObservableObject {
             // UI Testing Mode - Remove from mock data
             MockDataProvider.shared.deleteMockEntry(id: id)
             AppLogger.log("📱 UI Mode: Deleted mock entry")
-            #else
-            // Production Mode - Use Supabase
-            do {
-                try await JournalService.shared.deleteEntry(id: id)
-                LocalJournalStorage.shared.dequeuePendingSync(entryId: id)
-            } catch {
-                AppLogger.log("Error deleting entry, queuing for retry: \(error)")
-                if let pin = self.sessionPIN {
-                    // A delete a user made while offline should stay deleted from
-                    // their view — queue the server-side delete instead of
-                    // bringing the entry back, which would look like the
-                    // deletion silently failed.
-                    JournalService.shared.queuePendingSync(entryId: id, opType: .delete, title: "", withPIN: pin)
-                } else {
-                    // No PIN session to queue against — surface the failure by
-                    // rolling back rather than losing track of it silently.
-                    await MainActor.run {
-                        self.entries.insert(deletedEntry, at: min(deletedIndex, self.entries.count))
-                        self.updateEntriesByMonth()
-                        self.errorMessage = "Failed to delete entry."
-                    }
-                }
-            }
             #endif
         }
     }
 
-    // MARK: - Mappers
-
-    private func mapToEntry(_ je: JournalEntry) -> Entry {
-        return Entry(
-            id: je.id,
-            title: je.title,
-            text: je.content,
-            createdAt: je.createdAt,
-            updatedAt: je.updatedAt
-        )
-    }
 }
 
 // MARK: - Month Group Model

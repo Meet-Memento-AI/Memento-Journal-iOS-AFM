@@ -14,6 +14,7 @@ public struct SetupPinView: View {
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
 
     @State private var pin: String = ""
+    @State private var isSubmitting: Bool = false
     @FocusState private var isPinFieldFocused: Bool
 
     /// Whether this PIN is being set as a backup for FaceID users
@@ -79,7 +80,7 @@ public struct SetupPinView: View {
                         handlePinComplete()
                     }
                     .opacity(pin.count == 4 ? 1.0 : 0.5)
-                    .disabled(pin.count != 4)
+                    .disabled(pin.count != 4 || isSubmitting)
                     .padding(.horizontal, 16)
                 }
             }
@@ -188,14 +189,18 @@ public struct SetupPinView: View {
     // MARK: - Actions
 
     private func handlePinComplete() {
-        guard pin.count == 4 else { return }
+        guard pin.count == 4, !isSubmitting else { return }
+        isSubmitting = true
 
         // Dismiss keyboard
         isPinFieldFocused = false
-        
+
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         onboardingViewModel.setupPin = pin
         onComplete?(pin)
+        // isSubmitting intentionally left true: onComplete navigates to
+        // ConfirmPinView on success, so there's no further input on this
+        // screen to guard against.
     }
 }
 

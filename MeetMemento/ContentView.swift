@@ -339,13 +339,15 @@ public struct ContentView: View {
             SecurityService.shared.updateActivityTimestamp()
         }
         .task {
-            // If lock setup was skipped during onboarding (spec 023 R3), a
-            // silent PIN was generated for encryption only — there's no lock
-            // screen to unlock and post `.didUnlockWithPIN`, so pick it up
-            // directly here on every launch that reaches ContentView.
-            if SecurityService.shared.currentMode == .none,
-               let silentPIN = SecurityService.shared.getPIN() {
-                entryViewModel.setSessionPIN(silentPIN)
+            // Pick up the encryption PIN from Keychain for every security
+            // mode, not just the skipped-lock silent PIN. The lock screen's
+            // `.didUnlockWithPIN` notification fires while ContentView isn't
+            // mounted yet (the app root swaps LockScreenView out for
+            // ContentView only after unlock), so it can never be received
+            // here — but reaching this view at all means the lock was passed,
+            // which is the exact access control the notification represented.
+            if let pin = SecurityService.shared.getPIN() {
+                entryViewModel.setSessionPIN(pin)
             }
         }
         .onChange(of: selectedTab) { _, newTab in
@@ -374,20 +376,13 @@ public struct ContentView: View {
             if newPhase == .background || newPhase == .inactive {
                 entryViewModel.clearSessionPIN()
             } else if newPhase == .active {
-                // Lock skipped (spec 023 R3): no lock screen will fire
-                // `.didUnlockWithPIN` on return, so restore the silent PIN here.
-                if SecurityService.shared.currentMode == .none,
-                   let silentPIN = SecurityService.shared.getPIN() {
-                    entryViewModel.setSessionPIN(silentPIN)
+                // Restore the PIN on return to foreground, for every mode
+                // (see the `.task` comment above). If the app actually
+                // locked, ContentView is unmounted and this never fires;
+                // if it didn't lock, this undoes the clear above.
+                if let pin = SecurityService.shared.getPIN() {
+                    entryViewModel.setSessionPIN(pin)
                 }
-                // spec-007 R2: retry any offline writes whenever the app comes to the foreground.
-                Task { await entryViewModel.drainPendingSync() }
-            }
-        }
-        .onChange(of: networkMonitor.isConnected) { _, isConnected in
-            // spec-007 R2: retry any offline writes the moment connectivity returns.
-            if isConnected {
-                Task { await entryViewModel.drainPendingSync() }
             }
         }
         .environmentObject(networkMonitor)

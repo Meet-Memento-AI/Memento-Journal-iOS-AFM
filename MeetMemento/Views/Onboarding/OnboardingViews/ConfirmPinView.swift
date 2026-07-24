@@ -16,6 +16,7 @@ public struct ConfirmPinView: View {
     @State private var pin: String = ""
     @State private var showError: Bool = false
     @State private var shakeOffset: CGFloat = 0
+    @State private var isValidating: Bool = false
     @FocusState private var isPinFieldFocused: Bool
 
     let originalPin: String
@@ -81,7 +82,7 @@ public struct ConfirmPinView: View {
                         handlePinComplete()
                     }
                     .opacity(pin.count == 4 ? 1.0 : 0.5)
-                    .disabled(pin.count != 4)
+                    .disabled(pin.count != 4 || isValidating)
                     .padding(.horizontal, 16)
                 }
             }
@@ -107,7 +108,7 @@ public struct ConfirmPinView: View {
 
                     // Auto-validate when 4 digits are entered
                     // Use async to let the current state update complete first
-                    if filtered.count == 4 && oldValue.count < 4 {
+                    if filtered.count == 4 && oldValue.count < 4 && !isValidating {
                         Task { @MainActor in
                             validatePin(filtered)
                         }
@@ -199,45 +200,56 @@ public struct ConfirmPinView: View {
     // MARK: - Actions
 
     private func handlePinComplete() {
-        guard pin.count == 4 else { return }
+        guard pin.count == 4, !isValidating else { return }
         validatePin(pin)
     }
 
     private func validatePin(_ enteredPin: String) {
+        guard !isValidating else { return }
+        isValidating = true
+
         if enteredPin == originalPin {
             // PIN matches - success
             // Dismiss keyboard
             isPinFieldFocused = false
-            
+
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             onboardingViewModel.confirmedPin = enteredPin
             onComplete?()
+            // isValidating intentionally left true: onComplete navigates away from
+            // this screen on success, so there's no further input to guard against.
         } else {
-            // PIN doesn't match - show error
+            // PIN doesn't match — clear immediately so the next attempt is never
+            // silently swallowed. Previously this was cleared only at the end of
+            // the shake animation (~400-500ms later) while the hidden TextField
+            // stayed focused and bound to the stale wrong digits; the onChange
+            // filter's `prefix(4)` then discarded every digit retyped during that
+            // window. Mirrors LockScreenView.validatePIN()'s pattern, which
+            // clears immediately and runs the shake as an independent Task.
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             showError = true
+            shakeAnimation()
+            pin = ""
+            isValidating = false
+        }
+    }
 
-            // Shake animation using async/await
-            Task { @MainActor in
-                withAnimation(.default) {
-                    shakeOffset = 10
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                withAnimation(.default) {
-                    shakeOffset = -10
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                withAnimation(.default) {
-                    shakeOffset = 10
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                withAnimation(.default) {
-                    shakeOffset = 0
-                }
-                // Clear PIN after shake
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                pin = ""
-                showError = false
+    private func shakeAnimation() {
+        Task { @MainActor in
+            withAnimation(.default) {
+                shakeOffset = 10
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            withAnimation(.default) {
+                shakeOffset = -10
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            withAnimation(.default) {
+                shakeOffset = 10
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            withAnimation(.default) {
+                shakeOffset = 0
             }
         }
     }

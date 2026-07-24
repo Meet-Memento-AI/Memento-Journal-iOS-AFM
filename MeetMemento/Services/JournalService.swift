@@ -219,24 +219,6 @@ class JournalService {
 
     // MARK: - Local-First Helpers (spec-007)
 
-    /// Encrypts and saves an entry's content locally. Used both by the
-    /// existing create/update-with-PIN flow below and by
-    /// `EntryViewModel`'s local-first write path, so both go through the
-    /// exact same encryption/storage code.
-    @discardableResult
-    func saveEncryptedLocally(entryId: UUID, content: String, withPIN pin: String) -> Bool {
-        guard let encrypted = encryptionService.encrypt(content, withPIN: pin) else {
-            return false
-        }
-        do {
-            try LocalJournalStorage.shared.saveEncrypted(entryId: entryId, encryptedData: encrypted)
-            return true
-        } catch {
-            AppLogger.log("⚠️ [JournalService] Failed to save encrypted content locally: \(error)")
-            return false
-        }
-    }
-
     /// Queues an entry for later sync (offline write, or a transient sync
     /// failure), encrypting the title with the same PIN/path as content.
     func queuePendingSync(entryId: UUID, opType: PendingSyncOperation.OpType, title: String, withPIN pin: String) {
@@ -249,106 +231,118 @@ class JournalService {
         )
     }
 
-    // MARK: - Encrypted Operations (PIN-aware)
+    // MARK: - Local-Only Storage (no accounts, spec 023)
 
-    /// Creates a new journal entry with local encryption.
-    /// Saves plaintext to Supabase (for recovery) and encrypted content locally.
-    /// - Parameters:
-    ///   - entry: The journal entry to create
-    ///   - pin: The user's PIN for encryption
-    /// - Returns: The created entry
+    /// Everything needed to fully reconstruct an entry from local storage
+    /// alone. `saveEncryptedLocally`'s content-only payload was originally
+    /// just a cache — title/dates lived on the server row. With no server
+    /// at all, this is now the sole persistence format for an entry: title
+    /// and dates round-trip inside the same encrypted blob as the content.
+    private struct LocalEntryEnvelope: Codable {
+        let title: String
+        let content: String
+        let createdAt: Date
+        let updatedAt: Date
+    }
+
+    /// Saves an entry's complete data (title, content, dates) to local
+    /// encrypted storage. This is the only place an entry is persisted now
+    /// — there is no server round trip to fall back on.
     @discardableResult
-    func createEntry(_ entry: JournalEntry, withPIN pin: String) async throws -> JournalEntry {
-        // 1. Save plaintext to Supabase (for recovery)
-        let created = try await createEntry(entry)
-
-        // 2. Encrypt content locally with PIN
-        if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
-            do {
-                try LocalJournalStorage.shared.saveEncrypted(entryId: created.id, encryptedData: encrypted)
-            } catch {
-                                AppLogger.log("⚠️ [JournalService] Failed to save encrypted content locally: \(error)")
-                // Don't fail the operation - Supabase has the backup
-            }
+    func saveEntryLocally(
+        entryId: UUID,
+        title: String,
+        content: String,
+        createdAt: Date,
+        updatedAt: Date,
+        withPIN pin: String
+    ) -> Bool {
+        let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt)
+        guard let json = try? JSONEncoder().encode(envelope),
+              let jsonString = String(data: json, encoding: .utf8),
+              let encrypted = encryptionService.encrypt(jsonString, withPIN: pin) else {
+            AppLogger.log("⚠️ [JournalService] Failed to encrypt entry for local storage: \(entryId)")
+            return false
         }
-
-        return created
-    }
-
-    /// Updates a journal entry with local encryption.
-    /// - Parameters:
-    ///   - entry: The journal entry to update
-    ///   - pin: The user's PIN for encryption
-    func updateEntry(_ entry: JournalEntry, withPIN pin: String) async throws {
-        // 1. Update plaintext in Supabase (for recovery)
-        try await updateEntry(entry)
-
-        // 2. Re-encrypt content locally with PIN
-        if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
-            do {
-                try LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
-            } catch {
-                                AppLogger.log("⚠️ [JournalService] Failed to update encrypted content locally: \(error)")
-            }
+        do {
+            try LocalJournalStorage.shared.saveEncrypted(entryId: entryId, encryptedData: encrypted)
+            return true
+        } catch {
+            AppLogger.log("⚠️ [JournalService] Failed to save entry locally: \(error)")
+            return false
         }
     }
 
-    /// Fetches entries and decrypts local content where available.
-    /// Falls back to Supabase plaintext if local decryption fails.
-    /// - Parameter pin: The user's PIN for decryption
-    /// - Returns: Array of journal entries with decrypted content
-    func fetchEntries(withPIN pin: String) async throws -> [JournalEntry] {
-        // Fetch from Supabase
-        let entries = try await fetchEntries()
+    /// Loads and decrypts every entry stored locally — the sole source of
+    /// truth for the journal now that there's no account/server.
+    ///
+    /// Handles two on-disk formats:
+    /// - Envelope (current): the decrypted string is `LocalEntryEnvelope` JSON.
+    /// - Legacy (pre-local-only builds): the decrypted string is the raw entry
+    ///   content — title/dates lived on the server row or in the pending-sync
+    ///   queue, never in this file. Legacy entries are recovered best-effort
+    ///   and migrated to envelope format on first read, so the fallback only
+    ///   ever runs once per entry.
+    func loadAllEntriesLocally(withPIN pin: String) -> [Entry] {
+        // Pending-sync ops are the only local record of a legacy entry's
+        // title (encrypted) and creation time. Fetch once, not per entry.
+        let pendingOps = Dictionary(
+            uniqueKeysWithValues: LocalJournalStorage.shared.allPendingSyncOperations().map { ($0.entryId, $0) }
+        )
 
-        // Try to decrypt local content for each entry
-        return entries.map { entry in
-            // Check if we have local encrypted content
-            if let encryptedData = LocalJournalStorage.shared.loadEncrypted(entryId: entry.id),
-               let decrypted = encryptionService.decrypt(encryptedData, withPIN: pin) {
-                // Use locally decrypted content
-                return JournalEntry(
-                    id: entry.id,
-                    userId: entry.userId,
-                    title: entry.title,
-                    content: decrypted,
-                    wordCount: entry.wordCount,
-                    sentimentScore: entry.sentimentScore,
-                    isDeleted: entry.isDeleted,
-                    deletedAt: entry.deletedAt,
-                    contentHash: entry.contentHash,
-                    createdAt: entry.createdAt,
-                    updatedAt: entry.updatedAt
+        return LocalJournalStorage.shared.allStoredEntryIds().compactMap { id -> Entry? in
+            guard let data = LocalJournalStorage.shared.loadEncrypted(entryId: id),
+                  let decrypted = encryptionService.decrypt(data, withPIN: pin) else {
+                return nil
+            }
+
+            if let json = decrypted.data(using: .utf8),
+               let envelope = try? JSONDecoder().decode(LocalEntryEnvelope.self, from: json) {
+                return Entry(
+                    id: id,
+                    title: envelope.title,
+                    text: envelope.content,
+                    createdAt: envelope.createdAt,
+                    updatedAt: envelope.updatedAt,
+                    syncStatus: .synced
                 )
             }
 
-            // Fall back to Supabase plaintext (recovery mode)
-            // Also re-encrypt locally for next time
-            if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
-                try? LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
-            }
+            // Legacy format: `decrypted` is the raw content itself.
+            let pendingOp = pendingOps[id]
+            let title = pendingOp.flatMap { encryptionService.decrypt($0.encryptedTitle, withPIN: pin) }
+                ?? Self.fallbackTitle(fromContent: decrypted)
+            let timestamp = pendingOp?.timestamp
+                ?? LocalJournalStorage.shared.modificationDate(entryId: id)
+                ?? Date()
 
-            return entry
+            // Migrate to envelope format so this path never runs again for
+            // this entry, then drop the queue file — it existed only to
+            // retry a server sync that no longer exists.
+            saveEntryLocally(entryId: id, title: title, content: decrypted,
+                             createdAt: timestamp, updatedAt: timestamp, withPIN: pin)
+            LocalJournalStorage.shared.dequeuePendingSync(entryId: id)
+            AppLogger.log("📁 [JournalService] Migrated legacy-format entry to envelope: \(id)")
+
+            return Entry(
+                id: id, title: title, text: decrypted,
+                createdAt: timestamp, updatedAt: timestamp, syncStatus: .synced
+            )
         }
     }
 
-    /// Re-encrypts all entries with a new PIN.
-    /// Call this when the user changes their PIN.
-    /// - Parameter newPIN: The new PIN to use for encryption
-    func reEncryptAll(withNewPIN newPIN: String) async throws {
-        // Clear old encrypted storage
-        LocalJournalStorage.shared.clearAll()
-
-        // Fetch entries from Supabase and re-encrypt
-        let entries = try await fetchEntries()
-        for entry in entries {
-            if let encrypted = encryptionService.encrypt(entry.content, withPIN: newPIN) {
-                try? LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
-            }
-        }
-
-                AppLogger.log("🔐 [JournalService] Re-encrypted \(entries.count) entries with new PIN")
+    /// Best-effort title for a legacy entry with no recoverable title: its
+    /// first non-empty line, truncated, or "Untitled".
+    private static func fallbackTitle(fromContent content: String) -> String {
+        let firstLine = content
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .first
+            .map(String.init)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        guard !firstLine.isEmpty else { return "Untitled" }
+        return firstLine.count > 50 ? String(firstLine.prefix(50)) + "…" : firstLine
     }
+
 }
 
 // MARK: - DTO

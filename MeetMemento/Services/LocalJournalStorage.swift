@@ -112,6 +112,15 @@ class LocalJournalStorage {
         return fileManager.fileExists(atPath: url.path)
     }
 
+    /// The encrypted file's last-modification date — used as a best-effort
+    /// timestamp when migrating legacy-format entries whose dates were never
+    /// stored locally (they lived on the old server row).
+    func modificationDate(entryId: UUID) -> Date? {
+        let url = fileURL(for: entryId)
+        let attributes = try? fileManager.attributesOfItem(atPath: url.path)
+        return attributes?[.modificationDate] as? Date
+    }
+
     /// Deletes encrypted content for a specific entry
     /// - Parameter entryId: The journal entry UUID
     func deleteEncrypted(entryId: UUID) {
