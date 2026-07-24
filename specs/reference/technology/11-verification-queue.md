@@ -28,13 +28,27 @@ If journal entries donated to Core Spotlight surface in system-wide search, some
 
 ## P1 — Calendar dependencies (file in week 1)
 
-### V2. PCC access application
-**Reference:** `10-monetization-and-privacy.md` §1, §7.
-Verify Small Business Program enrollment. File the application at the Apple developer site. **Lead time unknown** — this is the longest-lead item in the plan.
+### V2. PCC access application — 🟡 process confirmed 2026-07-23, still open to file
+**Reference:** `10-monetization-and-privacy.md` §1, §7; spec 013 R5.
+Two-step chain, not one: (a) Small Business Program self-serve enrollment
+(`developer.apple.com/app-store/small-business-program/enroll/`, eligibility
+≤$1M prior-year proceeds or new developer), then (b) a **separate, genuinely
+gated** PCC request at `developer.apple.com/contact/request/private-cloud-compute/`.
+**Lead time still unknown** — Apple's docs don't state one — this remains the
+longest-lead item in the plan. Still open: actually filing both (requires the
+account holder's Apple Developer login, not agent-executable).
 
-### V3. Journaling Suggestions entitlement
-**Reference:** `08-context-frameworks.md` §2.
-Requires a request to Apple with review lead time. Verify current process, expected turnaround, and eligibility criteria. Blocks Phase 4.
+### V3. Journaling Suggestions entitlement — 🟡 corrected 2026-07-23, likely not a P1 item at all
+**Reference:** `08-context-frameworks.md` §2; spec 013 R5.
+Research (Apple docs + developer-forum search) did **not** support the
+"requires a request to Apple with review lead time" framing this item was
+filed under. `com.apple.developer.journal.allow` appears to be a standard
+Xcode-addable capability since Xcode 15.1 beta/iOS 17.2 — no discoverable
+request-form URL, unlike V2's PCC endpoint. Not ✅ because Apple's entitlement
+reference page didn't yield fetchable body content through available
+tooling; confirm with one click (Xcode → Signing & Capabilities → search
+"Journal") before fully closing. If confirmed, this drops out of P1 entirely
+— it was never actually a calendar dependency.
 
 ---
 
