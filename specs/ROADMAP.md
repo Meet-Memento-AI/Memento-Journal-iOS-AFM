@@ -24,8 +24,8 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 
 | Phase | Specs | Gate | Status |
 |---|---|---|---|
-| 0 — De-risk | [013](013-phase-0-derisking-and-migration-prep.md) | Spike A passes, Spike C (`DEC-002`) resolved | not-started |
-| 1 — Subtract | [014](014-privacy-model-and-trust-boundary.md), [023](023-no-account-experience.md), [015](015-data-layer-swiftdata-cloudkit.md) | Accounts removed (023, before 015 so the UI no longer calls auth when the backend dies); Supabase tier deleted; SwiftData+Spotlight data layer live | not-started |
+| 0 — De-risk | [013](013-phase-0-derisking-and-migration-prep.md) | Spike A passes, Spike C (`DEC-002`) resolved | in-progress — fixture corpus (R4) and deletion-manifest sign-off (R7) done; Spikes A/B/C, `DEC-002`, and the API sweep (task 8) blocked on Xcode 27 beta (not installed); entitlement/SBP filing (R5) not started |
+| 1 — Subtract | [014](014-privacy-model-and-trust-boundary.md), [023](023-no-account-experience.md), [015](015-data-layer-swiftdata-cloudkit.md) | Accounts removed (023, before 015 so the UI no longer calls auth when the backend dies); Supabase tier deleted; SwiftData+Spotlight data layer live | in-progress — 023 R1–R6 done and verified, R7 has substantial automated UI-test coverage but the full manual walkthrough hasn't been run; 014 and 015 not-started (Requirements sections still placeholders) |
 | 2 — Intelligence boundary | [016](016-indexing-retrieval-core-spotlight.md), [017](017-intelligence-boundary-and-prompt-architecture.md) | Entry reflection (Z0) working end to end | not-started |
 | 3 — Surfaces | [018](018-capture-and-voice-output.md), [019](019-surfaces.md) | Weekly → Patterns → Ask shipped in that order | not-started |
 | 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | not-started |
