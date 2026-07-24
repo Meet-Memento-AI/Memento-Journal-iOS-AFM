@@ -1,0 +1,484 @@
+{
+  "version": "1.0",
+  "notes": "Gold retrieval set for recall@5 (spec 013 Spike A, spec 016 REQ-IDX-010 gate, spec 022 Gate 1). 'match': 'all' = every expected ID must be retrieved (recall = found/expected); 'any' = at least one suffices; 'none' = correct behavior is finding nothing and saying so (REQ-SUR-003 honesty). Questions with 'derive' get expectedEntryIDs materialized by validate_corpus.py from corpus ground truth.",
+  "questions": [
+    {
+      "id": "q-01",
+      "category": "temporal",
+      "query": "When did I first say I was burnt out?",
+      "expectedEntryIDs": [
+        "e-2026-01-12-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-02",
+      "category": "temporal",
+      "query": "When did I start pottery classes?",
+      "expectedEntryIDs": [
+        "e-2026-01-08-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-03",
+      "category": "temporal",
+      "query": "When did my grandmother die?",
+      "expectedEntryIDs": [
+        "e-2026-02-09-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-04",
+      "category": "temporal",
+      "query": "When was Nonna's funeral?",
+      "expectedEntryIDs": [
+        "e-2026-02-13-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-05",
+      "category": "temporal",
+      "query": "When did I move to the new apartment?",
+      "expectedEntryIDs": [
+        "e-2026-06-14-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-06",
+      "category": "temporal",
+      "query": "When did I get back into running?",
+      "expectedEntryIDs": [
+        "e-2025-11-09-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-07",
+      "category": "temporal",
+      "query": "When did Sam and I break up?",
+      "expectedEntryIDs": [
+        "e-2026-04-26-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-08",
+      "category": "temporal",
+      "query": "When did I switch teams at work?",
+      "expectedEntryIDs": [
+        "e-2026-04-14-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-09",
+      "category": "temporal",
+      "query": "When did I buy the blackout curtains?",
+      "expectedEntryIDs": [
+        "e-2026-03-02-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-10",
+      "category": "temporal",
+      "query": "When did Dario and I start talking again?",
+      "expectedEntryIDs": [
+        "e-2026-03-08-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-11",
+      "category": "person",
+      "query": "What have I written about my brother?",
+      "expectedEntryIDs": [
+        "e-2026-03-08-1",
+        "e-2026-04-05-1",
+        "e-2026-05-17-1",
+        "e-2026-06-21-1",
+        "e-2026-07-04-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-12",
+      "category": "person",
+      "query": "What did I write about Sam when we first met?",
+      "expectedEntryIDs": [
+        "e-2025-12-12-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-13",
+      "category": "person",
+      "query": "What happened at Dario's birthday dinner?",
+      "expectedEntryIDs": [
+        "e-2026-06-21-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-14",
+      "category": "person",
+      "query": "Who was there when I finished the half marathon?",
+      "expectedEntryIDs": [
+        "e-2026-05-24-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-15",
+      "category": "person",
+      "query": "What was my first impression of Priya?",
+      "expectedEntryIDs": [
+        "e-2025-11-03-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-16",
+      "category": "honesty",
+      "query": "What did I write about my brother in 2025?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "q-17",
+      "category": "honesty",
+      "query": "What have I said about my dog?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "q-18",
+      "category": "honesty",
+      "query": "When did I go skiing last winter?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "q-19",
+      "category": "event",
+      "query": "How did my first pottery class go?",
+      "expectedEntryIDs": [
+        "e-2026-01-08-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-20",
+      "category": "event",
+      "query": "What was my half marathon time?",
+      "expectedEntryIDs": [
+        "e-2026-05-24-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-21",
+      "category": "event",
+      "query": "How did my first 10k go?",
+      "expectedEntryIDs": [
+        "e-2026-01-25-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-22",
+      "category": "event",
+      "query": "What happened with the resignation letter I wrote?",
+      "expectedEntryIDs": [
+        "e-2026-03-20-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-23",
+      "category": "event",
+      "query": "How did I feel after finally telling Priya everything?",
+      "expectedEntryIDs": [
+        "e-2026-04-14-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-24",
+      "category": "event",
+      "query": "What did I sell at the street market?",
+      "expectedEntryIDs": [
+        "e-2026-06-28-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-25",
+      "category": "event",
+      "query": "What was Mother's Day like this year?",
+      "expectedEntryIDs": [
+        "e-2026-05-10-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-26",
+      "category": "event",
+      "query": "Tell me about the fight with Dario in July.",
+      "expectedEntryIDs": [
+        "e-2026-07-04-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-27",
+      "category": "event",
+      "query": "What did we do when my brother moved apartments?",
+      "expectedEntryIDs": [
+        "e-2026-05-17-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-28",
+      "category": "event",
+      "query": "What can I see from my new kitchen window?",
+      "expectedEntryIDs": [
+        "e-2026-06-14-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-29",
+      "category": "event",
+      "query": "What did I write the day my grandmother died?",
+      "expectedEntryIDs": [
+        "e-2026-02-09-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-30",
+      "category": "event",
+      "query": "What happened with my knee in March?",
+      "expectedEntryIDs": [
+        "e-2026-03-14-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-31",
+      "category": "event",
+      "query": "How did the first date with Sam go?",
+      "expectedEntryIDs": [
+        "e-2025-12-12-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-32",
+      "category": "event",
+      "query": "When did the crunch on Atlas start?",
+      "expectedEntryIDs": [
+        "e-2025-12-05-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-33",
+      "category": "event",
+      "query": "What was the first thing I made in pottery that I actually liked?",
+      "expectedEntryIDs": [
+        "e-2026-02-26-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-34",
+      "category": "event",
+      "query": "What did I hear about Nonna's health in December?",
+      "expectedEntryIDs": [
+        "e-2025-12-18-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-35",
+      "category": "event",
+      "query": "How was coffee with my brother in April?",
+      "expectedEntryIDs": [
+        "e-2026-04-05-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-36",
+      "category": "synthesis",
+      "query": "How have I changed since the start of the year?",
+      "expectedEntryIDs": [
+        "e-2026-01-12-1",
+        "e-2026-07-18-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-37",
+      "category": "synthesis",
+      "query": "What did six months of distance from burnout look like?",
+      "expectedEntryIDs": [
+        "e-2026-07-18-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-38",
+      "category": "pattern",
+      "query": "How do I usually feel on overcast Mondays?",
+      "expectedEntryIDs": [
+        "e-2025-11-03-1",
+        "e-2025-11-10-1",
+        "e-2025-11-17-1",
+        "e-2025-11-24-1",
+        "e-2025-12-01-1",
+        "e-2025-12-08-1",
+        "e-2026-01-05-1",
+        "e-2026-01-12-1",
+        "e-2026-01-19-1",
+        "e-2026-02-02-1",
+        "e-2026-02-16-1",
+        "e-2026-02-23-1",
+        "e-2026-03-09-1",
+        "e-2026-04-20-1"
+      ],
+      "match": "any",
+      "derive": {
+        "weatherSummary": "overcast",
+        "weekday": "Monday"
+      },
+      "_derivedCount": 14
+    },
+    {
+      "id": "q-39",
+      "category": "pattern",
+      "query": "What were my hardest weeks in the last year?",
+      "expectedEntryIDs": [
+        "e-2025-11-13-1",
+        "e-2025-12-18-1",
+        "e-2026-02-09-1",
+        "e-2026-02-10-1",
+        "e-2026-02-13-1",
+        "e-2026-02-15-1",
+        "e-2026-02-20-1",
+        "e-2026-03-22-1",
+        "e-2026-04-26-1",
+        "e-2026-05-10-1"
+      ],
+      "match": "any",
+      "derive": {
+        "class": "heavy"
+      },
+      "_derivedCount": 10
+    },
+    {
+      "id": "q-40",
+      "category": "pattern",
+      "query": "When was I sleeping badly?",
+      "expectedEntryIDs": [
+        "e-2025-12-08-1",
+        "e-2025-12-10-1",
+        "e-2025-12-15-1",
+        "e-2025-12-17-1",
+        "e-2026-01-12-1",
+        "e-2026-02-03-1",
+        "e-2026-02-12-1",
+        "e-2026-02-18-1",
+        "e-2026-03-01-1",
+        "e-2026-03-02-1",
+        "e-2026-03-03-1",
+        "e-2026-04-08-1",
+        "e-2026-07-10-1",
+        "e-2026-07-13-1"
+      ],
+      "match": "any",
+      "derive": {
+        "seedTopics": "sleep"
+      },
+      "_derivedCount": 14
+    },
+    {
+      "id": "q-41",
+      "category": "pattern",
+      "query": "How often did I write about running this spring?",
+      "expectedEntryIDs": [
+        "e-2026-03-07-1",
+        "e-2026-03-14-1",
+        "e-2026-03-15-1",
+        "e-2026-03-17-1",
+        "e-2026-03-27-1",
+        "e-2026-03-28-1",
+        "e-2026-04-04-1",
+        "e-2026-04-12-1",
+        "e-2026-05-12-1",
+        "e-2026-05-16-1",
+        "e-2026-05-21-1",
+        "e-2026-05-22-1",
+        "e-2026-05-23-1",
+        "e-2026-05-24-1",
+        "e-2026-05-25-1",
+        "e-2026-05-26-2"
+      ],
+      "match": "any",
+      "derive": {
+        "seedTopics": "running",
+        "months": [
+          "2026-03",
+          "2026-04",
+          "2026-05"
+        ]
+      },
+      "_derivedCount": 16
+    },
+    {
+      "id": "q-42",
+      "category": "temporal",
+      "query": "What was I working on last December?",
+      "expectedEntryIDs": [
+        "e-2025-12-05-1"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "q-43",
+      "category": "person",
+      "query": "What did Mom and I talk about on Mother's Day?",
+      "expectedEntryIDs": [
+        "e-2026-05-10-1"
+      ],
+      "match": "all"
+    },
+    {
+      "id": "q-44",
+      "category": "synthesis",
+      "query": "What has grief looked like for me this year?",
+      "expectedEntryIDs": [
+        "e-2026-02-09-1",
+        "e-2026-02-13-1",
+        "e-2026-05-10-1"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "q-45",
+      "category": "event",
+      "query": "Why did Dario and I stop talking in the first place?",
+      "expectedEntryIDs": [
+        "e-2026-03-08-1"
+      ],
+      "match": "all"
+    }
+  ]
+}
