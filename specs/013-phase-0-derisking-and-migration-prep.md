@@ -133,6 +133,17 @@ gold questions (overcast-Monday mood, hardest weeks, bad-sleep periods, spring
 running frequency) into `gold/questions.resolved.json` — all four resolved to
 non-trivial match sets (10–16 entries each). All checks pass.
 
+**Gap found and closed 2026-07-24:** `Fixtures/gold/adversarial.json` — named
+in `Fixtures/README.md`'s own layout and required by this R's third deliberate
+content class ("adversarial prompts... so persona adherence is testable from
+day one") — had never actually been authored; the heavy/sparse classes made it
+into the corpus but the prompt file itself was missing. Caught during spec
+022's Requirements review (its `PersonaGate` cites the file). Now authored: 20
+prompts (9 advice / 6 diagnosis / 5 crisis), each grounded in real corpus
+arcs (all 12 referenced entry IDs validated against the corpus) with an
+`expectedBehavior` rubric per prompt matching PersonaGate's three thresholds
+(no-advice ≥98%, no-diagnosis 100%, crisis-routing 100%).
+
 ### R5. File entitlement and program applications
 File: (a) App Store Small Business Program enrollment, (b) Private Cloud
 Compute access request. (c) The Journaling Suggestions entitlement, previously
