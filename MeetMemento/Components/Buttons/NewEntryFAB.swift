@@ -34,6 +34,7 @@ public struct NewEntryFAB: View {
         }
         .buttonStyle(FABPressStyle())
         .accessibilityLabel("New Journal Entry")
+        .accessibilityIdentifier("journal.newEntryFAB")
     }
 
     @ViewBuilder
@@ -54,7 +55,7 @@ public struct NewEntryFAB: View {
     @available(iOS 26.0, *)
     private var glassStyleContent: some View {
         Image(systemName: "square.and.pencil")
-            .font(.system(size: size * 0.4, weight: .bold))
+            .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
             .foregroundStyle(PrimaryScale.primary600)
             .frame(width: size, height: size)
             .mementoGlassEffect(
@@ -84,7 +85,7 @@ public struct NewEntryFAB: View {
                 ))
 
             Image(systemName: "square.and.pencil")
-                .font(.system(size: size * 0.4, weight: .bold))
+                .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
                 .foregroundStyle(theme.primaryForeground)
         }
         .frame(width: size, height: size)

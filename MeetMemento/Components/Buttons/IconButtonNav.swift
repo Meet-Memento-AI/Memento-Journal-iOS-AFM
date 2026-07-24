@@ -67,7 +67,7 @@ struct IconButtonNav: View {
 
                 // Icon
                 Image(systemName: icon)
-                    .font(.system(size: iconSize, weight: .bold))
+                    .font(.system(size: iconSize, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(foregroundColor ?? theme.foreground)
             }
             .frame(width: buttonSize, height: buttonSize)
@@ -113,7 +113,7 @@ struct IconButtonPressStyle: ButtonStyle {
                 Spacer()
 
                 Text("Settings")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography().body1Medium)
 
                 Spacer()
 

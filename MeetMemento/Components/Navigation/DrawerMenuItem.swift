@@ -29,7 +29,7 @@ public struct DrawerMenuItem: View {
         } label: {
             HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 22, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(theme.foreground)
                     .frame(width: 28, height: 28)
 

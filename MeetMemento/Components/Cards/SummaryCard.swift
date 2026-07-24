@@ -71,7 +71,7 @@ private struct HeaderLabel: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "sparkles")
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 20, weight: .bold)) // icon-size: not user text
                 .imageScale(.small)
 
             Text("AI SUMMARY")

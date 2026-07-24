@@ -18,6 +18,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { checkRateLimit, rateLimitedResponse } from '../_shared/rate_limit.ts';
 import {
+  buildChatErrorBody,
   buildContextBlock,
   buildGeminiContents,
   buildEffectiveQuery,
@@ -28,6 +29,7 @@ import {
   extractBody,
   extractGeminiResponseText,
   filterCitedIdsToAllowed,
+  jsonResponse as libJsonResponse,
   parseCitedEntryIds,
   sanitizeResponseBody,
   shouldSkipJournalRetrieval,
@@ -487,12 +489,22 @@ serve(async (req) => {
     if (!geminiResult.ok || !geminiResult.data) {
       const errText = geminiResult.errorText ?? 'unknown error';
       console.error(`Gemini API error: ${errText}`);
-      structuredReply = {
-        heading1: null,
-        heading2: null,
-        body: "I'm having trouble connecting right now. Please try again in a moment.",
-        cited_entry_ids: [],
-      };
+      // spec-010: don't persist anything here. Historically this branch
+      // built a canned "having trouble" reply and returned 200, so the
+      // client never knew to retry. Now that failures are honest (502) and
+      // the client-side retry-with-backoff actually fires, persisting a
+      // canned assistant turn per failed attempt would leave stray
+      // "trouble connecting" messages in history, and re-persisting the
+      // user's message on every retry would duplicate it. Let the eventual
+      // successful attempt persist both messages exactly once.
+      return jsonResponse(
+        buildChatErrorBody(
+          'LLM_UNAVAILABLE',
+          "I'm having trouble connecting right now. Please try again in a moment.",
+          true,
+        ),
+        502,
+      );
     } else {
       const rawText = extractGeminiResponseText(geminiResult.data);
 
@@ -599,13 +611,17 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Chat function error:', error);
+    // spec-010: was returning 200 with a canned reply, which the client
+    // could not distinguish from a real answer and had no way to retry.
+    // Nothing gets persisted here (as before) — the user's message is only
+    // ever safe to persist alongside its real reply, once, on success.
     return jsonResponse(
-      {
-        reply: "I'm having trouble connecting right now. Please try again in a moment.",
-        cited_entry_ids: [],
-        sources: [],
-      },
-      200
+      buildChatErrorBody(
+        'INTERNAL_ERROR',
+        "I'm having trouble connecting right now. Please try again in a moment.",
+        true,
+      ),
+      500,
     );
   }
 });
@@ -640,8 +656,5 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
 }
 
 function jsonResponse(data: Record<string, unknown>, status: number): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+  return libJsonResponse(data, status, corsHeaders);
 }

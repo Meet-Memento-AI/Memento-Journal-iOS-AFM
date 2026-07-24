@@ -42,9 +42,10 @@ public struct AppearanceSettingsView: View {
                                 HStack(spacing: Spacing.md) {
                                     // Icon
                                     Image(systemName: iconForTheme(themeOption))
-                                        .font(.system(size: 20))
+                                        .font(.system(size: 20)) // icon-size: not user text
                                         .foregroundStyle(theme.primary)
                                         .frame(width: 28, height: 28)
+                                        .accessibilityHidden(true)
 
                                     // Title and description
                                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -53,7 +54,7 @@ public struct AppearanceSettingsView: View {
                                             .foregroundStyle(theme.foreground)
 
                                         Text(descriptionForTheme(themeOption))
-                                            .font(.system(size: 14))
+                                            .font(type.body2)
                                             .foregroundStyle(theme.mutedForeground)
                                     }
 
@@ -62,12 +63,14 @@ public struct AppearanceSettingsView: View {
                                     // Checkmark for selected
                                     if selectedTheme == themeOption {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 20))
+                                            .font(.system(size: 20)) // icon-size: not user text
                                             .foregroundStyle(theme.primary)
+                                            .accessibilityHidden(true)
                                     } else {
                                         Image(systemName: "circle")
-                                            .font(.system(size: 20))
+                                            .font(.system(size: 20)) // icon-size: not user text
                                             .foregroundStyle(theme.mutedForeground.opacity(0.3))
+                                            .accessibilityHidden(true)
                                     }
                                 }
                                 .padding(.horizontal, Spacing.md)
@@ -76,6 +79,7 @@ public struct AppearanceSettingsView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityAddTraits(selectedTheme == themeOption ? [.isSelected] : [])
 
                             // Divider between options (not after last one)
                             if themeOption != AppThemePreference.allCases.last {
@@ -107,6 +111,7 @@ public struct AppearanceSettingsView: View {
                     enableHaptic: true,
                     onTap: { dismiss() }
                 )
+                .accessibilityLabel("Back")
             }
         }
         .onAppear {
@@ -118,23 +123,12 @@ public struct AppearanceSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(theme.glassFill)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        } else {
-            fallbackSectionCardBackground
-        }
-        #else
-        fallbackSectionCardBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackSectionCardBackground: some View {
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
             .fill(theme.glassFallback)
+            .mementoGlassEffect(
+                .regular.tint(theme.glassFill),
+                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
+            )
             .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 

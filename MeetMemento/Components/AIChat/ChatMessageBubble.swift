@@ -15,6 +15,8 @@ public struct ChatMessageBubble: View {
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
+    /// spec-010: tapped when a failed-to-send user message's retry row is tapped.
+    var onRetry: (() -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -26,7 +28,8 @@ public struct ChatMessageBubble: View {
         onCitationsTapped: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
-        onThumbsDown: (() -> Void)? = nil
+        onThumbsDown: (() -> Void)? = nil,
+        onRetry: (() -> Void)? = nil
     ) {
         self.message = message
         self.animate = animate
@@ -35,8 +38,9 @@ public struct ChatMessageBubble: View {
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
+        self.onRetry = onRetry
     }
-    
+
     public var body: some View {
         if message.isFromUser {
             // User messages: right-aligned with bubble background
@@ -49,6 +53,10 @@ public struct ChatMessageBubble: View {
                         .padding(.vertical, 16)
                         .background(theme.secondary) // Use semantic token for proper light/dark support
                         .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+
+                    if message.sendFailed {
+                        retryRow
+                    }
                 }
             }
         } else {
@@ -87,6 +95,25 @@ public struct ChatMessageBubble: View {
                 .foregroundStyle(theme.foreground)
                 .lineSpacing(type.bodyLineSpacing)
         }
+    }
+
+    // MARK: - Retry Row
+
+    private var retryRow: some View {
+        Button {
+            onRetry?()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 11, weight: .bold)) // icon-size: not user text
+                Text("Failed to send · Retry")
+                    .font(type.caption)
+            }
+            .foregroundStyle(theme.destructive)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Message failed to send")
+        .accessibilityHint("Double-tap to retry sending this message")
     }
 
     // MARK: - JSON Cleanup

@@ -60,7 +60,7 @@ extension View {
     func pillTagStyle(
         backgroundColor: Color,
         foregroundColor: Color = .white,
-        font: Font = .system(size: 13, weight: .semibold),
+        font: Font = Typography().captionMedium,
         verticalPadding: CGFloat = 6,
         horizontalPadding: CGFloat = 12
     ) -> some View {
@@ -78,7 +78,7 @@ extension View {
     func chipTagStyle(
         backgroundColor: Color,
         foregroundColor: Color,
-        font: Font = .system(size: 14, weight: .semibold),
+        font: Font = Typography().body2Medium,
         verticalPadding: CGFloat = 10,
         horizontalPadding: CGFloat = 16,
         cornerRadius: CGFloat = 8

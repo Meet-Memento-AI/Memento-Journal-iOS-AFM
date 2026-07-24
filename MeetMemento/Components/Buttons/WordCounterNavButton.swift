@@ -12,6 +12,7 @@ import UIKit
 public struct WordCounterNavButton: View {
     // MARK: - Environment
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     // MARK: - Properties
     let characterCount: Int
@@ -93,14 +94,14 @@ public struct WordCounterNavButton: View {
 
     private var emptyStateIcon: some View {
         Image(systemName: "checkmark.circle")
-            .font(.system(size: buttonSize * 0.6, weight: .bold))
+            .font(.system(size: buttonSize * 0.6, weight: .bold)) // icon-size: not user text
             .foregroundStyle(theme.mutedForeground.opacity(0.5))
             .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }
 
     private var completedStateIcon: some View {
         Image(systemName: "checkmark.circle.fill")
-            .font(.system(size: buttonSize * 0.6, weight: .bold))
+            .font(.system(size: buttonSize * 0.6, weight: .bold)) // icon-size: not user text
             .foregroundStyle(theme.primary)
             .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
@@ -122,7 +123,7 @@ public struct WordCounterNavButton: View {
                 .animation(.spring(response: 0.4, dampingFraction: 0.7), value: progress)
 
             Text("\(characterCount)")
-                .font(.system(size: buttonSize * 0.35, weight: .semibold, design: .rounded))
+                .font(type.microMedium)
                 .foregroundStyle(theme.foreground)
                 .transition(.opacity.combined(with: .scale(scale: 0.8)))
         }

@@ -12,15 +12,16 @@ struct JournalToast: View {
     var onDismiss: (() -> Void)?
 
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
+                .font(.system(size: 20)) // icon-size: not user text
                 .foregroundStyle(theme.primary)
 
             Text(message)
-                .font(.system(size: 15, weight: .medium))
+                .font(type.body2)
                 .foregroundStyle(theme.foreground)
         }
         .padding(.horizontal, 20)

@@ -14,6 +14,7 @@ public struct AIChatView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var networkMonitor: NetworkMonitor
 
     /// ViewModel passed from parent to persist across tab switches
     @ObservedObject var viewModel: ChatViewModel
@@ -165,6 +166,9 @@ public struct AIChatView: View {
         .onDisappear {
             scrollTask?.cancel()
             scrollTask = nil
+            // spec-010: stop leaking in-flight send/feedback Tasks when the
+            // view goes away, matching the existing scrollTask convention above.
+            viewModel.cancelActiveTasks()
         }
         .sheet(item: $selectedCitations) { wrapper in
             CitationsBottomSheet(citations: wrapper.citations)
@@ -250,7 +254,17 @@ public struct AIChatView: View {
                     let visibleHeight = geo.size.height - topContentInset - inputAreaHeight
 
                     VStack {
-                        emptyStateContent
+                        if networkMonitor.isConnected {
+                            emptyStateContent
+                        } else {
+                            // spec-007 R3: starting a chat needs a connection —
+                            // say so instead of showing "let's dive in" and failing.
+                            InsightsEmptyState(
+                                icon: "wifi.slash",
+                                title: "You're offline",
+                                message: "Chat needs a connection. Reconnect to start a conversation."
+                            )
+                        }
                     }
                     .frame(width: geo.size.width, height: visibleHeight)
                     .padding(.top, topContentInset)
@@ -276,7 +290,8 @@ public struct AIChatView: View {
                                     },
                                     onThumbsDown: message.isFromUser ? nil : {
                                         viewModel.toggleThumbsDown(for: message.id)
-                                    }
+                                    },
+                                    onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil
                                 )
                                 .id(message.id)
                             }
@@ -405,7 +420,7 @@ public struct AIChatView: View {
             Spacer()
 
             Image(systemName: "brain.head.profile")
-                .font(.system(size: 56))
+                .font(.system(size: 56)) // icon-size: not user text
                 .foregroundStyle(theme.mutedForeground.opacity(0.5))
 
             Text("AI Features Disabled")
@@ -512,6 +527,7 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
+            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()
@@ -521,6 +537,7 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
+            .environmentObject(NetworkMonitor.shared)
             .onAppear {
                 // Mock messages for preview
             }
@@ -547,6 +564,7 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
+            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()

@@ -32,6 +32,42 @@ struct ChatSource: Codable, Equatable {
     }
 }
 
+/// Structured error body the `chat` edge function returns on failure
+/// (spec-010): `{error, code, retryable}` instead of masquerading as a 200.
+struct ChatServerError: Codable {
+    let error: String
+    let code: String
+    let retryable: Bool
+}
+
+/// Wraps a `chat` edge function failure once its structured body has been
+/// decoded, so callers can read `isRetryable`/`serverMessage` directly
+/// instead of reaching into the raw `FunctionsError.httpError` payload.
+enum ChatServiceError: Error, LocalizedError {
+    case server(ChatServerError, httpStatus: Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .server(let body, _):
+            return body.error
+        }
+    }
+
+    var isRetryable: Bool {
+        switch self {
+        case .server(let body, _):
+            return body.retryable
+        }
+    }
+
+    var code: String {
+        switch self {
+        case .server(let body, _):
+            return body.code
+        }
+    }
+}
+
 // MARK: - Request Types
 
 private struct ChatRequestBody: Codable {
@@ -161,6 +197,15 @@ class ChatService {
             return httpCode >= 500
         }
 
+        // spec-010: the `chat` function's structured error body is the
+        // authoritative signal when present — it already encodes exactly
+        // what this classification is trying to approximate (e.g. a 502
+        // LLM_UNAVAILABLE is retryable, a 400 invalid-session is not).
+        if case let FunctionsError.httpError(_, data) = error,
+           let body = try? JSONDecoder().decode(ChatServerError.self, from: data) {
+            return body.retryable
+        }
+
         return false
     }
 
@@ -173,19 +218,37 @@ class ChatService {
         // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
         let session = try await client.auth.refreshSession()
 
-        let response: ChatResponse = try await withRetry {
-            try await self.client.functions.invoke(
-                "chat",
-                options: FunctionInvokeOptions(
-                    headers: ["Authorization": "Bearer \(session.accessToken)"],
-                    body: requestBody
+        do {
+            let response: ChatResponse = try await withRetry {
+                try await self.client.functions.invoke(
+                    "chat",
+                    options: FunctionInvokeOptions(
+                        headers: ["Authorization": "Bearer \(session.accessToken)"],
+                        body: requestBody
+                    )
                 )
-            )
+            }
+
+                    AppLogger.log("✅ [ChatService] Received reply (\(response.reply.count) chars), \(response.sources.count) sources, cited: \(response.citedEntryIds?.count ?? 0), session: \(response.sessionId.prefix(8))...")
+
+            return response
+        } catch {
+            throw Self.mapServerError(error)
         }
+    }
 
-                AppLogger.log("✅ [ChatService] Received reply (\(response.reply.count) chars), \(response.sources.count) sources, cited: \(response.citedEntryIds?.count ?? 0), session: \(response.sessionId.prefix(8))...")
-
-        return response
+    /// Decodes the spec-010 structured error body out of a raw
+    /// `FunctionsError.httpError`, if present, so callers get a typed
+    /// `ChatServiceError` (message + retryable + code) instead of having to
+    /// reach into the raw response bytes themselves. Errors that aren't an
+    /// HTTP failure with that body shape (network errors, legacy endpoints)
+    /// pass through unchanged.
+    private static func mapServerError(_ error: Error) -> Error {
+        guard case let FunctionsError.httpError(code, data) = error,
+              let body = try? JSONDecoder().decode(ChatServerError.self, from: data) else {
+            return error
+        }
+        return ChatServiceError.server(body, httpStatus: code)
     }
 
     // MARK: - Embedding Trigger

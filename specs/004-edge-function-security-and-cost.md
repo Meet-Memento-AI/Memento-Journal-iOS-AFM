@@ -2,13 +2,17 @@
 id: 004
 title: Edge Function Security and LLM Cost Controls
 tier: P1
-status: in-progress (2026-07-14) — repo work done; blocked on user: curl/staging burst verification
+status: obsolete (2026-07-23)
 effort: 2 sessions
 depends_on: [003]
 findings: [sync-embedding-unauthenticated, no-verify-jwt-config-drift, no-llm-rate-limiting, new-user-insights-limit-disabled, gemini-key-in-query-param, match-entries-caller-user-id, security-definer-search-path, shared-auth-dead-code, cors-wildcard-note]
 ---
 
 # 004 — Edge Function Security and LLM Cost Controls
+
+**Superseded by the Memento 2.0 rewrite — see spec
+[016](016-indexing-retrieval-core-spotlight.md). Left otherwise unmodified as
+historical record.**
 
 ## Why
 

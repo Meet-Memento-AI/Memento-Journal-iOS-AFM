@@ -2,13 +2,17 @@
 id: 003
 title: Database Baseline Reproducibility and Account Deletion
 tier: P0
-status: in-progress (2026-07-14) — repo work done; blocked on user: supabase db diff --linked and prod apply
+status: obsolete (2026-07-23)
 effort: 2 sessions
 depends_on: []
 findings: [migrations-not-reproducible, prod-only-table-rename, dual-migrations-dirs, delete-user-rpc-broken, cascade-coverage-unverified, reconcile-noop-migration]
 ---
 
 # 003 — Database Baseline Reproducibility and Account Deletion
+
+**Superseded by the Memento 2.0 rewrite — see spec
+[015](015-data-layer-swiftdata-cloudkit.md). Left otherwise unmodified as
+historical record.**
 
 ## Why
 

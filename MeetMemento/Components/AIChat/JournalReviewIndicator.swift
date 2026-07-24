@@ -37,7 +37,7 @@ public struct JournalReviewIndicator: View {
                     .foregroundStyle(theme.primary)
                 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 12, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(theme.primary)
             }
         }
@@ -106,7 +106,7 @@ private struct DetailRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 16))
+                .font(.system(size: 16)) // icon-size: not user text
                 .foregroundStyle(theme.primary)
             
             Text(text)

@@ -2,13 +2,16 @@
 id: 010
 title: Chat Reliability and Error Contract
 tier: P2
-status: not-started
+status: obsolete (2026-07-23)
 effort: 1 session
 depends_on: [004]
 findings: [chat-200-on-failure, duplicate-chat-implementations, fire-and-forget-tasks]
 ---
 
 # 010 — Chat Reliability and Error Contract
+
+**Superseded by the Memento 2.0 rewrite — see spec
+[019](019-surfaces.md). Left otherwise unmodified as historical record.**
 
 ## Why
 

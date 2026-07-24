@@ -139,3 +139,8 @@ with real tests.
   self-hosted mac runner (iPhone 17 sim), Sonar + gitleaks jobs.
 - Spec 003's reproducible-migration guarantee is what R1 leans on — if a migration
   legitimately needs an idempotency guard, fix the migration, never the pipeline.
+  **2026-07-23:** spec 003 is now obsolete and the entire `supabase/migrations/`
+  tree it protects is slated for deletion in spec 015's Phase 1. This spec's R1
+  guard is moot once that deletion lands — re-verify whether `deploy-dev-staging.yml`'s
+  migration-step logic (and this guard) still has anything to apply to, rather
+  than assuming it's still load-bearing.

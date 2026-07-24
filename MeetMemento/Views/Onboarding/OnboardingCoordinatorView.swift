@@ -8,7 +8,10 @@
 import SwiftUI
 
 // MARK: - Onboarding Routes
-// Create Account flow order: YourName → LearnAboutYourself → YourGoals → FaceID → (Use Face ID → Loading) or (SetupPin → ConfirmPin → Loading).
+// Flow order: YourName → LearnAboutYourself → YourGoals → FaceID →
+// (Use Face ID → SetupPin(backup) → ConfirmPin → Loading) or
+// (Create PIN → SetupPin → ConfirmPin → Loading) or
+// (Skip → Loading, spec 023 R3 — app lock defaults on but is skippable).
 
 enum OnboardingRoute: Hashable {
     case yourName
@@ -26,9 +29,10 @@ enum OnboardingRoute: Hashable {
 public struct OnboardingCoordinatorView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
     @ObservedObject var lockScreenViewModel: LockScreenViewModel
     @StateObject private var onboardingViewModel = OnboardingViewModel()
+    @StateObject private var entryViewModel = EntryViewModel()
 
     @State private var navigationPath = NavigationPath()
     @State private var hasLoadedState = false
@@ -88,24 +92,25 @@ public struct OnboardingCoordinatorView: View {
         case .yourName:
             // When YourNameView is navigated to (not initial), back should go to WelcomeView
             YourNameView(onComplete: { handleYourNameComplete() }, isFirstStep: false, onBack: { handleBackToWelcome() })
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
 
         case .learnAboutYourself:
             LearnAboutYourselfView(onComplete: { userInput in handleLearnAboutYourselfComplete(userInput) }, isFirstStep: false, onBack: { handleBack() })
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
 
         case .yourGoals:
             YourGoalsView(onComplete: { handleYourGoalsComplete() }, isFirstStep: false, onBack: { handleBack() })
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
 
         case .faceID:
             FaceIDView(
                 onUseFaceID: { handleUseFaceID() },
                 onCreatePIN: { handleCreatePIN() },
+                onSkip: { handleSkipSecuritySetup() },
                 isFirstStep: false,
                 onBack: { handleBack() }
             )
-            .environmentObject(authViewModel)
+            .environmentObject(appState)
 
         case .setupPin(let isFaceIDBackup):
             SetupPinView(
@@ -113,7 +118,7 @@ public struct OnboardingCoordinatorView: View {
                 onComplete: { pin in handleSetupPinComplete(pin, isFaceIDBackup: isFaceIDBackup) },
                 onCancel: { handleBack() }
             )
-            .environmentObject(authViewModel)
+            .environmentObject(appState)
 
         case .confirmPin(let originalPin, let isFaceIDBackup):
             ConfirmPinView(
@@ -122,13 +127,13 @@ public struct OnboardingCoordinatorView: View {
                 onComplete: { handleConfirmPinComplete() },
                 onCancel: { handleBack() }
             )
-            .environmentObject(authViewModel)
+            .environmentObject(appState)
 
         case .loading:
             LoadingStateView {
                 handleOnboardingComplete()
             }
-            .environmentObject(authViewModel)
+            .environmentObject(appState)
         }
     }
 
@@ -137,10 +142,8 @@ public struct OnboardingCoordinatorView: View {
     @ViewBuilder
     private var initialView: some View {
         // Always start onboarding at YourNameView
-        // Pre-filled data from OAuth will show, user can confirm/edit
-        // This ensures proper forward navigation and natural back animations
         YourNameView(onComplete: { handleYourNameComplete() }, isFirstStep: true, onBack: { handleBackToWelcome() })
-            .environmentObject(authViewModel)
+            .environmentObject(appState)
     }
 
     // MARK: - Navigation Handlers
@@ -149,9 +152,7 @@ public struct OnboardingCoordinatorView: View {
         Task {
             do {
                 try await onboardingViewModel.saveProfileData()
-                UserDefaults.standard.set(onboardingViewModel.firstName, forKey: "memento_first_name")
-                UserDefaults.standard.set(onboardingViewModel.lastName, forKey: "memento_last_name")
-                authViewModel.firstName = onboardingViewModel.firstName
+                appState.setDisplayName(firstName: onboardingViewModel.firstName, lastName: onboardingViewModel.lastName)
                 navigationPath.append(OnboardingRoute.learnAboutYourself)
             } catch {
                 AppLogger.log("⚠️ Failed to save profile: \(error)")
@@ -220,7 +221,26 @@ public struct OnboardingCoordinatorView: View {
             if !onboardingViewModel.useFaceID {
                 SecurityService.shared.setSecurityMode(.pin)
             }
+            entryViewModel.setSessionPIN(pin)
         }
+        finishSecuritySetup()
+    }
+
+    /// Skip lock setup (spec 023 R3). No lock screen will ever show
+    /// (`SecurityMode.none`), but entries must still be encrypted at rest —
+    /// so a random PIN is generated and stored silently in the Keychain,
+    /// used only as encryption key material, never as an unlock gate. See
+    /// `ContentView`'s launch task for how this silent PIN reaches
+    /// `EntryViewModel` on later app launches (there's no lock screen to
+    /// post `.didUnlockWithPIN` for it).
+    private func handleSkipSecuritySetup() {
+        let silentPIN = UUID().uuidString
+        let saved = SecurityService.shared.savePIN(silentPIN)
+        if !saved {
+            AppLogger.log("⚠️ Failed to save silent PIN to Keychain for skipped lock setup")
+        }
+        SecurityService.shared.setSecurityMode(.none)
+        entryViewModel.setSessionPIN(silentPIN)
         finishSecuritySetup()
     }
 
@@ -232,22 +252,21 @@ public struct OnboardingCoordinatorView: View {
 
     private func handleBackToWelcome() {
         // Signal to WelcomeView to skip intro animations
-        authViewModel.isReturningFromOnboarding = true
-        Task {
-            await authViewModel.signOut()
-        }
+        appState.isReturningFromOnboarding = true
+        appState.hasStartedOnboarding = false
     }
 
     private func finishSecuritySetup() {
         Task {
-            do {
-                if !onboardingViewModel.personalizationText.isEmpty {
+            if !onboardingViewModel.personalizationText.isEmpty {
+                do {
                     try await onboardingViewModel.createFirstJournalEntry(
-                        text: onboardingViewModel.personalizationText
+                        text: onboardingViewModel.personalizationText,
+                        using: entryViewModel
                     )
+                } catch {
+                    AppLogger.log("⚠️ Failed to create first journal entry: \(error)")
                 }
-            } catch {
-                AppLogger.log("⚠️ Failed to create first journal entry: \(error)")
             }
             await MainActor.run {
                 navigationPath.append(OnboardingRoute.loading)
@@ -259,19 +278,14 @@ public struct OnboardingCoordinatorView: View {
         Task {
             do {
                 try await onboardingViewModel.completeOnboarding()
-                await MainActor.run {
-                    // Skip lock screen on first launch after onboarding
-                    // User just set up security, no need to immediately prompt again
-                    lockScreenViewModel.skipNextLockScreen = true
-                    authViewModel.hasCompletedOnboarding = true
-                    authViewModel.clearPendingProfile()
-                }
             } catch {
                 AppLogger.log("⚠️ Failed to mark onboarding complete: \(error)")
-                await MainActor.run {
-                    lockScreenViewModel.skipNextLockScreen = true
-                    authViewModel.hasCompletedOnboarding = true
-                }
+            }
+            await MainActor.run {
+                // Skip lock screen on first launch after onboarding
+                // User just set up security, no need to immediately prompt again
+                lockScreenViewModel.skipNextLockScreen = true
+                appState.completeOnboarding()
             }
         }
     }
@@ -281,5 +295,5 @@ public struct OnboardingCoordinatorView: View {
 
 #Preview("Onboarding Flow") {
     OnboardingCoordinatorView(lockScreenViewModel: LockScreenViewModel())
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
 }

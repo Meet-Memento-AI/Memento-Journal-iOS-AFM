@@ -111,21 +111,6 @@ extension View {
     func trackScrollDirection(tabBarHidden: Binding<Bool>) -> some View {
         self.modifier(ScrollOffsetModifier(tabBarHidden: tabBarHidden))
     }
-
-    /// Conditionally applies glassEffect only on iOS 26+
-    /// Falls back to unchanged view on earlier iOS versions
-    @ViewBuilder
-    func iOS26GlassEffect(in shape: some Shape = .rect(cornerRadius: 16)) -> some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            self.mementoGlassEffect(in: shape)
-        } else {
-            self
-        }
-        #else
-        self
-        #endif
-    }
 }
 
 public struct ContentView: View {
@@ -150,7 +135,8 @@ public struct ContentView: View {
     private let drawerWidth: CGFloat = DrawerMenuView.drawerWidth
 
     @StateObject private var defaultEntryViewModel = EntryViewModel()
-    @StateObject private var chatViewModel = ChatViewModel() 
+    @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
     @Environment(\.previewInitialTab) private var previewInitialTab: JournalTopTab?
 
@@ -162,7 +148,7 @@ public struct ContentView: View {
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
 
     public init() {}
 
@@ -250,7 +236,7 @@ public struct ContentView: View {
                         TopNavHeader(
                             selection: $selectedTab,
                             hasActiveChat: chatViewModel.hasActiveChat,
-                            userInitial: authViewModel.firstName?.first.map { String($0) },
+                            userInitial: appState.firstName?.first.map { String($0) },
                             onMenuTapped: {
                                 // Toggle drawer
                                 if isDrawerOpen {
@@ -276,6 +262,10 @@ public struct ContentView: View {
                             }
                         )
                         .padding(.top, safeAreaTop + 8)
+
+                        OfflineBannerContainer()
+                            .padding(.top, 8)
+
                         Spacer()
                     }
 
@@ -349,9 +339,14 @@ public struct ContentView: View {
             SecurityService.shared.updateActivityTimestamp()
         }
         .task {
-            // Backfills the avatar's cached first name for accounts that finished
-            // onboarding before the local cache existed (no-ops if already cached).
-            await authViewModel.refreshFirstNameIfMissing()
+            // If lock setup was skipped during onboarding (spec 023 R3), a
+            // silent PIN was generated for encryption only — there's no lock
+            // screen to unlock and post `.didUnlockWithPIN`, so pick it up
+            // directly here on every launch that reaches ContentView.
+            if SecurityService.shared.currentMode == .none,
+               let silentPIN = SecurityService.shared.getPIN() {
+                entryViewModel.setSessionPIN(silentPIN)
+            }
         }
         .onChange(of: selectedTab) { _, newTab in
             // Sync swipeProgress when tab changes via pill tap (fallback for geometry tracking)
@@ -378,8 +373,24 @@ public struct ContentView: View {
             // Clear session PIN when app goes to background (locks)
             if newPhase == .background || newPhase == .inactive {
                 entryViewModel.clearSessionPIN()
+            } else if newPhase == .active {
+                // Lock skipped (spec 023 R3): no lock screen will fire
+                // `.didUnlockWithPIN` on return, so restore the silent PIN here.
+                if SecurityService.shared.currentMode == .none,
+                   let silentPIN = SecurityService.shared.getPIN() {
+                    entryViewModel.setSessionPIN(silentPIN)
+                }
+                // spec-007 R2: retry any offline writes whenever the app comes to the foreground.
+                Task { await entryViewModel.drainPendingSync() }
             }
         }
+        .onChange(of: networkMonitor.isConnected) { _, isConnected in
+            // spec-007 R2: retry any offline writes the moment connectivity returns.
+            if isConnected {
+                Task { await entryViewModel.drainPendingSync() }
+            }
+        }
+        .environmentObject(networkMonitor)
         .sheet(isPresented: $showSummarySheet) {
             ChatSummarySheet(
                 onSummarize: {
@@ -535,7 +546,7 @@ public struct ContentView: View {
         case .main:
             SettingsView()
                 .environmentObject(entryViewModel)
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         case .profile:
@@ -571,13 +582,13 @@ public struct ContentView: View {
 // MARK: - Previews
 #Preview("Light - iPhone 15 Pro") {
     ContentView()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark - iPhone 15 Pro") {
     ContentView()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .preferredColorScheme(.dark)
 }
 
@@ -586,7 +597,7 @@ public struct ContentView: View {
     ContentView()
         .environment(\.previewEntryViewModel, entryViewModel)
         .environment(\.previewInitialTab, .digDeeper)
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .useTheme()
         .useTypography()
 }

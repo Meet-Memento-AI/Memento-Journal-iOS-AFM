@@ -1,5 +1,36 @@
 // Pure helpers for chat Edge Function (unit-tested without Gemini / Supabase).
 
+// ============================================================
+// ERROR CONTRACT (spec-010)
+// ============================================================
+
+/** Structured error body returned on chat request failure, instead of a canned 200. */
+export interface ChatErrorBody {
+  error: string;
+  code: string;
+  retryable: boolean;
+  // Index signature so this satisfies jsonResponse's Record<string, unknown> param.
+  [key: string]: unknown;
+}
+
+/**
+ * Builds the spec-010 structured error body for a failed chat request.
+ * Centralized so the Gemini-failure path and the top-level catch-all in
+ * index.ts share one source of truth for the shape, and so the contract is
+ * unit-testable without mocking the HTTP handler, Gemini, or Supabase.
+ */
+export function buildChatErrorBody(code: string, message: string, retryable: boolean): ChatErrorBody {
+  return { error: message, code, retryable };
+}
+
+/** Wraps a JSON-serializable payload in a `Response` with the given status. */
+export function jsonResponse(data: Record<string, unknown>, status: number, corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 export interface MatchedEntry {
   id: string;
   content: string;

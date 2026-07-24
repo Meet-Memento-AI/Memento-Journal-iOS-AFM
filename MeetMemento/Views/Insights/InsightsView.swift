@@ -14,7 +14,8 @@ import SwiftUI
 
 public struct InsightsView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     @StateObject private var chatViewModel = ChatViewModel()
 
     @State private var navigationPath = NavigationPath()
@@ -280,6 +281,15 @@ public struct InsightsView: View {
                     title: "No insights yet",
                     message: "Your insights will appear here after journaling."
                 )
+            } else if !networkMonitor.isConnected && insight == nil {
+                // spec-007 R3: generating an insight needs a connection, and
+                // there's no cached one to fall back to — say so rather than
+                // spinning forever or failing silently.
+                emptyState(
+                    icon: "wifi.slash",
+                    title: "You're offline",
+                    message: "Insights need a connection. Reconnect to see what's on your mind."
+                )
             } else {
                 placeholderContent
             }
@@ -362,7 +372,7 @@ public struct InsightsView: View {
         case .main:
             SettingsView()
                 .environmentObject(entryViewModel)
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         case .profile:
@@ -550,22 +560,24 @@ extension EnvironmentValues {
 // MARK: - Previews
 #Preview("Empty State") {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
-    @Previewable @StateObject var authViewModel = AuthViewModel()
+    @Previewable @StateObject var appState = AppStateStore()
 
     InsightsView()
         .environmentObject(entryViewModel)
-        .environmentObject(authViewModel)
+        .environmentObject(appState)
+        .environmentObject(NetworkMonitor.shared)
         .useTheme()
         .useTypography()
 }
 
 #Preview("Loading State") {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
-    @Previewable @StateObject var authViewModel = AuthViewModel()
+    @Previewable @StateObject var appState = AppStateStore()
 
     InsightsView()
         .environmentObject(entryViewModel)
-        .environmentObject(authViewModel)
+        .environmentObject(appState)
+        .environmentObject(NetworkMonitor.shared)
         .environment(\.previewForceLoadingState, true)
         .onAppear {
             entryViewModel.loadMockEntries()
@@ -576,14 +588,15 @@ extension EnvironmentValues {
 
 #Preview("With Entries") {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
-    @Previewable @StateObject var authViewModel = AuthViewModel()
+    @Previewable @StateObject var appState = AppStateStore()
     @Previewable @State var hasEntries = false
 
     Group {
         if hasEntries {
             InsightsView()
                 .environmentObject(entryViewModel)
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
+                .environmentObject(NetworkMonitor.shared)
                 .environment(\.previewSkipLoadEntries, true)
                 .useTheme()
                 .useTypography()

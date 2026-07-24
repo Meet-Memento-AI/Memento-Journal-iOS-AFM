@@ -44,4 +44,11 @@ class PreferencesService: ObservableObject {
         let storedEnabled = defaults.object(forKey: Keys.aiEnabled) as? Bool
         self.aiEnabled = storedEnabled ?? true
     }
+
+    /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
+    func resetToDefaults() {
+        defaults.removeObject(forKey: Keys.themePreference)
+        defaults.removeObject(forKey: Keys.aiEnabled)
+        aiEnabled = true
+    }
 }

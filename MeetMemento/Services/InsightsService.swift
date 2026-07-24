@@ -43,7 +43,12 @@ class InsightsService {
     /// This keeps the Gemini API key secure on the server.
     func generateInsight(entries: [Entry]) async throws -> UserInsight {
         guard let userId = client.auth.currentUser?.id else {
-            throw AuthError.missingEmail
+            // AuthError (previously defined in the now-removed auth view
+            // model, spec 023) is gone along with accounts. This whole method is
+            // Supabase-coupled dead code on the deprecated Insights path
+            // (frontend-preservation-contract.md reuse ledger) — kept
+            // compiling as-is until spec 019 replaces it.
+            throw URLError(.userAuthenticationRequired)
         }
         
                 AppLogger.log("🔍 [InsightsService] Starting insight generation for \(entries.count) entries")

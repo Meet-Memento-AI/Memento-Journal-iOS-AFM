@@ -176,7 +176,7 @@ public struct AIOutputComponent: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Image(systemName: "doc.on.doc")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(theme.mutedForeground)
                 }
                 .accessibilityLabel("Copy")
@@ -186,7 +186,7 @@ public struct AIOutputComponent: View {
                     onThumbsUp?()
                 } label: {
                     Image(systemName: feedbackType == .positive ? "hand.thumbsup.fill" : "hand.thumbsup")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(feedbackType == .positive ? theme.primary : theme.mutedForeground)
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
@@ -197,7 +197,7 @@ public struct AIOutputComponent: View {
                     onThumbsDown?()
                 } label: {
                     Image(systemName: feedbackType == .negative ? "hand.thumbsdown.fill" : "hand.thumbsdown")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(feedbackType == .negative ? theme.destructive : theme.mutedForeground)
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
@@ -207,7 +207,7 @@ public struct AIOutputComponent: View {
                     onRedo?()
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(theme.mutedForeground)
                 }
                 .accessibilityLabel("Regenerate")

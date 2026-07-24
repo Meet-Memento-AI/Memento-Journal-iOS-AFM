@@ -315,13 +315,14 @@ struct PercentageBarChart: View {
 // MARK: - Editable Chart Example
 
 struct EditableChartExample: View {
+    @Environment(\.typography) private var type
     @State private var emotionValues: [Double] = [50, 20, 18, 12]
     let emotionLabels = ["Anxiety", "Anticipation", "Fear", "Regret"]
 
     var body: some View {
         VStack(spacing: 16) {
             Text("Editable Chart")
-                .font(.system(size: 20, weight: .bold))
+                .font(type.h4)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)

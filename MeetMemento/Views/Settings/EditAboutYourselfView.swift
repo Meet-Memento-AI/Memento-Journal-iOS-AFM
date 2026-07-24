@@ -167,7 +167,7 @@ public struct EditAboutYourselfView: View {
                 .foregroundStyle(theme.foreground)
 
             Text("Update what you'd like to learn about yourself through journaling.")
-                .font(.system(size: 15))
+                .font(type.body2)
                 .lineSpacing(3)
                 .foregroundStyle(theme.mutedForeground)
         }
@@ -177,7 +177,7 @@ public struct EditAboutYourselfView: View {
         ZStack(alignment: .topLeading) {
             if entryText.isEmpty {
                 Text("Share what your goals are with your journals. I'll pay attention to this whenever you journal and we talk.")
-                    .font(.system(size: 17))
+                    .font(type.body1)
                     .lineSpacing(3.4)
                     .foregroundStyle(theme.mutedForeground.opacity(0.5))
                     .padding(.top, 8)
@@ -185,7 +185,7 @@ public struct EditAboutYourselfView: View {
             }
 
             TextEditor(text: $entryText)
-                .font(.system(size: 17))
+                .font(type.body1)
                 .lineSpacing(3.4)
                 .foregroundStyle(theme.foreground)
                 .focused($isFocused)
@@ -222,26 +222,11 @@ public struct EditAboutYourselfView: View {
 
     // MARK: - Actions
 
+    // No accounts (spec 023) — reads/writes the same local store onboarding
+    // uses, not the old backend-service layer.
     private func loadExistingText() {
-        Task {
-            do {
-                if let text = try await UserService.shared.getPersonalizationText() {
-                    await MainActor.run {
-                        entryText = text
-                        isLoading = false
-                    }
-                } else {
-                    await MainActor.run {
-                        isLoading = false
-                    }
-                }
-            } catch {
-                AppLogger.log("⚠️ Failed to load personalization text: \(error)")
-                await MainActor.run {
-                    isLoading = false
-                }
-            }
-        }
+        entryText = LocalProfileStore.personalizationText ?? ""
+        isLoading = false
     }
 
     private func saveChanges() {
@@ -249,20 +234,9 @@ public struct EditAboutYourselfView: View {
         guard trimmedText.count >= 100 else { return }
 
         isSaving = true
-        Task {
-            do {
-                try await UserService.shared.savePersonalizationText(trimmedText)
-                await MainActor.run {
-                    isSaving = false
-                    dismiss()
-                }
-            } catch {
-                AppLogger.log("⚠️ Failed to save personalization text: \(error)")
-                await MainActor.run {
-                    isSaving = false
-                }
-            }
-        }
+        LocalProfileStore.personalizationText = trimmedText
+        isSaving = false
+        dismiss()
     }
 
     private func insertTranscribedText(_ transcribedText: String) {
@@ -310,7 +284,7 @@ public struct EditAboutYourselfView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 if speechService.isRecording {
@@ -320,7 +294,9 @@ public struct EditAboutYourselfView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
             }
-            .frame(width: fabWidth, height: 48)
+            // AX5: minHeight lets the pill grow instead of clipping the duration
+            // timer text, which scales with Dynamic Type, when recording.
+            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 48)
             .background(microphoneFABBackground)
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }

@@ -14,8 +14,29 @@ specs/
 ├── README.md          ← you are here: workflow, tiers, template
 ├── CONSTITUTION.md    ← architecture baseline + non-regression contract
 ├── ROADMAP.md         ← status board, dependency graph, launch gates
-└── 001…012-*.md       ← the twelve specs
+├── 001…012-*.md       ← the original twelve specs (pre-2.0 app; 003/004/007/008/010
+│                        obsolete, 002 paused — see ROADMAP.md's Status board)
+├── 013…023-*.md       ← Memento 2.0 rewrite specs (see below)
+└── reference/
+    ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
+    ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
+    └── technology/                           ← Apple-framework API reference library
+        └── 00…11-*.md                        ← cited by tech_refs in specs 013–023
 ```
+
+Specs 013+ implement the Memento 2.0 rewrite described in
+`specs/reference/memento-2.0-architecture-spec.md` (deleting the Supabase/pgvector/
+Gemini backend in favor of on-device SwiftData + Core Spotlight + Apple Foundation
+Models). They follow the exact same template and workflow as 001–012 below — the
+only additions are that their front-matter and body cite the `REQ-XXX-nnn`/`DEC-nnn`
+IDs they derive from, so a decision made in the source document is traceable to the
+numbered spec that resolves it, and that they cite the specific
+`specs/reference/technology/*.md` file(s) an implementer should read for
+Apple-framework API behavior (`tech_refs:` front-matter plus a "Technology
+References" body section — a WWDC26-sourced API library using the same
+✅ VERIFIED / 🟡 LIKELY / 🔴 UNVERIFIED confidence markers as the source document's
+`⚠️ VERIFY` items, see `specs/reference/technology/00-INDEX.md`). `ROADMAP.md`'s
+"2.0 Rewrite — Phase Plan" section is the status board for these.
 
 ---
 
@@ -44,7 +65,11 @@ How any session (human or agent) executes a spec:
 3. **Re-verify the evidence**: the Current State table cites `file:line` references
    that were accurate on 2026-07-13. Line numbers rot. Confirm each row still holds
    before writing code; update stale references in the spec as you go. If a finding
-   no longer reproduces, note it in the spec and skip its tasks.
+   no longer reproduces, note it in the spec and skip its tasks. For specs 013+,
+   also check the confidence markers (✅ VERIFIED / 🟡 LIKELY / 🔴 UNVERIFIED) in
+   each file listed under `tech_refs:` — anything 🔴 that blocks your task should
+   already be filed in `specs/reference/technology/11-verification-queue.md`; if
+   not, file it before writing code against it.
 4. **Execute**: work the Tasks checklist in order, checking boxes as you complete them.
 5. **Verify**: run every item in the Verification section. A spec is not done until
    all of them pass.
@@ -115,6 +140,7 @@ CONSTITUTION.md strengths this work touches and must not break.
 
 | Location | Status |
 |----------|--------|
+| `specs/reference/technology/` | Apple-framework API reference library (WWDC26 session notes, ✅/🟡/🔴 confidence markers). Companion to `memento-2.0-architecture-spec.md`; cited by `tech_refs:` in specs 013–022. Not itself an executable spec — read-only reference. |
 | `docs/` | Engineering / how-it-works docs (RAG setup, CI policy, MEM-xx tickets) + hosted legal HTML. Unchanged, still authoritative for *how things work*. |
 | `TESTFLIGHT_READINESS.md` (root) | **Superseded** by this folder (banner added). Kept as a historical record of pre-beta work completed in Oct 2025. |
 | `.claude-instructions/` | Historical ad-hoc implementation plans. Read-only reference. |

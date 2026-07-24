@@ -76,6 +76,8 @@ struct InlineCitationDateBadge: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Citation from \(formattedDate)")
+        .accessibilityHint("Double-tap to view the journal excerpt")
     }
 }
 

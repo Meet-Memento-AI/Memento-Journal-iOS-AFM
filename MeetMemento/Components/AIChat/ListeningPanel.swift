@@ -13,6 +13,7 @@ struct ListeningPanel: View {
     var audioLevel: Float
 
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     private let panelHeight: CGFloat = 200
     private let cornerRadius: CGFloat = 24
@@ -38,7 +39,7 @@ struct ListeningPanel: View {
 
             // Label
             Text("Listening")
-                .font(.system(size: 16, weight: .medium))
+                .font(type.body1)
                 .foregroundStyle(theme.primary)
                 .padding(.bottom, 24)
         }
@@ -55,7 +56,7 @@ struct ListeningPanel: View {
             onBack()
         } label: {
             Image(systemName: "chevron.left")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                 .foregroundStyle(theme.primary)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(
@@ -76,7 +77,7 @@ struct ListeningPanel: View {
             onDone()
         } label: {
             Image(systemName: "checkmark")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                 .foregroundColor(.white)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(
@@ -93,32 +94,11 @@ struct ListeningPanel: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(theme.glassFill)
-                .glassEffect(
-                    .regular.interactive(),
-                    in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                )
-                .shadow(
-                    color: GlassShadow.color.opacity(GlassShadow.opacity),
-                    radius: GlassShadow.blur,
-                    x: 0,
-                    y: GlassShadow.offsetY
-                )
-        } else {
-            fallbackGlassBackground
-        }
-        #else
-        fallbackGlassBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackGlassBackground: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .mementoGlassEffect(
+                .regular.interactive().tint(theme.glassFill),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
             .shadow(
                 color: GlassShadow.color.opacity(GlassShadow.opacity),
                 radius: GlassShadow.blur,

@@ -35,6 +35,24 @@ class ChatViewModel: ObservableObject {
     /// Per-session message cache to avoid re-fetching on tab switches
     private var messageCache: [UUID: [ChatMessage]] = [:]
 
+    /// Fire-and-forget `Task`s (send, feedback) spawned by this view model.
+    /// Tracked so `cancelActiveTasks()` (called from the view's
+    /// `onDisappear`) can stop in-flight work instead of leaking it — e.g.
+    /// leaving the chat tab mid-send shouldn't keep the network call and
+    /// its continuation alive in the background.
+    private var activeTasks: [Task<Void, Never>] = []
+
+    private func track(_ task: Task<Void, Never>) {
+        activeTasks.append(task)
+    }
+
+    /// Cancels every tracked in-flight task. Safe to call from `onDisappear`
+    /// even with nothing in flight.
+    func cancelActiveTasks() {
+        activeTasks.forEach { $0.cancel() }
+        activeTasks.removeAll()
+    }
+
     // MARK: - Initialization
 
     init(chatService: ChatServiceProtocol = ChatService.shared) {
@@ -168,9 +186,31 @@ class ChatViewModel: ObservableObject {
         let userMessage = ChatMessage(content: text, isFromUser: true, isNew: true)
         appendMessage(userMessage)
 
+        performSend(text: text, userMessageId: userMessage.id)
+    }
+
+    /// Retries a user message that previously failed to send (spec-010),
+    /// reusing its existing id/bubble instead of appending a duplicate.
+    func retryMessage(_ message: ChatMessage) {
+        guard message.isFromUser, message.sendFailed, !isLoading else { return }
+        setSendFailed(false, forMessageId: message.id)
+        performSend(text: message.content, userMessageId: message.id)
+    }
+
+    private func setSendFailed(_ failed: Bool, forMessageId id: UUID) {
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[index].sendFailed = failed
+    }
+
+    /// Shared send path for both a fresh message and a retry of a failed
+    /// one. On failure, the user's message stays in the transcript marked
+    /// `sendFailed` — never rolled back — so retrying doesn't require
+    /// retyping.
+    private func performSend(text: String, userMessageId: UUID) {
         isLoading = true
 
-        Task {
+        track(Task { [weak self] in
+            guard let self else { return }
             do {
                 let response = try await chatService.sendMessage(text, sessionId: currentSessionId)
 
@@ -200,11 +240,12 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
+                setSendFailed(true, forMessageId: userMessageId)
                 errorMessage = chatErrorMessage(for: error)
                 showingError = true
             }
             isLoading = false
-        }
+        })
     }
 
     // MARK: - Clear Conversation
@@ -357,7 +398,8 @@ class ChatViewModel: ObservableObject {
         }
 
         // Persist to backend (fire and forget, don't affect UI state)
-        Task {
+        track(Task { [weak self] in
+            guard let self else { return }
             do {
                 if thumbsUpMessages.contains(messageId) {
                     _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .positive)
@@ -368,7 +410,7 @@ class ChatViewModel: ObservableObject {
             } catch {
                 AppLogger.log("[ChatViewModel] toggleThumbsUp error: \(error)", type: .error)
             }
-        }
+        })
     }
 
     /// Toggles thumbs down for a message (boolean: on or off)
@@ -384,7 +426,8 @@ class ChatViewModel: ObservableObject {
         }
 
         // Persist to backend (fire and forget, don't affect UI state)
-        Task {
+        track(Task { [weak self] in
+            guard let self else { return }
             do {
                 if thumbsDownMessages.contains(messageId) {
                     _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .negative)
@@ -395,7 +438,7 @@ class ChatViewModel: ObservableObject {
             } catch {
                 AppLogger.log("[ChatViewModel] toggleThumbsDown error: \(error)", type: .error)
             }
-        }
+        })
     }
 
     /// Returns the current feedback type for a message (for UI binding)
@@ -443,6 +486,13 @@ class ChatViewModel: ObservableObject {
 
     private func chatErrorMessage(for error: Error) -> String {
         AppLogger.log("[ChatViewModel] Error details: \(String(describing: error))", type: .error)
+
+        // spec-010: the chat function's structured error body already has a
+        // user-facing message written for exactly this case — prefer it
+        // over the generic per-status-code guesses below.
+        if let chatError = error as? ChatServiceError {
+            return chatError.errorDescription ?? "Unable to get a response. Please check your connection and try again."
+        }
 
         let code = extractHTTPStatusCode(from: error)
         AppLogger.log("[ChatViewModel] Extracted HTTP code: \(code ?? -1)", type: .error)

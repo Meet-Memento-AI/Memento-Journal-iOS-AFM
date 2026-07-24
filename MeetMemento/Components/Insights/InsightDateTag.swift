@@ -9,6 +9,8 @@
 import SwiftUI
 
 public struct InsightDateTag: View {
+    @Environment(\.typography) private var type
+
     let date: Date
 
     // Optional customization
@@ -36,7 +38,7 @@ public struct InsightDateTag: View {
 
             // Formatted date text
             Text(formattedDate)
-                .font(.system(size: 13, weight: .medium))
+                .font(type.captionMedium)
                 .foregroundColor(InsightDateTag.lightText)
         }
         .padding(.horizontal, 12)

@@ -11,15 +11,13 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var entryViewModel: EntryViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
 
     @State private var showDataUsageInfo = false
-    @State private var showSignOutConfirmation = false
-    @State private var isSigningOut = false
-    @State private var showDeleteAccountConfirmation = false
-    @State private var showDeleteAccountFinalConfirmation = false
-    @State private var isDeletingAccount = false
-    @State private var deleteAccountError = ""
+    @State private var showDeleteEverythingConfirmation = false
+    @State private var showDeleteEverythingFinalConfirmation = false
+    @State private var isDeletingEverything = false
+    @State private var deleteEverythingError = ""
 
     @ObservedObject private var preferences = PreferencesService.shared
 
@@ -32,11 +30,9 @@ struct SettingsView: View {
                 // About Section
                 aboutSection
 
-                // Data & Privacy Section
-                dataPrivacySection
-
-                // Account Section
-                accountSection
+                // Your Data Section (spec 023 R4 — merges the old Data & Privacy
+                // and Account sections into one local-only story)
+                yourDataSection
 
                 Spacer(minLength: Spacing.xxxl)
             }
@@ -54,43 +50,31 @@ struct SettingsView: View {
             }
         }
         .confirmationDialog(
-            "Sign Out",
-            isPresented: $showSignOutConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Sign Out", role: .destructive) {
-                signOut()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to sign out?")
-        }
-        .confirmationDialog(
-            "Delete Account?",
-            isPresented: $showDeleteAccountConfirmation,
+            "Delete everything?",
+            isPresented: $showDeleteEverythingConfirmation,
             titleVisibility: .visible
         ) {
             Button("Continue", role: .destructive) {
-                showDeleteAccountFinalConfirmation = true
+                showDeleteEverythingFinalConfirmation = true
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("This will permanently delete your account and all your journal entries. This action cannot be undone.")
+            Text("This will permanently delete every journal entry, your name, and your app-lock settings from this device. This action cannot be undone.")
         }
-        .alert("Are you absolutely sure?", isPresented: $showDeleteAccountFinalConfirmation) {
-            Button("Delete My Account", role: .destructive) {
-                deleteAccount()
+        .alert("Are you absolutely sure?", isPresented: $showDeleteEverythingFinalConfirmation) {
+            Button("Delete Everything", role: .destructive) {
+                deleteEverything()
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("All your data will be permanently deleted. This cannot be recovered.")
+            Text("All your data will be permanently deleted from this device. This cannot be recovered.")
         }
-        .alert("Error", isPresented: .constant(!deleteAccountError.isEmpty)) {
+        .alert("Error", isPresented: .constant(!deleteEverythingError.isEmpty)) {
             Button("OK") {
-                deleteAccountError = ""
+                deleteEverythingError = ""
             }
         } message: {
-            Text(deleteAccountError)
+            Text(deleteEverythingError)
         }
     }
 
@@ -148,33 +132,51 @@ struct SettingsView: View {
         }
     }
 
-    private var dataPrivacySection: some View {
+    /// "Your Data" (spec 023 R4): one section for the whole local-only story —
+    /// profile, AI on-device/PCC toggle, privacy policy, data-usage explainer,
+    /// and Delete Everything. No accounts, so no Sign Out.
+    private var yourDataSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             // Section header
-            Text("Data & Privacy")
+            Text("Your Data")
                 .font(type.h5)
                 .foregroundStyle(theme.foreground)
                 .padding(.bottom, Spacing.xxs)
 
             // Section content card
             VStack(spacing: 0) {
+                NavigationLink(value: SettingsRoute.profile) {
+                    SettingsRow(
+                        icon: "person.circle.fill",
+                        title: "Profile",
+                        subtitle: "Edit your name",
+                        showChevron: true,
+                        action: nil
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(theme.border)
+                    .padding(.horizontal, Spacing.md)
+
                 // AI Features Toggle
                 HStack {
                     HStack(spacing: Spacing.sm) {
                         Image(systemName: "brain")
-                            .font(.system(size: 20))
+                            .font(.system(size: 20)) // icon-size: not user text
                             .foregroundStyle(theme.primary)
                             .frame(width: 28, height: 28)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AI Features")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(type.body1Medium)
                                 .foregroundStyle(theme.foreground)
 
                             Text(preferences.aiEnabled
-                                ? "Chat and Insights use cloud AI"
+                                ? "On-device, or Apple Private Cloud Compute for deeper reflections"
                                 : "AI disabled – data stays on device")
-                                .font(.system(size: 14))
+                                .font(type.body2)
                                 .foregroundStyle(theme.mutedForeground)
                         }
                     }
@@ -184,6 +186,10 @@ struct SettingsView: View {
                     Toggle("", isOn: $preferences.aiEnabled)
                         .labelsHidden()
                         .tint(theme.primary)
+                        .accessibilityLabel("AI Features")
+                        .accessibilityHint(preferences.aiEnabled
+                            ? "Uses on-device or Apple Private Cloud Compute AI. Double-tap to disable."
+                            : "AI disabled, your data stays on device. Double-tap to enable.")
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
@@ -217,47 +223,6 @@ struct SettingsView: View {
                         showDataUsageInfo = true
                     }
                 )
-            }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        }
-    }
-
-
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Section header
-            Text("Account")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            // Section content card
-            VStack(spacing: 0) {
-                NavigationLink(value: SettingsRoute.profile) {
-                    SettingsRow(
-                        icon: "person.circle.fill",
-                        title: "Profile",
-                        subtitle: "Edit your name",
-                        showChevron: true,
-                        action: nil
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                SettingsRow(
-                    icon: "rectangle.portrait.and.arrow.right",
-                    title: "Sign Out",
-                    subtitle: "Sign out of your account",
-                    showProgress: isSigningOut,
-                    action: {
-                        showSignOutConfirmation = true
-                    }
-                )
 
                 Divider()
                     .background(theme.border)
@@ -265,12 +230,13 @@ struct SettingsView: View {
 
                 SettingsRow(
                     icon: "trash.fill",
-                    title: "Delete Account",
-                    subtitle: "Permanently delete your account",
+                    title: "Delete Everything",
+                    subtitle: "Permanently delete all your data from this device",
                     isDestructive: true,
-                    showProgress: isDeletingAccount,
+                    showProgress: isDeletingEverything,
+                    accessibilityIdentifier: "settings.deleteEverything",
                     action: {
-                        showDeleteAccountConfirmation = true
+                        showDeleteEverythingConfirmation = true
                     }
                 )
             }
@@ -283,48 +249,26 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        } else {
-            fallbackSectionCardBackground
-        }
-        #else
-        fallbackSectionCardBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackSectionCardBackground: some View {
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
             .fill(colorScheme == .dark ? GrayScale.gray800 : Color.white)
+            .mementoGlassEffect(
+                .regular.tint(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7)),
+                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
+            )
             .shadow(color: colorScheme == .dark ? .clear : Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 
     // MARK: - Actions
 
-    private func signOut() {
-        isSigningOut = true
-        Task {
-            await authViewModel.signOut()
-        }
-    }
-
-    private func deleteAccount() {
-        isDeletingAccount = true
-        deleteAccountError = ""
-        Task {
-            do {
-                try await authViewModel.deleteAccount()
-            } catch {
-                await MainActor.run {
-                    isDeletingAccount = false
-                    deleteAccountError = "Failed to delete account. Please try again or contact support."
-                }
-            }
-        }
+    /// Interim scope (spec 023 R4): local entry storage + security/encryption
+    /// Keychain entries + UserDefaults + caches. Spec 015 extends this to the
+    /// full five-store deletion per REQ-DATA-013.
+    private func deleteEverything() {
+        isDeletingEverything = true
+        deleteEverythingError = ""
+        appState.deleteEverything()
+        entryViewModel.clearSessionPIN()
+        isDeletingEverything = false
     }
 }
 
@@ -357,7 +301,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     NavigationStack {
         SettingsView()
             .environmentObject(EntryViewModel())
-            .environmentObject(AuthViewModel())
+            .environmentObject(AppStateStore())
             .useTheme()
             .useTypography()
     }

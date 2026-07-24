@@ -201,24 +201,28 @@ public struct AddEntryView: View {
                 // Back button
                 Button { dismiss() } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(theme.foreground)
                         .frame(width: 44, height: 44)
                         .background(iconButtonBackground)
                 }
+                .accessibilityLabel("Back")
+                .accessibilityHint("Double-tap to close without saving")
 
                 Spacer()
 
                 // Date pill
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 13, weight: .bold)) // icon-size: not user text
                     Text(formattedDate)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(type.body2Medium)
                 }
                 .foregroundStyle(theme.foreground)
                 .padding(.horizontal, 14)
-                .frame(height: 44)
+                // AX5: minHeight (not fixed height) lets the pill grow instead of
+                // clipping/overlapping when the date text scales up at large Dynamic Type sizes.
+                .frame(minHeight: 44)
                 .background(datePillBackground)
 
                 Spacer()
@@ -232,16 +236,30 @@ public struct AddEntryView: View {
                             .background(submitButtonBackground)
                     } else {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(submitButtonBackground)
                     }
                 }
                 .disabled(isSaving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityLabel(isSaving ? "Saving entry" : "Save entry")
+                .accessibilityHint("Double-tap to save your journal entry")
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
+
+            if editingEntry?.syncStatus == .pending {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 10, weight: .bold)) // icon-size: not user text
+                    Text("Waiting to sync — will retry automatically")
+                        .font(type.captionBold)
+                }
+                .foregroundStyle(theme.mutedForeground)
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+            }
         }
         .padding(.bottom, 8)
     }
@@ -250,49 +268,15 @@ public struct AddEntryView: View {
 
     @ViewBuilder
     private var iconButtonBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Circle()
-                .fill(.clear)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
-        } else {
-            fallbackIconButtonBackground
-        }
-        #else
-        fallbackIconButtonBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackIconButtonBackground: some View {
         Circle()
-            .fill(.thinMaterial)
-            .overlay(Circle().strokeBorder(theme.glassBorder, lineWidth: 0.5))
+            .mementoGlassEffect(.regular.interactive(), in: Circle())
             .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 
     @ViewBuilder
     private var datePillBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Capsule()
-                .fill(.clear)
-                .glassEffect(.regular.interactive(), in: Capsule())
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
-        } else {
-            fallbackDatePillBackground
-        }
-        #else
-        fallbackDatePillBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackDatePillBackground: some View {
         Capsule()
-            .fill(.thinMaterial)
-            .overlay(Capsule().strokeBorder(theme.glassBorder, lineWidth: 0.5))
+            .mementoGlassEffect(.regular.interactive(), in: Capsule())
             .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 
@@ -388,7 +372,7 @@ public struct AddEntryView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 // Duration timer appears inside button when recording
@@ -399,7 +383,9 @@ public struct AddEntryView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
             }
-            .frame(width: fabWidth, height: 48)
+            // AX5: minHeight lets the pill grow instead of clipping the duration
+            // timer text, which scales with Dynamic Type, when recording.
+            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 48)
             .background(microphoneFABBackground)
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
@@ -410,29 +396,9 @@ public struct AddEntryView: View {
 
     @ViewBuilder
     private var microphoneFABBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            // iOS 26: Liquid glass with frosted effect
-            Capsule()
-                .fill(Color.white.opacity(0.3))
-                .mementoGlassEffect(.regular.interactive(), in: Capsule())
-        } else {
-            fallbackMicrophoneFABBackground
-        }
-        #else
-        fallbackMicrophoneFABBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackMicrophoneFABBackground: some View {
-        // iOS 18+: Ultra thin material fallback
         Capsule()
-            .fill(.ultraThinMaterial)
-            .overlay(
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-            )
+            .fill(Color.white.opacity(0.3))
+            .mementoGlassEffect(.regular.interactive(), in: Capsule())
     }
 
     // MARK: - Actions

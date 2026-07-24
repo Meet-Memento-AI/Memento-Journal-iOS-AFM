@@ -47,6 +47,33 @@ watchdog and view failsafe either call it or are deleted; no call site hand-muta
 the five auth fields; the MEM-18 scenario (slow/no network at launch) still resolves
 to the welcome screen within a bounded time (~6–8s).
 
+**2026-07-23 — superseded-pending-verification by spec
+[023](023-no-account-experience.md):** R2's three-failsafe race exists because
+auth bootstrap currently includes a Supabase session-fetch network call that can
+hang. Memento 2.0 removes accounts entirely (`CONSTITUTION.md` §1
+Config/identity; spec 023 R1) — the replacement app-state store is fully local
+with no network call at launch, which removes the race's root cause. Spec 023 R1
+owns confirming this and recording the outcome here; if an equivalent bootstrap
+race emerges against local-store readiness, R2 still applies against that async
+call. Don't execute R2 until spec 023 R1 lands.
+
+**2026-07-23 — outcome confirmed by spec 023 R1: moot, not just superseded.**
+`AppStateStore.initializeAppState()` (`Services/AppStateStore.swift`) is fully
+synchronous — UserDefaults reads and a Keychain-backed inactivity check, no
+`await`, no network call, no timeout path of any kind. `MeetMementoApp.swift`'s
+root `.task` calls it directly with no watchdog `Task`, no 6s
+`LaunchLoadingView` failsafe, no 8s session-fetch timeout; the three-failsafe
+race, the five hand-mutated auth fields, and `resolveAsUnauthenticated(reason:)`
+no longer exist because there's nothing async left to guard against. R2 as
+written (consolidate three failsafes into one) does not apply — there is
+nothing to consolidate. Confirmed empirically: the equivalent-race concern this
+note raised ("if an equivalent bootstrap race emerges against local-store
+readiness") did not materialize — `test_launch_doesNotCrash`
+(`MeetMementoUITests/MeetMementoSmokeUITests.swift`) launches under
+`-UITesting` and reaches `.runningForeground` well inside R2's original 6–8s
+bound (observed ~4s), with `initializeAppState()` having already fully
+resolved by then. R2 is closed as moot; no further action needed here.
+
 ### R3. One glass system
 **Acceptance:** a single API renders every glass surface. Recommended: keep the
 `mementoGlassEffect` **name** as the app-wide API but upgrade
@@ -66,7 +93,8 @@ Grep for `.glassEffect(` finds only `GlassEffectCompat.swift`.
 - Launch *content* redesign (logo vs spinner debate — the 2026-07 merge chose
   upstream's spinner+"Starting…" layout; changing that is a product decision, note it
   for the beta feedback pile).
-- Dynamic Type on these screens → **spec 008**.
+- Dynamic Type on these screens → was **spec 008**; spec 008 is now obsolete
+  (2026-07-23), merged into **spec 020**.
 - Any auth *logic* change beyond consolidating the failsafe (token refresh, session
   handling stay as-is).
 

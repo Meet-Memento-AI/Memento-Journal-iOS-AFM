@@ -116,6 +116,10 @@ public struct ChatMessage: Identifiable, Hashable {
     /// False for messages loaded from database (should display instantly).
     public let isNew: Bool
 
+    /// True when this user message failed to send (spec-010): kept visible
+    /// in the transcript with a retry affordance instead of being dropped.
+    public var sendFailed: Bool
+
     public init(
         id: UUID = UUID(),
         content: String,
@@ -123,7 +127,8 @@ public struct ChatMessage: Identifiable, Hashable {
         timestamp: Date = Date(),
         citations: [JournalCitation]? = nil,
         aiOutputContent: AIOutputContent? = nil,
-        isNew: Bool = false
+        isNew: Bool = false,
+        sendFailed: Bool = false
     ) {
         self.id = id
         self.content = content
@@ -132,6 +137,7 @@ public struct ChatMessage: Identifiable, Hashable {
         self.citations = citations
         self.aiOutputContent = aiOutputContent
         self.isNew = isNew
+        self.sendFailed = sendFailed
     }
     
     // Convenience initializer for AI messages with structured content

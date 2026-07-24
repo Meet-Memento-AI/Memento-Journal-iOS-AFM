@@ -1,5 +1,6 @@
-import { assertEquals } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
+import { assert, assertEquals } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
 import {
+  buildChatErrorBody,
   buildContextBlock,
   buildEffectiveQuery,
   buildGeminiContents,
@@ -10,6 +11,7 @@ import {
   extractBody,
   extractGeminiResponseText,
   filterCitedIdsToAllowed,
+  jsonResponse,
   parseCitedEntryIds,
   sanitizeResponseBody,
   shouldSkipJournalRetrieval,
@@ -151,4 +153,68 @@ Deno.test('condenseHistoryForRetrieval_respectsMaxChars', () => {
   const h: ChatMessageRow[] = [{ role: 'user', content: long }];
   const c = condenseHistoryForRetrieval(h, 100);
   assertEquals(c.length <= 100, true);
+});
+
+// ============================================================
+// ERROR CONTRACT (spec-010) — was: canned reply + 200 on every failure,
+// which the iOS client could not distinguish from a real answer and had
+// no way to retry. These lock in the honest {error, code, retryable} shape.
+// ============================================================
+
+Deno.test('buildChatErrorBody_returnsStructuredRetryableShape', () => {
+  const body = buildChatErrorBody('LLM_UNAVAILABLE', 'trouble connecting', true);
+  assertEquals(body.code, 'LLM_UNAVAILABLE');
+  assertEquals(body.error, 'trouble connecting');
+  assertEquals(body.retryable, true);
+});
+
+Deno.test('buildChatErrorBody_supportsNonRetryableFlag', () => {
+  const body = buildChatErrorBody('INVALID_SESSION', 'bad session', false);
+  assertEquals(body.retryable, false);
+});
+
+const testCorsHeaders = { 'Access-Control-Allow-Origin': '*' };
+
+Deno.test('jsonResponse_llmUnavailable_returns502WithStructuredBody', async () => {
+  const body = buildChatErrorBody(
+    'LLM_UNAVAILABLE',
+    "I'm having trouble connecting right now. Please try again in a moment.",
+    true,
+  );
+  const response = jsonResponse(body, 502, testCorsHeaders);
+
+  assertEquals(response.status, 502);
+  assertEquals(response.headers.get('Content-Type'), 'application/json');
+
+  const parsed = await response.json();
+  assertEquals(parsed.code, 'LLM_UNAVAILABLE');
+  assertEquals(parsed.retryable, true);
+  assert(typeof parsed.error === 'string' && parsed.error.length > 0);
+});
+
+Deno.test('jsonResponse_internalError_returns500WithStructuredBody', async () => {
+  const body = buildChatErrorBody(
+    'INTERNAL_ERROR',
+    "I'm having trouble connecting right now. Please try again in a moment.",
+    true,
+  );
+  const response = jsonResponse(body, 500, testCorsHeaders);
+
+  assertEquals(response.status, 500);
+  const parsed = await response.json();
+  assertEquals(parsed.code, 'INTERNAL_ERROR');
+  assertEquals(parsed.retryable, true);
+});
+
+Deno.test('jsonResponse_success_returns200WithoutErrorFields', async () => {
+  // Guards the untouched success path: still a plain 200 with no
+  // {error, code, retryable} envelope, so the client's existing
+  // `ChatResponse` decode keeps working unchanged.
+  const response = jsonResponse({ reply: 'hello', sources: [], sessionId: 'abc' }, 200, testCorsHeaders);
+
+  assertEquals(response.status, 200);
+  const parsed = await response.json();
+  assertEquals(parsed.reply, 'hello');
+  assertEquals(parsed.code, undefined);
+  assertEquals(parsed.retryable, undefined);
 });

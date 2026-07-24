@@ -17,8 +17,6 @@ struct AvatarInitialButton: View {
     var accessibilityLabel: String = "Menu"
     var onTap: (() -> Void)?
 
-    @Environment(\.theme) private var theme
-
     private var resolvedFontSize: CGFloat {
         fontSize ?? size * 0.4
     }
@@ -35,11 +33,11 @@ struct AvatarInitialButton: View {
 
                 if let initial, !initial.isEmpty {
                     Text(initial.uppercased())
-                        .font(.system(size: resolvedFontSize, weight: .semibold))
+                        .font(.system(size: resolvedFontSize, weight: .semibold)) // icon-size: not user text (avatar initial glyph scales with button size)
                         .foregroundStyle(PrimaryScale.primary600)
                 } else {
                     Image(systemName: "person.fill")
-                        .font(.system(size: resolvedFontSize, weight: .medium))
+                        .font(.system(size: resolvedFontSize, weight: .medium)) // icon-size: not user text
                         .foregroundStyle(PrimaryScale.primary600)
                 }
             }
@@ -53,30 +51,8 @@ struct AvatarInitialButton: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            // iOS 26: Pure liquid glass with shadow
-            Circle()
-                .fill(.clear)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
-        } else {
-            fallbackGlassBackground
-        }
-        #else
-        fallbackGlassBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackGlassBackground: some View {
-        // iOS 18+: Ultra thin material fallback with shadow
         Circle()
-            .fill(.thinMaterial)
-            .overlay(
-                Circle()
-                    .strokeBorder(theme.glassBorder, lineWidth: 0.5)
-            )
+            .mementoGlassEffect(.regular.interactive(), in: Circle())
             .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 }

@@ -12,7 +12,7 @@ public struct LearnAboutYourselfView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
 
     // Use @ObservedObject for singleton to avoid creating duplicate observers
@@ -140,11 +140,13 @@ public struct LearnAboutYourselfView: View {
                 completeStep()
             } label: {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(theme.primary))
             }
+            .accessibilityLabel("Continue")
+            .accessibilityHint("Double-tap to save and continue")
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
@@ -163,7 +165,7 @@ public struct LearnAboutYourselfView: View {
         ZStack(alignment: .topLeading) {
             if entryText.isEmpty {
                 Text("Share what your goals are with your journals. I'll pay attention to this whenever you journal and we talk.")
-                    .font(.system(size: 17))
+                    .font(type.body1)
                     .lineSpacing(3.4)
                     .foregroundStyle(theme.mutedForeground.opacity(0.5))
                     .padding(.top, 8)
@@ -171,7 +173,7 @@ public struct LearnAboutYourselfView: View {
             }
 
             TextEditor(text: $entryText)
-                .font(.system(size: 17))
+                .font(type.body1)
                 .lineSpacing(3.4)
                 .foregroundStyle(theme.foreground)
                 .focused($isFocused)
@@ -240,7 +242,7 @@ public struct LearnAboutYourselfView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 // Duration timer appears inside button when recording
@@ -251,7 +253,9 @@ public struct LearnAboutYourselfView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
             }
-            .frame(width: fabWidth, height: 48)
+            // AX5: minHeight lets the pill grow instead of clipping the duration
+            // timer text, which scales with Dynamic Type, when recording.
+            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 48)
             .background(microphoneFABBackground)
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
@@ -294,7 +298,7 @@ public struct LearnAboutYourselfView: View {
     LearnAboutYourselfView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .environmentObject(OnboardingViewModel())
         .preferredColorScheme(.light)
 }
@@ -303,7 +307,7 @@ public struct LearnAboutYourselfView: View {
     LearnAboutYourselfView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .environmentObject(OnboardingViewModel())
         .preferredColorScheme(.dark)
 }
@@ -312,6 +316,6 @@ public struct LearnAboutYourselfView: View {
     LearnAboutYourselfView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel())
+        .environmentObject(AppStateStore())
         .environmentObject(OnboardingViewModel())
 }

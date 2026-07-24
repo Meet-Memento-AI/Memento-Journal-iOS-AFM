@@ -12,10 +12,20 @@ import Security
 class SecurityService {
     static let shared = SecurityService()
 
+    private let keychain: KeychainStoring
+    private let now: () -> Date
     private let pinKeychainKey = "com.sebastianmendo.MeetMemento.userPIN"
     private let securityModeKey = "com.sebastianmendo.MeetMemento.securityMode"
     private let lastActivityKey = "com.sebastianmendo.MeetMemento.lastActivityTimestamp"
     private let inactivityTimeoutDays: Double = 14
+
+    /// `keychain` and `now` default to real implementations; tests inject a
+    /// mock keychain (no Keychain entitlements in unit tests) and a fixed
+    /// clock (so the 14-day auto-logout window is deterministic to test).
+    init(keychain: KeychainStoring = SystemKeychainStore(), now: @escaping () -> Date = Date.init) {
+        self.keychain = keychain
+        self.now = now
+    }
 
     enum SecurityMode: String {
         case faceID
@@ -40,7 +50,7 @@ class SecurityService {
 
     /// Updates the last activity timestamp to the current time.
     func updateActivityTimestamp() {
-        lastActivityTimestamp = Date()
+        lastActivityTimestamp = now()
     }
 
     /// Checks if the user should be auto-logged out due to inactivity (14+ days).
@@ -50,7 +60,7 @@ class SecurityService {
             return false
         }
 
-        let daysSinceActivity = Date().timeIntervalSince(lastActivity) / (60 * 60 * 24)
+        let daysSinceActivity = now().timeIntervalSince(lastActivity) / (60 * 60 * 24)
         return daysSinceActivity >= inactivityTimeoutDays
     }
 
@@ -117,45 +127,12 @@ class SecurityService {
 
     /// Saves a PIN to the Keychain. Overwrites any existing PIN.
     func savePIN(_ pin: String) -> Bool {
-        let data = Data(pin.utf8)
-
-        // Delete existing
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: pinKeychainKey
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: pinKeychainKey,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            AppLogger.log("⚠️ [SecurityService] Failed to save PIN: \(status)")
-        }
-        return status == errSecSuccess
+        keychain.save(Data(pin.utf8), forAccount: pinKeychainKey)
     }
 
     /// Retrieves the stored PIN from the Keychain. Returns nil if not set.
     func getPIN() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: pinKeychainKey,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess, let data = result as? Data else {
-            return nil
-        }
+        guard let data = keychain.data(forAccount: pinKeychainKey) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
@@ -196,11 +173,7 @@ class SecurityService {
 
     /// Removes the stored PIN from the Keychain.
     func deletePIN() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: pinKeychainKey
-        ]
-        SecItemDelete(query as CFDictionary)
+        keychain.delete(forAccount: pinKeychainKey)
     }
 
     /// Clears all security settings (PIN + mode + activity timestamp). Used on account deletion.

@@ -2,12 +2,12 @@
 //  OnboardingViewModel.swift
 //  MeetMemento
 //
-//  Manages onboarding state and persists data to Supabase.
+//  Manages onboarding state and persists data locally (spec 023 — no accounts,
+//  nothing to sync to a server).
 //
 
 import Foundation
 import SwiftUI
-import Supabase
 
 @MainActor
 class OnboardingViewModel: ObservableObject {
@@ -38,90 +38,74 @@ class OnboardingViewModel: ObservableObject {
     var shouldStartAtPersonalization: Bool { hasProfile && !hasPersonalization }
     var shouldStartAtGoals: Bool { hasProfile && hasPersonalization && !hasGoals }
 
-    private var client: SupabaseClient {
-        SupabaseService.shared.client
-    }
-
-    /// Loads the user's current onboarding progress from the database so the
-    /// coordinator can resume at the correct step.
+    /// Loads the user's current onboarding progress from local storage so the
+    /// coordinator can resume at the correct step (e.g. if onboarding was
+    /// interrupted and the app relaunched).
     func loadCurrentState() async {
-        do {
-            if let profile = try await UserService.shared.getCurrentProfile() {
-                let namePresent = profile.fullName != nil && !(profile.fullName?.isEmpty ?? true)
-                hasProfile = namePresent
+        let cachedFirstName = UserDefaults.standard.string(forKey: "memento_first_name")
+        let cachedLastName = UserDefaults.standard.string(forKey: "memento_last_name")
+        if let cachedFirstName, !cachedFirstName.isEmpty {
+            hasProfile = true
+            firstName = cachedFirstName
+            lastName = cachedLastName ?? ""
+        }
 
-                let goalsPresent = profile.selectedTopics != nil && !(profile.selectedTopics?.isEmpty ?? true)
-                hasGoals = goalsPresent
+        if let text = LocalProfileStore.personalizationText, !text.isEmpty {
+            hasPersonalization = true
+            personalizationText = text
+        }
 
-                if namePresent, let fn = profile.fullName {
-                    let parts = fn.split(separator: " ", maxSplits: 1)
-                    firstName = String(parts.first ?? "")
-                    lastName = parts.count > 1 ? String(parts.last ?? "") : ""
-                }
-            }
-
-            if let reflection = try await UserService.shared.getPersonalizationText() {
-                hasPersonalization = !reflection.isEmpty
-                personalizationText = reflection
-            }
-        } catch {
-            AppLogger.log("⚠️ [OnboardingViewModel] Failed to load state: \(error)")
+        let goals = LocalProfileStore.selectedGoals
+        if !goals.isEmpty {
+            hasGoals = true
+            selectedGoals = goals
         }
     }
 
-    /// Persists the user's first and last name to the `users` table.
+    /// Persists the user's first and last name locally.
     func saveProfileData() async throws {
         isProcessing = true
         defer { isProcessing = false }
 
-        try await UserService.shared.updateFullName(firstName: firstName, lastName: lastName)
+        UserDefaults.standard.set(firstName, forKey: "memento_first_name")
+        UserDefaults.standard.set(lastName, forKey: "memento_last_name")
         hasProfile = true
 
-                AppLogger.log("✅ [OnboardingViewModel] Profile saved: \(firstName) \(lastName)")
+                AppLogger.log("✅ [OnboardingViewModel] Profile saved locally: \(firstName) \(lastName)")
     }
 
-    /// Persists the personalization reflection text to `user_profiles`.
+    /// Persists the personalization reflection text locally.
     func savePersonalizationText() async throws {
         guard !personalizationText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        try await UserService.shared.savePersonalizationText(
-            personalizationText.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
+        LocalProfileStore.personalizationText = personalizationText.trimmingCharacters(in: .whitespacesAndNewlines)
         hasPersonalization = true
 
-                AppLogger.log("✅ [OnboardingViewModel] Personalization text saved")
+                AppLogger.log("✅ [OnboardingViewModel] Personalization text saved locally")
     }
 
-    /// Persists selected goals to the `users` table.
+    /// Persists selected goals locally.
     func saveGoals() async throws {
         guard !selectedGoals.isEmpty else { return }
-        try await UserService.shared.updateGoals(selectedGoals)
+        LocalProfileStore.selectedGoals = selectedGoals
         hasGoals = true
 
-                AppLogger.log("✅ [OnboardingViewModel] Goals saved: \(selectedGoals)")
+                AppLogger.log("✅ [OnboardingViewModel] Goals saved locally: \(selectedGoals)")
     }
 
-    /// Creates the first journal entry from the personalization text.
-    func createFirstJournalEntry(text: String) async throws {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        guard let userId = client.auth.currentUser?.id else { return }
-
+    /// Creates the first journal entry from the personalization text via the
+    /// shared `EntryViewModel` local-first create path (spec 023 — no
+    /// account, and per `createEntry`'s comment, the network attempt fails
+    /// gracefully and queues for retry rather than losing the entry).
+    func createFirstJournalEntry(text: String, using entryViewModel: EntryViewModel) async throws {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let title = "My First Reflection"
-        let entry = JournalEntry(
-            userId: userId,
-            title: title,
-            content: trimmed,
-            wordCount: trimmed.split(separator: " ").count
-        )
-        try await JournalService.shared.createEntry(entry)
+        guard !trimmed.isEmpty else { return }
+        entryViewModel.createEntry(title: "My First Reflection", text: trimmed)
 
-                AppLogger.log("✅ [OnboardingViewModel] First journal entry created")
+                AppLogger.log("✅ [OnboardingViewModel] First journal entry created locally")
     }
 
-    /// Marks onboarding as complete in the database.
+    /// Marks onboarding as complete locally.
     func completeOnboarding() async throws {
-        try await UserService.shared.markOnboardingComplete()
-
-                AppLogger.log("✅ [OnboardingViewModel] Onboarding marked complete in DB")
+                AppLogger.log("✅ [OnboardingViewModel] Onboarding marked complete locally")
     }
 }

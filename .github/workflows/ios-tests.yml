@@ -80,9 +80,12 @@ jobs:
       - name: Coverage gate
         env:
           # spec-006/011: RATCHET-ONLY. This floor may only ever INCREASE.
-          # Kept at the rollout baseline until spec 011 adds tests for the
-          # security-critical paths, after which it is raised to the measured floor.
-          MIN_COVERAGE: "3"
+          # Raised from the "3" rollout baseline now that spec 011 has added
+          # EncryptionService/SecurityService/AuthViewModel/JournalService
+          # tests for the previously-untested security-critical paths.
+          # Locally measured line coverage after that work: 5.08% — set a
+          # hair below that so minor coverage fluctuation doesn't flake CI.
+          MIN_COVERAGE: "5"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 
       - name: Install Periphery

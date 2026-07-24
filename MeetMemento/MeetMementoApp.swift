@@ -22,7 +22,7 @@ private struct RootBackground: View {
 
 @main
 struct MeetMementoApp: App {
-    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var appState = AppStateStore()
     @StateObject private var lockScreenViewModel = LockScreenViewModel()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -42,78 +42,62 @@ struct MeetMementoApp: App {
                 RootBackground()
 
                 Group {
-                    if !authViewModel.hasCheckedAuth {
-                        // Do not show Welcome/main until session + onboarding status are known (MEM-18).
+                    if !appState.hasCheckedAuth {
+                        // Do not show Welcome/main until local state is loaded (MEM-18).
+                        // No network involved — this resolves near-instantly.
                         LaunchLoadingView()
                             .useTheme()
                             .useTypography()
-                            .environmentObject(authViewModel)
-                    } else if authViewModel.isAuthenticated && authViewModel.hasCompletedOnboarding {
-                        // LOGGED IN: Show lock screen for verification, then main app
+                            .environmentObject(appState)
+                    } else if appState.hasCompletedOnboarding {
+                        // Onboarded: show lock screen for verification, then main app
                         if lockScreenViewModel.shouldShowLockScreen {
                             LockScreenView(viewModel: lockScreenViewModel)
                                 .useTheme()
                                 .useTypography()
-                                .environmentObject(authViewModel)
+                                .environmentObject(appState)
                                 .transition(.opacity)
                         } else {
                             ContentView()
                                 .useTheme()
                                 .useTypography()
-                                .environmentObject(authViewModel)
+                                .environmentObject(appState)
                                 .transition(.opacity)
                                 .onAppear {
                                                                         AppLogger.log("🔴 ContentView appeared")
                                 }
                         }
-                    } else if authViewModel.isAuthenticated && !authViewModel.hasCompletedOnboarding {
-                        // Authenticated but needs onboarding
+                    } else if appState.hasStartedOnboarding {
+                        // Mid-onboarding
                         OnboardingCoordinatorView(lockScreenViewModel: lockScreenViewModel)
                             .useTheme()
                             .useTypography()
-                            .environmentObject(authViewModel)
+                            .environmentObject(appState)
                             .transition(.opacity.animation(.easeInOut(duration: 0.4)))
                     } else {
-                        // LOGGED OUT: Show welcome/sign-in
+                        // First run (or killed mid-onboarding): show Welcome
                         WelcomeView()
                             .useTheme()
                             .useTypography()
-                            .environmentObject(authViewModel)
+                            .environmentObject(appState)
                             .transition(.opacity.animation(.easeInOut(duration: 0.4)))
                             .onAppear {
                                                                 AppLogger.log("🔴 WelcomeView appeared")
-                                AppLogger.log("🔴 Auth state: isAuthenticated=\(authViewModel.isAuthenticated), hasCompletedOnboarding=\(authViewModel.hasCompletedOnboarding)")
+                                AppLogger.log("🔴 App state: hasCompletedOnboarding=\(appState.hasCompletedOnboarding)")
                             }
                     }
                 }
-                .animation(.easeInOut(duration: 0.4), value: authViewModel.isAuthenticated)
+                .animation(.easeInOut(duration: 0.4), value: appState.hasCompletedOnboarding)
                 .ignoresSafeArea()
             }
             .ignoresSafeArea()
             .task {
                                 AppLogger.log("🔴 .task block started")
-
-                // Watchdog: if initializeAuth() hangs for any reason, force the
-                // app past the loading screen after a short timeout.
-                let watchdog = Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
-                    if !authViewModel.hasCheckedAuth {
-                        AppLogger.log("⚠️ [Watchdog] initializeAuth() timed out — forcing unauthenticated state")
-                        authViewModel.isAuthenticated = false
-                        authViewModel.hasCompletedOnboarding = false
-                        authViewModel.authState = .unauthenticated
-                        authViewModel.hasCheckedAuth = true
-                        authViewModel.isInitializing = false
-                    }
-                }
-
-                await authViewModel.initializeAuth()
-                watchdog.cancel()
-
+                appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()
                                 AppLogger.log("🔴 .task block completed")
             }
-            .onChange(of: authViewModel.hasCompletedOnboarding) { _, completed in
+            .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
                 if completed {
                     lockScreenViewModel.consumeSkipNextLockScreen()
@@ -124,14 +108,10 @@ struct MeetMementoApp: App {
                 if newPhase == .background || newPhase == .inactive {
                     lockScreenViewModel.lock()
                 }
-                if newPhase == .active && authViewModel.isAuthenticated {
+                if newPhase == .active && appState.hasCompletedOnboarding {
                     // Update activity timestamp when app becomes active
                     SecurityService.shared.updateActivityTimestamp()
                 }
-            }
-            .onOpenURL { url in
-                                AppLogger.log("🔴 Received deep link URL: \(url)")
-                SupabaseService.shared.client.auth.handle(url)
             }
         }
     }

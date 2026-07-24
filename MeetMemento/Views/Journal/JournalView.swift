@@ -32,7 +32,7 @@ public struct JournalView: View {
     var onPresentEntry: ((EntryRoute) -> Void)? = nil
 
     @EnvironmentObject var entryViewModel: EntryViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
 
     @StateObject private var chatViewModel = ChatViewModel()
     @State private var internalNavigationPath = NavigationPath()
@@ -176,6 +176,7 @@ public struct JournalView: View {
                         switch route {
                         case .main:
                             AIChatView(viewModel: chatViewModel)
+                                .environmentObject(NetworkMonitor.shared)
                                 .toolbar(.hidden, for: .tabBar)
                                 .environment(\.fabVisible, false)
                         }
@@ -185,6 +186,7 @@ public struct JournalView: View {
                         case .detail(let monthLabel, _):
                             InsightsView()
                                 .environmentObject(entryViewModel)
+                                .environmentObject(NetworkMonitor.shared)
                                 .navigationTitle(monthLabel)
                                 .navigationBarTitleDisplayMode(.large)
                                 .toolbar(.hidden, for: .tabBar)
@@ -238,7 +240,7 @@ public struct JournalView: View {
                     // Leading: User avatar (placeholder for future features)
                     ToolbarItem(placement: .navigationBarLeading) {
                         AvatarInitialButton(
-                            initial: authViewModel.firstName?.first.map { String($0) },
+                            initial: appState.firstName?.first.map { String($0) },
                             size: 32,
                             enableHaptic: true,
                             accessibilityLabel: "Menu",
@@ -414,7 +416,7 @@ public struct JournalView: View {
         case .main:
             SettingsView()
                 .environmentObject(entryViewModel)
-                .environmentObject(authViewModel)
+                .environmentObject(appState)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         case .profile:
@@ -443,11 +445,11 @@ public struct JournalView: View {
 
 #Preview("Journal • Empty") {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
-    @Previewable @StateObject var authViewModel = AuthViewModel()
+    @Previewable @StateObject var appState = AppStateStore()
 
     JournalView()
         .environmentObject(entryViewModel)
-        .environmentObject(authViewModel)
+        .environmentObject(appState)
         .onAppear {
             entryViewModel.entries = []
         }
@@ -457,11 +459,11 @@ public struct JournalView: View {
 
 #Preview("Journal • With Entries") {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
-    @Previewable @StateObject var authViewModel = AuthViewModel()
+    @Previewable @StateObject var appState = AppStateStore()
 
     JournalView()
         .environmentObject(entryViewModel)
-        .environmentObject(authViewModel)
+        .environmentObject(appState)
         .onAppear {
             entryViewModel.loadMockEntries()
         }

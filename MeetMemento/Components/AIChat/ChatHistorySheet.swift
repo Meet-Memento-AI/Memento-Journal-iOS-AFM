@@ -56,7 +56,7 @@ public struct ChatHistorySheet: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                         Text("New")
                             .font(type.body2Bold)
                     }
@@ -85,7 +85,7 @@ public struct ChatHistorySheet: View {
                     Spacer()
 
                     Image(systemName: "bubble.left.and.bubble.right")
-                        .font(.system(size: 48))
+                        .font(.system(size: 48)) // icon-size: not user text
                         .foregroundStyle(theme.mutedForeground)
 
                     Text("No conversations yet")
@@ -121,23 +121,8 @@ public struct ChatHistorySheet: View {
 
     @ViewBuilder
     private var newButtonBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Capsule()
-                .fill(theme.primary.opacity(0.1))
-                .glassEffect(.regular, in: Capsule())
-        } else {
-            fallbackNewButtonBackground
-        }
-        #else
-        fallbackNewButtonBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackNewButtonBackground: some View {
         Capsule()
-            .fill(theme.primary.opacity(0.1))
+            .mementoGlassEffect(.regular.tint(theme.primary.opacity(0.1)), in: Capsule())
     }
 }
 

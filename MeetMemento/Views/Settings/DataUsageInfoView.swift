@@ -52,6 +52,7 @@ public struct DataUsageInfoView: View {
                     enableHaptic: true,
                     onTap: { dismiss() }
                 )
+                .accessibilityLabel("Back")
             }
         }
     }
@@ -87,9 +88,9 @@ public struct DataUsageInfoView: View {
                     .padding(.horizontal, Spacing.md)
 
                 DataItem(
-                    icon: "person.circle.fill",
-                    title: "Account Information",
-                    description: "Your email address and authentication tokens to secure your account and data."
+                    icon: "person.text.rectangle.fill",
+                    title: "Personalization",
+                    description: "What you tell us about yourself and your goals during setup, used only to tailor reflections to you."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -107,9 +108,9 @@ public struct DataUsageInfoView: View {
 
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DataItem(
-                    icon: "cloud.fill",
-                    title: "Sync Across Devices",
-                    description: "Your data is stored securely in the cloud so you can access your journal from any device."
+                    icon: "iphone",
+                    title: "Stored On Your Device",
+                    description: "Your journal lives on your iPhone, encrypted with your PIN. There's no account and nothing is uploaded to sync it across devices."
                 )
 
                 Divider()
@@ -127,9 +128,9 @@ public struct DataUsageInfoView: View {
                     .padding(.horizontal, Spacing.md)
 
                 DataItem(
-                    icon: "shield.fill",
-                    title: "Account Security",
-                    description: "Your email and authentication data are used solely to secure your account and prevent unauthorized access."
+                    icon: "lock.shield.fill",
+                    title: "Your PIN Protects Everything",
+                    description: "Your PIN is the only key to your encrypted journal. It's never sent anywhere, and there's no account to reset it through — losing it means losing access unless you use device passcode fallback."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -147,9 +148,9 @@ public struct DataUsageInfoView: View {
 
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DataItem(
-                    icon: "brain",
-                    title: "AI-Powered Features",
-                    description: "Chat and Insights use Google Gemini. Your journal content is sent securely to generate responses. Google doesn't train on your data."
+                    icon: "iphone.gen3",
+                    title: "On-Device First",
+                    description: "Transcription, tagging, mood, search, and single-entry reflections run entirely on your iPhone. These work in airplane mode."
                 )
 
                 Divider()
@@ -157,9 +158,9 @@ public struct DataUsageInfoView: View {
                     .padding(.horizontal, Spacing.md)
 
                 DataItem(
-                    icon: "arrow.up.doc",
-                    title: "What's Processed",
-                    description: "AI Chat: Your message + relevant entries. Insights: Selected entries (up to 500 chars each)."
+                    icon: "apple.logo",
+                    title: "Private Cloud Compute for Deeper Reflections",
+                    description: "Weekly and monthly reflections may use Apple's Private Cloud Compute, which stores nothing and is independently verifiable. No third-party AI is ever used, and nothing you write is used to train any model."
                 )
 
                 Divider()
@@ -169,7 +170,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "gearshape",
                     title: "Your Control",
-                    description: "You can disable AI features anytime in Settings > Data & Privacy. When disabled, no data is sent to AI services."
+                    description: "You can pin everything to on-device processing anytime in Settings > Your Data."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -188,18 +189,8 @@ public struct DataUsageInfoView: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DataItem(
                     icon: "lock.shield.fill",
-                    title: "Encrypted in Transit",
-                    description: "All data is transmitted securely using HTTPS encryption. Your device PIN protects local access."
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                DataItem(
-                    icon: "server.rack",
-                    title: "Secure Cloud Storage",
-                    description: "Your data is stored on secure Supabase servers with robust backup and disaster recovery systems."
+                    title: "Encrypted at Rest",
+                    description: "Your journal is encrypted on your device using a key derived from your PIN. It's unreadable without it, even to us."
                 )
 
                 Divider()
@@ -228,8 +219,8 @@ public struct DataUsageInfoView: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DataItem(
                     icon: "trash.fill",
-                    title: "Delete Your Account",
-                    description: "You can permanently delete your account and all associated data at any time from Settings."
+                    title: "Delete Everything",
+                    description: "You can permanently delete your journal and all associated data at any time from Settings > Your Data."
                 )
 
                 Divider()
@@ -252,23 +243,12 @@ public struct DataUsageInfoView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        } else {
-            fallbackSectionCardBackground
-        }
-        #else
-        fallbackSectionCardBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackSectionCardBackground: some View {
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
             .fill(colorScheme == .dark ? GrayScale.gray800 : Color.white)
+            .mementoGlassEffect(
+                .regular.tint(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7)),
+                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
+            )
             .shadow(color: colorScheme == .dark ? .clear : Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 }
@@ -286,17 +266,17 @@ private struct DataItem: View {
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 20))
+                .font(.system(size: 20)) // icon-size: not user text
                 .foregroundStyle(theme.primary)
                 .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(type.body1Medium)
                     .foregroundStyle(theme.foreground)
 
                 Text(description)
-                    .font(.system(size: 14))
+                    .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }

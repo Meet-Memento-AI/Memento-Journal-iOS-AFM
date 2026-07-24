@@ -24,7 +24,7 @@ struct TipCard: View {
                     .frame(width: 44, height: 44)
 
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 20, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(theme.primary)
             }
 

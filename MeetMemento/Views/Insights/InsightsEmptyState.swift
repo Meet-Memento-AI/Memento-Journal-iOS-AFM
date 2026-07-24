@@ -20,7 +20,7 @@ struct InsightsEmptyState: View {
             Spacer()
 
             Image(systemName: icon)
-                .font(.system(size: 36))
+                .font(.system(size: 36)) // icon-size: not user text
                 .foregroundStyle(theme.overlayText)
 
             Text(title)

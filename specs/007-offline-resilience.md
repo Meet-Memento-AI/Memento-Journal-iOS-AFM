@@ -2,13 +2,21 @@
 id: 007
 title: Offline Resilience
 tier: P2
-status: not-started
+status: obsolete (2026-07-23)
 effort: 2 sessions
 depends_on: []
 findings: [no-network-monitoring, no-offline-ux, no-local-first-writes]
 ---
 
 # 007 — Offline Resilience
+
+**Superseded by the Memento 2.0 rewrite — see spec
+[015](015-data-layer-swiftdata-cloudkit.md). Left otherwise unmodified as
+historical record.** 2.0 makes SwiftData the authoritative, always-local store
+(`REQ-PLAT-003`: full offline operation is a platform requirement; `REQ-DATA-001`:
+CloudKit is replication-only, never the source of truth) — a stronger guarantee
+than this spec's local-first-write-plus-sync-queue design, which was built around
+Supabase being the source of truth.
 
 ## Why
 

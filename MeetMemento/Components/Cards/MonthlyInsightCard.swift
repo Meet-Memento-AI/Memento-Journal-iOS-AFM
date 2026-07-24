@@ -41,7 +41,7 @@ public struct MonthlyInsightCard: View {
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold)) // icon-size: not user text
                         .foregroundStyle(theme.overlayTextSecondary)
                 }
 
@@ -110,11 +110,11 @@ public struct MonthlyInsightCard: View {
     private var entryCountBadge: some View {
         HStack(spacing: 6) {
             Image(systemName: "square.and.pencil")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold)) // icon-size: not user text
                 .foregroundStyle(theme.overlayText)
 
             Text("\(entryCount) \(entryCount == 1 ? "entry" : "entries")")
-                .font(.system(size: 14, weight: .semibold))
+                .font(type.body2Medium)
                 .foregroundStyle(theme.overlayText)
         }
         .hPadding(Spacing.sm)

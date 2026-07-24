@@ -74,7 +74,7 @@ struct JournalSearchView: View {
                 .frame(height: 100)
 
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 48, weight: .light))
+                .font(.system(size: 48, weight: .light)) // icon-size: not user text
                 .foregroundStyle(theme.mutedForeground.opacity(0.5))
 
             Text("Search your journal")
@@ -96,7 +96,7 @@ struct JournalSearchView: View {
                 .frame(height: 100)
 
             Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 48, weight: .light))
+                .font(.system(size: 48, weight: .light)) // icon-size: not user text
                 .foregroundStyle(theme.mutedForeground.opacity(0.5))
 
             Text("No results found")

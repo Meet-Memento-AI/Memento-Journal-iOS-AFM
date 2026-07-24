@@ -19,6 +19,16 @@ private struct RetryConfig {
 class JournalService {
     static let shared = JournalService()
 
+    /// Internal (not private) so tests can decrypt what this instance wrote
+    /// via its own injected `EncryptionService`, without a Keychain-backed
+    /// round trip through `.shared`. Defaults to the shared, real-Keychain
+    /// instance in production.
+    let encryptionService: EncryptionService
+
+    init(encryptionService: EncryptionService = .shared) {
+        self.encryptionService = encryptionService
+    }
+
     private var client: SupabaseClient {
         SupabaseService.shared.client
     }
@@ -68,8 +78,10 @@ class JournalService {
         )
     }
 
-    /// Determines if an error is transient and should be retried
-    private func isTransientError(_ error: Error) -> Bool {
+    /// Determines if an error is transient and should be retried.
+    /// Internal (not private) so tests can exercise the classification
+    /// directly without needing a live network call to fail.
+    func isTransientError(_ error: Error) -> Bool {
         let nsError = error as NSError
 
         // URL session errors that are transient
@@ -205,6 +217,38 @@ class JournalService {
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
     }
 
+    // MARK: - Local-First Helpers (spec-007)
+
+    /// Encrypts and saves an entry's content locally. Used both by the
+    /// existing create/update-with-PIN flow below and by
+    /// `EntryViewModel`'s local-first write path, so both go through the
+    /// exact same encryption/storage code.
+    @discardableResult
+    func saveEncryptedLocally(entryId: UUID, content: String, withPIN pin: String) -> Bool {
+        guard let encrypted = encryptionService.encrypt(content, withPIN: pin) else {
+            return false
+        }
+        do {
+            try LocalJournalStorage.shared.saveEncrypted(entryId: entryId, encryptedData: encrypted)
+            return true
+        } catch {
+            AppLogger.log("⚠️ [JournalService] Failed to save encrypted content locally: \(error)")
+            return false
+        }
+    }
+
+    /// Queues an entry for later sync (offline write, or a transient sync
+    /// failure), encrypting the title with the same PIN/path as content.
+    func queuePendingSync(entryId: UUID, opType: PendingSyncOperation.OpType, title: String, withPIN pin: String) {
+        guard let encryptedTitle = encryptionService.encrypt(title, withPIN: pin) else {
+            AppLogger.log("⚠️ [JournalService] Failed to encrypt title for pending sync: \(entryId)")
+            return
+        }
+        LocalJournalStorage.shared.enqueuePendingSync(
+            PendingSyncOperation(entryId: entryId, opType: opType, timestamp: Date(), encryptedTitle: encryptedTitle)
+        )
+    }
+
     // MARK: - Encrypted Operations (PIN-aware)
 
     /// Creates a new journal entry with local encryption.
@@ -219,7 +263,7 @@ class JournalService {
         let created = try await createEntry(entry)
 
         // 2. Encrypt content locally with PIN
-        if let encrypted = EncryptionService.shared.encrypt(entry.content, withPIN: pin) {
+        if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
             do {
                 try LocalJournalStorage.shared.saveEncrypted(entryId: created.id, encryptedData: encrypted)
             } catch {
@@ -240,7 +284,7 @@ class JournalService {
         try await updateEntry(entry)
 
         // 2. Re-encrypt content locally with PIN
-        if let encrypted = EncryptionService.shared.encrypt(entry.content, withPIN: pin) {
+        if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
             do {
                 try LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
             } catch {
@@ -261,7 +305,7 @@ class JournalService {
         return entries.map { entry in
             // Check if we have local encrypted content
             if let encryptedData = LocalJournalStorage.shared.loadEncrypted(entryId: entry.id),
-               let decrypted = EncryptionService.shared.decrypt(encryptedData, withPIN: pin) {
+               let decrypted = encryptionService.decrypt(encryptedData, withPIN: pin) {
                 // Use locally decrypted content
                 return JournalEntry(
                     id: entry.id,
@@ -280,7 +324,7 @@ class JournalService {
 
             // Fall back to Supabase plaintext (recovery mode)
             // Also re-encrypt locally for next time
-            if let encrypted = EncryptionService.shared.encrypt(entry.content, withPIN: pin) {
+            if let encrypted = encryptionService.encrypt(entry.content, withPIN: pin) {
                 try? LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
             }
 
@@ -298,7 +342,7 @@ class JournalService {
         // Fetch entries from Supabase and re-encrypt
         let entries = try await fetchEntries()
         for entry in entries {
-            if let encrypted = EncryptionService.shared.encrypt(entry.content, withPIN: newPIN) {
+            if let encrypted = encryptionService.encrypt(entry.content, withPIN: newPIN) {
                 try? LocalJournalStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
             }
         }

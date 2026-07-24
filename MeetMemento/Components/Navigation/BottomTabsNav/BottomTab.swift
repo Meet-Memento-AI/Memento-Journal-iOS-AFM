@@ -38,7 +38,7 @@ public struct BottomTab: View {
             VStack(spacing: 4) {
                 // SF Symbol icon following native tab bar sizing
                 Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 22, weight: .bold)) // icon-size: not user text
                     .symbolVariant(isSelected ? .fill : .none)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(
@@ -49,7 +49,7 @@ public struct BottomTab: View {
                 
                 // Label text following native tab bar typography
                 Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .font(isSelected ? type.microMedium : type.micro)
                     .foregroundStyle(
                         isSelected
                             ? theme.primary

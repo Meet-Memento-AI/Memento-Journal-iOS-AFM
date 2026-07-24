@@ -2,13 +2,21 @@
 id: 008
 title: Dynamic Type and Accessibility Completion
 tier: P2
-status: not-started
+status: obsolete (2026-07-23)
 effort: 2 sessions
 depends_on: []
 findings: [fixed-system-fonts-bypass-dynamic-type, a11y-label-coverage-gaps]
 ---
 
 # 008 — Dynamic Type and Accessibility Completion
+
+**Superseded by the Memento 2.0 rewrite — merged into spec
+[020](020-system-integration-and-accessibility.md), which already owns
+`REQ-A11Y-001`–`003`. Left otherwise unmodified as historical record.** This
+spec's specific findings (97 `.system(size:)` call sites, file:line references)
+will substantially churn once Views are rebuilt against the new 2.0 surfaces in
+spec 019 — re-running the inventory against pre-2.0 Views would be wasted work;
+spec 020 re-runs it against the post-2.0 codebase instead.
 
 ## Why
 

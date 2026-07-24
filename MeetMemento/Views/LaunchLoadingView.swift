@@ -2,31 +2,25 @@
 //  LaunchLoadingView.swift
 //  MeetMemento
 //
-//  Minimal loading view displayed during auth initialization.
-//  Matches the app's launch screen (white + centered logo) for a seamless transition.
+//  Minimal loading view displayed while local app state loads.
+//  Theme-aware background to avoid a light-to-dark flash after the OS launch screen.
 //
 
 import SwiftUI
 
 struct LaunchLoadingView: View {
     @Environment(\.theme) private var theme
-    @EnvironmentObject private var authViewModel: AuthViewModel
+    @EnvironmentObject private var appState: AppStateStore
     @State private var isAnimating = false
     @State private var secondsVisible = 0
 
-    private var authStateLabel: String {
-        switch authViewModel.authState {
-        case .unauthenticated:
-            return "unauthenticated"
-        case .authenticated(needsOnboarding: let needsOnboarding):
-            return needsOnboarding ? "authenticated(needsOnboarding)" : "authenticated"
-        }
-    }
-
     var body: some View {
         ZStack {
-            // White background matching launch screen
-            Color.white.ignoresSafeArea()
+            // Theme-aware background — the OS launch storyboard is always light
+            // (a static asset that can't read colorScheme), but this first
+            // SwiftUI-rendered frame should match dark mode immediately rather
+            // than staying white until state resolves.
+            theme.background.ignoresSafeArea()
 
             VStack(spacing: 24) {
 
@@ -43,18 +37,15 @@ struct LaunchLoadingView: View {
             isAnimating = true
         }
         .task {
-            while !Task.isCancelled && !authViewModel.hasCheckedAuth {
+            // No network call backs this anymore — state loads from UserDefaults
+            // synchronously in appState.initializeAppState(). This failsafe exists
+            // only in case that call is somehow delayed (e.g. a slow first launch).
+            while !Task.isCancelled && !appState.hasCheckedAuth {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 secondsVisible += 1
 
-                // Secondary failsafe in case root-level startup task gets interrupted.
-                if secondsVisible >= 6 && !authViewModel.hasCheckedAuth {
-                    AppLogger.log("⚠️ [LaunchLoadingView] Failsafe fired after \(secondsVisible)s")
-                    authViewModel.isAuthenticated = false
-                    authViewModel.hasCompletedOnboarding = false
-                    authViewModel.authState = .unauthenticated
-                    authViewModel.hasCheckedAuth = true
-                    authViewModel.isInitializing = false
+                if secondsVisible >= 6 && !appState.hasCheckedAuth {
+                    appState.resetToFreshInstall(reason: "LaunchLoadingView 6s failsafe fired after \(secondsVisible)s")
                     break
                 }
             }
@@ -65,11 +56,9 @@ struct LaunchLoadingView: View {
                 Text("startup diagnostics")
                     .font(.caption2.weight(.semibold))
                 Text(verbatim: "secondsVisible=\(secondsVisible)")
-                Text(verbatim: "hasCheckedAuth=\(authViewModel.hasCheckedAuth)")
-                Text(verbatim: "isInitializing=\(authViewModel.isInitializing)")
-                Text(verbatim: "isAuthenticated=\(authViewModel.isAuthenticated)")
-                Text(verbatim: "hasCompletedOnboarding=\(authViewModel.hasCompletedOnboarding)")
-                Text(verbatim: "authState=\(authStateLabel)")
+                Text(verbatim: "hasCheckedAuth=\(appState.hasCheckedAuth)")
+                Text(verbatim: "isInitializing=\(appState.isInitializing)")
+                Text(verbatim: "hasCompletedOnboarding=\(appState.hasCompletedOnboarding)")
             }
             .font(.caption2.monospaced())
             .foregroundColor(theme.mutedForeground)
@@ -88,7 +77,7 @@ struct LaunchLoadingView: View {
     LaunchLoadingView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel.previewAuthReadyForWelcome())
+        .environmentObject(AppStateStore.previewReadyForWelcome())
         .preferredColorScheme(.light)
 }
 
@@ -96,6 +85,6 @@ struct LaunchLoadingView: View {
     LaunchLoadingView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel.previewAuthReadyForWelcome())
+        .environmentObject(AppStateStore.previewReadyForWelcome())
         .preferredColorScheme(.dark)
 }

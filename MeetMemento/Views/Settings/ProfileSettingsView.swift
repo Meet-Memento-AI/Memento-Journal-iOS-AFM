@@ -12,7 +12,7 @@ public struct ProfileSettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
-    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var appState: AppStateStore
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
@@ -82,7 +82,8 @@ public struct ProfileSettingsView: View {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
-                                .font(.system(size: 14))
+                                .font(.system(size: 14)) // icon-size: not user text
+                                .accessibilityHidden(true)
                             Text("Profile updated successfully")
                                 .font(type.body2)
                                 .foregroundStyle(.green)
@@ -97,7 +98,8 @@ public struct ProfileSettingsView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(theme.destructive)
-                                .font(.system(size: 14))
+                                .font(.system(size: 14)) // icon-size: not user text
+                                .accessibilityHidden(true)
                             Text(errorMessage)
                                 .font(type.body2)
                                 .foregroundStyle(theme.destructive)
@@ -126,6 +128,7 @@ public struct ProfileSettingsView: View {
                     enableHaptic: true,
                     onTap: { dismiss() }
                 )
+                .accessibilityLabel("Back")
             }
         }
         .onAppear {
@@ -168,7 +171,7 @@ public struct ProfileSettingsView: View {
             UserDefaults.standard.set(trimmedLastName, forKey: "memento_last_name")
 
             await MainActor.run {
-                authViewModel.firstName = trimmedFirstName
+                appState.firstName = trimmedFirstName
                 isSaving = false
                 showSuccessMessage = true
 
@@ -190,7 +193,7 @@ public struct ProfileSettingsView: View {
         ProfileSettingsView()
             .useTheme()
             .useTypography()
-            .environmentObject(AuthViewModel())
+            .environmentObject(AppStateStore())
     }
     .preferredColorScheme(.light)
 }
@@ -200,7 +203,7 @@ public struct ProfileSettingsView: View {
         ProfileSettingsView()
             .useTheme()
             .useTypography()
-            .environmentObject(AuthViewModel())
+            .environmentObject(AppStateStore())
     }
     .preferredColorScheme(.dark)
 }

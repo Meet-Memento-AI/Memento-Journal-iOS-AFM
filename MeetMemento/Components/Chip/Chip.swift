@@ -53,6 +53,8 @@ public struct Chip: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityHint(isSelected ? "Double-tap to deselect" : "Double-tap to select")
     }
 }
 

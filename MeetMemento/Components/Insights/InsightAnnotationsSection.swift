@@ -12,6 +12,7 @@ public struct InsightAnnotationsSection: View {
     let annotations: [InsightAnnotation]
     @State private var selectedAnnotation: InsightAnnotation?
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     public init(annotations: [InsightAnnotation]) {
         self.annotations = annotations
@@ -23,11 +24,11 @@ public struct InsightAnnotationsSection: View {
                 // Section header
                 HStack(spacing: 8) {
                     Image(systemName: "calendar")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 16, weight: .medium)) // icon-size: not user text
                         .foregroundColor(theme.overlayTextSecondary)
 
                     Text("Timeline")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(type.body1Medium)
                         .foregroundColor(theme.overlayText)
                 }
 
@@ -57,7 +58,7 @@ private struct AnnotationDetailSheet: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
                 // Date header
                 Text(formattedDate)

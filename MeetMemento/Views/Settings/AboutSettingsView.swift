@@ -66,6 +66,7 @@ public struct AboutSettingsView: View {
                     enableHaptic: true,
                     onTap: { dismiss() }
                 )
+                .accessibilityLabel("Back")
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -94,7 +95,7 @@ public struct AboutSettingsView: View {
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Image(systemName: "info.circle.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: 20)) // icon-size: not user text
                             .foregroundStyle(theme.primary)
                             .frame(width: 28, height: 28)
 
@@ -104,14 +105,14 @@ public struct AboutSettingsView: View {
                                 .foregroundStyle(theme.foreground)
 
                             Text(appVersion)
-                                .font(.system(size: 14))
+                                .font(type.body2)
                                 .foregroundStyle(theme.mutedForeground)
                         }
 
                         Spacer()
 
                         Text("Tap to copy")
-                            .font(.system(size: 12))
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                     }
                     .padding(.horizontal, Spacing.md)
@@ -127,7 +128,7 @@ public struct AboutSettingsView: View {
                 // Device info (read-only)
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "iphone")
-                        .font(.system(size: 20))
+                        .font(.system(size: 20)) // icon-size: not user text
                         .foregroundStyle(theme.primary)
                         .frame(width: 28, height: 28)
 
@@ -137,7 +138,7 @@ public struct AboutSettingsView: View {
                             .foregroundStyle(theme.foreground)
 
                         Text(deviceInfo)
-                            .font(.system(size: 14))
+                            .font(type.body2)
                             .foregroundStyle(theme.mutedForeground)
                     }
 
@@ -242,23 +243,12 @@ public struct AboutSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        } else {
-            fallbackSectionCardBackground
-        }
-        #else
-        fallbackSectionCardBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackSectionCardBackground: some View {
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
             .fill(colorScheme == .dark ? GrayScale.gray800 : Color.white)
+            .mementoGlassEffect(
+                .regular.tint(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7)),
+                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
+            )
             .shadow(color: colorScheme == .dark ? .clear : Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
 

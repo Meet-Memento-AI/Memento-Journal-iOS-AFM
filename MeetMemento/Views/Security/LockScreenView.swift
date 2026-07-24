@@ -7,11 +7,11 @@
 //
 
 import SwiftUI
+import LocalAuthentication
 
 @MainActor
 struct LockScreenView: View {
     @ObservedObject var viewModel: LockScreenViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -144,9 +144,9 @@ struct LockScreenView: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: biometricIconName)
-                        .font(.system(size: 20))
+                        .font(.system(size: 20)) // icon-size: not user text
                     Text("Try Again")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(type.body1)
                 }
                 .foregroundStyle(theme.primary)
                 .padding(.vertical, 14)
@@ -163,7 +163,7 @@ struct LockScreenView: View {
                     viewModel.switchToPINFallback()
                 } label: {
                     Text("Use PIN")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(type.body2)
                         .foregroundStyle(theme.mutedForeground)
                 }
             }
@@ -172,29 +172,58 @@ struct LockScreenView: View {
 
     // MARK: - Emergency Fallback View
 
+    /// No accounts (spec 023 R6) — there is no sign-out escape hatch anymore.
+    /// When biometrics and the app PIN both fail, the device passcode is the
+    /// fallback: `.deviceOwnerAuthentication` (vs.
+    /// `.deviceOwnerAuthenticationWithBiometrics`) falls back to the device's
+    /// own passcode, which is already the root of trust for the
+    /// Keychain-stored encryption salt, so this adds no new trust surface.
     private var emergencyFallbackView: some View {
         VStack(spacing: 16) {
             Text("Unable to authenticate")
                 .font(type.body1)
                 .foregroundStyle(theme.foreground)
-            Text("Please sign out and try again")
+            Text("Use your device passcode to unlock Memento")
                 .font(type.body2)
                 .foregroundStyle(theme.mutedForeground)
             Button {
                 Task {
-                    await authViewModel.signOut()
+                    await authenticateWithDevicePasscode()
                 }
             } label: {
-                Text("Sign Out")
-                    .font(.system(size: 17, weight: .medium))
+                Text("Use Device Passcode")
+                    .font(type.body1)
                     .foregroundStyle(.white)
                     .padding(.vertical, 14)
                     .padding(.horizontal, 28)
                     .background(
                         Capsule()
-                            .fill(theme.destructive)
+                            .fill(theme.primary)
                     )
             }
+        }
+    }
+
+    private func authenticateWithDevicePasscode() async {
+        let context = LAContext()
+        let success = (try? await context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: "Unlock Memento"
+        )) ?? false
+
+        if success {
+            // Same encryption-key handoff as biometric/PIN unlock.
+            if let storedPIN = viewModel.currentPIN {
+                NotificationCenter.default.post(
+                    name: .didUnlockWithPIN,
+                    object: nil,
+                    userInfo: ["pin": storedPIN]
+                )
+            }
+            viewModel.unlock()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
     }
 
@@ -209,7 +238,7 @@ struct LockScreenView: View {
             // Error message
             if showPINError {
                 Text("Incorrect PIN")
-                    .font(.system(size: 14))
+                    .font(type.body2)
                     .foregroundStyle(Color.red)
             }
 
@@ -226,14 +255,29 @@ struct LockScreenView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: biometricIconName)
-                            .font(.system(size: 16))
+                            .font(.system(size: 16)) // icon-size: not user text
                         Text("Use \(viewModel.biometricTypeName)")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(type.body2)
                     }
                     .foregroundStyle(theme.mutedForeground)
                 }
                 .padding(.top, 8)
             }
+
+            // Forgot PIN (spec 023 R6): device passcode is always reachable,
+            // even when a PIN exists but is forgotten — not just when no PIN
+            // was ever set up (that case is emergencyFallbackView).
+            Button {
+                isPinFieldFocused = false
+                Task {
+                    await authenticateWithDevicePasscode()
+                }
+            } label: {
+                Text("Forgot PIN? Use device passcode")
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+            }
+            .padding(.top, 4)
         }
     }
 
@@ -249,7 +293,10 @@ struct LockScreenView: View {
                 } label: {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(GrayScale.gray200)
-                        .frame(width: 60, height: 70)
+                        // AX5: minHeight lets the box grow instead of overlapping
+                        // neighbors when the digit (type.h2) scales up at large
+                        // Dynamic Type sizes.
+                        .frame(minWidth: 60, maxWidth: 60, minHeight: 70)
                         .overlay(
                             Group {
                                 if index < enteredPIN.count {

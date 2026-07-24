@@ -136,7 +136,7 @@ public struct YourGoalsView: View {
                 .foregroundStyle(theme.foreground)
 
             Text("What themes would you like to go deeper on? You can change this anytime.")
-                .font(.system(size: 17))
+                .font(type.body1)
                 .lineSpacing(3.4)
                 .foregroundStyle(theme.mutedForeground)
         }

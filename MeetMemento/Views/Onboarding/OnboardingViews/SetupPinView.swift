@@ -175,6 +175,14 @@ public struct SetupPinView: View {
                 .buttonStyle(.plain)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("PIN entry")
+        .accessibilityValue("\(pin.count) of 4 digits entered")
+        .accessibilityHint("Double-tap to enter your PIN")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            isPinFieldFocused = true
+        }
     }
 
     // MARK: - Actions

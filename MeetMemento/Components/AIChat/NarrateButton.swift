@@ -71,7 +71,7 @@ struct NarrateButton: View {
 
     private var sendContent: some View {
         Image(systemName: "arrow.up")
-            .font(.system(size: 18, weight: .bold))
+            .font(.system(size: 18, weight: .bold)) // icon-size: not user text
             .foregroundColor(.white)
     }
 
@@ -104,29 +104,8 @@ struct NarrateButton: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Circle()
-                .fill(theme.glassFill)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .shadow(
-                    color: GlassShadow.color.opacity(GlassShadow.opacity),
-                    radius: GlassShadow.blur,
-                    x: 0,
-                    y: GlassShadow.offsetY
-                )
-        } else {
-            fallbackGlassBackground
-        }
-        #else
-        fallbackGlassBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackGlassBackground: some View {
         Circle()
-            .fill(.ultraThinMaterial)
+            .mementoGlassEffect(.regular.interactive().tint(theme.glassFill), in: Circle())
             .shadow(
                 color: GlassShadow.color.opacity(GlassShadow.opacity),
                 radius: GlassShadow.blur,

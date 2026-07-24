@@ -57,7 +57,7 @@ public struct ChatHistoryList: View {
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 48, weight: .light))
+                .font(.system(size: 48, weight: .light)) // icon-size: not user text
                 .foregroundStyle(theme.mutedForeground.opacity(0.5))
 
             Text("No chat history yet")

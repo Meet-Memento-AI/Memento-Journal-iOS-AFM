@@ -51,6 +51,13 @@ class LockScreenViewModel: ObservableObject {
         securityService.getPIN() != nil
     }
 
+    /// The stored PIN, if any — used to hand off encryption key material on
+    /// successful unlock via any method (biometric, PIN entry, or device
+    /// passcode fallback). Not displayed to the user.
+    var currentPIN: String? {
+        securityService.getPIN()
+    }
+
     /// The biometric type name for display ("Face ID", "Touch ID", etc.).
     var biometricTypeName: String {
         securityService.biometricType ?? "Face ID"

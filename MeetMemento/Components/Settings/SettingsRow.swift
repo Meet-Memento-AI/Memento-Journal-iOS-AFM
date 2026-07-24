@@ -15,6 +15,7 @@ struct SettingsRow: View {
     let isDestructive: Bool
     let showProgress: Bool
     let action: (() -> Void)?
+    let accessibilityIdentifier: String?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -26,6 +27,7 @@ struct SettingsRow: View {
         showChevron: Bool = false,
         isDestructive: Bool = false,
         showProgress: Bool = false,
+        accessibilityIdentifier: String? = nil,
         action: (() -> Void)? = nil
     ) {
         self.icon = icon
@@ -34,6 +36,7 @@ struct SettingsRow: View {
         self.showChevron = showChevron
         self.isDestructive = isDestructive
         self.showProgress = showProgress
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
     }
 
@@ -48,6 +51,7 @@ struct SettingsRow: View {
             }
             .buttonStyle(.plain)
             .disabled(showProgress)
+            .accessibilityIdentifier(accessibilityIdentifier ?? "")
         } else {
             // No button wrapper - used when wrapped in NavigationLink
             rowContent
@@ -61,6 +65,7 @@ struct SettingsRow: View {
                 .font(type.h4)
                 .foregroundStyle(isDestructive ? theme.destructive : theme.primary)
                 .frame(width: 28, height: 28)
+                .accessibilityHidden(true)
 
             // Title and subtitle
             VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -87,6 +92,7 @@ struct SettingsRow: View {
                     .font(type.body2)
                     .fontWeight(.semibold)
                     .foregroundStyle(theme.foreground.opacity(0.3))
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, Spacing.md)

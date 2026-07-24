@@ -132,7 +132,7 @@ public struct EditJournalGoalsView: View {
                 .foregroundStyle(theme.foreground)
 
             Text("Update the themes you'd like to go deeper on in your journaling.")
-                .font(.system(size: 15))
+                .font(type.body2)
                 .lineSpacing(3)
                 .foregroundStyle(theme.mutedForeground)
         }
@@ -156,49 +156,20 @@ public struct EditJournalGoalsView: View {
         }
     }
 
+    // No accounts (spec 023) — reads/writes the same local store onboarding
+    // uses, not the old backend-service layer.
     private func loadExistingGoals() {
-        Task {
-            do {
-                if let profile = try await UserService.shared.getCurrentProfile() {
-                    await MainActor.run {
-                        // Parse selected_topics from profile if available
-                        if let topics = profile.selectedTopics {
-                            selectedGoals = Set(topics)
-                        }
-                        isLoading = false
-                    }
-                } else {
-                    await MainActor.run {
-                        isLoading = false
-                    }
-                }
-            } catch {
-                AppLogger.log("⚠️ Failed to load user profile: \(error)")
-                await MainActor.run {
-                    isLoading = false
-                }
-            }
-        }
+        selectedGoals = Set(LocalProfileStore.selectedGoals)
+        isLoading = false
     }
 
     private func saveChanges() {
         guard !selectedGoals.isEmpty else { return }
 
         isSaving = true
-        Task {
-            do {
-                try await UserService.shared.updateGoals(Array(selectedGoals))
-                await MainActor.run {
-                    isSaving = false
-                    dismiss()
-                }
-            } catch {
-                AppLogger.log("⚠️ Failed to save goals: \(error)")
-                await MainActor.run {
-                    isSaving = false
-                }
-            }
-        }
+        LocalProfileStore.selectedGoals = Array(selectedGoals)
+        isSaving = false
+        dismiss()
     }
 }
 

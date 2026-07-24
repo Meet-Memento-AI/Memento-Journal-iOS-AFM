@@ -14,12 +14,18 @@ import CommonCrypto
 class EncryptionService {
     static let shared = EncryptionService()
 
+    private let keychain: KeychainStoring
     private let saltKeychainKey = "com.sebastianmendo.MeetMemento.encryptionSalt"
     private let saltLength = 32 // 256 bits
     private let pbkdf2Iterations: UInt32 = 100_000 // OWASP recommended minimum
     private let derivedKeyLength = 32 // 256 bits for AES-256
 
-    private init() {}
+    /// `keychain` defaults to the real Keychain; tests inject a mock so no
+    /// suite run touches the real Keychain (which unit tests lack the
+    /// entitlements for anyway).
+    init(keychain: KeychainStoring = SystemKeychainStore()) {
+        self.keychain = keychain
+    }
 
     // MARK: - Key Derivation
 
@@ -140,52 +146,16 @@ class EncryptionService {
     }
 
     private func getSaltFromKeychain() -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: saltKeychainKey,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess, let data = result as? Data else {
-            return nil
-        }
-        return data
+        keychain.data(forAccount: saltKeychainKey)
     }
 
     private func saveSaltToKeychain(_ salt: Data) -> Bool {
-        // Delete existing if any
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: saltKeychainKey
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: saltKeychainKey,
-            kSecValueData as String: salt,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        if status != errSecSuccess {
-            AppLogger.log("⚠️ [EncryptionService] Failed to save salt: \(status)")
-        }
-        return status == errSecSuccess
+        keychain.save(salt, forAccount: saltKeychainKey)
     }
 
     /// Deletes the encryption salt from Keychain (used on PIN change or account deletion)
     func deleteSalt() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: saltKeychainKey
-        ]
-        SecItemDelete(query as CFDictionary)
+        keychain.delete(forAccount: saltKeychainKey)
     }
 
     /// Clears all encryption data (salt). Call this when PIN is changed.

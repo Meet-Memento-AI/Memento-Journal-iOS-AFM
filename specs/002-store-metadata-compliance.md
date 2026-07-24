@@ -2,13 +2,29 @@
 id: 002
 title: Store Metadata and Binary Compliance
 tier: P0
-status: in-progress
+status: paused (2026-07-23)
 effort: 1-2 sessions
 depends_on: [001]
 findings: [missing-encryption-compliance-key, jpg-app-icons, empty-dark-icon-slot, white-accent-color, sample-targets-in-project, duplicated-usage-strings, asc-support-url-gap]
 ---
 
 # 002 — Store Metadata and Binary Compliance
+
+**Paused (2026-07-23):** the completed hygiene work in this spec (encryption
+compliance key, PNG icons, sample-target removal, deduplicated usage strings,
+bundle cleanup) is generic App Store hygiene, not backend-specific, and remains
+valid — do not redo it. What's paused is the remaining ASC-submission work (Task 8
+archive/validate, the support-email decision, the App Review demo account) since
+there's no build worth submitting to App Store Connect until a Memento 2.0 (or
+interim) build exists to submit. Resume when that build is ready.
+
+**Superseded rows (2026-07-23, spec 023):** Memento 2.0 has **no accounts** — the
+"app requires sign-in" premise behind this spec's demo-account requirement no
+longer holds. On resume: the ASC checklist's "Demo account for App Review" row is
+**moot** (guideline 2.1 only applies to sign-in-gated apps — review notes should
+instead explain the optional app-lock/PIN); the App Review notes row's "AI
+features call Supabase backend" wording is obsolete (on-device + Apple PCC); the
+Sign in with Apple mention is obsolete.
 
 ## Why
 
@@ -78,7 +94,9 @@ bypass note is mandatory** per guideline 2.1).
 
 ## Out of Scope
 
-- Account deletion actually working (guideline 5.1.1(v)) → **spec 003**.
+- Account deletion actually working (guideline 5.1.1(v)) → was **spec 003**;
+  spec 003 is now obsolete (2026-07-23) — see **spec 015** (data layer /
+  export-and-deletion, `REQ-DATA-013`) for the 2.0 equivalent.
 - Privacy of release logs → **spec 005**.
 - Screenshot/marketing asset production — real ASC listing work, not repo work; the
   R6 checklist records it as an external TODO.
@@ -168,7 +186,10 @@ Enter/verify in App Store Connect when creating the TestFlight/App Store record:
 ## Regression Guards
 
 - `PrivacyInfo.xcprivacy` must remain in the app target's resources after target surgery.
-- Sign in with Apple **entitlement** (`MeetMemento/MeetMemento.entitlements`) is unrelated
+- *(2026-07-23: this guard is superseded by spec 023, which removes the SIWA
+  entitlement deliberately — the guard below protected against *accidental*
+  removal during target surgery and is kept for historical accuracy only.)*
+  Sign in with Apple **entitlement** (`MeetMemento/MeetMemento.entitlements`) is unrelated
   to the sample *target* — deleting the target must not touch the entitlement or
   `AppleSignInService.swift`. Re-test Apple sign-in after removal.
 - Custom fonts (12 `UIAppFonts` entries) still load — check a couple of screens.

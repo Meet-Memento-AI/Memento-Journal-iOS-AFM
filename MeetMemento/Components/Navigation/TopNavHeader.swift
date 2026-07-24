@@ -72,30 +72,8 @@ public struct TopNavHeader: View {
     // MARK: - Icon Button Background
     @ViewBuilder
     private var iconButtonBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            // iOS 26: Pure liquid glass with shadow
-            Circle()
-                .fill(.clear)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
-        } else {
-            fallbackIconButtonBackground
-        }
-        #else
-        fallbackIconButtonBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackIconButtonBackground: some View {
-        // iOS 18+: Ultra thin material fallback with shadow
         Circle()
-            .fill(.thinMaterial)
-            .overlay(
-                Circle()
-                    .strokeBorder(theme.glassBorder, lineWidth: 0.5)
-            )
+            .mementoGlassEffect(.regular.interactive(), in: Circle())
             .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 

@@ -132,7 +132,7 @@ public struct DrawerMenuView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "gear")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 18, weight: .medium)) // icon-size: not user text
                     .foregroundStyle(theme.foreground)
 
                 Text("Settings")
@@ -144,6 +144,7 @@ public struct DrawerMenuView: View {
             .background(settingsButtonBackground)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("drawer.settings")
     }
 
     @ViewBuilder

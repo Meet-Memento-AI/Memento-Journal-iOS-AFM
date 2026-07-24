@@ -2,10 +2,10 @@
 id: 012
 title: Post-Launch Backlog (Parking Lot)
 tier: P3
-status: not-started
+status: parked
 effort: n/a — harvest items into new numbered specs when picked up
 depends_on: []
-findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, streaming-responses, structured-logging-platform, deno-handler-test-harness, self-hosted-runner-migration, prompt-injection-hardening-round2]
+findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, structured-logging-platform, self-hosted-runner-migration, multi-device-sync-cloudkit]
 ---
 
 # 012 — Post-Launch Backlog (Parking Lot)
@@ -19,6 +19,13 @@ Keeping them here prevents them from bloating the launch-critical specs — and
 prevents them from being forgotten.
 
 ## Items
+
+**2026-07-23 note:** items below were re-audited against the Memento 2.0 rewrite
+(`specs/reference/memento-2.0-architecture-spec.md`). #5 and #7 are removed
+(absorbed/deleted, see strikethrough entries at the end of this list); #9 is
+promoted out of the parking lot into spec 019; #10 is reworded; #6 and #8 gained
+a 2.0 cross-reference. #1, #2, #4, #11 are unchanged — genuinely orthogonal to
+the backend rewrite.
 
 ### 1. Localization
 The app has **zero** localization infrastructure: no `Localizable.strings`/
@@ -44,38 +51,51 @@ Theme palette (light + dark) has not been audited against WCAG AA. Fix surface i
 token definitions in `MeetMemento/Resources/Theme.swift` (single point of change).
 Flagged during spec 008's design; deferred because it may nudge brand colors.
 
-### 5. Chat response streaming
-Responses currently arrive whole (typewriter effect is client-side animation).
-True streaming (SSE from the edge function) would cut perceived latency
-substantially. Touches `chat/index.ts`, `ChatService`, `ChatViewModel`,
-`AIOutputComponent`. Consider after 010's error contract is stable.
+### 5. ~~Chat response streaming~~ — removed 2026-07-23
+Absorbed into the 2.0 rewrite as a hard requirement, not a backlog nice-to-have:
+`REQ-INT-014` (spec [017](017-intelligence-boundary-and-prompt-architecture.md))
+mandates snapshot streaming for chat/Ask.
 
 ### 6. Structured logging / crash reporting platform
 `AppLogger` (DEBUG-gated) is the 1.0 answer (spec 005). Post-launch, consider
 `os.Logger` categories + a crash reporter (e.g. Sentry) for beta triage — weigh
 against the app's privacy positioning before adding any third-party SDK (would also
-require PrivacyInfo.xcprivacy updates).
+require PrivacyInfo.xcprivacy updates). **2026-07-23:** any such addition now also
+requires going through spec [021](021-monetization-and-store-compliance.md)'s
+`REQ-MON-005` dependency-allowlist governance (the 2.0 allowlist is currently just
+RevenueCat).
 
-### 7. Deno handler-level test harness
-Specs 004/010 add targeted function tests (limiter, auth, error contract). A general
-harness for HTTP-handler testing (mock Supabase client, JWT fixtures) remains unbuilt;
-`chat/lib_test.ts`'s pure-helper pattern is the seed.
+### 7. ~~Deno handler-level test harness~~ — removed 2026-07-23
+The Deno/edge-function runtime this would test is deleted entirely in Phase 1 of
+the 2.0 rewrite (spec [015](015-data-layer-swiftdata-cloudkit.md)).
 
 ### 8. Self-hosted runner strategy
 CI is coupled to personal self-hosted runners (spec 006 documents + de-personalizes
 but doesn't migrate). Decide long-term: GitHub-hosted (cost) vs hardening the
 self-hosted setup (bus factor). Revisit when CI minutes/budget are clearer.
+**2026-07-23:** CI workflow *content* (not the runner strategy) needs updating once
+`supabase/` is deleted in spec 015, since several jobs currently reference it.
 
-### 9. Prompt-injection hardening, round 2
+### 9. Prompt-injection hardening, round 2 — promoted out of the parking lot, 2026-07-23
 Reviewed 2026-07-13 as LOW: journal content is self-authored (self-targeted injection
 only), output is JSON-schema-constrained, and citation ids are filtered to the
-retrieved set. If shared/collaborative content ever ships, re-review immediately —
-that changes the threat model completely.
+retrieved set. **No longer parked for post-launch:** Memento 2.0's Ask surface runs
+a `SpotlightSearchTool` tool-calling loop over the user's own indexed data
+(`REQ-SUR-002`/`REQ-SUR-003`, spec [019](019-surfaces.md)) — a materially different
+and higher-stakes threat model than today's single-shot JSON-schema-constrained
+chat. This item's adversarial-evaluation work moves into spec 019's Requirements
+(and/or spec [022](022-evaluation-and-quality-study.md)'s adversarial persona-
+adherence pass) rather than staying parked here.
 
-### 10. Multi-device sync conflict resolution
-Spec 007 ships last-write-wins. If multi-device usage becomes real, revisit with
-proper conflict handling (updated_at vectors or CRDT-lite). Also consider iCloud
-backup semantics for the local pending-sync queue.
+### 10. Multi-device sync conflict resolution — reworded 2026-07-23
+~~Spec 007 ships last-write-wins.~~ Spec 007 is obsolete (superseded by spec
+[015](015-data-layer-swiftdata-cloudkit.md)); its custom last-write-wins queue
+premise no longer applies. 2.0's CloudKit private-DB mirroring (`REQ-DATA-001`)
+handles multi-device sync via CloudKit's native conflict resolution instead —
+verify during spec 015 that CloudKit's native behavior is acceptable for this
+product's needs; if not, revisit with proper conflict handling then. Lower
+urgency than before (CloudKit's mechanism is a reasonable default, not an
+acknowledged gap).
 
 ### 11. Launch-screen content design
 The 2026-07 merge adopted upstream's spinner + "Starting…" launch loading view over

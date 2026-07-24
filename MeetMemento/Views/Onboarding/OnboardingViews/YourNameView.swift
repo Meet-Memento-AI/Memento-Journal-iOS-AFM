@@ -12,11 +12,9 @@ public struct YourNameView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var didPreFill = false
 
     public var onComplete: (() -> Void)?
     public var isFirstStep: Bool = false
@@ -66,17 +64,6 @@ public struct YourNameView: View {
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear {
-            if !didPreFill {
-                didPreFill = true
-                if let pending = authViewModel.pendingFirstName, !pending.isEmpty, firstName.isEmpty {
-                    firstName = pending
-                }
-                if let pending = authViewModel.pendingLastName, !pending.isEmpty, lastName.isEmpty {
-                    lastName = pending
-                }
-            }
-        }
     }
 
     // MARK: - Subviews
@@ -184,7 +171,6 @@ public struct YourNameView: View {
         .useTheme()
         .useTypography()
         .environmentObject(OnboardingViewModel())
-        .environmentObject(AuthViewModel())
         .preferredColorScheme(.light)
 }
 
@@ -193,6 +179,5 @@ public struct YourNameView: View {
         .useTheme()
         .useTypography()
         .environmentObject(OnboardingViewModel())
-        .environmentObject(AuthViewModel())
         .preferredColorScheme(.dark)
 }

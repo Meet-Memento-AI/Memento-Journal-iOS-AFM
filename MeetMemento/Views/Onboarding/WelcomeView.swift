@@ -2,7 +2,8 @@
 //  WelcomeView.swift
 //  MeetMemento
 //
-//  Welcome screen with video background and unified auth buttons.
+//  Welcome screen with video background. No account, no sign-in — a single
+//  "Get Started" CTA moves straight into onboarding (spec 023 R2).
 //
 
 import SwiftUI
@@ -10,11 +11,7 @@ import SwiftUI
 public struct WelcomeView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @EnvironmentObject var authViewModel: AuthViewModel
-
-    @State private var isAppleLoading = false
-    @State private var isGoogleLoading = false
-    @State private var authError: String = ""
+    @EnvironmentObject var appState: AppStateStore
 
     // Video loading and blur states
     @State private var isVideoReady = false
@@ -34,6 +31,15 @@ public struct WelcomeView: View {
 
     // Track if we should skip intro animations (when returning from onboarding)
     @State private var skipIntroAnimations = false
+
+    /// UI tests must not depend on video-decode timing, which behaves
+    /// differently (and was observed to sometimes never fire `isVideoReady`)
+    /// under XCUITest's launch semantics versus a normal launch. Content
+    /// renders immediately in this mode instead of waiting on the video.
+    private var isUITestLaunch: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UITesting")
+            || ProcessInfo.processInfo.environment["MEETMEMENTO_UI_TEST"] == "1"
+    }
 
     public init() {}
 
@@ -111,9 +117,23 @@ public struct WelcomeView: View {
             .animation(.easeInOut(duration: 1.0), value: isVideoReady)
             .onAppear {
                 // Check if returning from onboarding - skip intro animations
-                if authViewModel.isReturningFromOnboarding {
+                if appState.isReturningFromOnboarding {
                     skipIntroAnimations = true
-                    authViewModel.isReturningFromOnboarding = false
+                    appState.isReturningFromOnboarding = false
+                }
+
+                if isUITestLaunch {
+                    // Also suppresses the launchLoadingView overlay (layer 5,
+                    // gated on `!isVideoReady && !skipIntroAnimations`), which
+                    // would otherwise visually cover the content set below.
+                    skipIntroAnimations = true
+                    videoOpacity = 1.0
+                    contentCanAppear = true
+                    showLogo = true
+                    showHeadline = true
+                    showButtons = true
+                    blurCanStart = true
+                    hasCompletedFirstLoop = true
                 }
             }
             .onChange(of: isVideoReady) { _, ready in
@@ -197,67 +217,52 @@ public struct WelcomeView: View {
                 .accessibilityIdentifier("welcome.headline")
                 .opacity(showHeadline ? 1 : 0)
 
+            // Positioning line (REQ-POS-001) — the first UI expression of the
+            // trust boundary. Must not overstate it: this app also uses Apple's
+            // Private Cloud Compute, so it never claims "nothing leaves your phone."
+            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is independently verifiable. Nothing else.")
+                .font(type.body2)
+                .foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 32)
+                .padding(.top, 12)
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                .accessibilityIdentifier("welcome.positioning")
+                .opacity(showHeadline ? 1 : 0)
+
             Spacer()
 
-            // Auth buttons at bottom
-            authButtonsSection
+            // Get Started — no sign-in step; moves straight into onboarding.
+            getStartedSection
                 .padding(.horizontal, 24)
                 .opacity(showButtons ? 1 : 0)
         }
-        .accessibilityIdentifier("welcome.root")
     }
 
-    // MARK: - Auth Buttons Section
+    // MARK: - Get Started
 
     @ViewBuilder
-    private var authButtonsSection: some View {
-        VStack(spacing: 16) {
-            Button(action: { signInWithApple() }) {
-                HStack(spacing: 8) {
-                    if isAppleLoading {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "apple.logo")
-                            .font(.system(size: 18, weight: .bold))
-                    }
-                    Text("Continue with Apple")
-                        .font(type.body1Bold)
-                }
-                .frame(height: 48)
+    private var getStartedSection: some View {
+        Button(action: { getStarted() }) {
+            Text("Get Started")
+                .font(type.body1Bold)
+                // AX5: minHeight lets the button grow instead of clipping/overlapping
+                // the label text when it scales up at large Dynamic Type sizes.
+                .frame(minHeight: 48)
                 .frame(maxWidth: .infinity)
                 .background(.black)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
-            }
-            .accessibilityIdentifier("welcome.continueApple")
-            .disabled(isAppleLoading || isGoogleLoading)
-            .opacity((isAppleLoading || isGoogleLoading) ? 0.7 : 1.0)
-
-            GoogleSignInButton(
-                title: isGoogleLoading ? "Signing in..." : "Continue with Google",
-                scheme: .light
-            ) {
-                signInWithGoogle()
-            }
-            .disabled(isAppleLoading || isGoogleLoading)
-            .opacity((isAppleLoading || isGoogleLoading) ? 0.7 : 1.0)
-
-            if !authError.isEmpty {
-                Text(authError)
-                    .font(type.body2)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .transition(.opacity)
-            }
         }
+        .accessibilityIdentifier("welcome.getStarted")
     }
 
-    // MARK: - Auth Actions
+    // MARK: - Actions
 
     /// Phase 4: Exit animation - dissolve video and content to white
     /// SwiftUI transition in MeetMementoApp handles the 0.5s fade-out
-    private func handleAuthSuccess() {
+    private func handleExit() {
         isExiting = true
 
         // Quick internal fade (0.5s) synced with SwiftUI transition
@@ -269,55 +274,9 @@ public struct WelcomeView: View {
         }
     }
 
-    private func signInWithApple() {
-        isAppleLoading = true
-        authError = ""
-
-        Task {
-            do {
-                try await authViewModel.signInWithApple()
-                await MainActor.run {
-                    isAppleLoading = false
-                    handleAuthSuccess()
-                }
-            } catch let error as AppleSignInError {
-                await MainActor.run {
-                    isAppleLoading = false
-                    if case .canceled = error {
-                        authError = ""
-                    } else {
-                        authError = error.localizedDescription
-                    }
-                }
-            } catch {
-                                AppLogger.log("🔴 Apple Sign In error: \(error)")
-                await MainActor.run {
-                    isAppleLoading = false
-                    authError = error.localizedDescription
-                }
-            }
-        }
-    }
-
-    private func signInWithGoogle() {
-        isGoogleLoading = true
-        authError = ""
-
-        Task {
-            do {
-                try await authViewModel.signInWithGoogle()
-                await MainActor.run {
-                    isGoogleLoading = false
-                    handleAuthSuccess()
-                }
-            } catch {
-                                AppLogger.log("🔴 Google Sign In error: \(error)")
-                await MainActor.run {
-                    isGoogleLoading = false
-                    authError = error.localizedDescription
-                }
-            }
-        }
+    private func getStarted() {
+        handleExit()
+        appState.hasStartedOnboarding = true
     }
 }
 
@@ -326,7 +285,7 @@ public struct WelcomeView: View {
     WelcomeView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel.previewAuthReadyForWelcome())
+        .environmentObject(AppStateStore.previewReadyForWelcome())
         .preferredColorScheme(.light)
 }
 
@@ -334,6 +293,6 @@ public struct WelcomeView: View {
     WelcomeView()
         .useTheme()
         .useTypography()
-        .environmentObject(AuthViewModel.previewAuthReadyForWelcome())
+        .environmentObject(AppStateStore.previewReadyForWelcome())
         .preferredColorScheme(.dark)
 }

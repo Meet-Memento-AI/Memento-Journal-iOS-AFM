@@ -92,7 +92,7 @@ struct YourEntriesView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 36))
+                .font(.system(size: 36)) // icon-size: not user text
                 .headerGradient()
             Text("Failed to load entries")
                 .font(type.h3)
@@ -118,7 +118,7 @@ struct YourEntriesView: View {
             Spacer()
 
             Image(systemName: "book.closed.fill")
-                .font(.system(size: 36))
+                .font(.system(size: 36)) // icon-size: not user text
                 .foregroundStyle(theme.primary)
 
             Text("No journal entries yet")
@@ -187,6 +187,7 @@ struct YourEntriesView: View {
                                     title: entry.displayTitle,
                                     excerpt: entry.excerpt,
                                     date: entry.createdAt,
+                                    isPendingSync: entry.syncStatus == .pending,
                                     onTap: {
                                         onNavigateToEntry(.edit(entry))
                                     },

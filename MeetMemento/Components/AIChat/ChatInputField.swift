@@ -189,11 +189,13 @@ struct ChatInputField: View {
                     .font(type.h6)
                     .foregroundStyle(theme.mutedForeground)
             }
-            .frame(height: pillHeight)
+            // AX5: minHeight lets the pill grow instead of clipping/overlapping
+            // "Chat with Memento" when it scales up at large Dynamic Type sizes.
+            .frame(minHeight: pillHeight)
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .frame(height: pillHeight)
+        .frame(minHeight: pillHeight)
         .background(
             glassBackground(cornerRadius: cornerRadius)
                 .matchedGeometryEffect(id: "chatBackground", in: animationNamespace)
@@ -227,7 +229,7 @@ struct ChatInputField: View {
 
     private var historyIcon: some View {
         Image(systemName: "text.document")
-            .font(.system(size: 18, weight: .bold))
+            .font(.system(size: 18, weight: .bold)) // icon-size: not user text
             .foregroundStyle(theme.foreground)
     }
 
@@ -273,7 +275,7 @@ struct ChatInputField: View {
             // Send button
             Button(action: sendMessage) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                     .foregroundColor(.white)
                     .frame(width: sendButtonSize, height: sendButtonSize)
                     .background(
@@ -291,7 +293,10 @@ struct ChatInputField: View {
         .padding(.leading, 16)
         .padding(.bottom, 12)
         .padding(.trailing, 12)
-        .frame(height: expandedHeight)
+        // AX5: minHeight lets the panel grow instead of clipping the input, which
+        // allows up to 5 wrapped lines (lineLimit 1...5) that get much taller at
+        // large Dynamic Type sizes.
+        .frame(minHeight: expandedHeight)
         .frame(maxWidth: .infinity)
         .background(
             glassBackground(cornerRadius: cornerRadius)
@@ -313,7 +318,7 @@ struct ChatInputField: View {
                     cancelListening()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                         .foregroundStyle(theme.primary)
                         .frame(width: listeningButtonSize, height: listeningButtonSize)
                         .background(
@@ -334,7 +339,7 @@ struct ChatInputField: View {
                     confirmListening()
                 } label: {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 16, weight: .bold)) // icon-size: not user text
                         .foregroundColor(.white)
                         .frame(width: listeningButtonSize, height: listeningButtonSize)
                         .background(
@@ -414,40 +419,14 @@ struct ChatInputField: View {
 
     @ViewBuilder
     private func glassBackground(cornerRadius: CGFloat) -> some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            ZStack {
-                // Theme-aware frost layer for readability
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(theme.glassFallback.opacity(0.9))
-
-                // Liquid glass effect on top
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.clear)
-                    .glassEffect(
-                        .regular.interactive(),
-                        in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    )
-            }
-            .shadow(
-                color: Color.black.opacity(0.08),
-                radius: 12,
-                x: 0,
-                y: 4
-            )
-        } else {
-            fallbackGlassBackground(cornerRadius: cornerRadius)
-        }
-        #else
-        fallbackGlassBackground(cornerRadius: cornerRadius)
-        #endif
-    }
-
-    @ViewBuilder
-    private func fallbackGlassBackground(cornerRadius: CGFloat) -> some View {
-        // Theme-aware solid background for pre-iOS 26
+        // Theme-aware frost layer underneath for readability, on both the
+        // native glass path and the material fallback.
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(theme.glassFallback)
+            .fill(theme.glassFallback.opacity(0.9))
+            .mementoGlassEffect(
+                .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
             .shadow(
                 color: Color.black.opacity(0.08),
                 radius: 12,

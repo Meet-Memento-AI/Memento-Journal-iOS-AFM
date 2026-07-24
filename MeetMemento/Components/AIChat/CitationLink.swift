@@ -38,6 +38,7 @@ public struct CitationLink: View {
             .foregroundStyle(theme.primary)
         }
         .buttonStyle(.plain)
+        .accessibilityHint("Double-tap to view journal citations")
     }
 }
 
