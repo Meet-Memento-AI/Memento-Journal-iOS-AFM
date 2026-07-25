@@ -14,6 +14,19 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// iOS 27's simulator shows the keyboard's swipe-to-type introduction
+    /// overlay (`UIContinuousPathIntroductionView`) the first time a keyboard
+    /// appears — it carries its own "Continue" button, which is exactly why
+    /// this test queries the app's buttons by accessibility identifier, never
+    /// by the "Continue" label. Dismiss the overlay when present so it can't
+    /// cover other controls either.
+    private func dismissKeyboardIntroIfPresent(_ app: XCUIApplication) {
+        let intro = app.otherElements["UIContinuousPathIntroductionView"]
+        if intro.waitForExistence(timeout: 2) {
+            intro.buttons["Continue"].tap()
+        }
+    }
+
     func test_confirmPin_mismatchThenImmediateCorrectRetry_succeeds() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting"]
@@ -29,16 +42,17 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         let firstNameField = app.textFields["First name"]
         XCTAssertTrue(firstNameField.waitForExistence(timeout: 10))
         firstNameField.tap()
+        dismissKeyboardIntroIfPresent(app)
         firstNameField.typeText("Ada")
 
         let lastNameField = app.textFields["Last name"]
         lastNameField.tap()
         lastNameField.typeText("Lovelace")
 
-        app.buttons["Continue"].tap()
+        app.buttons["onboarding.continueName"].tap()
 
         // LearnAboutYourselfView — Continue (checkmark) works with empty text.
-        let learnContinue = app.buttons["Continue"]
+        let learnContinue = app.buttons["onboarding.continueLearn"]
         XCTAssertTrue(learnContinue.waitForExistence(timeout: 10))
         learnContinue.tap()
 
@@ -46,7 +60,7 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         let goalChip = app.buttons["Self awareness"]
         XCTAssertTrue(goalChip.waitForExistence(timeout: 10))
         goalChip.tap()
-        app.buttons["Continue"].tap()
+        app.buttons["onboarding.continueGoals"].tap()
 
         // FaceIDView — take the PIN path.
         let createPinInstead = app.buttons["Create a PIN instead"]

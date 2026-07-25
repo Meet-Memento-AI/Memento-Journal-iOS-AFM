@@ -147,6 +147,7 @@ public struct LearnAboutYourselfView: View {
             }
             .accessibilityLabel("Continue")
             .accessibilityHint("Double-tap to save and continue")
+            .accessibilityIdentifier("onboarding.continueLearn")
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)

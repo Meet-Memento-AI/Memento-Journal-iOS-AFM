@@ -59,6 +59,10 @@ public struct YourNameView: View {
                 }
                 .opacity(canContinue ? 1.0 : 0.5)
                 .disabled(!canContinue)
+                // Stable UI-test target: label-based queries ("Continue")
+                // collide with iOS 27's keyboard swipe-to-type intro overlay,
+                // which has its own Continue button.
+                .accessibilityIdentifier("onboarding.continueName")
                 .padding(.horizontal, 16)
             }
         }

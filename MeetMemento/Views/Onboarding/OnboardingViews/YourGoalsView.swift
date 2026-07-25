@@ -79,6 +79,7 @@ public struct YourGoalsView: View {
                 }
                 .opacity(canContinue ? 1.0 : 0.5)
                 .disabled(!canContinue)
+                .accessibilityIdentifier("onboarding.continueGoals")
                 .padding(.horizontal, 16)
             }
         }
