@@ -278,6 +278,32 @@ made and already reflected in each spec's front-matter/body:
       2026-07-23** — 262 entries, 45 gold questions, `validate_corpus.py`
       passing.
 - [ ] 3. Run Spike A (Spotlight donation + retrieval) and record recall@5 (R2).
+      **Simulator half done 2026-07-26** — `MeetMementoTests/SpikeA_SpotlightRecallTests.swift`
+      (env-gated: `TEST_RUNNER_SPIKE_A=1` + `TEST_RUNNER_SPIKE_A_FIXTURES=<path>`;
+      never runs in normal suites). Full 262-entry corpus donated to Core
+      Spotlight on the iOS 27.0 simulator; all 45 resolved gold questions run
+      through `CSUserQuery` (ranked). Results:
+      - **Raw NL questions: 0.067** — `CSUserQuery` token-ANDs the full
+        question text, so unreformulated queries retrieve ~nothing. Finding:
+        query reformulation is load-bearing, not an optimization.
+      - **Deterministic term extraction + progressive relaxation: 0.364**
+        (event 0.39, honesty 0.33, pattern 0.50, person 0.57, synthesis
+        0.00, temporal 0.27). Miss analysis: retrieval lands in the right
+        topical neighborhood almost everywhere (pottery→pottery entries,
+        Dario→Dario entries); the expected entry falls outside top-5
+        precisely where the query needs date structuring ("in July"),
+        person/coref handling, or cross-entry synthesis — the layers spec
+        016's real stack supplies (LLM reformulation via
+        `SpotlightSearchTool`, `contentCreationDate` predicates, guidance
+        profiles, custom stages, `ContactResolver`).
+      **Verdict: inconclusive-positive, NOT a Gate α pass.** The index
+      retrieves the corpus topically (no fundamental Spotlight failure —
+      the Plan-B trigger scenario did not materialize), but the ≥ 0.85 bar
+      is defined for the full stack, whose LLM half needs Apple
+      Intelligence on real hardware. Full-stack measurement moves to the
+      device session alongside Spike C (same hardware dependency). The
+      spike file doubles as the harness skeleton for that run and for spec
+      016 R8's standing gate.
 - [ ] 4. Run Spike B (reflection quality comparison) and record the routing
       recommendation (R3).
 - [ ] 5. File Small Business Program / PCC verification and the Journaling
