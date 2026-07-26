@@ -43,21 +43,36 @@ Three lines. That is the whole on-device path.
 
 ## 3. Context size and token counting
 
-✅ **VERIFIED** (sessions 241, 319)
+✅ **VERIFIED** (sessions 241, 319; API shapes verified against iOS 27.0 SDK (27A5228h), 2026-07-25) — **with one DIFFERS**
 
 ```swift
-SystemLanguageModel().contextSize
+SystemLanguageModel().contextSize            // Int, synchronous
 // 4096 on iOS 26.0
 // 8192 on iOS 27.0 (newer devices)
 
-PrivateCloudComputeLanguageModel().contextSize
+try await PrivateCloudComputeLanguageModel().contextSize   // ⚠️ async throws!
 // 32768
 
 let model = SystemLanguageModel()
 let count = try await model.tokenCount(for: "What are the Japanese characters for origami?")
 ```
 
-`tokenCount(for:)` is available **from iOS 26.4**. ✅ VERIFIED.
+Exact SDK declarations:
+
+```swift
+// SystemLanguageModel — synchronous, back-deployed:
+@backDeployed(before: iOS 26.4, ...)
+final public var contextSize: Int { get }    // returns 4096 when running pre-iOS 27
+
+// PrivateCloudComputeLanguageModel — asynchronous and throwing:
+nonisolated(nonsending) final public var contextSize: Int { get async throws }
+```
+
+⚠️ **DIFFERS:** PCC's `contextSize` is `get async throws` — `PrivateCloudComputeLanguageModel().contextSize` as a plain synchronous read (the WWDC-derived form above) does not compile. It can fail (network); any Z1 payload sizing must handle the throw, falling back to a conservative budget.
+
+The numeric values 8192 and 32768 appear **nowhere in the SDK as constants** — they are runtime results. The only literal in the interface is `4096`, as `SystemLanguageModel.contextSize`'s back-deployed fallback for pre-iOS 27 systems. This makes "never hardcode" (below) mandatory, not advisory.
+
+`tokenCount(for:)` is available **from iOS 26.4**. ✅ VERIFIED — five overloads on `SystemLanguageModel`, all `async throws -> Int`: `tokenCount(for: some PromptRepresentable)`, `(for: Instructions)`, `(for: [any Tool])`, `(for: GenerationSchema)`, `(for: some Collection<Transcript.Entry>)`. The tools/schema/transcript overloads mean the whole request can be budgeted piecewise, not just the prompt string.
 
 **Memento implications — read carefully:**
 
@@ -70,7 +85,33 @@ let count = try await model.tokenCount(for: "What are the Japanese characters fo
 
 ## 4. Guided generation — `@Generable`
 
-🟡 **LIKELY** (established iOS 26 API, confirmed present in iOS 27 samples)
+✅ **VERIFIED** — macro declarations, `respond(generating:)`, and streaming all confirmed against iOS 27.0 SDK (27A5228h), 2026-07-25:
+
+```swift
+@attached(extension, conformances: Generable, names: named(init(_:)), named(generatedContent))
+@attached(member, names: arbitrary)
+public macro Generable(description: String? = nil)
+// + overloads: (description:representNilExplicitlyInGeneratedContent:) and (name:description:representNilExplicitlyInGeneratedContent:)
+
+@attached(peer) public macro Guide(description: String)
+@attached(peer) public macro Guide<T: Generable>(description: String? = nil, _ guides: GenerationGuide<T>...)
+@attached(peer) public macro Guide<RegexOutput>(description: String? = nil, _ guides: Regex<RegexOutput>)
+
+// The exact respond shape spec 017 R5 consumes:
+nonisolated(nonsending) final public func respond<Content: Generable>(
+    to prompt: String, generating type: Content.Type = Content.self,
+    options: GenerationOptions = GenerationOptions(),
+    contextOptions: ContextOptions = ContextOptions(includeSchemaInPrompt: true),
+    metadata: [String : any Sendable & Codable & Equatable] = [:]
+) async throws -> LanguageModelSession.Response<Content>
+
+// Streaming (spec 017 R6):
+final public func streamResponse<Content: Generable>(
+    to prompt: String, generating type: Content.Type = Content.self, ...
+) -> sending LanguageModelSession.ResponseStream<Content>
+// ResponseStream: AsyncSequence of Snapshot { content: Content.PartiallyGenerated,
+//   rawContent, transcriptEntries, usage }, plus collect() async throws -> Response<Content>
+```
 
 This is how Memento gets structured output. There is no JSON parsing anywhere in the codebase.
 
@@ -129,7 +170,21 @@ Stamp the vocabulary version on the entry so a future vocabulary migration can r
 
 ## 5. Tools — letting the model call your code
 
-🟡 **LIKELY** for the protocol shape; ✅ VERIFIED for the usage pattern.
+✅ **VERIFIED** — protocol shape confirmed against iOS 27.0 SDK (27A5228h), 2026-07-25:
+
+```swift
+public protocol Tool<Arguments, Output> : Sendable {
+    associatedtype Output : PromptRepresentable
+    associatedtype Arguments : ConvertibleFromGeneratedContent
+    var name: String { get }                              // defaulted
+    var description: String { get }
+    var parameters: GenerationSchema { get }              // defaulted when Arguments: Generable
+    var includesSchemaInInstructions: Bool { get }        // defaulted
+    @concurrent func call(arguments: Arguments) async throws -> Output
+}
+```
+
+There is no standalone `ToolOutput` protocol — a tool's output is its `Output: PromptRepresentable` associated type (`Transcript.ToolOutput` exists separately as a transcript *entry* type). Primitive `Arguments` types (`String`, `Int`, `Double`, `Bool`, `Float`, `Decimal`) are explicitly marked unavailable — "Use '@Generable' struct instead" — so the `@Generable struct Arguments` pattern below is mandatory, not stylistic.
 
 ```swift
 struct SwitchModeTool: Tool {
@@ -150,21 +205,51 @@ struct SwitchModeTool: Tool {
 let session = LanguageModelSession(tools: [SwitchModeTool(states: appStates)])
 ```
 
-Note the two registration forms seen in Apple samples: instances (`tools: [tool]`) and metatypes (`tools: [FindRelatedArticlesTool.self]`). 🔴 UNVERIFIED which is canonical in the final SDK — check.
+✅ **RESOLVED** (iOS 27.0 SDK, 2026-07-25): registration is **instances only**. Every `LanguageModelSession` init takes `tools: [any Tool]` — an existential array of instances. No metatype-accepting init exists in the public interface; Apple samples showing `tools: [FindRelatedArticlesTool.self]` do not match the shipped SDK. Use `tools: [FindRelatedArticlesTool()]`.
 
 ### Built-in system tools
 
-✅ VERIFIED (session 241). You get these without writing them:
+⚠️ **PARTLY DIFFERS** (iOS 27.0 SDK sweep, 2026-07-25). These tools are **not in the FoundationModels module itself**. `SpotlightSearchTool` lives in the **`_CoreSpotlight_FoundationModels` cross-import overlay** — it becomes visible when a file has *both* `import CoreSpotlight` and `import FoundationModels`. Confirmed declaration:
+
+```swift
+// module _CoreSpotlight_FoundationModels (cross-import overlay), iOS 27.0+
+public struct SpotlightSearchTool : FoundationModels.Tool, Sendable {
+    public var name: String                      // stored, so inspectable/overridable
+    public init(configuration: Configuration = Configuration(sources: [.coreSpotlight]))
+    public typealias Arguments = GeneratedContent
+    public func call(arguments: GeneratedContent) async throws -> some PromptRepresentable
+}
+// Configuration: sources: [SearchSource], guide: Guide?, contactResolver:, customStages:, maximumResponseSize: Int?
+// SearchSource: .coreSpotlight / .coreSpotlight(CoreSpotlightSource) / .files / .files(FileSource)
+```
+
+`OCRTool` and `BarcodeReaderTool` were **NOT FOUND in any framework swiftinterface in the entire SDK** (grep across `System/Library/Frameworks/*/Modules/*.swiftmodule`). Treat them as unshipped in beta 4.
 
 | Tool | Backed by | Memento use |
 |---|---|---|
-| `SpotlightSearchTool` | Core Spotlight | **The retrieval layer.** See `03-spotlight-retrieval.md` |
-| `OCRTool` | Vision | Text from photo attachments |
-| `BarcodeReaderTool` | Vision | Not used — no journaling use case |
+| `SpotlightSearchTool` ✅ via `_CoreSpotlight_FoundationModels` overlay | Core Spotlight | **The retrieval layer.** See `03-spotlight-retrieval.md` |
+| `OCRTool` 🔴 NOT FOUND anywhere in iOS 27.0 SDK beta 4 | Vision | Text from photo attachments — needs a hand-rolled Vision `Tool` for now |
+| `BarcodeReaderTool` 🔴 NOT FOUND anywhere in iOS 27.0 SDK beta 4 | Vision | Not used — no journaling use case |
 
 ### Tool calling mode
 
-🔴 **UNVERIFIED** — secondary sources report `GenerationOptions.ToolCallingMode` in iOS 27 for steering how aggressively the model uses tools. Not seen in Apple sample code reviewed. Verify; if it exists it matters for the Ask surface, where you want the model to *always* search rather than answer from world knowledge.
+✅ **VERIFIED** (iOS 27.0 SDK (27A5228h), 2026-07-25) — `GenerationOptions.ToolCallingMode` exists, exactly as secondary sources reported:
+
+```swift
+public struct ToolCallingMode : Sendable, Equatable {     // iOS 27.0+
+    public var kind: ToolCallingMode.Kind
+    public static let allowed: ToolCallingMode
+    public static let required: ToolCallingMode
+    public static let disallowed: ToolCallingMode
+}
+// GenerationOptions:
+public var toolCallingMode: GenerationOptions.ToolCallingMode?    // iOS 27.0+
+public init(samplingMode: ..., temperature: ..., maximumResponseTokens: ..., toolCallingMode: ToolCallingMode?)
+// Also available as a Dynamic Profile modifier:
+public func toolCallingMode(_ toolCallingMode: GenerationOptions.ToolCallingMode?) -> some DynamicProfile
+```
+
+For the Ask surface, `.required` is exactly the "always search, never answer from world knowledge" lever the house rules (§12.6) demand.
 
 ---
 
@@ -219,6 +304,14 @@ let session = LanguageModelSession(profile: MementoProfile(states: appStates))
 
 ✅ VERIFIED: modifiers `.model(...)` and `.reasoningLevel(...)` apply per profile branch. A profile resolves to **one active profile at a time**.
 
+✅ SDK confirmation (iOS 27.0 SDK (27A5228h), 2026-07-25): `LanguageModelSession.DynamicProfile` protocol, `Profile` struct, and `DynamicProfileBuilder` all present. The session init is:
+
+```swift
+convenience public init(profile: sending some DynamicProfile, history: some Collection<Transcript.Entry> = [])
+```
+
+(note the `history:` parameter — `LanguageModelSession(profile:)` from the sample compiles via its default). Modifiers confirmed on `DynamicProfile`: `.model(_:)`, `.temperature(_:)`, `.samplingMode(_:)`, `.maximumResponseTokens(_:)`, `.reasoningLevel(_:)`, `.toolCallingMode(_:)`, `.historyTransform(_:)`, `.transcriptErrorHandlingPolicy(_:)`, plus `.onPrompt`/`.onResponse`/`.onToolOutput` hooks. The builder enforces the one-active-profile rule at compile time ("The body of a 'DynamicProfile' must evaluate to a single active profile").
+
 ### The manual alternative
 
 If Dynamic Profiles prove awkward, the older pattern still works — rebuild the session while preserving history:
@@ -233,7 +326,7 @@ session = LanguageModelSession(
 )
 ```
 
-✅ VERIFIED. `transcript.dropFirstInstructions()` is the key call — it preserves the conversation while discarding the old system prompt.
+⚠️ **DIFFERS** (iOS 27.0 SDK sweep, 2026-07-25): `dropFirstInstructions()` was **NOT FOUND** anywhere in the FoundationModels swiftinterface — no such method exists on `Transcript` in beta 4. The session-rebuild pattern itself is fine (`init(model:tools:transcript:)` exists), but the instructions must be stripped by filtering `Transcript.Entry` values manually, or by using the profile path's `.historyTransform(_:)` modifier. Do not plan code around `dropFirstInstructions()`.
 
 ---
 
@@ -264,6 +357,8 @@ response.usage.input.cachedTokenCount
 response.usage.output.totalTokenCount
 response.usage.output.reasoningTokenCount
 ```
+
+✅ SDK confirmation (iOS 27.0 SDK (27A5228h), 2026-07-25): `Response.usage: LanguageModelSession.Usage` (iOS 27.0+) with `Usage.Input { totalTokenCount, cachedTokenCount }`, `Usage.Output { totalTokenCount, reasoningTokenCount }`, a `metadata: [String: any Sendable]` bag, and an aggregate `usage.totalTokenCount`. The session also exposes cumulative `session.usage` ("total accumulated usage across all responses generated by this session" — per SDK doc comment). Streaming snapshots carry `usage` too. `ContextOptions(reasoningLevel:)` compiles as shown — full init is `ContextOptions(includeSchemaInPrompt: Bool? = nil, reasoningLevel: ReasoningLevel? = nil)`.
 
 Use this for local instrumentation of the context budget — especially to detect when retrieved entries are crowding out the reflection itself.
 

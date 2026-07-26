@@ -26,7 +26,24 @@ The last point is the one that matters for Memento's positioning. PCC is not "a 
 
 ## 2. The one-line switch
 
-✅ **VERIFIED** (session 319)
+✅ **VERIFIED** (session 319; verified against iOS 27.0 SDK (27A5228h), 2026-07-25)
+
+SDK declarations confirmed in the FoundationModels swiftinterface:
+
+```swift
+// iOS 27.0+, watchOS 27.0+, tvOS unavailable
+final public class PrivateCloudComputeLanguageModel : Sendable
+convenience public init()                    // no-argument init, exactly as documented
+extension PrivateCloudComputeLanguageModel : LanguageModel
+
+// iOS 27 adds generic session inits that accept any LanguageModel:
+convenience init(model: some LanguageModel, tools: [any Tool] = [], instructions: Instructions? = nil)
+convenience init(model: some LanguageModel, tools: [any Tool] = [], transcript: Transcript)
+```
+
+⚠️ **DIFFERS:** the code sample below shows `tools: [FindRelatedArticlesTool.self]`
+(metatype). The SDK session inits take `tools: [any Tool]` — **instances only**. No
+metatype-accepting registration exists in the public interface. Use `tools: [FindRelatedArticlesTool()]`.
 
 ```swift
 // On-device
@@ -78,6 +95,8 @@ This is why Memento's routing table is genuinely cheap to implement: the call si
 
 Both offer privacy. The decision is context size, reasoning, and offline capability — not trust.
 
+⚠️ Note (SDK sweep 2026-07-25): the numeric window sizes (8192 / 32768) are **not SDK constants** — they are runtime values. `PrivateCloudComputeLanguageModel.contextSize` is `get async throws` (it may need the network); read it at runtime, never hardcode 32768. See `01-foundation-models.md` §3.
+
 ---
 
 ## 4. Availability checking
@@ -98,7 +117,29 @@ struct ReflectionView: View {
 }
 ```
 
-Note it's used directly in a SwiftUI `body` — the model type is observable. 🟡 LIKELY that it conforms to `Observable`; confirm.
+Note it's used directly in a SwiftUI `body` — the model type is observable. ✅ **VERIFIED** — it conforms to `Observable`; exact declaration from the swiftinterface (verified against iOS 27.0 SDK (27A5228h), 2026-07-25; resolves V19):
+
+```swift
+extension PrivateCloudComputeLanguageModel : nonisolated Observation.Observable {}
+```
+
+Also confirmed on the same type:
+
+```swift
+final public var isAvailable: Bool { get }
+final public var availability: Availability { get }
+
+@frozen public enum Availability : Equatable, Sendable {
+    case available
+    case unavailable(UnavailableReason)
+}
+public enum UnavailableReason : Equatable, Sendable {   // nested in Availability
+    case deviceNotEligible
+    case systemNotReady
+}
+```
+
+The `UnavailableReason` cases give Memento a designed copy opportunity per reason ("this device can't" vs "Apple Intelligence still setting up"), not just a boolean fallback.
 
 **Memento requirement:** availability must be checked before presenting any Z1 affordance. On non-Apple-Intelligence devices this is always false, which is what drives the Reduced capability tier.
 
@@ -115,6 +156,29 @@ let response = try await session.respond(
 )
 // Levels: .light, .moderate, .deep
 ```
+
+✅ Verified against iOS 27.0 SDK (27A5228h), 2026-07-25 — with one **DIFFERS**:
+
+```swift
+public struct ContextOptions : Sendable, Equatable {          // iOS 27.0+
+    public var includeSchemaInPrompt: Bool?
+    public var reasoningLevel: ContextOptions.ReasoningLevel?
+    public init(includeSchemaInPrompt: Bool? = nil, reasoningLevel: ReasoningLevel? = nil)
+}
+extension ContextOptions {
+    public enum ReasoningLevel : Sendable, Equatable {
+        case light
+        case moderate
+        case deep
+        case custom(String)
+    }
+}
+```
+
+⚠️ **DIFFERS:** there is a **fourth case, `.custom(String)`** ("a level that indicates a
+level not supported by the other cases," per the SDK doc comment), beyond the WWDC-derived
+`.light/.moderate/.deep`. Any exhaustive switch over `ReasoningLevel` must handle it; Memento's
+routing table has no use for it — do not expose it in `ModelRouter`'s column type.
 
 Reasoning makes the model **think before responding by generating extra transcript text**. Two consequences:
 
@@ -161,12 +225,37 @@ struct ReflectionView: View {
 }
 ```
 
-Surface area confirmed:
+Surface area — ✅ **fully enumerated against iOS 27.0 SDK (27A5228h), 2026-07-25** (resolves V13):
 
-- `model.quotaUsage.status` → `.belowLimit(info)` and presumably other cases 🔴 (enumerate against SDK)
-- `info.isApproachingLimit` → Bool
-- `model.quotaUsage.isLimitReached` → Bool
-- `model.quotaUsage.limitIncreaseSuggestion` → optional, with `.show()` to present system upgrade options
+```swift
+extension PrivateCloudComputeLanguageModel {
+    public struct QuotaUsage : Sendable {
+        public var status: QuotaUsage.Status
+        public var limitIncreaseSuggestion: QuotaUsage.LimitIncreaseSuggestion?
+        public var resetDate: Date?                      // ← new vs WWDC material
+    }
+}
+extension PrivateCloudComputeLanguageModel.QuotaUsage {
+    public var isLimitReached: Bool { get }              // computed convenience
+    public enum Status : Sendable {                      // NOT @frozen
+        case belowLimit(Status.BelowLimit)
+        case limitReached(Status.LimitReached)
+    }
+    public struct LimitIncreaseSuggestion : Sendable {}  // opaque
+}
+extension ...QuotaUsage.Status {
+    public struct BelowLimit : Sendable { public var isApproachingLimit: Bool }
+    public struct LimitReached : Sendable {}             // no payload fields
+}
+extension ...QuotaUsage.LimitIncreaseSuggestion {
+    public func show()
+}
+```
+
+- **The full `status` case list is exactly two:** `.belowLimit(BelowLimit)` and `.limitReached(LimitReached)`. No third case.
+- `Status` is **not `@frozen`** — spec 017 R3's requirement of a safe `@unknown default` arm in `QuotaGovernor` stands; the compiler will demand it in library-evolution mode.
+- **New vs WWDC expectations:** `quotaUsage.resetDate: Date?` — the date the limit resets. `QuotaGovernor` should use it to schedule retry of a deferred Sunday reflection instead of polling.
+- Errors surface as `PrivateCloudComputeLanguageModel.Error` (`LocalizedError`): `.networkFailure(NetworkFailure)`, `.quotaLimitReached(QuotaLimitReached)`, `.serviceUnavailable(ServiceUnavailable)`. `QuotaLimitReached` carries `limitIncreaseSuggestion: LimitIncreaseSuggestion?` and `resetDate: Date?` — so the reset date is available at the failure site too, not only via polling `quotaUsage`.
 
 ### Apple's explicit guidance
 
@@ -176,12 +265,18 @@ This aligns exactly with Memento's degradation principle (P5: degrade visibly, n
 
 ### Open question
 
-🔴 **UNVERIFIED:** is the daily limit **per-app** or **per-user across all apps**? This materially changes `QuotaGovernor` design:
+🟡 **PARTIALLY RESOLVED** (V4 — SDK evidence gathered 2026-07-25, iOS 27.0 SDK 27A5228h): is the daily limit **per-app** or **per-user across all apps**?
 
-- **Per-app:** Memento can budget precisely — reserve capacity for Sunday's reflection, spend the rest on chat.
-- **Per-user-across-apps:** Memento cannot know true remaining budget (another app may consume it), so the governor must be purely reactive and the reservation strategy becomes advisory rather than reliable.
+The SDK's doc comment for `QuotaUsage` (from the module's `.swiftdoc`; the swiftinterface itself carries no doc comments) reads, verbatim:
 
-The presence of `limitIncreaseSuggestion` pointing at iCloud+ implies **per-user**, since iCloud+ is an account-level subscription. Plan for per-user; verify.
+> "The usage quota state for a Private Cloud Compute language model. A quota describes the model's **per-user request budget** and where the caller currently sits relative to it. Quotas are orthogonal to a model's availability — a model can be available even after its usage limit has been reached."
+
+- **"Per-user request budget"** is Apple's own wording — this confirms the per-user framing. It does **not** explicitly say "shared across all apps"; nothing anywhere in the interface or doc comments mentions per-app scoping, and no app-scoped quota API exists on the surface.
+- The design consequence stands as planned: `QuotaGovernor` is **reactive** — observe `quotaUsage`, treat reservation as advisory (spec 017 R3's posture is unchanged and now SDK-supported).
+- **Per-app:** would have let Memento budget precisely — no supporting evidence found; do not design for it.
+- Also note the orthogonality sentence: `isAvailable == true` does **not** imply budget remains. Check `quotaUsage`, not availability, before a Z1 attempt.
+
+Definitive cross-app confirmation would require empirical testing with two apps on one device/account — out of scope for an SDK-surface sweep.
 
 ---
 

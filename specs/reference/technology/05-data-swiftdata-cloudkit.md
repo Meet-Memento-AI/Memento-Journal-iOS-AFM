@@ -13,7 +13,22 @@
 
 ## 2. Store configuration
 
-🟡 **LIKELY** (stable API since iOS 17)
+✅ **VERIFIED** — API surface confirmed against iOS 27.0 SDK (build 24A5390e, Xcode 27 beta 4), 2026-07-25. From `SwiftData.swiftmodule` interface:
+
+```swift
+// ModelConfiguration (@available macOS 14, iOS 17, …)
+public init(_ name: String? = nil, schema: Schema? = nil,
+    isStoredInMemoryOnly: Bool = false, allowsSave: Bool = true,
+    groupContainer: ModelConfiguration.GroupContainer = .automatic,
+    cloudKitDatabase: ModelConfiguration.CloudKitDatabase = .automatic)
+
+// ModelConfiguration.CloudKitDatabase — exactly three forms:
+public static var automatic: ModelConfiguration.CloudKitDatabase { get }
+public static var none: ModelConfiguration.CloudKitDatabase { get }
+public static func `private`(_ privateDBName: String) -> ModelConfiguration.CloudKitDatabase
+```
+
+So the planned call stands:
 
 ```swift
 let configuration = ModelConfiguration(
@@ -24,16 +39,18 @@ let configuration = ModelConfiguration(
 let container = try ModelContainer(for: schema, configurations: configuration)
 ```
 
-**Private database only.** No public database. No shared database. No custom `CKRecord` schema outside SwiftData's mirroring.
+**Private database only.** No public database. No shared database. No custom `CKRecord` schema outside SwiftData's mirroring. (Confirmed at the API level too: `CloudKitDatabase` exposes only `.automatic` / `.none` / `.private(_:)` — there is no public/shared-database case in SwiftData's mirroring surface.)
 
 ### CloudKit mirroring constraints — these bite
 
 When a SwiftData model mirrors to CloudKit, the schema requirements are stricter than plain SwiftData:
 
-- **All properties must be optional or have a default value.** CloudKit has no concept of a required field on an existing record.
-- **`@Attribute(.unique)` is not supported** on mirrored entities. Enforce uniqueness in application logic instead.
-- **All relationships must have inverses.** A one-directional relationship will fail to mirror.
-- **No `@Attribute(.allowsCloudEncryption)` assumptions** — 🔴 verify current support for field-level encryption attributes and whether they apply to Memento's transcript field.
+- **All properties must be optional or have a default value.** CloudKit has no concept of a required field on an existing record. (Runtime constraint — not expressed in the interface; unchanged.)
+- **`@Attribute(.unique)` is not supported** on mirrored entities. Enforce uniqueness in application logic instead. ✅ API note (iOS 27.0 SDK): `Schema.Attribute.Option.unique` still exists and compiles — the *rejection is at mirroring runtime*, not the type checker, so this failure mode remains silent-at-compile-time.
+- **All relationships must have inverses.** A one-directional relationship will fail to mirror. ✅ API note (iOS 27.0 SDK): the macro is `@attached(peer) public macro Relationship(_ options: Schema.Relationship.Option..., deleteRule: Schema.Relationship.DeleteRule = .nullify, minimumModelCount: Int? = 0, maximumModelCount: Int? = 0, originalName: String? = nil, inverse: AnyKeyPath? = nil, hashModifier: String? = nil)` — `inverse:` is *optional at the API level* (`DeleteRule`: `.noAction`/`.nullify`/`.cascade`/`.deny`), so again the compiler will not save you; the mirror will.
+- **`@Attribute(.allowsCloudEncryption)`** — ✅ the option EXISTS, verified against iOS 27.0 SDK (build 24A5390e), 2026-07-25: `public static var allowsCloudEncryption: Schema.Attribute.Option { get }` (`@available(macOS 14, iOS 17, …)`), and the `@Attribute` macro accepts it: `@attached(peer) public macro Attribute(_ options: Schema.Attribute.Option..., originalName: String? = nil, hashModifier: String? = nil)`. There is **no container- or configuration-level encryption knob** — `ModelConfiguration`/`ModelContainer` expose nothing encryption-related; the attribute option is the entire surface. The CloudKit backing (`CKRecord.encryptedValues`, iOS 15+) documents hard limits that apply to a mirrored transcript field: encryption **cannot be added to a field that already exists in the schema** (new fields only), and **encrypted fields cannot be indexed, queried, or sorted on**. 🔴 Still open (behavioral, V25): confirm on-device that the option actually round-trips through SwiftData's mirror for the transcript field — the interface proves the spelling, not the mirroring behavior.
+
+New in the iOS 27 interface, for awareness when modeling: `Schema.Attribute.Option.codable` (`@available(iOS 27, …)`) and `Schema.Attribute.isCodable`.
 
 An agent adding a new model property must check all four. The failure mode is silent: the container fails to initialize, or mirroring stops, and it is not obvious why.
 
@@ -62,7 +79,15 @@ Full definitions live in the architecture spec §5.2. Summary for orientation:
 
 ## 4. Data protection
 
-🟡 **LIKELY**
+✅ **Constants verified at header level** against iOS 27.0 SDK (build 24A5390e, Xcode 27 beta 4), 2026-07-25 — `Foundation/NSFileManager.h` ships exactly five protection classes, unchanged:
+
+```objc
+NSFileProtectionNone                                    // ios(4.0)
+NSFileProtectionComplete                                // ios(4.0)
+NSFileProtectionCompleteUnlessOpen                      // ios(5.0)
+NSFileProtectionCompleteUntilFirstUserAuthentication    // ios(5.0)
+NSFileProtectionCompleteWhenUserInactive                // ios(17.0), unavailable on macOS
+```
 
 ```swift
 // Minimum
@@ -72,7 +97,9 @@ NSFileProtectionCompleteUntilFirstUserAuthentication
 NSFileProtectionComplete
 ```
 
-🔴 **UNVERIFIED and worth resolving:** `NSFileProtectionComplete` makes the store unreadable while the device is locked. Memento schedules weekly reflection generation via `BGProcessingTask`, which may run while locked. If `.complete` blocks background generation, either:
+The header's own doc comment on `.complete` confirms the risk this section flags: *"The file is stored in an encrypted format on disk and cannot be read from or written to while the device is locked or booting."* Neither the SwiftData nor the CloudKit module interface says anything about protection classes (searched both, zero hits), so there is no framework-level carve-out to rely on.
+
+🔴 **Still open — behavioral, header reading cannot close it (V5):** whether `BGProcessingTask` execution overlaps locked periods in practice, and therefore whether `.complete` starves weekly generation, is an on-device test. If `.complete` blocks background generation, either:
 
 - accept `.completeUntilFirstUserAuthentication`, or
 - schedule generation to require unlock and generate on next foreground launch instead.

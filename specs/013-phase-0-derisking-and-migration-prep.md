@@ -317,12 +317,29 @@ made and already reflected in each spec's front-matter/body:
       build phase, `SUPABASE_*` xcconfig/Info.plist keys, and the
       `supabase-swift` SPM dependency (see the implementation plan and spec
       015 tasks).
-- [ ] 8. Xcode 27 beta API-surface sweep: work the P2 items in
+- [x] 8. Xcode 27 beta API-surface sweep: work the P2 items in
       `technology/11-verification-queue.md` that block Phases 1–2 (V9–V13, V15,
       V16, V19, V25) — per the queue's own guidance, "most of P2 resolves in an
       afternoon of autocomplete and header reading." Update the queue file's
       markers (🔴 → ✅) as items resolve; later-phase items (V17–V18, V20–V24,
       V26–V28) stay owned by the specs whose `tech_refs` cite them.
+      **Done 2026-07-26** against the iOS 27.0 SDK (Xcode 27 beta 4, 27A5228h;
+      SDK build 24A5390e), three parallel sweep agents, exact signatures
+      quoted in `technology/01/02/03/05/06`. All target items resolved —
+      plus V4, V5, V17, V18, V26, V28 partially/fully closed beyond the
+      required set. Highest-impact findings: (a) `CSSearchableIndex(name:protectionClass:)`
+      exists for donation, but `SpotlightSearchTool`'s sources **cannot
+      target a named index** — sharpens Spike C's two-sided question and is
+      exactly the scenario spec 016's dual-branch design anticipated; (b) PCC
+      quota confirmed **per-user** in Apple's own doc comment, plus a new
+      `resetDate` API (spec 017 R3's reactive-first posture now
+      SDK-supported); (c) no new iOS 27 TTS API (spec 018's complete-text
+      constraint stands); (d) `SpeechAnalyzer`/`SpeechTranscriber` confirmed
+      as spec 018 R1 assumed; (e) DIFFERS notes recorded in the technology
+      docs for spec-016/017/018 amendment at implementation time (tool-name
+      pinning, `.custom` reasoning level, AirPods high-quality mode
+      constraint, `.allowBluetoothHFP` rename, missing `OCRTool`/
+      `BarcodeReaderTool`, `contextSize` async on PCC).
 
 ## Verification
 - [ ] `DEC-002` has a written, sourced verdict in this file (not just "TBD").
