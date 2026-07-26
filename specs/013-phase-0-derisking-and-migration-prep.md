@@ -274,6 +274,21 @@ made and already reflected in each spec's front-matter/body:
 
 ## Tasks
 - [ ] 1. Investigate and resolve `DEC-002` (R1); record verdict and cite sources.
+      **Spike C harness built + automatable half run 2026-07-26**
+      (`MeetMementoTests/SpikeC_NamedIndexVisibilityTests.swift`, env-gated
+      `TEST_RUNNER_SPIKE_C=1`; manual device steps documented in the file
+      header). Simulator result: a sentinel donated to
+      `CSSearchableIndex(name: "memento-spike-c")` **is retrievable by
+      index-blind in-app queries** (`CSUserQuery`, which — like
+      `SpotlightSearchTool`'s sources per the SDK sweep — has no
+      index-selection parameter). In-app retrieval and index choice are
+      therefore decoupled: **if** the on-device check shows named-index
+      items hidden from system Spotlight UI, Branch A is viable as-is.
+      **Still open, device-gated (user action: connect an iOS 27 device):**
+      the system-UI visibility check itself — search "quokka-sentinel"
+      (named-index item; appearing = DEC-002 negative → Branch B) and
+      "wombat-sentinel" (default-index control; must appear for the test to
+      be fair), then record the verdict here.
 - [x] 2. Build the fixture corpus and gold question set (R4). **Done
       2026-07-23** — 262 entries, 45 gold questions, `validate_corpus.py`
       passing.
