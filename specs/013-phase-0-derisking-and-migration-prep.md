@@ -382,16 +382,45 @@ made and already reflected in each spec's front-matter/body:
       constraint, `.allowBluetoothHFP` rename, missing `OCRTool`/
       `BarcodeReaderTool`, `contextSize` async on PCC).
 
+## Gate α status — recorded 2026-07-26: PENDING DEVICE EVIDENCE (not passed, not failed)
+
+Gate α = Spike A recall@5 ≥ 0.85 **and** a written `DEC-002` verdict. Neither
+half is closed, but both moved from toolchain-blocked to **device-gated**, and
+every agent-executable precondition is done:
+
+| Gate input | Status | Evidence |
+|---|---|---|
+| Toolchain | ✅ | Xcode 27 beta 4 + iOS 27.0 SDK/simulator verified; app + full suite green on both toolchains |
+| API sweep (task 8) | ✅ | 15 V-queue items resolved against the SDK; DEC-002 question sharpened (no named-index source on the search tool) |
+| Spike A, simulator floor | ✅ recorded | raw NL 0.067 / deterministic terms 0.364; topical retrieval works, misses concentrate in LLM/date/person layers — **no Plan-B trigger** |
+| Spike A, full-stack ≥ 0.85 | ⏳ device | needs `SpotlightSearchTool` + Apple Intelligence on hardware; harness ready (`SpikeA_SpotlightRecallTests`) |
+| Spike C, retrievability half | ✅ | named-index items retrievable by index-blind queries — Branch A stays viable if visibility check passes |
+| Spike C, system-UI visibility | ⏳ device | 2-minute manual check; sentinels + steps in `SpikeC_NamedIndexVisibilityTests` |
+| Spike B | ⏳ device (+PCC entitlement for the Z1 arm) | not started; on-device arm runnable once hardware connected |
+
+**Device-session checklist (everything Gate α still needs, in order):** connect
+an iPhone on the iOS 27 beta with Apple Intelligence → run Spike C's test +
+manual visibility check, write the DEC-002 verdict here → run Spike A
+full-stack, record recall@5 vs 0.85 → attempt Spike B's on-device arm.
+Positive outcomes on the first two close Gate α and open Phase 1b (spec 015).
+A negative DEC-002 verdict or a sub-0.85 full-stack number activates spec
+016's Branch B / `REQ-IDX-007` re-scope instead — both paths are fully
+specified already.
+
 ## Verification
 - [ ] `DEC-002` has a written, sourced verdict in this file (not just "TBD").
+      ⏳ Device-gated; harness + manual steps ready (task 1 note above).
 - [x] Fixture corpus exists, is ≥ 250 entries / ≥ 8 months, and the gold question
       set is ≥ 40 queries with known-correct entries recorded. ✅ 2026-07-23 —
       262 entries / 9 months, 45 gold questions,
       `python3 Fixtures/validate_corpus.py` passes all checks.
 - [ ] Spike A's recall@5 number is recorded and compared explicitly against the
-      0.85 bar from `REQ-IDX-010`.
+      0.85 bar from `REQ-IDX-010`. ⏳ Simulator floor recorded (task 3 note);
+      the gate-relevant full-stack number is device-gated.
 - [ ] Spike B's comparison and routing recommendation are recorded.
+      ⏳ Device-gated (+ PCC entitlement for the Z1 arm — filing still open).
 - [ ] Both entitlement/program filings show a recorded filing date.
+      ⏳ User action; process researched and documented in R5.
 - [x] Every one of specs 002/007/008/009/011/012 has an explicit re-audit decision
       recorded (not silently skipped). ✅ 2026-07-23 — see "Legacy spec disposition"
       below; independently verified against each target spec's actual content.
