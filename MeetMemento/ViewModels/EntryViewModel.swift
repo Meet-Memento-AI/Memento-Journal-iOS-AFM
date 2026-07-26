@@ -299,29 +299,20 @@ class EntryViewModel: ObservableObject {
         }
 
         pendingOperations.insert(id)
+        defer { pendingOperations.remove(id) }
 
         // Local-only (no accounts, spec 023): deleting the on-device encrypted
         // file *is* the entire operation — there's no server copy to also
-        // delete, so this never fails in a way that needs a retry or rollback.
+        // delete, so this is fully synchronous with no retry or rollback path.
         entries.removeAll { $0.id == id }
         updateEntriesByMonth()
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
 
-        Task { [weak self] in
-            guard let self = self else { return }
-
-            defer {
-                Task { @MainActor in
-                    self.pendingOperations.remove(id)
-                }
-            }
-
-            #if DISABLE_SUPABASE
-            // UI Testing Mode - Remove from mock data
-            MockDataProvider.shared.deleteMockEntry(id: id)
-            AppLogger.log("📱 UI Mode: Deleted mock entry")
-            #endif
-        }
+        #if DISABLE_SUPABASE
+        // UI Testing Mode - Remove from mock data
+        MockDataProvider.shared.deleteMockEntry(id: id)
+        AppLogger.log("📱 UI Mode: Deleted mock entry")
+        #endif
     }
 
 }
