@@ -3,52 +3,44 @@
 MeetMemento's GitHub Actions run on **self-hosted runners**. This document records
 what they must provide so a runner can be rebuilt or replaced (spec-006).
 
+The app is **on-device only** — no accounts, no backend, no Supabase. CI therefore
+builds and tests the iOS app and runs security/governance gates; there are no
+deploy jobs and no Deno/edge-function tests.
+
 ## Runner labels
 
 | Label set | Used by | Purpose |
 |-----------|---------|---------|
-| `[self-hosted, macOS, arm64]` (or the default macOS runner) | `ios-tests.yml` (ios-unit-ui) | Xcode build + unit/UI tests, coverage, SwiftLint, Periphery |
-| `[self-hosted, Linux, x64]` | `ios-tests.yml` (deno-functions), `security.yml`, `deploy-dev-staging.yml`, `deploy-prod.yml`, `spec-gates.yml` | Deno tests, Sonar/gitleaks, Supabase deploys, spec gates |
+| `[self-hosted, macOS, ARM64, ios, xcode]` | `ios-tests.yml` (ios-unit-ui) | Xcode build + unit tests, coverage, SwiftLint, Periphery |
+| `[self-hosted, Linux, x64]` | `security.yml`, `spec-gates.yml` | Sonar, gitleaks, dependency review, and the SDK-free spec gates |
 
 ## Required software
 
-**macOS runner:** Xcode (with the **iPhone 17 simulator** installed — workflows target
-it by name), Homebrew, SwiftLint, Periphery, `xcbeautify` if used.
+**macOS runner:** Xcode **26+** (the Foundation Models SDK is required to build the
+on-device intelligence layer) with an iOS simulator runtime installed (workflows
+target `iPhone 17, OS=latest`; override via the `IOS_DEVELOPER_DIR` /
+`IOS_SIM_DESTINATION` repo variables), Homebrew, SwiftLint, Periphery.
 
-**Linux runner:** Docker (dev/staging Supabase stack runs in containers), the Supabase
-CLI (prod deploy installs it per-run from the GitHub release tarball), Deno v2.x,
-`sonar-scanner`, `gitleaks`, `psql`, `rsync`.
+**Linux runner:** `sonar-scanner`, `gitleaks`, Python 3 (spec gates). No Docker, no
+Supabase CLI, no Deno.
 
-## Repository variables (Settings → Secrets and variables → Actions → Variables)
+## Repository variables (optional)
 
 | Variable | Meaning | Default if unset |
 |----------|---------|------------------|
-| `RUNNER_FUNCTIONS_PATH` | Host path to the self-hosted Supabase edge-functions volume | `/home/thomas/supabase/docker/volumes/functions` (legacy personal path — set this var to de-couple from it) |
-| `DEV_SUPABASE_FUNCTIONS_PATH` / `STAGING_SUPABASE_FUNCTIONS_PATH` | Per-env override of the functions path | falls back to `RUNNER_FUNCTIONS_PATH` |
-| `DEV_SUPABASE_DB_CONTAINER` / `STAGING_SUPABASE_DB_CONTAINER` | Docker container name for the DB | `supabase-db` |
-| `DEV_SUPABASE_EDGE_CONTAINER` / `STAGING_SUPABASE_EDGE_CONTAINER` | Docker container name for edge runtime | `supabase-edge-functions` |
+| `IOS_DEVELOPER_DIR` | `DEVELOPER_DIR` path to the Xcode used for the iOS build | `/Applications/Xcode.app/Contents/Developer` |
+| `IOS_SIM_DESTINATION` | `xcodebuild -destination` string | `platform=iOS Simulator,name=iPhone 17,OS=latest` |
 
 ## Required secrets
 
-`PROD_SUPABASE_ACCESS_TOKEN`, `PROD_SUPABASE_PROJECT_REF` (prod deploy); dev/staging use
-the containers directly on the runner.
+`SONAR_TOKEN` (+ the `SONAR_PROJECT_KEY` / `SONAR_HOST_URL` variables) for the Sonar
+scan in `security.yml`. Nothing else — the build needs no API keys.
 
 ## What breaks when a runner is offline
 
-- **macOS runner down** → `ios-tests.yml` can't run → the **prod test gate**
-  (`deploy-prod.yml` → `tests` job) fails its "iOS checks green for this SHA" assertion,
-  so production deploys are blocked. This is intentional (spec-006 R2).
-- **Linux runner down** → no Deno tests, no Sonar/gitleaks, no dev/staging/prod deploys.
+- **macOS runner down** → `ios-tests.yml` can't run (build/test/coverage). No merge
+  gate passes until it's back.
+- **Linux runner down** → no Sonar/gitleaks/dependency-review and no spec gates.
 - There is **no GitHub-hosted fallback** today (tracked in spec 012). If a runner is
   permanently lost, provision a replacement with the software above and re-register it
   with the matching labels.
-
-## Local pre-archive check
-
-Before archiving a Release build, the app target's **"Assert Release endpoint"** build
-phase (spec-006 R3) fails the build if `SUPABASE_URL` is a placeholder or lacks a real
-host. For a manual/CI check outside a build, run:
-
-```
-scripts/ci/assert_release_endpoint.sh Release
-```

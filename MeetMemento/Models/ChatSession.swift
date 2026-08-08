@@ -39,7 +39,7 @@ public struct ChatSession: Identifiable, Hashable, Codable {
         id = try container.decode(UUID.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
 
-        // Parse ISO8601 dates from Supabase
+        // Parse ISO8601 date strings from the local store
         let createdAtString = try container.decode(String.self, forKey: .createdAt)
         let updatedAtString = try container.decode(String.self, forKey: .updatedAt)
 
@@ -63,7 +63,7 @@ public struct ChatSession: Identifiable, Hashable, Codable {
     }
 }
 
-// MARK: - DTO for chat messages from Supabase
+// MARK: - DTO for chat messages from the local store
 
 public struct ChatMessageDTO: Codable {
     public let id: UUID

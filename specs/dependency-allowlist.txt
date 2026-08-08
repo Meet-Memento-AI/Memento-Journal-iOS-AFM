@@ -13,9 +13,8 @@
 revenuecat/purchases-ios
 #
 # --- LEGACY, pending removal (do NOT add more; these fail once enforcement is on) ---
-# The following are linked today but are slated for deletion; the allowlist
-# reflects the TARGET state, so the check runs REPORT-ONLY until spec 015's
-# backend decommission and a design decision on the two UI packages:
-#   supabase/supabase-swift      -> removed by spec 015 (backend decommission)
+# supabase/supabase-swift was REMOVED with the backend decommission (the product
+# is on-device only now). The check stays REPORT-ONLY only until the two UI
+# packages below get a REQ-MON-005 decision record or are removed:
 #   dominikmartn/progressiveblurheader -> needs a REQ-MON-005 decision record or removal
 #   svgkit/svgkit                -> needs a REQ-MON-005 decision record or removal

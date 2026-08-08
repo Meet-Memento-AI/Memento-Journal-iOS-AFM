@@ -48,26 +48,8 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --strict
 
-      - name: Create CI local xcconfig overrides
-        run: |
-          cat > MeetMemento/Config/Debug.local.xcconfig << 'EOF'
-          SUPABASE_URL = https://example.supabase.co
-          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
-          EOF
-
-          cat > MeetMemento/Config/Release.local.xcconfig << 'EOF'
-          SUPABASE_URL = https://example.supabase.co
-          SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.c2lnbmF0dXJl
-          EOF
-
-      - name: Create Secrets.swift stub for CI
-        run: |
-          cat > MeetMemento/Secrets.swift << 'EOF'
-          struct Secrets {
-              static let supabaseUrl = "https://placeholder.supabase.co"
-              static let supabaseAnonKey = "placeholder_key_for_ci_build"
-          }
-          EOF
+      # No secrets/config stubs needed: the app is on-device only (no Supabase,
+      # no backend), so it builds and tests with no API keys or xcconfig setup.
 
       - name: Build and test (simulator)
         run: |
@@ -129,81 +111,3 @@ jobs:
         with:
           name: periphery-report
           path: periphery-report.txt
-
-  deno-functions:
-    name: Deno edge-function tests
-    runs-on: [self-hosted, Linux, x64]
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Ensure unzip is available
-        run: |
-          set -euo pipefail
-          if command -v unzip >/dev/null 2>&1; then
-            exit 0
-          fi
-
-          cat > "$RUNNER_TEMP/unzip" << 'EOF'
-          #!/usr/bin/env python3
-          import os
-          import sys
-          import zipfile
-
-          args = sys.argv[1:]
-          destination = "."
-          archive = None
-
-          i = 0
-          while i < len(args):
-              arg = args[i]
-              if arg == "-d" and i + 1 < len(args):
-                  destination = args[i + 1]
-                  i += 2
-                  continue
-              if arg.startswith("-"):
-                  i += 1
-                  continue
-              archive = arg
-              i += 1
-
-          if archive is None:
-              print("usage: unzip <archive> [-d destination]", file=sys.stderr)
-              sys.exit(2)
-
-          os.makedirs(destination, exist_ok=True)
-          with zipfile.ZipFile(archive, "r") as zf:
-              zf.extractall(destination)
-          EOF
-
-          chmod +x "$RUNNER_TEMP/unzip"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Fix Deno binary permissions
-        run: |
-          set -euo pipefail
-          if [ -n "${RUNNER_TOOL_CACHE:-}" ] && [ -d "${RUNNER_TOOL_CACHE}/deno" ]; then
-            find "${RUNNER_TOOL_CACHE}/deno" -type f -name deno -exec chmod +x {} +
-          fi
-          deno --version
-
-      - name: Deno check (live functions compile)
-        working-directory: supabase/functions
-        # Type-check the only two functions the app still calls. This catches
-        # compile/type regressions that `deno test --no-check` would miss.
-        run: deno check chat-feedback/index.ts generate-insights/index.ts
-
-      - name: Deno test (live function helpers + shared middleware)
-        working-directory: supabase/functions
-        # --no-check: supabase-js's type graph pulls in npm:@types/node in a way
-        # `deno test` can't resolve without a node_modules dir (spec-004 R2/R5).
-        # The `deno check` step above type-checks the entrypoints separately.
-        run: >
-          deno test --no-check --allow-read --allow-net --allow-env
-          chat-feedback/lib_test.ts
-          generate-insights/lib_test.ts
-          _shared/rate_limit_test.ts
-          _shared/auth_test.ts

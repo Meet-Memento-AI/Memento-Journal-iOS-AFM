@@ -69,16 +69,15 @@ class ChatViewModel: ObservableObject {
         self.chatService = chatService
     }
 
-    /// Fetches the user's first name for personalized welcome messages
+    /// Reads the user's first name for personalized welcome messages. No
+    /// accounts / no Supabase (the name is captured during onboarding and
+    /// stored locally); this is a local UserDefaults read, kept `async` to
+    /// preserve the call sites.
     func fetchUserName() async {
-        do {
-            if let profile = try await UserService.shared.getCurrentProfile(),
-               let fullName = profile.fullName {
-                let parts = fullName.split(separator: " ")
-                userName = parts.first.map(String.init)
-            }
-        } catch {
-            AppLogger.log("[ChatViewModel] Failed to fetch user name: \(error)", type: .error)
+        let stored = UserDefaults.standard.string(forKey: "memento_first_name")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let stored, !stored.isEmpty {
+            userName = stored
         }
     }
 

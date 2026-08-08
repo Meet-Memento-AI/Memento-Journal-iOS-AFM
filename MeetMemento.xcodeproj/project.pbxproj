@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A52968F82E8D4769004F65BE /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A52968F72E8D4769004F65BE /* Supabase */; };
 		A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */ = {isa = PBXBuildFile; productRef = A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */; };
 /* End PBXBuildFile section */
 
@@ -84,7 +83,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A52968F82E8D4769004F65BE /* Supabase in Frameworks */,
 				A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -154,7 +152,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMemento" */;
 			buildPhases = (
-				54204DD48CF8F2F920283E07 /* Assert Release endpoint (spec-006) */,
 				A52968602E8CCF12004F65BE /* Sources */,
 				A52968612E8CCF12004F65BE /* Frameworks */,
 				A52968622E8CCF12004F65BE /* Resources */,
@@ -168,7 +165,6 @@
 			);
 			name = MeetMemento;
 			packageProductDependencies = (
-				A52968F72E8D4769004F65BE /* Supabase */,
 				A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */,
 			);
 			productName = MeetMemento;
@@ -250,7 +246,6 @@
 			mainGroup = A529685B2E8CCF12004F65BE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A52968F62E8D4768004F65BE /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */,
 				A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */,
 			);
@@ -289,27 +284,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		54204DD48CF8F2F920283E07 /* Assert Release endpoint (spec-006) */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Assert Release endpoint (spec-006)";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# spec-006 R3: fail a Release build pointed at a placeholder/non-prod Supabase URL.\n# Inlined (not an external script) to stay inside Xcode's user-script sandbox.\nif [ \"$CONFIGURATION\" != \"Release\" ]; then\n  echo \"assert_release_endpoint: skipped ($CONFIGURATION)\"\n  exit 0\nfi\nURL=$(printf '%s' \"${SUPABASE_URL:-}\" | tr -d '[:space:]')\necho \"Release SUPABASE_URL: '$URL'\"\ncase \"$URL\" in\n  \"\"|*YOUR_PROJECT_ID*|*your-project-id*|*YOUR_SUPABASE*|*placeholder*|*xxxxx*|*invalid.supabase*)\n    echo \"error: Release SUPABASE_URL is a placeholder/empty ('$URL'). Set MeetMemento/Config/Release.local.xcconfig to the production project. (spec-006)\"\n    exit 1 ;;\nesac\nif ! printf '%s' \"$URL\" | grep -Eq '^https://[a-z0-9-]+\\.supabase\\.co/?$'; then\n  echo \"error: Release SUPABASE_URL '$URL' is not a valid https://<project>.supabase.co URL. (spec-006)\"\n  exit 1\nfi\necho \"OK: Release endpoint is a real production URL.\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A52968602E8CCF12004F65BE /* Sources */ = {
@@ -650,14 +624,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A52968F62E8D4768004F65BE /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.1;
-			};
-		};
 		A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SVGKit/SVGKit";
@@ -677,11 +643,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		A52968F72E8D4769004F65BE /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A52968F62E8D4768004F65BE /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
 		A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */;

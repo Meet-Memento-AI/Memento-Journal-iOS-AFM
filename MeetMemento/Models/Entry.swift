@@ -2,21 +2,15 @@
 //  Entry.swift
 //  MeetMemento
 //
-//  Lightweight UI-facing journal entry model.
-//  For API/database operations, use JournalEntry (Codable model with full schema).
-//
-//  Entry vs JournalEntry:
-//  - Entry: UI display model with minimal properties (title, text, dates)
-//  - JournalEntry: Full Codable model for Supabase with userId, wordCount, sentiment, etc.
-//
-//  The EntryViewModel handles mapping between these models.
+//  The journal entry model used throughout the app. The app is on-device only
+//  (no accounts, no backend), so this is the single entry model — persisted as
+//  an encrypted local envelope by JournalService. (A separate server DTO used
+//  to exist for the Supabase backend; it was removed with the backend.)
 //
 
 import Foundation
 
-/// Lightweight journal entry model for UI rendering.
-/// This model is used throughout the UI layer for displaying entries.
-/// For API operations, convert to/from JournalEntry via EntryViewModel.
+/// Journal entry model for UI rendering and local persistence.
 public struct Entry: Identifiable, Hashable {
     /// Whether this entry has reached the server yet (spec-007: local-first writes).
     public enum SyncStatus: Hashable {

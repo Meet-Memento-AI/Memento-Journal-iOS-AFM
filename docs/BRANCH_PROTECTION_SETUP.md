@@ -8,7 +8,7 @@ Use this checklist to enforce the main + dev model and required CI/CD security g
 - Ensure workflows exist in default branch:
   - .github/workflows/ios-tests.yml
   - .github/workflows/security.yml
-  - .github/workflows/deploy-dev-staging.yml
+  - .github/workflows/spec-gates.yml
 
 ## Required branch rules: dev
 
@@ -27,7 +27,6 @@ Enable these options:
 
 Add required status checks:
 - iOS quality gates
-- Deno edge-function tests
 - CodeQL analysis
 - Dependency review
 - Secret scanning
@@ -50,7 +49,6 @@ Enable these options:
 
 Add required status checks:
 - iOS quality gates
-- Deno edge-function tests
 - CodeQL analysis
 - Dependency review
 - Secret scanning
@@ -83,4 +81,4 @@ Run these checks after configuration:
 1. Open a PR from feature branch to dev and verify merge is blocked until all checks pass.
 2. Open a PR from dev to main and verify required checks and approval gates are enforced.
 3. Attempt direct push to dev and main and confirm it is rejected.
-4. Merge a PR to dev and verify deploy-dev-staging workflow runs.
+4. Merge a PR to dev and verify ios-tests, security, and spec-gates workflows run.

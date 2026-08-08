@@ -3,7 +3,7 @@
 //  MeetMemento
 //
 //  Local-only storage for personalization text and journal goals, replacing
-//  the Supabase-backed UserService calls from onboarding and the drawer
+//  the former account-backed profile calls from onboarding and the drawer
 //  editors (spec 023 — no accounts, nothing to sync to a server).
 //
 

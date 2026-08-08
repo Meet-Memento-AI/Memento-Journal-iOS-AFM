@@ -238,7 +238,7 @@ private struct JournalCardHarness: View {
 #Preview("JournalCard · long text") {
     JournalCard(
         title: "Weekly review and planning checklist for Q4",
-        excerpt: "What went well: shipped UI preview harnesses, stabilized Xcode canvas. What to improve: fewer side effects in initializers, mock services end-to-end. Next: connect Supabase after UI is final.",
+        excerpt: "What went well: shipped UI preview harnesses, stabilized Xcode canvas. What to improve: fewer side effects in initializers, mock services end-to-end. Next: polish the on-device flows before release.",
         date: .now.addingTimeInterval(-36_00)
     )
     //.previewLayout(.sizeThatFits)

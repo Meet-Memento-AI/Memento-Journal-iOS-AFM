@@ -1,6 +1,0 @@
-// Copy to Release.local.xcconfig and fill with your real values.
-// NOTE: `//` starts a comment in xcconfig files — the `$()` below is an
-// empty-substitution escape that keeps the URL intact. Keep it when pasting
-// your project id: https:/$()/<project-id>.supabase.co
-SUPABASE_URL = https:/$()/your-project-id.supabase.co
-SUPABASE_ANON_KEY = your-supabase-anon-key
