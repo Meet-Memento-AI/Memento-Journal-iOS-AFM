@@ -14,7 +14,8 @@ public struct AIChatView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var networkMonitor: NetworkMonitor
+    // NOTE: no NetworkMonitor here — chat is on-device only and must never gate
+    // on connectivity. See the empty-state comment below (PRES-048 / REQ-INT-009).
 
     /// ViewModel passed from parent to persist across tab switches
     @ObservedObject var viewModel: ChatViewModel
@@ -84,9 +85,19 @@ public struct AIChatView: View {
         let prompts: [String]
     }
 
-    init(viewModel: ChatViewModel, isEmbedded: Bool = false) {
+    /// Whether the journal has any entries. Every prompt in `allPrompts` asks
+    /// about "my entries" / "my journals" / "the past week", so against an empty
+    /// journal all of them fail — the model has nothing but
+    /// "[No journal entries matched this topic]" to work from. On a cold install
+    /// that is the first thing a reviewer taps. When false, the empty state
+    /// invites a first entry instead of offering corpus questions.
+    /// Defaults to true so previews and non-embedded call sites are unchanged.
+    private let hasEntries: Bool
+
+    init(viewModel: ChatViewModel, isEmbedded: Bool = false, hasEntries: Bool = true) {
         self.viewModel = viewModel
         self.isEmbedded = isEmbedded
+        self.hasEntries = hasEntries
     }
 
     /// Rotate to show 3 random suggestions from the pool
@@ -257,17 +268,18 @@ public struct AIChatView: View {
                     let visibleHeight = geo.size.height - topContentInset - inputAreaHeight
 
                     VStack {
-                        if networkMonitor.isConnected {
-                            emptyStateContent
-                        } else {
-                            // spec-007 R3: starting a chat needs a connection —
-                            // say so instead of showing "let's dive in" and failing.
-                            InsightsEmptyState(
-                                icon: "wifi.slash",
-                                title: "You're offline",
-                                message: "Chat needs a connection. Reconnect to start a conversation."
-                            )
-                        }
+                        // Chat runs entirely on-device via SystemLanguageModel and makes
+                        // no network request, so connectivity is irrelevant here. The old
+                        // "You're offline — Chat needs a connection" branch (spec-007 R3)
+                        // described the deleted Supabase backend and was actively false:
+                        // an App Review tester in airplane mode would be told the app's
+                        // headline feature was unavailable while it worked perfectly.
+                        //
+                        // PRES-048 already scopes the offline empty state to Z1
+                        // (Private Cloud Compute) with Z0 degradation per REQ-INT-009.
+                        // No Z1 feature has shipped, so it applies to nothing today —
+                        // re-introduce it against Z1 surfaces only, never against Z0.
+                        emptyStateContent
                     }
                     .frame(width: geo.size.width, height: visibleHeight)
                     .padding(.top, topContentInset)
@@ -398,18 +410,29 @@ public struct AIChatView: View {
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 20)
 
-                // Suggestion cards — horizontal scroll
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(currentSuggestions, id: \.self) { suggestion in
-                            AISuggestionCard(suggestion: suggestion) {
-                                viewModel.sendMessage(prompt: suggestion)
+                if hasEntries {
+                    // Suggestion cards — horizontal scroll
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(currentSuggestions, id: \.self) { suggestion in
+                                AISuggestionCard(suggestion: suggestion) {
+                                    viewModel.sendMessage(prompt: suggestion)
+                                }
                             }
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    // No entries yet: every suggestion in the pool asks about a
+                    // corpus that does not exist, so offering them guarantees a
+                    // poor first answer. Point at the actual first step instead.
+                    Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
+                        .font(type.body)
+                        .foregroundStyle(theme.mutedForeground)
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, 20)
                 }
-                .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

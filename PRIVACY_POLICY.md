@@ -1,6 +1,27 @@
 # Privacy Policy for MeetMemento
 
-**Last Updated:** March 19, 2026
+> ## ⛔️ STALE — NOT THE PUBLISHED POLICY (flagged 2026-08-07)
+>
+> **The authoritative privacy policy is [`docs/privacy.html`](docs/privacy.html)**,
+> which is what gets served to users and linked from App Store Connect.
+>
+> This markdown file has diverged from it and is **factually wrong about the
+> current app**: it describes Google Gemini 2.5 Flash, a Supabase backend, and
+> account-based data collection, none of which exist since
+> `509b9f0 refactor: fully decommission Supabase; app is on-device only`.
+> Publishing or citing it would be a Guideline 5.1.1(i) and 5.1.2(i) defect.
+>
+> Do not update this file to fix it — update `docs/privacy.html`, and either
+> regenerate this from that or delete it. Tracked in
+> [`docs/app-store/00-readiness-checklist.md`](docs/app-store/00-readiness-checklist.md) B2.
+>
+> **Separately:** the version currently *live* at
+> `sebmendo1.github.io/MeetMemento/privacy.html` is a third, even older copy
+> that still names OpenAI, Google, and Supabase — because GitHub Pages serves
+> from a different repository. See
+> [`docs/app-store/11-rejection-playbook.md`](docs/app-store/11-rejection-playbook.md) §1.
+
+**Last Updated:** March 19, 2026 — **superseded, see banner above**
 
 ## Overview
 

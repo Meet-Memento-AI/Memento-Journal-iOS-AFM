@@ -19,12 +19,19 @@ struct SettingsView: View {
     @State private var deleteEverythingError = ""
 
     @ObservedObject private var preferences = PreferencesService.shared
+    @ObservedObject private var sampleContent = SampleContentService.shared
+    @State private var isSampleWorking = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 // Appearance Section
                 appearanceSection
+
+                // Security Section — the app lock, changeable after onboarding.
+                // Onboarding's skip dialog promises "you can turn this on later
+                // in Settings"; before this section existed, it could not.
+                securitySection
 
                 // About Section
                 aboutSection
@@ -102,6 +109,42 @@ struct SettingsView: View {
             }
             .background(sectionCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+        }
+    }
+
+    /// The app lock, controllable after onboarding. `SecuritySettingsView`
+    /// explains why this was structurally impossible until the encryption key
+    /// was decoupled from the PIN.
+    private var securitySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Security")
+                .font(type.h5)
+                .foregroundStyle(theme.foreground)
+                .padding(.bottom, Spacing.xxs)
+
+            VStack(spacing: 0) {
+                NavigationLink(value: SettingsRoute.security) {
+                    SettingsRow(
+                        icon: "lock.fill",
+                        title: "App Lock",
+                        subtitle: securitySubtitle,
+                        showChevron: true,
+                        accessibilityIdentifier: "settings.security",
+                        action: nil
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .background(sectionCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+        }
+    }
+
+    private var securitySubtitle: String {
+        switch SecurityService.shared.currentMode {
+        case .faceID: return "\(SecurityService.shared.biometricType ?? "Face ID") and PIN"
+        case .pin: return "PIN required to open"
+        case .none: return "Off — anyone with your phone can read your journal"
         }
     }
 
@@ -197,6 +240,26 @@ struct SettingsView: View {
                     .background(theme.border)
                     .padding(.horizontal, Spacing.md)
 
+                // Sample entries. Memento reflects on what you've written, so a
+                // fresh install has nothing for Weekly, Patterns or Ask to work
+                // with — a weak first impression, and a Guideline 2.1 risk since
+                // a reviewer opens the app cold with an empty journal.
+                SettingsRow(
+                    icon: sampleContent.isLoaded ? "trash" : "text.book.closed",
+                    title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
+                    subtitle: sampleContent.isLoaded
+                        ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
+                        : "Adds a fictional 9-month journal so you can try reflections right away",
+                    showChevron: false,
+                    showProgress: isSampleWorking,
+                    accessibilityIdentifier: "settings.sampleEntries",
+                    action: { toggleSampleEntries() }
+                )
+
+                Divider()
+                    .background(theme.border)
+                    .padding(.horizontal, Spacing.md)
+
                 SettingsRow(
                     icon: "hand.raised",
                     title: "Privacy Policy",
@@ -258,6 +321,24 @@ struct SettingsView: View {
     /// Interim scope (spec 023 R4): local entry storage + security/encryption
     /// Keychain entries + UserDefaults + caches. Spec 015 extends this to the
     /// full five-store deletion per REQ-DATA-013.
+    /// Loads or removes the bundled sample journal. Reversible by design — it
+    /// tracks the ids it created, so removal never touches the user's own
+    /// entries even if a sample was edited afterwards.
+    private func toggleSampleEntries() {
+        guard !isSampleWorking else { return }
+        isSampleWorking = true
+        let wasLoaded = sampleContent.isLoaded
+        Task {
+            if wasLoaded {
+                sampleContent.remove()
+            } else {
+                sampleContent.load()
+            }
+            await entryViewModel.loadEntries()
+            isSampleWorking = false
+        }
+    }
+
     private func deleteEverything() {
         isDeletingEverything = true
         deleteEverythingError = ""

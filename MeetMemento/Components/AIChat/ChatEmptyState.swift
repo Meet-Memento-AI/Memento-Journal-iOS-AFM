@@ -8,13 +8,20 @@
 import SwiftUI
 
 public struct ChatEmptyState: View {
+    /// The user's display name. Nil falls back to "there" — never a literal name.
+    var userName: String?
     var suggestions: [String]?
     var onSuggestionTap: ((String) -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    public init(suggestions: [String]? = nil, onSuggestionTap: ((String) -> Void)? = nil) {
+    public init(
+        userName: String? = nil,
+        suggestions: [String]? = nil,
+        onSuggestionTap: ((String) -> Void)? = nil
+    ) {
+        self.userName = userName
         self.suggestions = suggestions
         self.onSuggestionTap = onSuggestionTap
     }
@@ -27,8 +34,10 @@ public struct ChatEmptyState: View {
                 .scaledToFit()
                 .frame(width: 48, height: 48)
 
-            // Heading
-            Text("Welcome John, let's dive deeper into your journal")
+            // Heading. Until 2026-08-08 this greeted a hardcoded personal name
+            // compiled into the binary — one refactor away from greeting every
+            // user as someone else. Always derive it from the user's own name.
+            Text("Welcome \(userName ?? "there"), let's dive deeper into your journal")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
                 .multilineTextAlignment(.leading)
@@ -70,6 +79,7 @@ public struct ChatEmptyState: View {
 
 #Preview("Empty State • With suggestions") {
     ChatEmptyState(
+        userName: "Sam",
         suggestions: [
             "What patterns do you see in my recent entries?",
             "Summarize my week in one sentence."

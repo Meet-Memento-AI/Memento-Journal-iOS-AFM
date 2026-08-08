@@ -28,7 +28,9 @@
                 <string>CA92.1</string>
             </array>
         </dict>
-        <!-- File Timestamp: For journal entry management -->
+        <!-- File Timestamp: C617.1 — metadata of files inside the app container.
+             Justified by LocalJournalStorage.modificationDate(entryId:), which
+             reads .modificationDate via FileManager.attributesOfItem. -->
         <dict>
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
@@ -37,15 +39,11 @@
                 <string>C617.1</string>
             </array>
         </dict>
-        <!-- System Boot Time: For security features -->
-        <dict>
-            <key>NSPrivacyAccessedAPIType</key>
-            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
-            <key>NSPrivacyAccessedAPITypeReasons</key>
-            <array>
-                <string>35F9.1</string>
-            </array>
-        </dict>
+        <!-- NOTE: NSPrivacyAccessedAPICategorySystemBootTime (35F9.1) was
+             declared here for "security features" but no boot-time API is
+             called anywhere in the app. Removed 2026-08-07 — declare exactly
+             what you call. Enforced by scripts/ci/check_privacy_manifest.sh;
+             rationale in docs/app-store/03-privacy-labels-and-manifest.md. -->
     </array>
 </dict>
 </plist>

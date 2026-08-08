@@ -1,0 +1,50 @@
+Memento is a journal that pays attention.
+
+Speak or type an entry. Memento transcribes it, files it, and reflects it back to you — noticing what you keep returning to, what changed, and what you said six months ago that you have since forgotten.
+
+It is an archivist, not an advisor. It does not tell you what to do. It tells you what you said.
+
+
+WHAT IT DOES
+
+Capture — Speak an entry and watch it become text as you talk, or type it. There is no wrong length. A sentence counts.
+
+Timeline — Every entry, in order, searchable. Your words stay legible and yours.
+
+Weekly reflection — At the end of each week, a short piece of writing about what you actually wrote, with citations back to the entries it came from.
+
+Patterns — Over months, the themes that recur. Not a score. Not a streak. Just what keeps coming up.
+
+Ask — Put a question to your own archive. "When did I start feeling better about the move?" It answers from your entries and shows you which ones.
+
+Read aloud — Any reflection can be spoken back to you, in a natural voice.
+
+Export — Everything you have written, in Markdown and JSON, whenever you want, at no cost. Your words are yours. That is not a feature; it is the point.
+
+
+HOW IT HANDLES YOUR WRITING
+
+No account. No analytics. No third-party AI. Your words are processed on your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is independently verifiable. Nothing else.
+
+Entries are stored on your device and synced only through your own iCloud, which means we cannot read them. There is no server holding your journal, because there is no account to attach one to.
+
+You can lock the app with Face ID or a passcode. You can turn the reflection features off entirely and use Memento as a plain, quiet journal.
+
+
+WHAT IT WILL NOT DO
+
+Memento does not give advice, make recommendations, or comment on how you seem to be doing. It is not a wellness product and it is not a substitute for talking to a person. It observes and it remembers. That is the whole design.
+
+
+SUBSCRIPTION
+
+Capture, transcription, timeline, search, and export are free, permanently.
+
+Memento Plus unlocks weekly reflections, Patterns, Ask, and voice playback. Payment is charged to your Apple Account at confirmation of purchase. Subscriptions renew automatically unless turned off at least 24 hours before the end of the current period; manage or cancel in your Apple Account settings.
+
+Privacy Policy and Terms of Service are linked below and inside the app.
+
+
+REQUIREMENTS
+
+The reflection features use Apple Intelligence and require a compatible iPhone. Capture, transcription, timeline, search, and export work on every supported device.

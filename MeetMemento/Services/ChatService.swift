@@ -99,11 +99,16 @@ class ChatService {
     private static let iso8601 = ISO8601DateFormatter()
 
     /// Loads and decrypts the on-device journal entries the retriever ranks over
-    /// (the sole source of truth — no server). Empty when the store is locked or
-    /// unavailable, in which case chat answers without journal grounding.
+    /// (the sole source of truth — no server).
+    ///
+    /// This used to bail out entirely when `SecurityService.getPIN()` returned
+    /// nil, which meant a Keychain miss silently stripped chat of all journal
+    /// grounding — the model would answer confidently from nothing. Entries are
+    /// now read under the Keychain-resident data key; the PIN is passed only so
+    /// content still encrypted under the legacy PBKDF2(PIN) scheme can be read
+    /// and rewritten.
     private func loadLocalEntries() -> [Entry] {
-        guard let pin = SecurityService.shared.getPIN() else { return [] }
-        return JournalService.shared.loadAllEntriesLocally(withPIN: pin)
+        JournalService.shared.loadAllEntriesLocally(legacyPIN: SecurityService.shared.getPIN())
     }
 
     func sendMessage(_ text: String, sessionId: UUID? = nil) async throws -> ChatResponse {

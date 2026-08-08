@@ -2,7 +2,7 @@
 id: 002
 title: Store Metadata and Binary Compliance
 tier: P0
-status: paused (2026-07-23)
+status: superseded (2026-08-07) — store-facing work moved to docs/app-store/
 effort: 1-2 sessions
 depends_on: [001]
 findings: [missing-encryption-compliance-key, jpg-app-icons, empty-dark-icon-slot, white-accent-color, sample-targets-in-project, duplicated-usage-strings, asc-support-url-gap]
@@ -10,7 +10,42 @@ findings: [missing-encryption-compliance-key, jpg-app-icons, empty-dark-icon-slo
 
 # 002 — Store Metadata and Binary Compliance
 
-**Paused (2026-07-23):** the completed hygiene work in this spec (encryption
+> ## ⛔️ SUPERSEDED (2026-08-07) — see [`docs/app-store/`](../docs/app-store/)
+>
+> The App Store Connect and App Review half of this spec now lives in
+> **`docs/app-store/`**, a standalone submission-readiness library compiled
+> against Apple's current documentation. Start at
+> [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md).
+>
+> **What moved:**
+>
+> | This spec | Now owned by |
+> |---|---|
+> | The "ASC metadata checklist (Task 7)" table below | `docs/app-store/00-readiness-checklist.md` and `02-app-store-connect-record.md` |
+> | Task 8 (archive → validate) | `docs/app-store/07-build-signing-and-upload.md` |
+> | R6's support-URL and support-email decisions | `docs/app-store/00` B1/D3 — **the support email is now decided: `contact@sebastianmendo.design`** |
+> | Prior rejection context (`.archive/APP_STORE_REJECTION_*.md`) | `docs/app-store/11-rejection-playbook.md` |
+>
+> **What stays here and is still valid — do not redo:** the completed binary
+> hygiene in Tasks 1–7, 9, 10 (encryption compliance key, PNG icons, accent
+> color, sample-target removal, deduplicated usage strings, bundle cleanup,
+> xcconfig `//`-comment fix). That work is generic App Store hygiene, it landed,
+> and it is now guarded continuously by three CI gates rather than by this
+> spec's checklist: `scripts/ci/check_store_metadata.sh`,
+> `check_archive_hygiene.sh`, and `check_privacy_manifest.sh`
+> (`.github/workflows/spec-gates.yml`).
+>
+> **Two findings from this spec were still live when the library was compiled
+> on 2026-08-07**, which is why it exists:
+> - R6's Support URL returns **HTTP 404** in production — the page was committed
+>   here but GitHub Pages serves from a *different repository*
+>   (`sebmendo1/MeetMemento` @ `Memento-v1.1`). See `docs/app-store/11` §1.
+> - The Release bundle's `membershipExceptions` set had **lost the two
+>   `Config/*.xcconfig` entries** during the Supabase decommission — the exact
+>   regression class of evidence row 7. Caught and fixed by
+>   `check_archive_hygiene.sh` on 2026-08-07.
+
+**Historical note — paused (2026-07-23):** the completed hygiene work in this spec (encryption
 compliance key, PNG icons, sample-target removal, deduplicated usage strings,
 bundle cleanup) is generic App Store hygiene, not backend-specific, and remains
 valid — do not redo it. What's paused is the remaining ASC-submission work (Task 8

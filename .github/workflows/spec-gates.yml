@@ -60,6 +60,53 @@ jobs:
           ALLOWLIST_ENFORCE: "0"
         run: scripts/ci/check_dependency_allowlist.sh
 
+  privacy-manifest:
+    name: Privacy manifest matches the code (docs/app-store/03)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check PrivacyInfo.xcprivacy in both directions
+        # Under-declared -> ITMS-91053 at upload. Over-declared -> an inaccuracy
+        # in exactly the metadata class Apple rejected this app on in Nov 2025
+        # (Guideline 5.1.2). Also asserts the "Data Not Collected" posture and
+        # that NSUserTrackingUsageDescription stays absent.
+        run: scripts/ci/check_privacy_manifest.sh
+
+  store-metadata:
+    name: Info.plist + build-number hygiene (docs/app-store/02, /07)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check export compliance, purpose strings, build-number floor
+        # 1.0(2) was uploaded and rejected in Nov 2025; build numbers are
+        # consumed permanently per version string. The floor lives in
+        # docs/app-store/last-uploaded-build.txt.
+        run: scripts/ci/check_store_metadata.sh
+
+  archive-hygiene:
+    name: Nothing internal ships in the bundle (docs/app-store/07)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check synchronized-group membership exceptions
+        # The MeetMemento/ group is a synchronized root group: every file is a
+        # target member unless listed INDIVIDUALLY (directory-level exceptions
+        # do not work). Placeholder StoreKit product ids are report-only until
+        # DEC-004 resolves; must be enforcing before Gate S.
+        env:
+          STOREKIT_ENFORCE: "0"
+        run: scripts/ci/check_archive_hygiene.sh
+
+  asc-metadata:
+    name: App Store copy limits + claims (docs/app-store/04, /08)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check field limits, REQ-POS-001, pricing, clinical framing
+        # Holds the App Store Connect copy in docs/app-store/metadata/ to the
+        # same standard as the app's own strings.
+        run: scripts/ci/check_asc_metadata.sh
+
   corpus-validation:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
     runs-on: [self-hosted, Linux, x64]

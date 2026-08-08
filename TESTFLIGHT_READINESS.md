@@ -5,6 +5,14 @@
 > [`specs/`](specs/). This file is kept only as a historical record of the
 > pre-beta work completed in October 2025 (deployment target, hosted legal
 > docs, bundle-id fixes).
+>
+> **Current TestFlight and App Store guidance (2026-08-07):**
+> [`docs/app-store/09-testflight.md`](docs/app-store/09-testflight.md) for
+> Gate T, and [`docs/app-store/00-readiness-checklist.md`](docs/app-store/00-readiness-checklist.md)
+> for everything Apple requires before Submit for Review. Note that this file's
+> "hosted legal docs" item is **not actually true in production** — the support
+> page returns 404 and the published privacy policy is stale; see
+> [`docs/app-store/11-rejection-playbook.md`](docs/app-store/11-rejection-playbook.md) §1.
 
 # 🚀 TestFlight Readiness Report
 

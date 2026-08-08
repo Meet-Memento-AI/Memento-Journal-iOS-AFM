@@ -126,3 +126,11 @@ MeetMemento/Config/Release.local.xcconfig
 /TestResults
 /TestResults.xcresult
 *.xcresult
+
+# App Store Connect / code-signing credentials (docs/app-store/06 s6, /07).
+# The .p8 API key is downloadable exactly once and this repo is public.
+*.p8
+*.p12
+*.mobileprovision
+private_keys/
+ExportOptions.local.plist
