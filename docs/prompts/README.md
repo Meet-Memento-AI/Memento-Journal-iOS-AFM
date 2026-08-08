@@ -1,23 +1,47 @@
 # Memento prompts
 
-## Chat RAG product rules
+Authoritative runtime prompts live in
+[`PromptRegistry.swift`](../../MeetMemento/Services/Intelligence/PromptRegistry.swift).
+They are bundled Swift constants (spec 017 / REQ-PRM-001). There is **no**
+server-side system prompt and **no** Supabase Edge Function prompt to keep in sync.
 
-Retrieval, citation caps, and env tuning are summarized in [Chat RAG product rules](../chat-rag-product-rules.md).
+## Prompt layers (L0 / L1 / L2)
 
-## `MEMENTO_SYSTEM_PROMPT.md`
+| Layer | What it is | Where |
+|---|---|---|
+| **L0 Core** | Shared companion constitution: mirror-not-therapist, stance tags, grounding, crisis → 988 | `PromptRegistry` `ask@3` / `ask-degraded@3` |
+| **L1 Experience lens** | Per-user personalization from onboarding | `PromptPersonalization` / `ExperienceProfile` appended as “About this person”; version suffix `+p2` |
+| **L2 Session** | Per-turn stance, retrieval context, citations | `TurnClassifier`, `RetrievalPolicy`, `EntryRetriever` |
 
-Human-reviewed source for the chat Edge Function’s system instructions.
+Personalization shapes **tone and which questions to ask**. It must never:
 
-## Keeping Supabase / production in sync
+- rewrite L0 safety / stance rules
+- invent journal facts
+- affect citation reconciliation
 
-The **deployed** prompt is read at runtime from `supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` (bundled with the function). After editing this file under `docs/prompts/`, copy the same body into `supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` and redeploy:
+## Experience Profile
 
-```bash
-supabase functions deploy chat
-```
+Built during onboarding from `LearnAboutYourself` + confirmed `ThemeCatalog`
+themes (and rebuildable in Settings):
 
-Alternatively, maintain only the file under `supabase/functions/chat/` and treat `docs/prompts/` as the copy for documentation—pick one workflow and stick to it.
+- `reflection` — free-text seed (capped to 300 chars in ask prompts)
+- `confirmedThemeIds` — 1–6 closed-vocab theme ids
+- `promptLens` — bounded third-person tuning (≤400 chars)
+- stored only in `LocalProfileStore` (on-device)
 
-## Optional: pre-created Gemini cache
+Onboarding estimation intent: `GenerationIntent.profileEstimate`
+(`profile-estimate@1`), implemented by `FoundationModelsIntelligenceService.estimateProfile`
+via `ExperienceProfileBuilder` for Settings rebuilds.
 
-If explicit context caching fails at runtime (e.g. minimum token size), the function falls back to an inline `system_instruction`. You can set `GEMINI_SYSTEM_CACHE_NAME` to a `cachedContents/...` resource name from the Gemini API if you create one manually.
+## Chat empty-state starters
+
+[`ThemeAwareChatStarters`](../../MeetMemento/Services/ThemeAwareChatStarters.swift)
+builds templated suggestions from confirmed theme display names. If the profile
+has no themes, [`AIChatView`](../../MeetMemento/Views/AI-Chat/AIChatView.swift)
+falls back to the generic `AISuggestionPrompts.json` pool.
+
+## Related docs
+
+- Spec: [`specs/024-experience-profile-and-theme-estimation.md`](../../specs/024-experience-profile-and-theme-estimation.md)
+- Stance contract tests: `PromptStanceSyncTests`
+- Personalization tests: `PromptPersonalizationTests`, `ExperienceProfileBuilderTests`

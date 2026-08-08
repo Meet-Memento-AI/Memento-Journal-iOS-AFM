@@ -13,8 +13,11 @@ public struct EditJournalGoalsView: View {
     @Environment(\.typography) private var type
 
     @State private var selectedIds: Set<String> = []
+    @State private var currentLens: String?
     @State private var isLoading = true
     @State private var isSaving = false
+    @State private var isRebuilding = false
+    @State private var rebuildError: String?
 
     public init() {}
 
@@ -35,6 +38,9 @@ public struct EditJournalGoalsView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             titleSection
                                 .padding(.top, 8)
+
+                            tuningSummary
+                                .padding(.top, 16)
 
                             ForEach(ThemeFamily.allCases) { family in
                                 let themes = ThemeCatalog.themes(in: family)
@@ -58,6 +64,9 @@ public struct EditJournalGoalsView: View {
                                 }
                             }
 
+                            rebuildButton
+                                .padding(.top, 32)
+
                             Spacer(minLength: 120)
                         }
                         .padding(.horizontal, 20)
@@ -69,6 +78,14 @@ public struct EditJournalGoalsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             loadExistingThemes()
+        }
+        .alert("Couldn't rebuild", isPresented: .init(
+            get: { rebuildError != nil },
+            set: { if !$0 { rebuildError = nil } }
+        )) {
+            Button("OK") { rebuildError = nil }
+        } message: {
+            Text(rebuildError ?? "Please try again.")
         }
     }
 
@@ -109,7 +126,8 @@ public struct EditJournalGoalsView: View {
                         .clipShape(Capsule())
                 }
             }
-            .disabled(!canSave || isSaving)
+            .disabled(!canSave || isSaving || isRebuilding)
+            .accessibilityIdentifier("settings.saveThemes")
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
@@ -129,6 +147,53 @@ public struct EditJournalGoalsView: View {
         }
     }
 
+    private var tuningSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("How Memento is tuned for you")
+                .font(type.body2Bold)
+                .foregroundStyle(theme.foreground)
+            if let currentLens, !currentLens.isEmpty {
+                Text(currentLens)
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+                    .accessibilityIdentifier("settings.tuningLens")
+            } else if !selectedIds.isEmpty {
+                Text("Themes selected. Rebuild the lens to refresh how chat leans into them.")
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+            } else {
+                Text("Select themes to personalize your experience.")
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var rebuildButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            Task { await rebuildLens() }
+        } label: {
+            HStack {
+                if isRebuilding {
+                    ProgressView()
+                        .tint(theme.primary)
+                }
+                Text(isRebuilding ? "Rebuilding…" : "Rebuild lens")
+                    .font(type.body2Bold)
+                    .foregroundStyle(theme.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+        }
+        .disabled(!canSave || isRebuilding || isSaving)
+        .accessibilityIdentifier("settings.rebuildLens")
+    }
+
     private var canSave: Bool {
         !selectedIds.isEmpty && selectedIds.count <= ThemeCatalog.maxConfirmedThemes
     }
@@ -145,21 +210,54 @@ public struct EditJournalGoalsView: View {
     private func loadExistingThemes() {
         let profile = LocalProfileStore.ensureMigratedProfile()
         selectedIds = Set(profile.confirmedThemeIds)
+        currentLens = profile.promptLens
         isLoading = false
     }
 
     private func saveChanges() {
         guard canSave else { return }
         isSaving = true
-        var profile = LocalProfileStore.experienceProfile ?? .empty
-        profile.confirmedThemeIds = ThemeCatalog.validate(Array(selectedIds))
-        profile.catalogVersion = ThemeCatalog.catalogVersion
-        profile.builtAt = Date()
-        // Clear stale lens so ask turns use themes until a rebuild happens.
-        profile.promptLens = nil
-        LocalProfileStore.experienceProfile = profile
-        isSaving = false
-        dismiss()
+        Task {
+            do {
+                let profile = try await ExperienceProfileBuilder.rebuildLensPreservingThemes(
+                    confirmedThemeIds: Array(selectedIds),
+                    reflection: LocalProfileStore.personalizationText
+                )
+                await MainActor.run {
+                    currentLens = profile.promptLens
+                    isSaving = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    // Still persist themes even if rebuild fails.
+                    var profile = LocalProfileStore.experienceProfile ?? .empty
+                    profile.confirmedThemeIds = ThemeCatalog.validate(Array(selectedIds))
+                    profile.promptLens = ExperienceProfileBuilder.deterministicLens(
+                        themes: Array(selectedIds)
+                    )
+                    profile.builtAt = Date()
+                    LocalProfileStore.experienceProfile = profile
+                    isSaving = false
+                    dismiss()
+                }
+            }
+        }
+    }
+
+    private func rebuildLens() async {
+        guard canSave else { return }
+        isRebuilding = true
+        defer { isRebuilding = false }
+        do {
+            let profile = try await ExperienceProfileBuilder.rebuildLensPreservingThemes(
+                confirmedThemeIds: Array(selectedIds),
+                reflection: LocalProfileStore.personalizationText
+            )
+            currentLens = profile.promptLens
+        } catch {
+            rebuildError = error.localizedDescription
+        }
     }
 }
 

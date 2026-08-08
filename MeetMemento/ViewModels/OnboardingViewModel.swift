@@ -95,15 +95,6 @@ class OnboardingViewModel: ObservableObject {
                 AppLogger.log("✅ [OnboardingViewModel] Personalization text saved locally")
     }
 
-    /// Persists selected goals locally (legacy display-name path).
-    func saveGoals() async throws {
-        guard !selectedGoals.isEmpty else { return }
-        LocalProfileStore.selectedGoals = selectedGoals
-        hasGoals = true
-
-                AppLogger.log("✅ [OnboardingViewModel] Goals saved locally: \(selectedGoals)")
-    }
-
     /// Persists the ExperienceProfile (confirmed ThemeCatalog ids + optional lens).
     func saveExperienceProfile(
         themeIds: [String],

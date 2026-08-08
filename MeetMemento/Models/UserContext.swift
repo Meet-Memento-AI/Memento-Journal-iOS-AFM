@@ -44,7 +44,7 @@ public struct UserContext: Codable, Hashable {
         self.updatedAt = updatedAt
     }
 
-    /// Context for system prompt personalization (LearnAboutYourselfView + YourGoalsView)
+    /// Context for system prompt personalization (LearnAboutYourselfView + ThemeCatalog themes)
     public var systemPromptContext: (onboardingSelfReflection: String?, selectedGoals: [String])? {
         let reflection = onboardingSelfReflection?.trimmingCharacters(in: .whitespacesAndNewlines)
         let goals = selectedGoals ?? []

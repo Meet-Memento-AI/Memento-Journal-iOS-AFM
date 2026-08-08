@@ -100,9 +100,9 @@ public struct AIChatView: View {
         self.hasEntries = hasEntries
     }
 
-    /// Rotate to show 3 random suggestions from the pool
+    /// Rotate suggestions: prefer ThemeCatalog-tuned starters, fall back to generic pool.
     private func rotateSuggestions() {
-        currentSuggestions = Array(Self.allPrompts.shuffled().prefix(3))
+        currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
     }
     
     /// Height reserved for floating header when embedded (includes 32px gap below header)

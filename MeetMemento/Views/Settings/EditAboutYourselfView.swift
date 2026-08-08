@@ -25,6 +25,7 @@ public struct EditAboutYourselfView: View {
     @State private var showSTTError = false
     @State private var showPermissionDenied = false
     @State private var showSaveSuccess = false
+    @State private var rebuildError: String?
     @FocusState private var isFocused: Bool
 
     public init() {}
@@ -112,6 +113,14 @@ public struct EditAboutYourselfView: View {
         } message: {
             Text(speechService.errorMessage ?? "Unable to start recording. Please try again.")
         }
+        .alert("Couldn't update tuning", isPresented: .init(
+            get: { rebuildError != nil },
+            set: { if !$0 { rebuildError = nil } }
+        )) {
+            Button("OK") { rebuildError = nil }
+        } message: {
+            Text(rebuildError ?? "Your reflection was saved. Theme tuning can be rebuilt later in Settings.")
+        }
     }
 
     // MARK: - Subviews
@@ -166,7 +175,7 @@ public struct EditAboutYourselfView: View {
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
 
-            Text("Update what you'd like to learn about yourself through journaling.")
+            Text("Update what you'd like to learn about yourself through journaling. Saving rebuilds how Memento quietly tunes chat to you.")
                 .font(type.body2)
                 .lineSpacing(3)
                 .foregroundStyle(theme.mutedForeground)
@@ -234,9 +243,26 @@ public struct EditAboutYourselfView: View {
         guard trimmedText.count >= 100 else { return }
 
         isSaving = true
-        LocalProfileStore.personalizationText = trimmedText
-        isSaving = false
-        dismiss()
+        Task {
+            // Persist reflection first, then rebuild lens while keeping confirmed themes.
+            LocalProfileStore.personalizationText = trimmedText
+            do {
+                _ = try await ExperienceProfileBuilder.rebuildLens(
+                    replaceConfirmedWithSuggestions: false
+                )
+                await MainActor.run {
+                    isSaving = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    rebuildError = error.localizedDescription
+                    isSaving = false
+                    // Reflection already saved; allow dismiss after acknowledging.
+                    dismiss()
+                }
+            }
+        }
     }
 
     private func insertTranscribedText(_ transcribedText: String) {
