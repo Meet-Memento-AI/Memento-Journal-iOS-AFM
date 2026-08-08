@@ -211,6 +211,26 @@ final class SpeechService: ObservableObject {
             request.addsPunctuation = true
         }
 
+        // Keep audio on the device. Without this, `SFSpeechRecognizer` is free
+        // to send audio to Apple's servers for some locales — an undisclosed
+        // off-device path for the most sensitive data the app touches, which
+        // contradicts both the privacy policy and the REQ-POS-001 positioning
+        // claim that CI already lints for (Guideline 5.1.2(i)).
+        //
+        // The cost is locale coverage: where on-device recognition is
+        // unavailable, transcription degrades rather than silently uploading.
+        // That trade is the honest one, and it is the interim named in
+        // docs/app-store/01 §5.1.2 — spec 018 R1's `SpeechAnalyzer` migration is
+        // the real fix and supersedes this line.
+        // Set unconditionally. Gating this on `supportsOnDeviceRecognition`
+        // would mean that exactly when on-device recognition is unavailable the
+        // audio gets uploaded instead — the failure we are trying to prevent.
+        // Better to fail the recognition request and say so.
+        request.requiresOnDeviceRecognition = true
+        if !recognizer.supportsOnDeviceRecognition {
+            AppLogger.log("⚠️ [SpeechService] On-device recognition unavailable for \(recognizer.locale.identifier); transcription will fail rather than send audio off device")
+        }
+
         let engine = AVAudioEngine()
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)

@@ -82,7 +82,12 @@ extension Entry {
             ),
             Entry(
                 title: "Goals for the Year",
-                text: "This year I want to focus on personal growth, building deeper connections with friends and family, and taking better care of my mental health. Writing in this journal daily is my first step.",
+                // Deliberately not phrased as a health or wellness goal. Sample
+                // content ships in the binary, so it is content the app authors
+                // — and App Store age rating turns on whether the app surfaces
+                // health/treatment topics (docs/app-store/05 §1). Keep fixtures
+                // in the register of an ordinary journal, not a wellness product.
+                text: "This year I want to focus on learning something difficult, building deeper connections with friends and family, and paying attention to how I actually spend my days. Writing in this journal daily is my first step.",
                 createdAt: jan2026
             ),
             Entry(

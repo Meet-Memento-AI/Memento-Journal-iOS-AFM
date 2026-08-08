@@ -1,0 +1,1576 @@
+{
+  "entries": [
+    {
+      "id": "e-2025-11-01-1",
+      "createdAt": "2025-11-01T20:40:00Z",
+      "title": "Rain all day, the good kind that makes you want to stay…",
+      "content": "Rain all day, the good kind that makes you want to stay in but I had a whole list of errands so I just went and did them anyway. Grocery store was a madhouse, everyone stocking up like a storm was coming instead of just a normal Saturday. Got the boring stuff done, dry cleaning, refilled a prescription, and honestly it felt kind of satisfying to just clear the list. Made soup for dinner. Nothing exciting today and that's fine."
+    },
+    {
+      "id": "e-2025-11-02-1",
+      "createdAt": "2025-11-02T21:10:00Z",
+      "title": "Lazy Sunday, the best kind",
+      "content": "Lazy Sunday, the best kind. Maya came over and we just put on a movie and didn't really talk for two hours, which is exactly what I needed. She brought popcorn from that place downtown, the kettle corn, way too much sugar but whatever. We talked a little afterward about nothing in particular. Days like this don't feel like they need a point."
+    },
+    {
+      "id": "e-2025-11-03-1",
+      "createdAt": "2025-11-03T07:10:00Z",
+      "title": "Met my new manager for real today, Priya",
+      "content": "Met my new manager for real today, Priya. Overcast out, that flat gray light where the whole morning feels like it's still deciding whether to wake up. Anyway, first one-on-one and honestly I went in braced for it to be awkward, new manager transitions always are, but she asked good questions. Actually listened to the answers instead of just waiting for her turn to talk. Asked what's been frustrating about the team setup, which nobody's asked me directly in like a year. I don't want to get ahead of myself, first impressions can be wrong, but cautiously, this feels okay. Maybe even good."
+    },
+    {
+      "id": "e-2025-11-04-1",
+      "createdAt": "2025-11-04T07:50:00Z",
+      "title": "Drizzly commute, nothing special",
+      "content": "Drizzly commute, nothing special. Traffic was lighter than usual though so small win there. Work was just meetings back to back, the kind where you leave more tired than when you started even though you didn't do anything. Grabbed a sandwich at my desk. Looking forward to just going home and doing nothing tonight."
+    },
+    {
+      "id": "e-2025-11-06-1",
+      "createdAt": "2025-11-06T21:05:00Z",
+      "title": "Small good thing happened today, one of the components I…",
+      "content": "Small good thing happened today, one of the components I built last month shipped without any bug reports, which sounds like nothing but for a project that size it's actually kind of a big deal. Nobody made a fuss about it, but I noticed, and I'm letting myself feel good about it for a second before moving on to the next thing. Otherwise pretty standard Thursday, coffee, code review, a walk at lunch because it wasn't raining for once."
+    },
+    {
+      "id": "e-2025-11-07-1",
+      "createdAt": "2025-11-07T22:30:00Z",
+      "title": "Drinks with Tom after work, the usual spot near his place",
+      "content": "Drinks with Tom after work, the usual spot near his place. He's mid one of his classic spirals about whether to switch jobs, going back and forth for like the third month in a row, and honestly I just let him talk it out because that's what he needs, not advice. Two beers in and we were laughing about something completely unrelated, some story from college that gets funnier every time one of us tells it wrong. Good to just sit with a friend and not think about work for a couple hours."
+    },
+    {
+      "id": "e-2025-11-08-1",
+      "createdAt": "2025-11-08T11:20:00Z",
+      "title": "Saturday errands, the unglamorous kind",
+      "content": "Saturday errands, the unglamorous kind. Returned a package, got the car's oil changed finally after putting it off for weeks, picked up new running shoes since the old ones are basically flat now. Quiet day otherwise. Thinking about actually starting to run again tomorrow, we'll see if that survives contact with an actual alarm clock."
+    },
+    {
+      "id": "e-2025-11-09-1",
+      "createdAt": "2025-11-09T07:40:00Z",
+      "title": "Okay, I actually did it",
+      "content": "Okay, I actually did it. Went for a run this morning, first one in probably eight months, and it was rough, I'm not going to pretend otherwise. Made it maybe a mile and a half before I had to walk, completely out of breath, legs already complaining. But I'm calling it week one of trying the couch to five k thing again, the app with the intervals. There's something about the cold morning air and just being outside moving that clears something out of my head that nothing else really does. I want to actually stick with it this time. We'll see."
+    },
+    {
+      "id": "e-2025-11-10-1",
+      "createdAt": "2025-11-10T07:15:00Z",
+      "title": "Overcast again, one of those Mondays where the sky just…",
+      "content": "Overcast again, one of those Mondays where the sky just sort of sits there gray and unmoving and you can feel it dragging your mood down before you've even had coffee. Nothing bad happened, just flat. Dragged myself through the morning meetings. Legs still sore from yesterday's run, that's something at least, a good kind of tired mixed in with the regular kind."
+    },
+    {
+      "id": "e-2025-11-11-1",
+      "createdAt": "2025-11-11T21:40:00Z",
+      "title": "Day off, spent most of it doing basically nothing, which…",
+      "content": "Day off, spent most of it doing basically nothing, which I don't get to say very often. Read a little, did some laundry, took a long shower. Sometimes the most restorative thing is a day with zero plan attached to it. Not much else to report."
+    },
+    {
+      "id": "e-2025-11-12-1",
+      "createdAt": "2025-11-12T07:35:00Z",
+      "title": "Run number two, and my legs are letting me know about it…",
+      "content": "Run number two, and my legs are letting me know about it in no uncertain terms. Sore in that deep muscle way that means I'm actually doing something. Went a little further today before the walk breaks kicked in, so I'm counting that as progress even though it didn't feel like much in the moment. Cold out, breath fogging, that early winter light that barely gets bright before it starts fading again."
+    },
+    {
+      "id": "e-2025-11-13-1",
+      "createdAt": "2025-11-13T22:50:00Z",
+      "title": "Bad design review today",
+      "content": "Bad design review today. Not catastrophic, nobody yelled or anything, but I could feel the room going quiet in that specific way it does when people are being polite instead of honest, and I know what that means. Priya said some of it was solid but the core interaction just wasn't landing, and she's right, I know she's right, but I spent the whole walk home and honestly most of the evening replaying it, picking apart every choice I made in that file like each one was evidence of something bigger. Like maybe I'm not actually as good at this as I've been telling myself for years. I know that's not a fair thing to do to myself, I know one bad review isn't a verdict on anything, but knowing it and feeling it are two very different things right now. I keep rereading her comments looking for the version where they're worse than they actually were. Going to try to just close the laptop and not touch it again tonight."
+    },
+    {
+      "id": "e-2025-11-14-1",
+      "createdAt": "2025-11-14T21:15:00Z",
+      "title": "Quieter night, still licking my wounds a little from…",
+      "content": "Quieter night, still licking my wounds a little from yesterday if I'm honest. Didn't really feel like doing much, made a simple dinner, went to bed earlier than usual. Sometimes the right move after a bad day is just to let it be a smaller day and not force anything on top of it."
+    },
+    {
+      "id": "e-2025-11-16-1",
+      "createdAt": "2025-11-16T07:50:00Z",
+      "title": "Week two of running and it was pouring the entire time,…",
+      "content": "Week two of running and it was pouring the entire time, properly soaked through by the end, shoes squelching with every step. Should have been miserable but honestly there's something almost funny about committing to it in weather like that, like the rain was testing whether I actually meant it. I meant it. Made it a little further than last week before needing to walk. Small thing, but I noticed it."
+    },
+    {
+      "id": "e-2025-11-17-1",
+      "createdAt": "2025-11-17T07:20:00Z",
+      "title": "Overcast Monday, the sky doing that thing again where it…",
+      "content": "Overcast Monday, the sky doing that thing again where it just refuses to commit to being anything. Restless today, hard to focus, kept getting up from my desk for no real reason. Nothing wrong exactly, just off. Coffee didn't fix it. Hoping tomorrow has some actual sun in it somewhere."
+    },
+    {
+      "id": "e-2025-11-18-1",
+      "createdAt": "2025-11-18T21:00:00Z",
+      "title": "One on one with Priya today, and it went well, better…",
+      "content": "One on one with Priya today, and it went well, better than well actually. We talked through the fallout from last week's review without either of us dancing around it, and she framed it less like a failure and more like a data point, which helped more than I expected it to. She's asking good questions about where I want to grow, which is not something my old manager ever really bothered with. Cautiously, still cautiously, but I think this new setup might actually be good for me."
+    },
+    {
+      "id": "e-2025-11-19-1",
+      "createdAt": "2025-11-19T07:45:00Z",
+      "title": "It's dark at four thirty now, which always takes me a…",
+      "content": "It's dark at four thirty now, which always takes me a few weeks every year to adjust to even though it happens every single year without fail. Commute felt like driving through dusk even though it was mid morning. There's a specific kind of tiredness that comes from the light just disappearing on you, separate from actual physical tiredness. Otherwise unremarkable day, work things, lunch at my desk."
+    },
+    {
+      "id": "e-2025-11-20-1",
+      "createdAt": "2025-11-20T22:00:00Z",
+      "title": "Dinner with Maya at the new ramen place she's been…",
+      "content": "Dinner with Maya at the new ramen place she's been talking about for weeks. Worth the hype honestly, and the company was even better than the food. We ended up talking for almost three hours, about work, about her sister's wedding planning drama, about nothing important at all. I love that we can go from deeply serious to completely ridiculous in the same conversation without it feeling weird. Walked home in the cold after, felt good."
+    },
+    {
+      "id": "e-2025-11-21-1",
+      "createdAt": "2025-11-21T22:20:00Z",
+      "title": "Long week, body just tired in that end-of-week way, legs…",
+      "content": "Long week, body just tired in that end-of-week way, legs heavy, eyes heavy. Nothing bad happened, just the accumulation of five days catching up with me all at once. Ordered takeout instead of cooking, didn't feel guilty about it for once. Looking forward to sleeping in tomorrow."
+    },
+    {
+      "id": "e-2025-11-23-1",
+      "createdAt": "2025-11-23T08:00:00Z",
+      "title": "Week three of the running thing, and something clicked…",
+      "content": "Week three of the running thing, and something clicked today, I actually made it through most of the run without stopping to walk, just a little at the very end. Cold morning, that low winter sun that barely clears the rooftops, but it felt good to be out there. I think this one might actually stick this time. There's a version of me a few weeks from now that's going to be really grateful I kept showing up on the mornings I didn't want to."
+    },
+    {
+      "id": "e-2025-11-24-1",
+      "createdAt": "2025-11-24T07:25:00Z",
+      "title": "Overcast Monday, the third one in a row it feels like,…",
+      "content": "Overcast Monday, the third one in a row it feels like, that same flat gray that seems to sit right behind my eyes all morning. Tired in a way that isn't really about sleep. Thanksgiving prep starting to loom on the calendar, need to figure out what I'm bringing to my parents' this year. Otherwise a slow start to the week."
+    },
+    {
+      "id": "e-2025-11-25-1",
+      "createdAt": "2025-11-25T21:30:00Z",
+      "title": "Pretty mundane workday, meetings about the holiday…",
+      "content": "Pretty mundane workday, meetings about the holiday release freeze, everyone half checked out already thinking about Thursday. Picked up a pie on the way home for Thanksgiving, one less thing to think about. Nothing else really happened, just a normal Tuesday sliding toward a break."
+    },
+    {
+      "id": "e-2025-11-26-1",
+      "createdAt": "2025-11-26T21:50:00Z",
+      "title": "Grocery store was absolute chaos tonight, everyone doing…",
+      "content": "Grocery store was absolute chaos tonight, everyone doing their pre-Thanksgiving run at the same time apparently. Carts everywhere, checkout line practically out the door. Got everything I needed though, the cranberry thing my mom always asks me to bring, some wine, a few things for myself for the week after. Tired from the crowds more than anything physical. Tomorrow's the actual day, should be low key, just heading to my parents'."
+    },
+    {
+      "id": "e-2025-11-27-1",
+      "createdAt": "2025-11-27T21:10:00Z",
+      "title": "Thanksgiving at my parents', just the three of us this…",
+      "content": "Thanksgiving at my parents', just the three of us this year which was actually kind of nice, quieter than some years. Mom did her usual thing where she makes way too much food for three people and insists everyone take leftovers home whether they want them or not. Dad fell asleep in his chair during the football game like clockwork, same as every year. We talked about small things mostly, my running, his garden plans for spring, nothing heavy. Good, simple day. Grateful for it honestly, even the boring parts."
+    },
+    {
+      "id": "e-2025-11-29-1",
+      "createdAt": "2025-11-29T21:35:00Z",
+      "title": "Leftovers for dinner again, not complaining, turkey…",
+      "content": "Leftovers for dinner again, not complaining, turkey sandwiches are honestly better than the original meal most years. Put on a movie, didn't really watch it that closely, more background than anything. Lazy end to the long weekend. Back to work Monday, trying not to think about that yet."
+    },
+    {
+      "id": "e-2025-11-30-1",
+      "createdAt": "2025-11-30T08:10:00Z",
+      "title": "Ran this morning, month's basically over and I actually…",
+      "content": "Ran this morning, month's basically over and I actually kept it up more weeks than not, which feels like a small win worth naming. Legs stronger than they were four weeks ago, that's not nothing. November's been a decent month overall, new manager who actually seems good, running back in the rotation, nothing catastrophic. Heading into December a little more settled than I expected to be."
+    },
+    {
+      "id": "e-2025-12-01-1",
+      "createdAt": "2025-12-01T07:20:00Z",
+      "title": "Overcast to kick off December, which feels about right…",
+      "content": "Overcast to kick off December, which feels about right honestly, the sky matching the mood of everyone dragging themselves back after the long weekend. Tired, that specific back-to-work-Monday tired. Nothing bad, just flat. Christmas decorations already up in the office, which is either festive or aggressive depending on how much coffee I've had."
+    },
+    {
+      "id": "e-2025-12-02-1",
+      "createdAt": "2025-12-02T21:40:00Z",
+      "title": "Mundane Tuesday, work stuff, nothing worth dwelling on",
+      "content": "Mundane Tuesday, work stuff, nothing worth dwelling on. Started thinking about holiday shopping and immediately regretted starting to think about holiday shopping. Ordered a couple things online, told myself that counts as progress even though it clearly doesn't fully solve the problem."
+    },
+    {
+      "id": "e-2025-12-03-1",
+      "createdAt": "2025-12-03T07:00:00Z",
+      "title": "Ran in the dark this morning, actual dark, had to dig…",
+      "content": "Ran in the dark this morning, actual dark, had to dig out the little headlamp thing I bought last year and mostly forgot about. Strange feeling running through empty streets with just a little pool of light bobbing in front of you, kind of peaceful actually once you get used to it. Cold enough that my hands went numb by the end. Worth it though, that clear-headed feeling afterward doesn't come from anywhere else."
+    },
+    {
+      "id": "e-2025-12-04-1",
+      "createdAt": "2025-12-04T21:15:00Z",
+      "title": "Rumors flying around work today about a big push before…",
+      "content": "Rumors flying around work today about a big push before end of year, nobody's said anything official yet but you can feel it in the air, that particular tension where everyone's suddenly being extra careful about their calendars. Hoping it's not as bad as it sounds. Otherwise ordinary Thursday, meetings, lunch at my desk, the usual."
+    },
+    {
+      "id": "e-2025-12-05-1",
+      "createdAt": "2025-12-05T22:40:00Z",
+      "title": "So the rumors were right",
+      "content": "So the rumors were right. Priya pulled a few of us in today and laid it out, there's a big push now on this project internally everyone's calling Atlas, and it needs to ship before the holidays which means the next few weeks are going to be late nights, plain and simple, she didn't sugarcoat it. Honestly I appreciate that she was direct about it instead of pretending it was going to be fine. Still, my stomach dropped a little hearing it. Already exhausted just thinking about the next month. Going to try to pace myself instead of burning out in week one, we'll see how realistic that actually turns out to be."
+    },
+    {
+      "id": "e-2025-12-07-1",
+      "createdAt": "2025-12-07T21:20:00Z",
+      "title": "Sunday errands, laundry piled up all week finally dealt…",
+      "content": "Sunday errands, laundry piled up all week finally dealt with, groceries for the week ahead since I know I won't have energy for it once Atlas really kicks in. Trying to get a few things squared away before the crunch really lands. Quiet otherwise, low key day."
+    },
+    {
+      "id": "e-2025-12-08-1",
+      "createdAt": "2025-12-08T07:30:00Z",
+      "title": "Overcast again this Monday, and I did not sleep well at…",
+      "content": "Overcast again this Monday, and I did not sleep well at all, kept waking up around three thinking about the Atlas timeline even though there was nothing productive to do about it at three in the morning. Just lay there running through the task list in my head until the alarm finally went off. Tired in that gritty-eyed way where coffee barely touches it. Long week ahead, I can already tell."
+    },
+    {
+      "id": "e-2025-12-09-1",
+      "createdAt": "2025-12-09T23:10:00Z",
+      "title": "Late night at the office, first real Atlas late night,…",
+      "content": "Late night at the office, first real Atlas late night, everyone still at their desks past nine which is not normal for this team. Ordered food in for everyone, at least there's some camaraderie in the exhaustion. Made real progress on my piece of it though, which helps the anxiety a little, feels less abstract when you can see the thing actually taking shape. Heading home now, going to try to fall asleep fast because tomorrow's going to be more of the same."
+    },
+    {
+      "id": "e-2025-12-10-1",
+      "createdAt": "2025-12-10T04:20:00Z",
+      "title": "Awake again in the middle of the night, mind just will…",
+      "content": "Awake again in the middle of the night, mind just will not shut off with all the Atlas stuff churning in the background. Tried reading for a bit to reset but it's not really working. Going to be running on fumes today, this is officially the second bad night in a row."
+    },
+    {
+      "id": "e-2025-12-11-1",
+      "createdAt": "2025-12-11T07:10:00Z",
+      "title": "Short run this morning, didn't have it in me for a full…",
+      "content": "Short run this morning, didn't have it in me for a full one but needed something to clear my head before another long Atlas day. Even a short one helps, twenty minutes of just moving and not thinking about deadlines. Cold and clear out, breath visible the whole way. Small mercy in an otherwise stressful stretch."
+    },
+    {
+      "id": "e-2025-12-12-1",
+      "createdAt": "2025-12-12T22:50:00Z",
+      "title": "Had my first date with Sam tonight, the person Maya's…",
+      "content": "Had my first date with Sam tonight, the person Maya's been trying to set me up with for like two months. Almost cancelled honestly, been so wrung out from Atlas all week that I didn't think I had the energy to be charming for a stranger. Glad I didn't cancel though. We met at that little wine bar downtown, and it was easy, surprisingly easy, none of that awkward first-date stiffness. Talked for almost three hours about everything from terrible childhood pets to what we'd do with a completely free year. Sam's funny in this dry, unexpected way that caught me off guard a few times, actual laughing out loud in public kind of funny. Walked home afterward still smiling a little, which after this week is genuinely saying something."
+    },
+    {
+      "id": "e-2025-12-13-1",
+      "createdAt": "2025-12-13T11:30:00Z",
+      "title": "Kept replaying bits of last night's date while I was out…",
+      "content": "Kept replaying bits of last night's date while I was out doing groceries, which I guess is a good sign. Sam texted this morning too, a follow up to something we'd talked about, small thing but it landed well. Otherwise pretty standard Saturday, errands, laundry, trying to stretch this brief calm before Atlas swallows the weekend energy again come Monday."
+    },
+    {
+      "id": "e-2025-12-14-1",
+      "createdAt": "2025-12-14T08:00:00Z",
+      "title": "Rainy run this morning, properly rainy, the kind where…",
+      "content": "Rainy run this morning, properly rainy, the kind where you're soaked within the first five minutes and just have to make peace with it. Felt good regardless, one of those runs where the weather almost helps, gives you something to push against besides your own tiredness. Trying to enjoy the quiet before another Atlas week starts tomorrow."
+    },
+    {
+      "id": "e-2025-12-15-1",
+      "createdAt": "2025-12-15T22:15:00Z",
+      "title": "Third bad sleep night this week, or maybe fourth, I've…",
+      "content": "Third bad sleep night this week, or maybe fourth, I've lost count honestly. Atlas dread just sitting on my chest every time I try to close my eyes. Rain outside instead of the usual overcast, at least that's some variety. Going to try melatonin tonight, feels like I've exhausted the other options."
+    },
+    {
+      "id": "e-2025-12-16-1",
+      "createdAt": "2025-12-16T21:30:00Z",
+      "title": "Texting with Sam most of the evening, planning an actual…",
+      "content": "Texting with Sam most of the evening, planning an actual second date for this weekend if Atlas allows it, fingers crossed on that front. Nice to have something to look forward to that isn't just deadline after deadline. Work itself was fine today, grinding but manageable, nothing catastrophic."
+    },
+    {
+      "id": "e-2025-12-17-1",
+      "createdAt": "2025-12-17T02:10:00Z",
+      "title": "Wide awake at two a.m",
+      "content": "Wide awake at two a.m. again, this is getting genuinely rough, fourth or fifth night now where my body just refuses to stay down. Atlas timeline running on a loop behind my eyes. Going to be a hard day tomorrow running on this little sleep. Need to figure something out because this isn't sustainable."
+    },
+    {
+      "id": "e-2025-12-18-1",
+      "createdAt": "2025-12-18T21:45:00Z",
+      "title": "Mom called tonight, and I could tell from the first few…",
+      "content": "Mom called tonight, and I could tell from the first few seconds of her voice that it wasn't just a normal check-in call. Nonna's not doing well. Her heart, mostly, some other things the doctors are watching too, and Mom was trying so hard to sound steady about it but I could hear underneath that she's scared. I sat on the floor of my kitchen for a long time after we hung up just staring at nothing. I haven't seen Nonna since last spring, and now all I can think about is every visit I could have made and didn't because I was busy or tired or telling myself there'd be more time later. There's always more time later until suddenly there isn't. I don't know what to do with this feeling except carry it around for now. Going to call Mom again tomorrow to check in properly, and I think I need to actually plan a visit soon instead of just saying I will."
+    },
+    {
+      "id": "e-2025-12-19-1",
+      "createdAt": "2025-12-19T21:00:00Z",
+      "title": "Wrung out from the week, everything just catching up at…",
+      "content": "Wrung out from the week, everything just catching up at once, Atlas and the sleep and now this thing with Nonna sitting heavy underneath all of it. Keeping this one short tonight. Just need to rest if I can actually manage to sleep at all."
+    },
+    {
+      "id": "e-2025-12-21-1",
+      "createdAt": "2025-12-21T20:30:00Z",
+      "title": "Packing to head to my parents' for the holidays…",
+      "content": "Packing to head to my parents' for the holidays tomorrow, trying to remember everything, chargers, the gifts I actually managed to wrap, the pie dish Mom always wants back. Strange mix of feelings going into this trip, looking forward to seeing everyone but also bracing a little for how Nonna's doing news might color the whole visit. Atlas is quiet for the holiday week at least, one small mercy."
+    },
+    {
+      "id": "e-2025-12-23-1",
+      "createdAt": "2025-12-23T21:00:00Z",
+      "title": "Quiet at my parents' today",
+      "content": "Quiet at my parents' today. Not much to say really, just sitting around, helping Mom with a few things in the kitchen, nothing eventful."
+    },
+    {
+      "id": "e-2025-12-27-1",
+      "createdAt": "2025-12-27T20:45:00Z",
+      "title": "Leftovers again, took a walk around the neighborhood…",
+      "content": "Leftovers again, took a walk around the neighborhood with Dad after lunch. Nothing much happening today, just easing through the quiet stretch between the holidays."
+    },
+    {
+      "id": "e-2025-12-29-1",
+      "createdAt": "2025-12-29T08:15:00Z",
+      "title": "Back home now, clear cold day, none of the usual…",
+      "content": "Back home now, clear cold day, none of the usual overcast gloom for once, actual blue sky which felt almost novel after weeks of gray. Good to be back in my own space honestly, as nice as the visit was. The Nonna thing is still sitting with me, quieter now but present, a kind of background hum. Atlas resumes properly on Monday. Trying to enjoy these last couple days of relative calm."
+    },
+    {
+      "id": "e-2025-12-30-1",
+      "createdAt": "2025-12-30T07:30:00Z",
+      "title": "Easy run this morning, nothing pushed too hard, just…",
+      "content": "Easy run this morning, nothing pushed too hard, just wanted to move my body after days of sitting around and eating too much holiday food, no judgment on that though, it was worth it. Year's almost over. Feels strange looking back at everything that's happened these past couple months, the new manager, the running restart, Sam, and now this worry about Nonna sitting underneath all of it. A lot packed into not that much time."
+    },
+    {
+      "id": "e-2025-12-31-1",
+      "createdAt": "2025-12-31T23:20:00Z",
+      "title": "Low key New Year's Eve with Maya and Tom, just at my…",
+      "content": "Low key New Year's Eve with Maya and Tom, just at my place, nothing fancy, some snacks and a movie and eventually counting down on someone's phone because none of us could find the remote to turn on the actual countdown broadcast in time. Good way to end the year honestly, with the people who've been steady all year long. Not making any big resolutions this time, just hoping for a decent start to whatever's coming next."
+    },
+    {
+      "id": "e-2026-01-01-1",
+      "createdAt": "2026-01-01T21:00:00Z",
+      "title": "Slow New Year's Day, exactly the way I wanted it",
+      "content": "Slow New Year's Day, exactly the way I wanted it. Slept in properly for the first time in weeks, didn't set an alarm, just let my body decide when it was done. Spent most of the day in pajamas, ate leftover snacks from last night, watched something forgettable on the couch. No big resolutions or grand plans, just wanted one day of genuinely doing nothing before the year picks up speed."
+    },
+    {
+      "id": "e-2026-01-02-1",
+      "createdAt": "2026-01-02T21:30:00Z",
+      "title": "Mundane Friday, first real day back to a normal schedule",
+      "content": "Mundane Friday, first real day back to a normal schedule. Nothing exciting, just easing back into routine. Ordered dinner instead of cooking, still in holiday-mode laziness a little."
+    },
+    {
+      "id": "e-2026-01-03-1",
+      "createdAt": "2026-01-03T08:20:00Z",
+      "title": "Cold run this morning, genuinely cold, the kind where…",
+      "content": "Cold run this morning, genuinely cold, the kind where your face goes numb before your legs even warm up. Pushed through it anyway. First run of the new year feels like it should mean something even though logically it's just another Saturday. Legs a little rusty from the holiday break but it felt good to be back out there."
+    },
+    {
+      "id": "e-2026-01-04-1",
+      "createdAt": "2026-01-04T15:40:00Z",
+      "title": "Grocery run and meal prep for the week, trying to…",
+      "content": "Grocery run and meal prep for the week, trying to actually start the year with some structure instead of just winging every dinner. Chopped a bunch of vegetables, made a big pot of something I'll probably be eating for days. Small satisfaction in having the fridge actually stocked with real food for once."
+    },
+    {
+      "id": "e-2026-01-05-1",
+      "createdAt": "2026-01-05T07:15:00Z",
+      "title": "First proper Monday back, overcast of course, felt like…",
+      "content": "First proper Monday back, overcast of course, felt like a slap after the holiday quiet. Real back-to-work slump today, hard to get going, hard to care about the things that felt urgent before the break. Atlas is apparently still grinding along in the background, waiting for me. Coffee helping only marginally."
+    },
+    {
+      "id": "e-2026-01-06-1",
+      "createdAt": "2026-01-06T21:10:00Z",
+      "title": "Atlas is still grinding, apparently the holiday break…",
+      "content": "Atlas is still grinding, apparently the holiday break didn't actually pause it the way I'd hoped. Back into the late-afternoon status meetings, the same conversations circling the same blockers. Tired of hearing about it honestly, but not much choice except to keep pushing my piece forward."
+    },
+    {
+      "id": "e-2026-01-07-1",
+      "createdAt": "2026-01-07T07:40:00Z",
+      "title": "Mundane commute, nothing to report really",
+      "content": "Mundane commute, nothing to report really. Work droning on. Signed up for that pottery class Maya kept mentioning, starts Thursday, feeling a little nervous about it honestly since I have zero experience, but figured why not try something completely unrelated to a screen for once."
+    },
+    {
+      "id": "e-2026-01-08-1",
+      "createdAt": "2026-01-08T22:00:00Z",
+      "title": "First pottery class tonight, and I was genuinely…",
+      "content": "First pottery class tonight, and I was genuinely terrible at it, like laughably bad. The wheel has a mind of its own and mine kept collapsing into this sad little wobbling lump no matter what I did with my hands. The instructor was patient about it, said everyone's first attempt looks like a disaster and mine apparently wasn't even the worst in the room, small comfort. But something about it got its hooks into me anyway, the clay under your hands, the total focus it demands where you can't think about Atlas or anything else because if your mind wanders the whole thing just falls apart. Came home with clay under my fingernails and a weird kind of calm I haven't felt in weeks. Already looking forward to next Thursday, which surprises me."
+    },
+    {
+      "id": "e-2026-01-09-1",
+      "createdAt": "2026-01-09T22:30:00Z",
+      "title": "Date night with Sam, third one now I think, and it keeps…",
+      "content": "Date night with Sam, third one now I think, and it keeps getting easier, less first-date performance and more just being ourselves around each other. We tried that new taco place that's been getting attention, food was good, conversation better. There's a comfort settling in that I wasn't expecting this fast, in a good way."
+    },
+    {
+      "id": "e-2026-01-10-1",
+      "createdAt": "2026-01-10T12:10:00Z",
+      "title": "Saturday errands, nothing thrilling, bank stuff, picked…",
+      "content": "Saturday errands, nothing thrilling, bank stuff, picked up a prescription, wandered a hardware store for a shelf bracket I still haven't actually installed. Quiet, functional day."
+    },
+    {
+      "id": "e-2026-01-11-1",
+      "createdAt": "2026-01-11T08:00:00Z",
+      "title": "Longer run today, testing my legs out for something…",
+      "content": "Longer run today, testing my legs out for something bigger, I've been eyeing a ten k in a couple weeks and wanted to see if the distance felt doable. It did, more or less, tired by the end but not destroyed. Putting it on the calendar officially now. Feels good to have a concrete goal instead of just running for the sake of it."
+    },
+    {
+      "id": "e-2026-01-12-1",
+      "createdAt": "2026-01-12T07:20:00Z",
+      "title": "Overcast again, that same flat gray Monday light, and I…",
+      "content": "Overcast again, that same flat gray Monday light, and I said something out loud to myself in the car this morning that I haven't actually said before, at least not in those exact words. I'm burnt out. Not tired, not stressed, actually burnt out. Atlas has been going since early December without any real break, the bad sleep stretch back then never fully resolved, it just went quieter, and now it's back, waking up at four most nights with my mind already running through blockers before I've even opened my eyes. Priya's been decent about it, checking in more than my old manager ever did, but the work itself hasn't slowed down and I don't see it slowing down soon. Saying the actual words felt like some kind of threshold, like naming it makes it real in a way that just feeling exhausted didn't. Not sure what I do with that yet. Going to sit with it for now."
+    },
+    {
+      "id": "e-2026-01-13-1",
+      "createdAt": "2026-01-13T21:20:00Z",
+      "title": "Flat workday, going through the motions more than…",
+      "content": "Flat workday, going through the motions more than actually engaging with anything. Yesterday's realization still sitting heavy. Didn't have much energy for anything after work, just sat on the couch scrolling my phone longer than I meant to."
+    },
+    {
+      "id": "e-2026-01-14-1",
+      "createdAt": "2026-01-14T22:10:00Z",
+      "title": "Dinner with Tom, good timing honestly, needed the…",
+      "content": "Dinner with Tom, good timing honestly, needed the distraction. He's finally made a decision about the job thing he's been agonizing over since November, taking the offer. Happy for him, genuinely, and talking through someone else's big decision for a change was a nice break from stewing in my own stuff."
+    },
+    {
+      "id": "e-2026-01-15-1",
+      "createdAt": "2026-01-15T22:40:00Z",
+      "title": "Pottery class two tonight, still pretty lopsided results…",
+      "content": "Pottery class two tonight, still pretty lopsided results if I'm being honest, my bowl looks more like a shallow dish that's had a rough week, but I noticed I was way less anxious about it than my expectations from last time. Progress isn't always visible in the clay itself I guess."
+    },
+    {
+      "id": "e-2026-01-16-1",
+      "createdAt": "2026-01-16T21:50:00Z",
+      "title": "Body just tired today, that heavy end-of-week feeling…",
+      "content": "Body just tired today, that heavy end-of-week feeling settling in early this time. Went to bed early, didn't push through anything, figured rest was more useful than forcing myself to be productive on fumes."
+    },
+    {
+      "id": "e-2026-01-18-1",
+      "createdAt": "2026-01-18T08:30:00Z",
+      "title": "Training run in the rain, ten k prep continuing",
+      "content": "Training run in the rain, ten k prep continuing. Got properly soaked, but I've decided that's basically par for the course this winter, rain or overcast, rarely anything in between. Legs felt strong today though, further than expected without needing to walk, so that's encouraging heading into the actual race."
+    },
+    {
+      "id": "e-2026-01-19-1",
+      "createdAt": "2026-01-19T07:10:00Z",
+      "title": "Overcast Monday, restless all through the morning, hard…",
+      "content": "Overcast Monday, restless all through the morning, hard to sit still at my desk for more than twenty minutes at a stretch. Coffee not really cutting through it. Counting down to Thursday pottery already, which has become the thing I actually look forward to most weeks now."
+    },
+    {
+      "id": "e-2026-01-20-1",
+      "createdAt": "2026-01-20T21:05:00Z",
+      "title": "Small design win today, one I actually feel good about,…",
+      "content": "Small design win today, one I actually feel good about, a flow I'd been stuck on for two weeks finally clicked into something clean. Priya noticed it too, said something genuinely complimentary in front of the team, which after last month's rough review felt like it mattered more than usual. Taking the win."
+    },
+    {
+      "id": "e-2026-01-21-1",
+      "createdAt": "2026-01-21T22:20:00Z",
+      "title": "Movie night with Sam, low key, just my couch and a film…",
+      "content": "Movie night with Sam, low key, just my couch and a film neither of us had strong opinions about beforehand. Nice to have someone to just exist quietly with after a long stretch of grinding through Atlas. These easy evenings are starting to feel like the thing I most look forward to during the week."
+    },
+    {
+      "id": "e-2026-01-22-1",
+      "createdAt": "2026-01-22T22:00:00Z",
+      "title": "Pottery class three, and I actually made something that…",
+      "content": "Pottery class three, and I actually made something that resembles a cup this time, lopsided, a little thick on one side, but recognizably a cup, which feels like real progress from the collapsing lumps of week one. The instructor said the rim needs work but the form is there. Small victories."
+    },
+    {
+      "id": "e-2026-01-23-1",
+      "createdAt": "2026-01-23T21:45:00Z",
+      "title": "Quiet Friday night, laying out gear for tomorrow's ten k…",
+      "content": "Quiet Friday night, laying out gear for tomorrow's ten k already, checking the weather forecast obsessively even though there's nothing I can do about it either way. Nervous energy building. Going to bed early to try to actually be rested for once."
+    },
+    {
+      "id": "e-2026-01-24-1",
+      "createdAt": "2026-01-24T20:30:00Z",
+      "title": "Pre-race nerves in full effect tonight, laid everything…",
+      "content": "Pre-race nerves in full effect tonight, laid everything out for tomorrow morning three separate times just to be sure. Never actually raced a distance like this before, always just running for myself, so there's a different kind of nervousness attached to it having a bib number and a start time. Trying to just trust the training at this point, there's nothing more to do tonight except sleep, if I can manage it."
+    },
+    {
+      "id": "e-2026-01-25-1",
+      "createdAt": "2026-01-25T09:15:00Z",
+      "title": "I did it, first ten k done, official time around sixty…",
+      "content": "I did it, first ten k done, official time around sixty four minutes, which honestly exceeded whatever quiet expectation I'd let myself have. Cold this morning, properly cold, breath coming out in these thick clouds at the start line while everyone shuffled around trying to stay warm. Around mile four I genuinely didn't think I had it in me to keep the pace, legs screaming, but something just clicked into a rhythm and I pushed through it. Crossing the finish line, hearing my name called even though nobody I knew was there to see it, some stranger just reading off the chip time, still felt like a real moment. Proud of myself in a way I don't let myself feel that often. Two and a half months ago I could barely run a mile and a half without stopping. Going to let myself sit in this feeling for the rest of the day before going back to worrying about Atlas."
+    },
+    {
+      "id": "e-2026-01-26-1",
+      "createdAt": "2026-01-26T21:30:00Z",
+      "title": "Sore legs today, unsurprisingly, walking down stairs is…",
+      "content": "Sore legs today, unsurprisingly, walking down stairs is a whole event. Rain outside instead of the usual overcast for variety. Work was fine, still riding a little bit of yesterday's good feeling into the week, which helped get through some otherwise tedious meetings."
+    },
+    {
+      "id": "e-2026-01-27-1",
+      "createdAt": "2026-01-27T21:00:00Z",
+      "title": "Mundane Tuesday, Atlas grinding along as usual, nothing…",
+      "content": "Mundane Tuesday, Atlas grinding along as usual, nothing new to report. Legs still a little sore from the weekend but improving. Early night planned, trying to bank some actual rest for once."
+    },
+    {
+      "id": "e-2026-01-28-1",
+      "createdAt": "2026-01-28T07:35:00Z",
+      "title": "Ordinary commute, gray skies threatening rain that never…",
+      "content": "Ordinary commute, gray skies threatening rain that never quite arrived. Work steady, nothing dramatic either direction. Starting to think about calling Mom again this weekend to check on Nonna, been meaning to for a couple weeks and keep letting the week swallow it up."
+    },
+    {
+      "id": "e-2026-01-29-1",
+      "createdAt": "2026-01-29T22:15:00Z",
+      "title": "Pottery again tonight, chatting with a couple of the…",
+      "content": "Pottery again tonight, chatting with a couple of the other regulars in the class while our pieces spun on the wheels, one of them's apparently been doing this for years and gave me some genuinely useful tips about hand pressure. Nice little community forming there without me really trying for it. My cup from last week held up in the kiln at least, first fired piece, feels like a small milestone."
+    },
+    {
+      "id": "e-2026-01-30-1",
+      "createdAt": "2026-01-30T22:00:00Z",
+      "title": "Sam came over for dinner tonight, cooked together…",
+      "content": "Sam came over for dinner tonight, cooked together instead of just ordering something, a pasta thing that turned out better than expected given neither of us really knew what we were doing halfway through. Easy comfortable evening, the kind that makes a month of Atlas exhaustion feel a little more bearable in retrospect."
+    },
+    {
+      "id": "e-2026-01-31-1",
+      "createdAt": "2026-01-31T12:00:00Z",
+      "title": "Month-end errands, nothing exciting",
+      "content": "Month-end errands, nothing exciting. Looking back at January it's been a lot, the burnout admission, the pottery thing sticking way more than I expected, the ten k, Sam. Hoping February brings a little more breathing room on the Atlas front, though I'm not holding my breath on that one."
+    },
+    {
+      "id": "e-2026-02-01-1",
+      "createdAt": "2026-02-01T09:00:00Z",
+      "title": "Sunday run before the week starts, legs feeling good…",
+      "content": "Sunday run before the week starts, legs feeling good these days, that base of training from the ten k still paying off. Sam and I are doing the low-key long-distance-relationship-with-a-day-job thing well I think, texted most of the morning. Getting the apartment squared away a bit before another Atlas week hits, dishes, some laundry, the usual Sunday reset."
+    },
+    {
+      "id": "e-2026-02-02-1",
+      "createdAt": "2026-02-02T07:20:00Z",
+      "title": "Overcast Monday again, that same flat gray that seems to…",
+      "content": "Overcast Monday again, that same flat gray that seems to follow the start of every week this winter. Dragged myself through the morning, coffee doing the bare minimum. Nothing bad, just heavy in that low-grade way. Atlas still Atlas."
+    },
+    {
+      "id": "e-2026-02-03-1",
+      "createdAt": "2026-02-03T04:15:00Z",
+      "title": "Awake at four again, mind spinning through Atlas…",
+      "content": "Awake at four again, mind spinning through Atlas blockers even though there is nothing to do about any of them at this hour. Thought this had gotten better in January but apparently not. Going to be a rough day running on this."
+    },
+    {
+      "id": "e-2026-02-04-1",
+      "createdAt": "2026-02-04T21:10:00Z",
+      "title": "Tried something new today, actually told Priya I needed…",
+      "content": "Tried something new today, actually told Priya I needed to push a nonessential meeting off my calendar to protect some focus time, first time I've really drawn a line like that since Atlas started. She was fine with it, more than fine actually, said she wished more people would do that. Small thing but it felt like a boundary worth practicing."
+    },
+    {
+      "id": "e-2026-02-05-1",
+      "createdAt": "2026-02-05T22:00:00Z",
+      "title": "Pottery Thursday, wheel had other plans for me tonight,…",
+      "content": "Pottery Thursday, wheel had other plans for me tonight, kept collapsing into a wobbling mess no matter what I tried. Frustrating after a couple weeks of actual progress, but the instructor reminded me that's just how it goes sometimes, the clay has moods too apparently. Still glad I came, even a bad pottery night beats sitting at home stewing about work."
+    },
+    {
+      "id": "e-2026-02-06-1",
+      "createdAt": "2026-02-06T22:30:00Z",
+      "title": "Date night with Sam, easy and good as usual, tried a…",
+      "content": "Date night with Sam, easy and good as usual, tried a little Italian place near their apartment. Told them about the pottery disaster from last night and got properly laughed at, in the affectionate way. Things between us keep just steadily being good, no drama, which after a stretch of Atlas stress has been genuinely grounding."
+    },
+    {
+      "id": "e-2026-02-07-1",
+      "createdAt": "2026-02-07T09:10:00Z",
+      "title": "Saturday run, longer one, and I noticed again how much…",
+      "content": "Saturday run, longer one, and I noticed again how much this has become less about the ten k goal and more about just needing the reset, moving my body enough that my head goes quiet for forty-five minutes. Mood regulation more than fitness at this point, though the fitness is a nice side effect."
+    },
+    {
+      "id": "e-2026-02-08-1",
+      "createdAt": "2026-02-08T20:50:00Z",
+      "title": "Mom called again tonight, and it wasn't good news…",
+      "content": "Mom called again tonight, and it wasn't good news exactly, more just an unsettled feeling underneath what she was saying. Nonna's had a rough couple of days, nothing acute, but Mom's voice had that thin quality to it, the one she gets when she's trying to protect me from how worried she actually is. Told her I love her, told her to call anytime, and hung up with this low unease sitting in my chest that hasn't quite lifted since."
+    },
+    {
+      "id": "e-2026-02-09-1",
+      "createdAt": "2026-02-09T09:05:00Z",
+      "title": "Nonna died this morning",
+      "content": "Nonna died this morning. Mom called just after eight, and I knew before she even said the words, something in the half second of silence after I picked up. It was peaceful, apparently, in her sleep, which is the kind of detail people offer you like it's supposed to help and maybe it does a little, I don't know yet. I keep thinking about her kitchen, the yellow light in there in the afternoons, the way she'd say mangia, tesoro, eat, sweetheart, every single time food touched a table whether you were hungry or not, whether you were five or thirty five. Her hands, how they always smelled faintly of garlic and rosemary no matter how many times she washed them. I don't really know what to do with myself right now. I called out of work, told Priya just enough, she was kind about it, didn't push for details. I keep picking up my phone to text someone and then remembering there's nothing to text, there's just this, sitting in it. I don't have anything wise to say tonight. I just wanted to write down that she was here, and that she made a whole kitchen feel like being loved."
+    },
+    {
+      "id": "e-2026-02-10-1",
+      "createdAt": "2026-02-10T21:30:00Z",
+      "title": "Went into work today because staying home alone with my…",
+      "content": "Went into work today because staying home alone with my own head felt worse than going in. Mostly just autopilot, answering emails without really reading them, nodding through a meeting I couldn't tell you a single detail of afterward. Nobody pushed, everyone was gentle about it in that careful way people are when they know something's happened but don't quite know how to ask. Numb mostly. That's the honest word for today."
+    },
+    {
+      "id": "e-2026-02-11-1",
+      "createdAt": "2026-02-11T15:20:00Z",
+      "title": "Booking flights back home for the funeral, sorting…",
+      "content": "Booking flights back home for the funeral, sorting logistics with Mom and figuring out how many days I can actually take off with Atlas still going. Practical mode, easier than feeling anything directly right now if I'm honest."
+    },
+    {
+      "id": "e-2026-02-12-1",
+      "createdAt": "2026-02-12T04:30:00Z",
+      "title": "Awake again at four, this time it's not Atlas in my…",
+      "content": "Awake again at four, this time it's not Atlas in my head, it's Nonna, just fragments, her voice, the smell of her kitchen, over and over. Grief and exhaustion tangled together into something I don't have a name for. Going to try to just lie here until the alarm rather than fight it."
+    },
+    {
+      "id": "e-2026-02-13-1",
+      "createdAt": "2026-02-13T21:00:00Z",
+      "title": "Funeral was today",
+      "content": "Funeral was today. Strange how much logistics there are around grief, the seating, the programs, cousins I haven't seen in years all standing around in dark clothes making small talk about flights and traffic like it's any other family gathering. Most of the day I felt oddly outside myself, watching it happen rather than being in it. But there was one moment that broke through all of that, my cousin Elena told a story about Nonna chasing a raccoon out of her garden with a broom, shouting at it in Italian, and the whole room actually laughed, real laughing, and for just a second it didn't feel like a funeral at all, it felt like Nonna was still somehow in the room making everyone laugh the way she always did. I don't know how to hold both things at once, the sadness and that one bright second, but I think that's just what this is now."
+    },
+    {
+      "id": "e-2026-02-14-1",
+      "createdAt": "2026-02-14T21:40:00Z",
+      "title": "Valentine's Day, muted this year for obvious reasons,…",
+      "content": "Valentine's Day, muted this year for obvious reasons, but Sam was really kind about it, no big performance, just came over with soup and sat with me while I didn't talk much. Sometimes the best thing someone can do is just be present without needing you to be okay. Grateful for that tonight."
+    },
+    {
+      "id": "e-2026-02-15-1",
+      "createdAt": "2026-02-15T20:20:00Z",
+      "title": "Home again from the trip, back in my own apartment, and…",
+      "content": "Home again from the trip, back in my own apartment, and the grief hit differently today, quieter but somehow heavier, in this completely mundane moment, just standing at the stove reheating leftovers and suddenly it was like a wave coming out of nowhere, having to just stand there and let it pass. Nobody around to see it, which was its own kind of hard. I think this is just how it's going to be for a while, ordinary moments turning into something else without warning."
+    },
+    {
+      "id": "e-2026-02-16-1",
+      "createdAt": "2026-02-16T07:15:00Z",
+      "title": "Overcast Monday, the sky matching everything else lately",
+      "content": "Overcast Monday, the sky matching everything else lately. Went to work anyway, needed something to do with my hands and my hours. Flat day, nothing bad, just gray straight through."
+    },
+    {
+      "id": "e-2026-02-17-1",
+      "createdAt": "2026-02-17T22:10:00Z",
+      "title": "Had lunch with Maya today and actually laughed, real…",
+      "content": "Had lunch with Maya today and actually laughed, real laughing, at some ridiculous story she told about her coworker. Felt good for those minutes, genuinely good, and then almost immediately after felt strange about feeling good, like I wasn't supposed to be laughing this soon, like it meant something bad about how much I actually cared. I know that's not fair to myself, grief doesn't work on a schedule where you're not allowed to have a good hour here and there, but knowing it and feeling it are different things again, same as always."
+    },
+    {
+      "id": "e-2026-02-18-1",
+      "createdAt": "2026-02-18T04:10:00Z",
+      "title": "Four a.m",
+      "content": "Four a.m. again, tried reading to reset but the words weren't landing, just staring at the same paragraph for ten minutes. Grief and Atlas both circling tonight, taking turns. Going to try to just breathe through it until the alarm."
+    },
+    {
+      "id": "e-2026-02-19-1",
+      "createdAt": "2026-02-19T22:00:00Z",
+      "title": "Pottery Thursday, and honestly it was the best hour of…",
+      "content": "Pottery Thursday, and honestly it was the best hour of the week so far, hands busy with the clay means my head goes quiet in a way it doesn't otherwise right now. Made something almost decent, a little mug with a slightly crooked handle, but I don't even care that it's crooked. Grateful for this class more than I expected to be when I signed up back in January."
+    },
+    {
+      "id": "e-2026-02-20-1",
+      "createdAt": "2026-02-20T19:30:00Z",
+      "title": "Grief has a way of ambushing you in grocery stores…",
+      "content": "Grief has a way of ambushing you in grocery stores apparently. Was walking down the pasta aisle and saw San Marzano tomatoes, the exact brand Nonna always used for her sauce, and just stood there for a full minute holding the can like it might tell me something. Had to leave my cart for a second and just stand by the wall breathing. Nobody noticed, or if they did, nobody said anything, which I was grateful for. Bought the tomatoes anyway. Might try to make her sauce this weekend, badly probably, but I want to try."
+    },
+    {
+      "id": "e-2026-02-21-1",
+      "createdAt": "2026-02-21T21:20:00Z",
+      "title": "Sam's been so steady through all of this, no pressure to…",
+      "content": "Sam's been so steady through all of this, no pressure to be okay, no awkwardness around the grief stuff, just consistently present. Told them tonight how much that's meant, actually said it out loud instead of just feeling it privately. Grateful, genuinely, for having someone like that in my corner right now."
+    },
+    {
+      "id": "e-2026-02-22-1",
+      "createdAt": "2026-02-22T09:00:00Z",
+      "title": "Sunday run, cold air biting but clear, and for the first…",
+      "content": "Sunday run, cold air biting but clear, and for the first time in a couple weeks it felt like something other than grief and exhaustion, just running, just cold air and legs moving. Small easing. Not gone, nothing like gone, but a little lighter today than most days lately."
+    },
+    {
+      "id": "e-2026-02-23-1",
+      "createdAt": "2026-02-23T07:25:00Z",
+      "title": "Overcast Monday, back to the flat gray",
+      "content": "Overcast Monday, back to the flat gray. Work fine, nothing remarkable, just moving through the week's motions. Still thinking about Nonna often, but it's settling into something quieter, a presence rather than a wound, most of the time anyway."
+    },
+    {
+      "id": "e-2026-02-24-1",
+      "createdAt": "2026-02-24T21:15:00Z",
+      "title": "Atlas grinding on still, feels endless at this point,…",
+      "content": "Atlas grinding on still, feels endless at this point, though the end is theoretically in sight in the next few weeks. Tired, just generally tired, work-tired layered over the other kind. Ordinary Tuesday otherwise."
+    },
+    {
+      "id": "e-2026-02-25-1",
+      "createdAt": "2026-02-25T22:20:00Z",
+      "title": "Dinner with Maya and Tom, first time the three of us…",
+      "content": "Dinner with Maya and Tom, first time the three of us have hung out together in a while with everyone's schedules being what they are. Good to just be around people who've known me a long time, no explaining needed about anything, they just get where I'm at right now without me having to spell it out."
+    },
+    {
+      "id": "e-2026-02-26-1",
+      "createdAt": "2026-02-26T22:00:00Z",
+      "title": "Made a bowl tonight in pottery that's actually,…",
+      "content": "Made a bowl tonight in pottery that's actually, genuinely good. Not good for a beginner, just good, even, centered, the glaze test tile I picked for it should come out a deep blue. The instructor held it up to the rest of the class as an example of what patience with the wheel gets you, which was equal parts mortifying and kind of thrilling. I had this quiet thought while I was smoothing the rim that Nonna would have liked it, would have wanted to put fruit in it or something on her table, that specific kind of love where she'd use a thing you made instead of just admiring it from a shelf. Small joy tonight, sitting right next to the grief instead of replacing it. I think that's just how this works now."
+    },
+    {
+      "id": "e-2026-02-27-1",
+      "createdAt": "2026-02-27T20:40:00Z",
+      "title": "Friday exhale, week survived, which after everything…",
+      "content": "Friday exhale, week survived, which after everything this month has felt like enough of a bar to clear. Ordered food, watched something mindless, didn't push myself toward anything productive. Sometimes just getting through counts."
+    },
+    {
+      "id": "e-2026-02-28-1",
+      "createdAt": "2026-02-28T21:10:00Z",
+      "title": "Month's over, and it was a lot, more than a lot honestly",
+      "content": "Month's over, and it was a lot, more than a lot honestly. Losing Nonna, the funeral, Atlas somehow still going the whole time underneath it. Short entry tonight, just marking that February happened and I made it through. Onward to March I guess."
+    },
+    {
+      "id": "e-2026-03-01-1",
+      "createdAt": "2026-03-01T20:30:00Z",
+      "title": "Sunday, decided I'm actually going to fix this sleep…",
+      "content": "Sunday, decided I'm actually going to fix this sleep situation instead of just complaining about it in these entries every week. Looked up blackout curtains online, ordering a set tomorrow. Small concrete step but it feels better than just enduring another month of four a.m. wake-ups."
+    },
+    {
+      "id": "e-2026-03-02-1",
+      "createdAt": "2026-03-02T21:00:00Z",
+      "title": "Blackout curtains arrived and got them hung tonight,…",
+      "content": "Blackout curtains arrived and got them hung tonight, whole apartment's a different place in the dark now, no more streetlight glow leaking in at all hours. It's such a small thing, curtains, but after months of bad sleep tangled up with Atlas and then with grief, doing something concrete and physical about it felt genuinely hopeful in a way I haven't felt in a while. Going to test them out tonight and see if it actually makes a difference. Fingers crossed this is the fix."
+    },
+    {
+      "id": "e-2026-03-03-1",
+      "createdAt": "2026-03-03T07:30:00Z",
+      "title": "First full night behind the new curtains and I actually…",
+      "content": "First full night behind the new curtains and I actually slept, properly slept, no four a.m. wide-eyed staring at the ceiling. Woke up with the alarm instead of before it for the first time in what feels like forever. Small thing, curtains, but the difference this morning is not small at all."
+    },
+    {
+      "id": "e-2026-03-04-1",
+      "createdAt": "2026-03-04T21:20:00Z",
+      "title": "Atlas still heavy, still grinding, but I'm facing it on…",
+      "content": "Atlas still heavy, still grinding, but I'm facing it on actual sleep now which makes a bigger difference than I expected. Same amount of work feels less impossible when you're not running on fumes. Long day regardless, but a manageable one."
+    },
+    {
+      "id": "e-2026-03-05-1",
+      "createdAt": "2026-03-05T22:00:00Z",
+      "title": "Pottery Thursday, decent session, working on trimming…",
+      "content": "Pottery Thursday, decent session, working on trimming technique now that the basic forms are getting more consistent. The instructor's pushing me a little harder each week which I appreciate even when it's frustrating in the moment."
+    },
+    {
+      "id": "e-2026-03-06-1",
+      "createdAt": "2026-03-06T22:30:00Z",
+      "title": "Easy evening with Sam, nothing planned, just ended up…",
+      "content": "Easy evening with Sam, nothing planned, just ended up cooking a simple dinner together and talking for hours about nothing in particular. These low-key nights keep being the best part of most weeks. Grateful for the steadiness of it."
+    },
+    {
+      "id": "e-2026-03-07-1",
+      "createdAt": "2026-03-07T09:10:00Z",
+      "title": "Longer run this Saturday, pushing distance again now…",
+      "content": "Longer run this Saturday, pushing distance again now that sleep's stabilized and legs have some energy back. Felt strong most of the way, that good kind of tired at the end instead of depleted. Thinking about signing up for something bigger later in the spring, a half marathon maybe, we'll see."
+    },
+    {
+      "id": "e-2026-03-08-1",
+      "createdAt": "2026-03-08T21:30:00Z",
+      "title": "My brother called today",
+      "content": "My brother called today. Dario. We hadn't talked, actually talked, in two years, not since everything fell apart after Dad left and we both said things we probably shouldn't have and then just let the silence do the rest of the damage on its own. I saw his name come up on my phone and just stared at it ringing for what felt like a full minute before I picked up. His voice sounded the same, which was strange, like no time had passed at all even though so much has. He said he'd heard about Nonna from Mom, that he was sorry he wasn't at the funeral, and I could hear in how he said it that it cost him something to make this call at all. We didn't get into the actual fight, what caused the distance in the first place, that felt too big for a first call, but we talked for almost an hour about smaller things, work, his apartment, whether I was still running. It's strange, hopeful and cautious at the same time, like standing at the edge of something you're not sure is solid yet. I don't know where this goes from here. But I'm glad he called."
+    },
+    {
+      "id": "e-2026-03-09-1",
+      "createdAt": "2026-03-09T07:15:00Z",
+      "title": "Overcast this Monday, one of the fewer ones this month,…",
+      "content": "Overcast this Monday, one of the fewer ones this month, spring apparently starting to push the gray away a little. Still turning yesterday's call with Dario over in my head at odd moments during the day, couldn't quite focus fully on work. Not in a bad way, just present, taking up space."
+    },
+    {
+      "id": "e-2026-03-10-1",
+      "createdAt": "2026-03-10T21:00:00Z",
+      "title": "Still thinking about the call with Dario honestly,…",
+      "content": "Still thinking about the call with Dario honestly, replaying pieces of it, wondering if I should text him something or just wait for him to reach out again. Decided to wait, don't want to seem overeager and scare off whatever this fragile new thing is. Work otherwise unremarkable today."
+    },
+    {
+      "id": "e-2026-03-11-1",
+      "createdAt": "2026-03-11T22:10:00Z",
+      "title": "Frustrating day at work, Atlas hit another blocker…",
+      "content": "Frustrating day at work, Atlas hit another blocker that's apparently going to push the timeline out yet again, which after months of this feels less surprising than it probably should. Vented about it a little to Sam over dinner, mostly just needed to say it out loud to someone."
+    },
+    {
+      "id": "e-2026-03-12-1",
+      "createdAt": "2026-03-12T22:00:00Z",
+      "title": "Pottery Thursday, needed it after this week's…",
+      "content": "Pottery Thursday, needed it after this week's frustrations at work. Something calming about the repetitive motion of centering clay, forces you to just be present with your hands instead of your head. Made a small planter, first non-vessel thing I've tried."
+    },
+    {
+      "id": "e-2026-03-13-1",
+      "createdAt": "2026-03-13T21:40:00Z",
+      "title": "Friday, tired, small quiet plans for the weekend",
+      "content": "Friday, tired, small quiet plans for the weekend. Nothing much to report today, just glad the week's over. Atlas timeline slip still bothering me a little in the background."
+    },
+    {
+      "id": "e-2026-03-14-1",
+      "createdAt": "2026-03-14T08:40:00Z",
+      "title": "Sharp pain in my knee about three miles into today's…",
+      "content": "Sharp pain in my knee about three miles into today's run, had to stop and walk the rest of the way home limping a little. Scared me honestly, more than the pain itself, this immediate fear of losing running right when it's become the thing that keeps me steady through everything else this year, the burnout, the grief, all of it. Iced it when I got home, going to book a physio appointment this week instead of just hoping it goes away on its own like I usually do with these things. Trying not to catastrophize but it's hard not to."
+    },
+    {
+      "id": "e-2026-03-15-1",
+      "createdAt": "2026-03-15T21:20:00Z",
+      "title": "Forced rest day, knee still tender, restless about it…",
+      "content": "Forced rest day, knee still tender, restless about it all day, kept eyeing my running shoes by the door like they were mocking me. Booked the physio appointment for next week at least, that's something. Hard to sit still when moving is usually how I process everything."
+    },
+    {
+      "id": "e-2026-03-16-1",
+      "createdAt": "2026-03-16T07:20:00Z",
+      "title": "Monday but the sun actually broke through this morning,…",
+      "content": "Monday but the sun actually broke through this morning, first real sunshine in what feels like weeks, whole commute felt different because of it. Knee still bothering me a little but not as sharp as Saturday. Small mood lift just from the light."
+    },
+    {
+      "id": "e-2026-03-17-1",
+      "createdAt": "2026-03-17T21:50:00Z",
+      "title": "First physio appointment today, turns out it's something…",
+      "content": "First physio appointment today, turns out it's something with the patellar tendon, overuse pattern from ramping distance up too fast without enough recovery built in, classic beginner mistake apparently. Gave me a set of exercises to do, nothing dramatic, should heal fine with some patience and actually following the plan instead of just pushing through pain like I usually do. Relief honestly, better than the vague dread I'd been carrying since Saturday."
+    },
+    {
+      "id": "e-2026-03-18-1",
+      "createdAt": "2026-03-18T22:20:00Z",
+      "title": "Bad Atlas day, something in the underlying architecture…",
+      "content": "Bad Atlas day, something in the underlying architecture snapping in a way that's going to cost us another week at least, and I could feel something in me snapping a little too when Priya delivered the news in standup. Didn't say anything I regret, but it was close. Tired of this project in a way I haven't let myself fully admit until today."
+    },
+    {
+      "id": "e-2026-03-19-1",
+      "createdAt": "2026-03-19T22:10:00Z",
+      "title": "Pottery tonight, wedging clay and genuinely thinking,…",
+      "content": "Pottery tonight, wedging clay and genuinely thinking, seriously thinking, about what it would look like to just quit the job. Not in a dramatic way, just turning the actual math over in my head, savings, timeline, what I'd even do instead. Didn't say any of that out loud to anyone in the class obviously, just let the thought sit there while my hands worked. Strange how the quietest activities let the loudest thoughts in."
+    },
+    {
+      "id": "e-2026-03-20-1",
+      "createdAt": "2026-03-20T22:40:00Z",
+      "title": "Actually opened the notes app tonight and drafted a…",
+      "content": "Actually opened the notes app tonight and drafted a resignation letter. Just to see how it felt to put words to it. It felt terrifying and also strangely clarifying, seeing the sentences laid out, I am writing to inform you of my decision to resign, all the formal language sitting there waiting for a name and a date. Didn't send it obviously, don't even know if I'm actually going to. What stopped me wasn't fear exactly, more just not wanting to make a huge decision from inside a bad week instead of from someplace steadier. Going to sit with the draft for now, saved but not sent, and see how I feel once Atlas actually ships and some of this pressure lifts."
+    },
+    {
+      "id": "e-2026-03-21-1",
+      "createdAt": "2026-03-21T21:15:00Z",
+      "title": "Talked through the whole resignation-draft thing with…",
+      "content": "Talked through the whole resignation-draft thing with Sam tonight, first time I'd said any of it out loud to another person. They didn't tell me what to do, just asked good questions, whether it was really the job or just this project, whether I'd talked to Priya directly about how bad it's gotten. Good questions honestly, ones I didn't have great answers for yet. Feels lighter having said it out loud at least."
+    },
+    {
+      "id": "e-2026-03-22-1",
+      "createdAt": "2026-03-22T21:00:00Z",
+      "title": "Grief wave today, out of nowhere again the way it does",
+      "content": "Grief wave today, out of nowhere again the way it does. Was making a simple Sunday sauce, nothing fancy, and the smell of it simmering just pulled Nonna right into the room with me, so vividly it almost hurt, her recipe card in my head even though I don't actually have the physical card, just the memory of watching her write it years ago in her looping handwriting. Cried a little over the pot, which felt okay actually, felt like the right response rather than something to push down. Six weeks now and it still finds me in the smallest moments."
+    },
+    {
+      "id": "e-2026-03-23-1",
+      "createdAt": "2026-03-23T07:30:00Z",
+      "title": "Monday, steadier today than yesterday's wave, gray but…",
+      "content": "Monday, steadier today than yesterday's wave, gray but not overcast exactly, just quiet weather. Work manageable. Doing the physio exercises before bed most nights now, actually sticking with a routine for once."
+    },
+    {
+      "id": "e-2026-03-24-1",
+      "createdAt": "2026-03-24T12:30:00Z",
+      "title": "Lunch with Maya, finally said the quitting thing out…",
+      "content": "Lunch with Maya, finally said the quitting thing out loud to her too, the resignation draft and everything. She wasn't shocked, said she'd sensed something building for months honestly, which was both a little alarming and a little validating. Good to have it out in the open with someone who knows me this well."
+    },
+    {
+      "id": "e-2026-03-25-1",
+      "createdAt": "2026-03-25T21:20:00Z",
+      "title": "Midweek, mundane, Atlas grinding on but no new fires…",
+      "content": "Midweek, mundane, Atlas grinding on but no new fires today at least. Small mercy. Physio exercises done, knee feeling noticeably better this week."
+    },
+    {
+      "id": "e-2026-03-26-1",
+      "createdAt": "2026-03-26T22:00:00Z",
+      "title": "Pottery Thursday, good session, glazed a few pieces from…",
+      "content": "Pottery Thursday, good session, glazed a few pieces from a couple weeks ago, curious to see how the colors turn out once they're fired. This class keeps being the steadiest, most reliable good hour of every week regardless of what else is going on."
+    },
+    {
+      "id": "e-2026-03-27-1",
+      "createdAt": "2026-03-27T21:30:00Z",
+      "title": "Physio follow-up today, knee's healing well apparently,…",
+      "content": "Physio follow-up today, knee's healing well apparently, ahead of the usual timeline they said, probably because I actually did the exercises this time instead of just nodding along and ignoring them. Exercises themselves are boring, I won't pretend otherwise, a lot of slow controlled leg lifts that don't feel like much, but clearly they're working. Cleared for gradually building distance back up next week."
+    },
+    {
+      "id": "e-2026-03-28-1",
+      "createdAt": "2026-03-28T08:20:00Z",
+      "title": "Short careful run this morning, first one since the knee…",
+      "content": "Short careful run this morning, first one since the knee scare, kept the pace easy and the distance short on purpose. Held up fine, no sharp pain, just a little awareness of it that's probably normal after weeks off. Cautiously relieved. Spring air out there too, first real hint of warmth in a while."
+    },
+    {
+      "id": "e-2026-03-29-1",
+      "createdAt": "2026-03-29T20:50:00Z",
+      "title": "Texted Dario back tonight, small step, just asked how…",
+      "content": "Texted Dario back tonight, small step, just asked how his week went. He responded quick, seemed genuinely happy to hear from me. Nothing deep yet, but it's something, a thread staying open instead of going quiet again."
+    },
+    {
+      "id": "e-2026-03-31-1",
+      "createdAt": "2026-03-31T21:00:00Z",
+      "title": "Month's closing out, and spring is genuinely starting to…",
+      "content": "Month's closing out, and spring is genuinely starting to show itself, the light lingering later, a little warmth in the afternoons. Been a strange month, the curtains actually fixing my sleep, Dario calling after two years of silence, the knee scare, the resignation draft still sitting unsent in my notes app. A lot of threads still open heading into April. Trying to just let them unfold instead of forcing any of them."
+    },
+    {
+      "id": "e-2026-04-01-1",
+      "createdAt": "2026-04-01T21:00:00Z",
+      "title": "Mundane Wednesday, nothing much to report, Atlas still…",
+      "content": "Mundane Wednesday, nothing much to report, Atlas still going but at least no new disasters today. April starting quiet, which after March I'll take gladly."
+    },
+    {
+      "id": "e-2026-04-02-1",
+      "createdAt": "2026-04-02T22:00:00Z",
+      "title": "Pottery Thursday, glazed pieces from last month came out…",
+      "content": "Pottery Thursday, glazed pieces from last month came out of the kiln, that blue turned out even better than I hoped, deep and a little uneven in a way that feels intentional even though it wasn't. Small good moment to close the week on."
+    },
+    {
+      "id": "e-2026-04-03-1",
+      "createdAt": "2026-04-03T21:30:00Z",
+      "title": "Nervous about getting coffee with Dario this weekend,…",
+      "content": "Nervous about getting coffee with Dario this weekend, our first time actually seeing each other in person since everything. Texting's been easy enough these past couple weeks but sitting across from him is a different thing entirely. Trying not to overthink it too much, easier said than done."
+    },
+    {
+      "id": "e-2026-04-04-1",
+      "createdAt": "2026-04-04T08:30:00Z",
+      "title": "Run this morning, knee behaving well now, pushed the…",
+      "content": "Run this morning, knee behaving well now, pushed the distance up a little more without any issues. Good to have this back fully, felt like myself again out there in a way I hadn't quite for a few weeks. Tomorrow's the Dario coffee, trying to just enjoy today first."
+    },
+    {
+      "id": "e-2026-04-05-1",
+      "createdAt": "2026-04-05T21:45:00Z",
+      "title": "Had coffee with Dario today",
+      "content": "Had coffee with Dario today. Awkward, honestly, more awkward than the phone calls have been, something about sitting across a table from someone makes the two years of silence more physically present than a voice on the phone ever did. Long silences a few times where neither of us knew what to say next, both of us maybe a little afraid of saying the wrong thing and undoing whatever fragile progress we've made. But we stayed. Two hours, way longer than either of us probably planned for a first coffee. Talked around the actual fight still, didn't touch it directly, but we talked about Dad a little, carefully, edges only. I think we both know we'll have to get to the center of it eventually if this is going to actually mean something and not just be surface pleasantries forever. But not today. Today was just showing up and staying, and that felt like enough."
+    },
+    {
+      "id": "e-2026-04-06-1",
+      "createdAt": "2026-04-06T07:20:00Z",
+      "title": "Monday, real spring light this morning, no overcast at…",
+      "content": "Monday, real spring light this morning, no overcast at all, actual warmth in the air on the walk to the office. Still thinking about yesterday's coffee with Dario, the good and the awkward parts both. Work steady today, nothing dramatic."
+    },
+    {
+      "id": "e-2026-04-07-1",
+      "createdAt": "2026-04-07T21:10:00Z",
+      "title": "Decided today, actually decided, that I need to sit down…",
+      "content": "Decided today, actually decided, that I need to sit down with Priya and tell her the truth about how burnt out I've been this whole stretch, not the polite version I've been giving in check-ins, the actual version. Booked time on her calendar for next week. Nervous about it but also relieved just having made the decision instead of continuing to just quietly grind through it."
+    },
+    {
+      "id": "e-2026-04-08-1",
+      "createdAt": "2026-04-08T21:00:00Z",
+      "title": "Noticed tonight that I've actually been sleeping well…",
+      "content": "Noticed tonight that I've actually been sleeping well for weeks now, genuinely well, no four a.m. wake-ups in a long stretch. The curtains, sure, but also just things settling generally, Dario back in the picture, knee healed, Atlas theoretically nearing its end. Small quiet gratitude for that tonight."
+    },
+    {
+      "id": "e-2026-04-09-1",
+      "createdAt": "2026-04-09T22:00:00Z",
+      "title": "Pottery Thursday, working on a set of matching mugs now,…",
+      "content": "Pottery Thursday, working on a set of matching mugs now, first time trying to make multiples that are actually supposed to look similar to each other, harder than it sounds. Good challenge though. Nervous energy about tomorrow's meeting with Priya sitting underneath the whole evening."
+    },
+    {
+      "id": "e-2026-04-10-1",
+      "createdAt": "2026-04-10T22:20:00Z",
+      "title": "Evening with Sam tonight, good overall, dinner and a…",
+      "content": "Evening with Sam tonight, good overall, dinner and a walk after, but there was this small off note somewhere in the middle of it I can't quite name, a beat of quiet that felt different from our usual comfortable quiet. Probably nothing, everyone has an off evening sometimes. Not going to read too much into it."
+    },
+    {
+      "id": "e-2026-04-11-1",
+      "createdAt": "2026-04-11T13:00:00Z",
+      "title": "Saturday errands, groceries and a few things for the…",
+      "content": "Saturday errands, groceries and a few things for the apartment. Quiet productive day, nothing eventful. Meeting with Priya on Tuesday looming a little in the back of my mind all day."
+    },
+    {
+      "id": "e-2026-04-12-1",
+      "createdAt": "2026-04-12T09:00:00Z",
+      "title": "Ran this morning and found myself basically rehearsing…",
+      "content": "Ran this morning and found myself basically rehearsing what I'm going to say to Priya on Tuesday the whole way, muttering little fragments of it out loud between breaths probably looking like a crazy person to anyone I passed on the trail. Good use of the run though, felt more prepared by the end than when I started."
+    },
+    {
+      "id": "e-2026-04-13-1",
+      "createdAt": "2026-04-13T21:30:00Z",
+      "title": "Monday, spring light lingering later now which is nice",
+      "content": "Monday, spring light lingering later now which is nice. Meeting with Priya is officially tomorrow, confirmed on the calendar, no backing out now. Rehearsed the key points again tonight, trying to keep it honest but not just a complaint session, want to actually propose something not just vent."
+    },
+    {
+      "id": "e-2026-04-14-1",
+      "createdAt": "2026-04-14T22:00:00Z",
+      "title": "Told Priya everything today",
+      "content": "Told Priya everything today. All of it, the burnout admission from January, how Atlas has just kept grinding since December with barely a break, the resignation letter I drafted and never sent in March. Scared to say it all out loud honestly, worried it would sound like weakness or like I was threatening to quit as leverage, but she just listened, really listened, the way she has since the beginning. And then she said something I wasn't expecting, that she'd noticed, that she'd actually been trying to figure out how to raise it with me herself, and that there was an opening on a different team, Meridian, doing work that's genuinely more aligned with what I'm good at and less of the constant fire-fighting Atlas has been. I start there next month. Walking out of that conversation I felt something physically let go, my shoulders down from somewhere near my ears, an actual full breath instead of the shallow ones I've apparently been taking for months. My jaw wasn't even clenched, I didn't realize how long it had been clenched until it wasn't. Relief. Real relief."
+    },
+    {
+      "id": "e-2026-04-15-1",
+      "createdAt": "2026-04-15T21:15:00Z",
+      "title": "Day-after lightness still holding, woke up this morning…",
+      "content": "Day-after lightness still holding, woke up this morning without that familiar dread in my stomach for the first time in months. Told Sam and Maya both the news, both genuinely happy for me. Starting to actually let myself believe things might be turning a corner."
+    },
+    {
+      "id": "e-2026-04-16-1",
+      "createdAt": "2026-04-16T22:00:00Z",
+      "title": "Pottery Thursday, lighter energy in me tonight than I've…",
+      "content": "Pottery Thursday, lighter energy in me tonight than I've brought to this class in a while, could feel it in how loose my hands were on the wheel. Made something a little experimental, not sure what it'll end up being, just followed the clay for once instead of forcing a plan onto it."
+    },
+    {
+      "id": "e-2026-04-17-1",
+      "createdAt": "2026-04-17T21:40:00Z",
+      "title": "Friday, tired but the good kind of tired, tired-good…",
+      "content": "Friday, tired but the good kind of tired, tired-good instead of tired-drained, if that makes sense. Handing off Atlas pieces this week in preparation for the Meridian move, satisfying in its own way, watching a chapter actually close instead of just dragging on indefinitely."
+    },
+    {
+      "id": "e-2026-04-18-1",
+      "createdAt": "2026-04-18T20:00:00Z",
+      "title": "Patio season officially started, sat outside with Maya…",
+      "content": "Patio season officially started, sat outside with Maya and Tom at that place with the string lights for the first time this year, first warm enough evening for it. Good energy all around, everyone in a decent mood, spring doing what spring does to people after a long gray winter."
+    },
+    {
+      "id": "e-2026-04-19-1",
+      "createdAt": "2026-04-19T21:50:00Z",
+      "title": "Quiet Sunday with Sam, tried to talk about something a…",
+      "content": "Quiet Sunday with Sam, tried to talk about something a little deeper, future plans, that kind of thing, and it just didn't quite land the way I wanted it to, conversation kept sliding sideways into smaller topics instead. Not a fight or anything, just a miss. Probably nothing. Probably."
+    },
+    {
+      "id": "e-2026-04-20-1",
+      "createdAt": "2026-04-20T07:30:00Z",
+      "title": "Overcast Monday, one of the last of these this spring…",
+      "content": "Overcast Monday, one of the last of these this spring probably as the weather keeps trending warmer. Flat feeling again despite everything going better lately, Meridian starting soon, Dario steadier, but today just gray regardless. Doesn't erase the good, just sits alongside it."
+    },
+    {
+      "id": "e-2026-04-21-1",
+      "createdAt": "2026-04-21T21:20:00Z",
+      "title": "Got a letter from the landlord today, building's being…",
+      "content": "Got a letter from the landlord today, building's being sold, new owners want current tenants out within a couple months. Not what I needed on top of everything else honestly, even the good changes lately have been a lot, and now apartment hunting gets added to the pile. Trying not to spiral about it tonight, just letting it sit as a fact for now, will figure out logistics this week."
+    },
+    {
+      "id": "e-2026-04-22-1",
+      "createdAt": "2026-04-22T21:00:00Z",
+      "title": "Mundane workday, Meridian handoff prep continuing,…",
+      "content": "Mundane workday, Meridian handoff prep continuing, documenting everything for whoever picks up my Atlas pieces after I move teams. Apartment stuff still sitting unresolved in the back of my mind, haven't started actually looking yet."
+    },
+    {
+      "id": "e-2026-04-23-1",
+      "createdAt": "2026-04-23T22:00:00Z",
+      "title": "Pottery Thursday, distraction from the apartment stress…",
+      "content": "Pottery Thursday, distraction from the apartment stress and everything else this week. Finished the experimental piece from last week, turned into a small vase, pretty happy with how it came out honestly, one of my favorites so far."
+    },
+    {
+      "id": "e-2026-04-24-1",
+      "createdAt": "2026-04-24T21:30:00Z",
+      "title": "Sam said tonight we should have a real talk this…",
+      "content": "Sam said tonight we should have a real talk this weekend, said it in that particular tone that makes your stomach drop a little even before you know what it's about. Didn't push for details, just said okay. Sitting with a low-grade dread about it now, trying not to assume the worst but also not able to fully talk myself out of it either."
+    },
+    {
+      "id": "e-2026-04-25-1",
+      "createdAt": "2026-04-25T20:00:00Z",
+      "title": "Quiet Saturday, basically just holding my breath waiting…",
+      "content": "Quiet Saturday, basically just holding my breath waiting for tomorrow's conversation with Sam. Tried to distract myself with chores and a walk but nothing really worked, that particular kind of dread that sits right under everything else you're doing all day."
+    },
+    {
+      "id": "e-2026-04-26-1",
+      "createdAt": "2026-04-26T21:00:00Z",
+      "title": "Sam and I broke up today",
+      "content": "Sam and I broke up today. Nobody did anything wrong exactly, there's no villain in this version of the story, which almost makes it harder somehow, easier to be angry at someone than to just sit with the plain sad fact that something good has run its course. They said it's been feeling like we want slightly different things lately, not dramatically different, just enough of a gap that's been quietly widening since around that off evening a couple weeks ago, the one I noticed and then talked myself out of noticing. I think they're right, honestly, as much as it hurts to admit. We talked for a long time, calm mostly, a little crying on both sides near the end. No slammed doors, no cruelty, just two people being honest about something ending. I keep waiting to feel angrier than I do. Mostly I just feel the specific grief of losing something that was genuinely good, not because it broke but because it was never quite going to be the whole thing either of us needed. That's its own kind of sad, maybe a harder kind in some ways."
+    },
+    {
+      "id": "e-2026-04-27-1",
+      "createdAt": "2026-04-27T21:10:00Z",
+      "title": "Day after, lonely in that specific quiet way, apartment…",
+      "content": "Day after, lonely in that specific quiet way, apartment feeling emptier than it should for just one less person's occasional presence in it. Went to work anyway, functional if not fully present, similar in a way to those first days after Nonna, going through motions while something processes underneath. Told Maya briefly, she came over tonight with food, didn't push me to talk more than I wanted to."
+    },
+    {
+      "id": "e-2026-04-28-1",
+      "createdAt": "2026-04-28T21:30:00Z",
+      "title": "Landlord confirmed the timeline, officially need to be…",
+      "content": "Landlord confirmed the timeline, officially need to be out by end of June. Money stress creeping in on top of everything else this week, first and last month's rent somewhere new, moving costs, all of it landing at the worst possible time emotionally. Trying to just take it one task at a time instead of looking at the whole pile."
+    },
+    {
+      "id": "e-2026-04-29-1",
+      "createdAt": "2026-04-29T20:40:00Z",
+      "title": "Dario texted something kind today, just checking in,…",
+      "content": "Dario texted something kind today, just checking in, said he'd heard from Mom about the breakup and was thinking of me. Small warmth in an otherwise hard week. Nice to have that thread still open and actually being used for something good."
+    },
+    {
+      "id": "e-2026-04-30-1",
+      "createdAt": "2026-04-30T22:00:00Z",
+      "title": "Pottery Thursday to close out the month, quieter class…",
+      "content": "Pottery Thursday to close out the month, quieter class for me tonight, less chatting with the others than usual, just needed the hands-busy quiet more than the socializing. Finished a bowl I'd been working on for two weeks. Month's ending on a strange mixed note, Meridian starting soon which is good, the breakup which isn't, the apartment hunt looming. Sitting in my empty-feeling apartment with a bowl I made myself, some kind of small comfort in that at least."
+    },
+    {
+      "id": "e-2026-05-01-1",
+      "createdAt": "2026-05-01T21:00:00Z",
+      "title": "First day at Meridian today, new team, new project,…",
+      "content": "First day at Meridian today, new team, new project, genuinely different energy in the room than Atlas ever had, less fire-fighting, more actual planning. Overwhelmed in the normal new-job way, learning everyone's names, where things live, but a good kind of overwhelmed, not the exhausted kind. Optimistic about this."
+    },
+    {
+      "id": "e-2026-05-02-1",
+      "createdAt": "2026-05-02T09:00:00Z",
+      "title": "Lonely Saturday morning, first weekend properly alone…",
+      "content": "Lonely Saturday morning, first weekend properly alone since the breakup really settled in. Almost reached for my phone to send Sam something funny I saw, old habit not caught up with the new reality yet. Didn't send it. Just sat with the missing for a while instead, which felt like the more honest thing to do."
+    },
+    {
+      "id": "e-2026-05-03-1",
+      "createdAt": "2026-05-03T21:20:00Z",
+      "title": "Apartment hunting officially started today, browsed…",
+      "content": "Apartment hunting officially started today, browsed listings for a couple hours, everything either too expensive or too far or somehow both. Overwhelming honestly. Going to schedule some actual viewings this week instead of just endlessly scrolling."
+    },
+    {
+      "id": "e-2026-05-06-1",
+      "createdAt": "2026-05-06T21:15:00Z",
+      "title": "Quiet day, nothing much happening",
+      "content": "Quiet day, nothing much happening. Work fine, dinner simple, early night."
+    },
+    {
+      "id": "e-2026-05-10-1",
+      "createdAt": "2026-05-10T20:30:00Z",
+      "title": "First Mother's Day without Nonna in the picture at all,…",
+      "content": "First Mother's Day without Nonna in the picture at all, and it hit differently than I expected, quieter than the sharper grief of February but somehow just as present. Called Mom this morning, she was okay, better than I feared honestly, we talked mostly about Nonna's sauce recipe, Mom finally sharing the actual written card with me over the phone, reading it out loud while I copied it down. Small thing, a recipe on a card, but it felt like something being passed forward instead of just lost. Quiet day otherwise, didn't do much, just let it be a smaller day."
+    },
+    {
+      "id": "e-2026-05-11-1",
+      "createdAt": "2026-05-11T21:00:00Z",
+      "title": "Back to the regular week after yesterday's quieter…",
+      "content": "Back to the regular week after yesterday's quieter Mother's Day. Work at Meridian continuing to feel genuinely good, actually contributing meaningfully to a design review today instead of just surviving another status meeting. Small steady good day."
+    },
+    {
+      "id": "e-2026-05-12-1",
+      "createdAt": "2026-05-12T07:20:00Z",
+      "title": "Run this morning, half marathon training officially…",
+      "content": "Run this morning, half marathon training officially underway now, working up the distance slowly and carefully this time, learned my lesson from the knee scare back in March. Legs felt strong today. Spring properly here now, warm mornings, light lingering."
+    },
+    {
+      "id": "e-2026-05-13-1",
+      "createdAt": "2026-05-13T21:40:00Z",
+      "title": "Reflex tonight to text Sam a joke I saw online, the…",
+      "content": "Reflex tonight to text Sam a joke I saw online, the specific kind of thing we used to send each other constantly, and this time I actually let myself feel the loss of that instead of pushing it away. It's a strange grief, missing the small daily texture of someone more than any single big thing. Didn't send it, obviously, but let myself sit with wanting to for a minute before moving on."
+    },
+    {
+      "id": "e-2026-05-14-1",
+      "createdAt": "2026-05-14T22:00:00Z",
+      "title": "Pottery Thursday, good session, the class has become…",
+      "content": "Pottery Thursday, good session, the class has become such a fixture at this point it barely feels like a decision anymore, just a standing appointment with myself. Made a set of small bowls, thinking about giving one to Mom next time I visit, something with Nonna in mind even if unspoken."
+    },
+    {
+      "id": "e-2026-05-15-1",
+      "createdAt": "2026-05-15T20:00:00Z",
+      "title": "First apartment viewing today, place was fine, nothing…",
+      "content": "First apartment viewing today, place was fine, nothing special, a little dark and smaller than my current spot, but at least now I have a reference point for what's actually out there. Two more viewings scheduled for the weekend. The hunt continues."
+    },
+    {
+      "id": "e-2026-05-16-1",
+      "createdAt": "2026-05-16T08:30:00Z",
+      "title": "Longer training run this morning, distance creeping up…",
+      "content": "Longer training run this morning, distance creeping up steadily, felt good and controlled, none of the reckless pace-pushing that got me hurt back in March. Learning to trust the slow build this time. Warm out already even in the early morning, real summer creeping into the edges of spring."
+    },
+    {
+      "id": "e-2026-05-16-2",
+      "createdAt": "2026-05-16T20:30:00Z",
+      "title": "Second apartment viewing today, a little better than…",
+      "content": "Second apartment viewing today, a little better than yesterday's, decent light, closer to the trail I usually run on. Still not quite right but getting a clearer sense of what I actually want now that I've seen a few options."
+    },
+    {
+      "id": "e-2026-05-17-1",
+      "createdAt": "2026-05-17T21:30:00Z",
+      "title": "Helped Dario move apartments today, first time doing…",
+      "content": "Helped Dario move apartments today, first time doing something this ordinary together since everything reopened between us, no big emotional conversation needed, just boxes and a couch that barely fit through his new door and pizza eaten sitting on unpacked crates afterward because neither of us wanted to look for plates yet. There was a moment carrying a particularly awkward dresser down two flights of stairs, both of us cursing and laughing at the same time, where it just felt easy between us, genuinely easy, maybe for the first time since he called back in March. Not talking about the past, not performing reconciliation, just two brothers moving furniture badly together. I think this is actually how it heals, in the boring ordinary moments more than the big ones."
+    },
+    {
+      "id": "e-2026-05-18-1",
+      "createdAt": "2026-05-18T21:00:00Z",
+      "title": "Sore from yesterday's moving, whole body reminding me…",
+      "content": "Sore from yesterday's moving, whole body reminding me that carrying furniture down stairs is its own kind of workout. Good sore though, the kind that comes with a good memory attached to it. Quiet Sunday otherwise, recovering."
+    },
+    {
+      "id": "e-2026-05-19-1",
+      "createdAt": "2026-05-19T21:15:00Z",
+      "title": "Mundane Monday at Meridian, nothing dramatic, steady…",
+      "content": "Mundane Monday at Meridian, nothing dramatic, steady work, still enjoying the change of pace from Atlas honestly, doesn't feel old yet. Apartment hunt on pause for a couple days while I catch my breath from the move-helping weekend."
+    },
+    {
+      "id": "e-2026-05-20-1",
+      "createdAt": "2026-05-20T21:30:00Z",
+      "title": "Strange relief tonight, realized I hadn't thought about…",
+      "content": "Strange relief tonight, realized I hadn't thought about Sam even once today until just now writing this, and there's a complicated feeling in that, relief at not hurting as sharply mixed with a small guilt about the relief itself, like moving on too easily says something about how much it mattered in the first place. It mattered. I know it mattered. Healing just isn't linear or particularly polite about timing."
+    },
+    {
+      "id": "e-2026-05-21-1",
+      "createdAt": "2026-05-21T22:00:00Z",
+      "title": "Pottery Thursday, race is in a few days now, half…",
+      "content": "Pottery Thursday, race is in a few days now, half marathon nerves starting to creep into everything including tonight's session, kept second-guessing my hand placement more than usual. Made something serviceable but nothing special. Mind clearly elsewhere."
+    },
+    {
+      "id": "e-2026-05-22-1",
+      "createdAt": "2026-05-22T21:20:00Z",
+      "title": "Third apartment viewing, this one's actually promising,…",
+      "content": "Third apartment viewing, this one's actually promising, good light, reasonable rent, close enough to Meridian's office and the trail both. Going to think on it over the weekend but leaning toward putting in an application. Race is Sunday, tapering the running down this week per the training plan, feels strange to rest this close to it after weeks of building up."
+    },
+    {
+      "id": "e-2026-05-23-1",
+      "createdAt": "2026-05-23T20:30:00Z",
+      "title": "Pre-race nerves properly setting in now, laid out gear…",
+      "content": "Pre-race nerves properly setting in now, laid out gear tonight the same ritual as before the ten k back in January, except this feels bigger, thirteen miles instead of six, a whole different category of effort. Texted Maya and Tom to confirm they're still coming to cheer, they are, that helps steady the nerves a little knowing there'll be familiar faces at the finish."
+    },
+    {
+      "id": "e-2026-05-24-1",
+      "createdAt": "2026-05-24T13:30:00Z",
+      "title": "Half marathon done",
+      "content": "Half marathon done. Two hours and seven minutes, way past what I imagined possible for myself back in November doing that first out-of-breath mile and a half. Mile ten was brutal, the wall everyone warns you about, legs suddenly feeling like they belonged to someone else, every part of me wanting to stop and walk the rest. Pushed through it anyway, don't fully know how except that stopping felt worse somehow than the pain of continuing. Heard Maya and Tom before I saw them, screaming my name from somewhere in the crowd near mile twelve, exactly the boost I needed for that last brutal stretch. Crossing the finish line I had this unexpected thought of Nonna, just a flash of her, no specific reason, maybe just that big emotional moments seem to summon the people who aren't here to see them. Wish she could have seen this. I think she would have liked it, would have fed the whole finish-line crowd afterward given half a chance. Proud of myself today in a way that feels earned, built slowly over seven months of actually showing up."
+    },
+    {
+      "id": "e-2026-05-25-1",
+      "createdAt": "2026-05-25T21:00:00Z",
+      "title": "Entire body sore today, stairs are an ordeal, but a…",
+      "content": "Entire body sore today, stairs are an ordeal, but a satisfied kind of sore. Rested most of the day, relived bits of yesterday's race in my head more than once. Applied for that apartment from the viewing earlier this week too, fingers crossed on that front now."
+    },
+    {
+      "id": "e-2026-05-26-2",
+      "createdAt": "2026-05-26T07:00:00Z",
+      "title": "Easy recovery run this morning, nothing pushed, just…",
+      "content": "Easy recovery run this morning, nothing pushed, just wanted to keep the legs moving a little after last weekend's half marathon without overdoing it. Warm already even this early, summer really settling in now. Nice quiet way to start the day before the apartment-application waiting game resumes."
+    },
+    {
+      "id": "e-2026-05-26-1",
+      "createdAt": "2026-05-26T21:15:00Z",
+      "title": "Mundane Tuesday, back to work after the race weekend,…",
+      "content": "Mundane Tuesday, back to work after the race weekend, everyone at Meridian asking about it since I hadn't shut up about training for weeks apparently. Nice to have people actually interested. Still no word on the apartment application."
+    },
+    {
+      "id": "e-2026-05-27-1",
+      "createdAt": "2026-05-27T20:00:00Z",
+      "title": "Got approved for the apartment",
+      "content": "Got approved for the apartment. Relief, genuine relief, one big open question in my life finally closing instead of piling on top of everything else. Move-in date works out fine with the end-of-June deadline, some breathing room instead of a mad scramble at the last minute. Small good thing to end the week on."
+    },
+    {
+      "id": "e-2026-05-28-1",
+      "createdAt": "2026-05-28T22:00:00Z",
+      "title": "Pottery Thursday, calmer session now that both the race…",
+      "content": "Pottery Thursday, calmer session now that both the race and the apartment question are resolved, more headspace to actually focus on the clay instead of everything else swirling. Started thinking about how I'm going to pack up all these pieces I've made over the past five months for the move, apparently accumulated more than I realized."
+    },
+    {
+      "id": "e-2026-05-29-1",
+      "createdAt": "2026-05-29T21:30:00Z",
+      "title": "Quiet gratitude tonight, sitting with how far this year…",
+      "content": "Quiet gratitude tonight, sitting with how far this year has come honestly, thinking briefly about Sam without the sharp ache of a few weeks ago, more just a soft appreciation for what was good about it while it lasted. Not everything has to end in bitterness to still be worth having happened."
+    },
+    {
+      "id": "e-2026-05-30-1",
+      "createdAt": "2026-05-30T11:00:00Z",
+      "title": "Weekend errands, started boxing up the apartment for…",
+      "content": "Weekend errands, started boxing up the apartment for real now with the move less than three weeks out. Amazing how much stuff accumulates without you noticing. Dario's coming to help this time, nice that it's his turn to return the favor."
+    },
+    {
+      "id": "e-2026-05-31-1",
+      "createdAt": "2026-05-31T21:00:00Z",
+      "title": "Month's ending, and looking back it's been a genuinely…",
+      "content": "Month's ending, and looking back it's been a genuinely full one, Meridian starting well, the half marathon, Dario's move and now mine coming up, the Mother's Day quiet grief, Sam fading into something softer than the sharp early ache. A lot of change packed into thirty one days. Heading into June with an actual move on the calendar, nervous about the logistics but not about much else these days, which feels like real progress from where January started."
+    },
+    {
+      "id": "e-2026-06-01-1",
+      "createdAt": "2026-06-01T21:00:00Z",
+      "title": "June starting, move officially two weeks out now,…",
+      "content": "June starting, move officially two weeks out now, packing continuing in the background of everything else. Meridian work steady and genuinely enjoyable most days, still can't quite believe how different it feels from the Atlas grind. Warm evening, sat on the balcony for a while before bed, small quiet moment before the busy weeks ahead."
+    },
+    {
+      "id": "e-2026-06-02-1",
+      "createdAt": "2026-06-02T20:30:00Z",
+      "title": "Realized today how much is actually left to sort before…",
+      "content": "Realized today how much is actually left to sort before the move, way more than I estimated, and had a small stress spiral about the timeline this evening, boxes everywhere, half the kitchen still not packed. Deep breath. It'll get done, it always does, but tonight it felt like a lot all at once."
+    },
+    {
+      "id": "e-2026-06-03-1",
+      "createdAt": "2026-06-03T22:00:00Z",
+      "title": "Pottery Thursday, took a break from packing to make it…",
+      "content": "Pottery Thursday, took a break from packing to make it and glad I did, needed the reset. Told the class this is one of my last sessions here since the new apartment's a bit far for the Thursday commute, might look for a studio closer once I'm settled. Bittersweet thought, this class has meant more to me this year than I expected when I nervously signed up back in January."
+    },
+    {
+      "id": "e-2026-06-04-1",
+      "createdAt": "2026-06-04T21:15:00Z",
+      "title": "More packing, methodically working through the closets now",
+      "content": "More packing, methodically working through the closets now. Found an old photo of Nonna in a box of odds and ends, sat with it for a minute before carefully wrapping it to move safely. Small moment, kept it brief tonight, tired from the boxes."
+    },
+    {
+      "id": "e-2026-06-05-1",
+      "createdAt": "2026-06-05T07:00:00Z",
+      "title": "Early run before another day of packing chaos, needed…",
+      "content": "Early run before another day of packing chaos, needed the movement to clear my head before diving back into boxes. Summer mornings genuinely lovely now, warm but not yet oppressive, good light. Legs still feeling strong from half marathon training, keeping easy mileage up during the move stress instead of dropping it entirely."
+    },
+    {
+      "id": "e-2026-06-05-2",
+      "createdAt": "2026-06-05T21:30:00Z",
+      "title": "Kitchen fully packed now, living room half done",
+      "content": "Kitchen fully packed now, living room half done. Dario coming this weekend to help with the big stuff, grateful to have him now on the giving-help side after he needed it back in May. Funny how this year turned that around."
+    },
+    {
+      "id": "e-2026-06-06-1",
+      "createdAt": "2026-06-06T21:00:00Z",
+      "title": "Dario came by today to help load some of the bigger…",
+      "content": "Dario came by today to help load some of the bigger furniture into a rented truck ahead of next weekend's actual move, good practice run for moving day itself. Easy between us again the way it was helping him move back in May, boxes and bad jokes and neither of us needing to make it more meaningful than it already quietly is."
+    },
+    {
+      "id": "e-2026-06-07-1",
+      "createdAt": "2026-06-07T20:00:00Z",
+      "title": "Exhausted from the weekend's furniture wrangling, whole…",
+      "content": "Exhausted from the weekend's furniture wrangling, whole body sore in new places. Last full Sunday in this apartment, sat for a while in the mostly-empty living room just letting myself feel a little sentimental about the place, first apartment I really made mine, a lot happened here this year, good and hard both."
+    },
+    {
+      "id": "e-2026-06-08-1",
+      "createdAt": "2026-06-08T21:20:00Z",
+      "title": "Final week at the old place, work at Meridian still…",
+      "content": "Final week at the old place, work at Meridian still steady, trying to focus there despite the move looming over everything. Last few boxes to go, mostly just the essentials I'll need until moving day itself now."
+    },
+    {
+      "id": "e-2026-06-09-1",
+      "createdAt": "2026-06-09T21:00:00Z",
+      "title": "Signed the final paperwork on the new place today,…",
+      "content": "Signed the final paperwork on the new place today, officially official now, keys in hand as of this weekend. Strange mix of nerves and excitement, a fresh space feels like it means something bigger this year than just square footage, feels like a small physical marker of everything that's shifted since January."
+    },
+    {
+      "id": "e-2026-06-10-1",
+      "createdAt": "2026-06-10T21:30:00Z",
+      "title": "Picked up the keys this evening, walked through the…",
+      "content": "Picked up the keys this evening, walked through the empty new apartment by myself for a few minutes before telling anyone, just wanted a quiet first look. Bigger than I remembered from the viewing, good light in the late afternoon, kitchen window already promising a decent view once I'm actually living with it day to day. Real move is this weekend."
+    },
+    {
+      "id": "e-2026-06-11-1",
+      "createdAt": "2026-06-11T21:15:00Z",
+      "title": "Last few days of packing, down to the very last odds and…",
+      "content": "Last few days of packing, down to the very last odds and ends now. Movers booked for Sunday. Nervous energy building but also just ready for this to be over honestly, packing takes more out of you than people give it credit for."
+    },
+    {
+      "id": "e-2026-06-12-1",
+      "createdAt": "2026-06-12T22:00:00Z",
+      "title": "Second to last pottery session at this particular…",
+      "content": "Second to last pottery session at this particular studio, felt more emotional than I expected walking out tonight, said proper goodbyes to a couple of the regulars I've gotten to know this year. Going to miss this specific room, the specific light in it on Thursday evenings, even though pottery itself isn't going anywhere for me, just this particular space."
+    },
+    {
+      "id": "e-2026-06-13-1",
+      "createdAt": "2026-06-13T20:00:00Z",
+      "title": "Last night in the old apartment, sleeping on a mattress…",
+      "content": "Last night in the old apartment, sleeping on a mattress on the floor since the bed frame's already loaded in the truck. Strange feeling, echo-y empty rooms, all my stuff either gone or in boxes by the door. Tomorrow's the actual move. Ready for it, genuinely, even with the small sentimental pang tonight."
+    },
+    {
+      "id": "e-2026-06-14-1",
+      "createdAt": "2026-06-14T22:30:00Z",
+      "title": "Moved into the new place today, Fremont, finally",
+      "content": "Moved into the new place today, Fremont, finally. Whole day a blur of boxes, sweat, and Dario and Maya and Tom all pitching in with the heavy stuff while I directed traffic mostly badly. Exhausted in every part of my body right now, the specific exhaustion of an entire day of physical labor, but genuinely happy underneath it, that good tired that comes with something actually finished. Standing in the kitchen just now doing dishes before collapsing into bed, I looked up and caught the view out the window for real for the first time properly, not just the quick glance from the walkthrough, the canal catching the last of the evening light, a couple of people walking a dog along the path. Small unexpected gift, this window. Going to enjoy mornings here I think. First night in a new place, boxes everywhere still, but it already feels like it could be home."
+    },
+    {
+      "id": "e-2026-06-15-1",
+      "createdAt": "2026-06-15T21:00:00Z",
+      "title": "First full day in the new place, unpacking chaos…",
+      "content": "First full day in the new place, unpacking chaos everywhere still, boxes labeled in ways that made sense a week ago and now mean nothing. Found the coffee maker at least, priorities. Slept fine actually despite the new noises, different street sounds, a boat horn from the canal at one point that startled me awake briefly before I remembered where I was."
+    },
+    {
+      "id": "e-2026-06-16-1",
+      "createdAt": "2026-06-16T20:30:00Z",
+      "title": "More unpacking, slowly getting the place into some kind…",
+      "content": "More unpacking, slowly getting the place into some kind of order. Went for a walk along the canal in the evening, first proper exploration of the new neighborhood, nice little coffee shop a few blocks down I want to try this weekend."
+    },
+    {
+      "id": "e-2026-06-17-1",
+      "createdAt": "2026-06-17T21:20:00Z",
+      "title": "Meridian work resuming full focus now that the move's…",
+      "content": "Meridian work resuming full focus now that the move's mostly settled, good to have that steady rhythm back after weeks of packing chaos interrupting everything. Apartment starting to feel less like a construction site and more like an actual home, most boxes unpacked now, just the art and small decor stuff left."
+    },
+    {
+      "id": "e-2026-06-18-1",
+      "createdAt": "2026-06-18T07:00:00Z",
+      "title": "First run from the new place this morning, discovered a…",
+      "content": "First run from the new place this morning, discovered a whole stretch of canal path I didn't know existed, quiet and shaded by trees for a good chunk of it, might become my new regular route. Small joy in discovering a new neighborhood through running, learning it with your legs instead of just a map."
+    },
+    {
+      "id": "e-2026-06-19-1",
+      "createdAt": "2026-06-19T22:00:00Z",
+      "title": "First pottery class at a new studio closer to the new…",
+      "content": "First pottery class at a new studio closer to the new apartment, different vibe than the old place, smaller, quieter, fewer people but a nice instructor who complimented my technique right away which was a confidence boost after feeling like a beginner all over again in an unfamiliar room. Going to take some adjusting but I think this could work out."
+    },
+    {
+      "id": "e-2026-06-20-1",
+      "createdAt": "2026-06-20T21:00:00Z",
+      "title": "Prepping for Dario's birthday dinner tomorrow, picked up…",
+      "content": "Prepping for Dario's birthday dinner tomorrow, picked up a gift, a little nervous honestly about hosting since it's my first real gathering in the new place. Want it to go well, feels like it matters more than a normal dinner given everything this year."
+    },
+    {
+      "id": "e-2026-06-21-1",
+      "createdAt": "2026-06-21T23:00:00Z",
+      "title": "Dario's birthday dinner tonight, first time hosting in…",
+      "content": "Dario's birthday dinner tonight, first time hosting in the new place and it went better than I let myself hope for. Cooked way too much food, classic overcompensating, but nobody minded the leftovers. At some point in the evening he brought up this ridiculous memory from when we were kids, the time we tried to build a treehouse with zero actual carpentry skills and it collapsed the very first time either of us climbed into it, Dad laughing so hard he had to sit down on the grass. We were both laughing so hard retelling it that I had actual tears, the kind of laugh that comes from somewhere deep and old, the specific laugh only a sibling can pull out of you because they were actually there for the stupid thing in the first place. Sitting there afterward, dishes still on the table, I had this quiet realization that the repair between us isn't fragile anymore, isn't something we're carefully managing around, it's just real again, ordinary and real, the way it used to be before everything. Best birthday dinner I think I've ever thrown, and it wasn't even mine."
+    },
+    {
+      "id": "e-2026-06-22-1",
+      "createdAt": "2026-06-22T20:30:00Z",
+      "title": "Recovering from last night's hosting, dishes finally all…",
+      "content": "Recovering from last night's hosting, dishes finally all put away today. Still smiling thinking about the treehouse story, going to remember that laugh for a long time I think. Quiet Sunday otherwise, needed the rest after the social energy of yesterday."
+    },
+    {
+      "id": "e-2026-06-23-1",
+      "createdAt": "2026-06-23T21:15:00Z",
+      "title": "Mundane Tuesday, work steady at Meridian, canal walk in…",
+      "content": "Mundane Tuesday, work steady at Meridian, canal walk in the evening becoming a real habit now, good way to decompress after a full day. Started glazing a few pieces at the new studio, curious how the different kiln here will change the colors compared to the old place."
+    },
+    {
+      "id": "e-2026-06-24-1",
+      "createdAt": "2026-06-24T21:00:00Z",
+      "title": "Thinking about the street market this weekend, Maya…",
+      "content": "Thinking about the street market this weekend, Maya mentioned she has a booth and encouraged me to consider selling some pottery there myself if I had enough pieces built up. Nervous about the idea honestly, feels different putting something you made out for strangers to judge with their wallets, but also a little exciting. Going to look through what I have tonight and see if there's actually enough decent stuff."
+    },
+    {
+      "id": "e-2026-06-25-1",
+      "createdAt": "2026-06-25T07:00:00Z",
+      "title": "Morning run along the canal again, this route genuinely…",
+      "content": "Morning run along the canal again, this route genuinely becoming my favorite of anywhere I've lived, quiet and green and the water catching the early light beautifully most mornings. Legs strong, good energy heading into a busy weekend of pricing and prepping pottery pieces for the market."
+    },
+    {
+      "id": "e-2026-06-25-2",
+      "createdAt": "2026-06-25T21:30:00Z",
+      "title": "Spent the evening pricing pottery pieces for the weekend…",
+      "content": "Spent the evening pricing pottery pieces for the weekend market, harder than expected to put a number on something you made with your own hands, kept second guessing every price. Landed on a handful I'm actually proud enough of to sell. Nervous but committed now."
+    },
+    {
+      "id": "e-2026-06-26-1",
+      "createdAt": "2026-06-26T21:00:00Z",
+      "title": "Wrapping and packing the market pieces carefully tonight…",
+      "content": "Wrapping and packing the market pieces carefully tonight so nothing chips on the way there tomorrow. Maya's walking me through the whole booth setup process since she's done it before. Weirdly nervous about this, more than a normal work presentation somehow, probably because it's so personal, my actual hands on every single piece."
+    },
+    {
+      "id": "e-2026-06-27-1",
+      "createdAt": "2026-06-27T21:20:00Z",
+      "title": "Set up the booth alongside Maya's this evening ahead of…",
+      "content": "Set up the booth alongside Maya's this evening ahead of tomorrow's market, laid out the pieces, a little proud actually seeing them all together like that, a whole little collection of things that started as shapeless clay months ago. Early start tomorrow. Trying to manage my expectations, will be happy if even one thing sells."
+    },
+    {
+      "id": "e-2026-06-28-1",
+      "createdAt": "2026-06-28T20:00:00Z",
+      "title": "Sold two pieces at the market today",
+      "content": "Sold two pieces at the market today. Two. A complete stranger, a woman about my mom's age, picked up the blue bowl, the one from back in February that I made not long after Nonna died, turned it over in her hands, asked if I'd made it myself, and then just bought it, handed over actual money for a thing that came out of my own hands. I don't think I've ever felt anything quite like that particular flavor of joy, completely disproportionate to two bowls and maybe sixty dollars, but it wasn't really about the money at all. It was someone choosing something I made, out of everything at that entire market, wanting it in their home. Told Maya immediately, she laughed at how genuinely thrilled I was over it, said welcome to the addiction. I think she's right that this could become a real habit. Already thinking about what to make for the next one."
+    },
+    {
+      "id": "e-2026-06-29-1",
+      "createdAt": "2026-06-29T21:00:00Z",
+      "title": "Still riding a little high from yesterday's market,…",
+      "content": "Still riding a little high from yesterday's market, sixty dollars and two sold pieces but the feeling's worth way more than that in some sense I can't quite articulate. Quiet Sunday recovering, canal walk in the evening, thinking about what a strange full year this has been so far and it's not even July yet."
+    },
+    {
+      "id": "e-2026-06-30-1",
+      "createdAt": "2026-06-30T21:30:00Z",
+      "title": "Month's ending, and June somehow packed the move,…",
+      "content": "Month's ending, and June somehow packed the move, Dario's dinner and that laugh I'll remember for years, and the market sale into just thirty days. Meridian steady and good underneath all of it. New apartment finally feels like mine now instead of just a place I recently dumped boxes into. Heading into July settled in a way I genuinely didn't expect to feel this soon after so much change."
+    },
+    {
+      "id": "e-2026-07-01-1",
+      "createdAt": "2026-07-01T07:00:00Z",
+      "title": "Morning run along the canal to start July, warm already…",
+      "content": "Morning run along the canal to start July, warm already even this early, real summer now. Legs feel good, steady base built up over the whole spring. Half the year gone already, strange to think about how different my life looks now compared to New Year's Day."
+    },
+    {
+      "id": "e-2026-07-01-2",
+      "createdAt": "2026-07-01T21:00:00Z",
+      "title": "Finally hung the shelves in the new place tonight, small…",
+      "content": "Finally hung the shelves in the new place tonight, small thing but it's been sitting undone since the move, apartment feels a little more finished with something actually on the walls now. Meridian work steady, good day overall."
+    },
+    {
+      "id": "e-2026-07-02-1",
+      "createdAt": "2026-07-02T22:00:00Z",
+      "title": "First pottery class at the new studio that actually felt…",
+      "content": "First pottery class at the new studio that actually felt fully comfortable, no longer the new person figuring out where things live, starting to know the other regulars a little too. Made a set of small dishes, thinking of them as a matching set for the new kitchen."
+    },
+    {
+      "id": "e-2026-07-03-1",
+      "createdAt": "2026-07-03T20:30:00Z",
+      "title": "Quiet Friday, Dario's coming by tomorrow for a low-key…",
+      "content": "Quiet Friday, Dario's coming by tomorrow for a low-key dinner, first time hosting just the two of us since his birthday party. Looking forward to it, no occasion needed anymore, which feels like its own kind of milestone honestly."
+    },
+    {
+      "id": "e-2026-07-04-2",
+      "createdAt": "2026-07-04T08:00:00Z",
+      "title": "Holiday morning, quiet run before the day gets going,…",
+      "content": "Holiday morning, quiet run before the day gets going, warm already, going to be a hot one. Neighborhood already smells like someone's grilling somewhere. No plans yet for tonight beyond dinner with Dario."
+    },
+    {
+      "id": "e-2026-07-04-1",
+      "createdAt": "2026-07-04T22:30:00Z",
+      "title": "Dario and I had our first real argument tonight since…",
+      "content": "Dario and I had our first real argument tonight since everything reopened between us. Started over something small, a comment about Mom, but it wasn't really small at all underneath, it was the actual center of the old fight finally surfacing, the thing we'd been carefully talking around all these months. He thinks Mom enabled the distance between us for too long, let it drag on rather than pushing either of us to fix it. I got defensive fast, felt like he was blaming her for something that was on both of us, and I said so, sharper than I meant to. Voices raised for a minute, real tension in the room, the kind that made me genuinely worried we'd just undone months of careful rebuilding in one bad evening. But neither of us left. We sat with the discomfort instead, kept talking even when it was hard, and eventually got underneath the anger to what was actually there, both of us scared of losing this again now that we'd just gotten it back. We talked it all the way through, past midnight honestly, and landed somewhere neither of us fully agreed on Mom but both of us agreed the relationship mattered more than being right about the past. First real fight and we survived it. I think that might matter more than any of the easy dinners, proof this can hold weight now, not just the good moments."
+    },
+    {
+      "id": "e-2026-07-05-1",
+      "createdAt": "2026-07-05T10:00:00Z",
+      "title": "Texted Dario this morning just to check in after last…",
+      "content": "Texted Dario this morning just to check in after last night, he responded quickly, said he was glad we talked it through instead of letting it fester. Relief settling in. Sometimes the fight itself matters less than what happens right after it."
+    },
+    {
+      "id": "e-2026-07-06-2",
+      "createdAt": "2026-07-06T07:00:00Z",
+      "title": "Early run before the heat really sets in, learning fast…",
+      "content": "Early run before the heat really sets in, learning fast this summer that mornings are the only sane time to be out there once July gets going properly. Canal path shaded enough to still feel bearable even now. Good quiet start to the week."
+    },
+    {
+      "id": "e-2026-07-06-1",
+      "createdAt": "2026-07-06T21:00:00Z",
+      "title": "Mundane Monday, back to Meridian work after the long…",
+      "content": "Mundane Monday, back to Meridian work after the long weekend, steady and fine. Warm evening, sat outside for a while after dinner just enjoying the long summer light, doesn't get properly dark until well past nine now."
+    },
+    {
+      "id": "e-2026-07-07-1",
+      "createdAt": "2026-07-07T21:30:00Z",
+      "title": "Planning to have Maya and Tom over for dinner this week,…",
+      "content": "Planning to have Maya and Tom over for dinner this week, first real meal I'm cooking for guests in the new place beyond Dario's birthday. Thinking through the menu tonight, want it to actually be good, not just edible."
+    },
+    {
+      "id": "e-2026-07-08-1",
+      "createdAt": "2026-07-08T22:30:00Z",
+      "title": "Cooked dinner for Maya and Tom tonight, first proper…",
+      "content": "Cooked dinner for Maya and Tom tonight, first proper dinner party in the new apartment, and it actually went well, food turned out good, the new dining space finally getting used the way I pictured when I first walked through it back in June. Used a couple of the pottery dishes I made too, small satisfaction serving food on plates I shaped myself. Good easy evening with two of my oldest friends in a place that's finally starting to feel fully like mine."
+    },
+    {
+      "id": "e-2026-07-09-1",
+      "createdAt": "2026-07-09T22:00:00Z",
+      "title": "Pottery Thursday, working on a bigger piece now, a…",
+      "content": "Pottery Thursday, working on a bigger piece now, a proper vase, more ambitious than most of what I've attempted so far. Collapsed twice on the wheel before I got the walls thin and even enough to hold their shape. Frustrating but also the kind of frustrating that means you're actually growing at something."
+    },
+    {
+      "id": "e-2026-07-10-2",
+      "createdAt": "2026-07-10T06:00:00Z",
+      "title": "Extra early run before the heat gets unbearable, already…",
+      "content": "Extra early run before the heat gets unbearable, already warm at six though, this heat wave is no joke. Cutting the distance short today, better to be smart about it than push through and regret it."
+    },
+    {
+      "id": "e-2026-07-10-1",
+      "createdAt": "2026-07-10T22:00:00Z",
+      "title": "Heat wave properly setting in now, apartment felt like…",
+      "content": "Heat wave properly setting in now, apartment felt like an oven by evening despite the fan running constantly. Barely slept, tossing and turning most of the night, way too warm even with the windows cracked. Going to need to figure out something better for the next few days, this forecast isn't easing up soon apparently."
+    },
+    {
+      "id": "e-2026-07-11-2",
+      "createdAt": "2026-07-11T19:00:00Z",
+      "title": "Went for an evening swim at the community pool near the…",
+      "content": "Went for an evening swim at the community pool near the new place to cool off from the heat wave, first time trying it out, nice little spot, going to make this a regular thing while this heat keeps up."
+    },
+    {
+      "id": "e-2026-07-11-1",
+      "createdAt": "2026-07-11T21:00:00Z",
+      "title": "Second night of the heat wave, went and bought a proper…",
+      "content": "Second night of the heat wave, went and bought a proper fan today since the little desk one clearly isn't cutting it, hoping that helps tonight. Whole city seems sluggish in this heat, even Meridian's office felt subdued today, everyone moving a little slower than usual, air conditioning working overtime."
+    },
+    {
+      "id": "e-2026-07-12-2",
+      "createdAt": "2026-07-12T07:00:00Z",
+      "title": "First cooler morning run in days, huge relief after the…",
+      "content": "First cooler morning run in days, huge relief after the heat wave, could actually push the pace a little instead of just surviving the distance. Canal path felt different in the better weather, more people out enjoying it too, dogs and strollers and other runners nodding as we passed."
+    },
+    {
+      "id": "e-2026-07-12-1",
+      "createdAt": "2026-07-12T20:30:00Z",
+      "title": "Sunday market again, browsed this time instead of…",
+      "content": "Sunday market again, browsed this time instead of selling, nice to just wander for once without the nervous energy of last month's booth. Noticed someone at one of the food stalls, a small flicker of interest, the kind you'd have chased a couple years ago without thinking twice. Let it pass this time, not looking for anything right now, content just noticing it without needing to act on it. Heat wave finally breaking a little today too, small relief on multiple fronts."
+    },
+    {
+      "id": "e-2026-07-13-2",
+      "createdAt": "2026-07-13T07:00:00Z",
+      "title": "Cool morning run, first genuinely pleasant one in over a…",
+      "content": "Cool morning run, first genuinely pleasant one in over a week after the heat wave finally broke overnight. Canal path felt almost peaceful compared to the sluggish heat-wave runs, easy pace, good mood to start the week."
+    },
+    {
+      "id": "e-2026-07-13-1",
+      "createdAt": "2026-07-13T21:00:00Z",
+      "title": "Mundane Monday, Meridian work steady, heat wave…",
+      "content": "Mundane Monday, Meridian work steady, heat wave officially over according to the forecast, comfortable evening for the first time in almost a week. Slept properly last night for the first time in days, huge difference in how today felt because of it."
+    },
+    {
+      "id": "e-2026-07-14-1",
+      "createdAt": "2026-07-14T21:20:00Z",
+      "title": "Good steady workday at Meridian, contributing more to…",
+      "content": "Good steady workday at Meridian, contributing more to the bigger picture planning now instead of just executing individual tasks, feels like genuine growth in the role. Canal walk in the evening, comfortable weather again, small ordinary pleasures after last week's heat."
+    },
+    {
+      "id": "e-2026-07-15-2",
+      "createdAt": "2026-07-15T07:00:00Z",
+      "title": "Regular morning run, nothing special, just the good…",
+      "content": "Regular morning run, nothing special, just the good habit continuing along the canal. Nice to have this be routine now rather than something I have to talk myself into every time the way it was back in November."
+    },
+    {
+      "id": "e-2026-07-15-1",
+      "createdAt": "2026-07-15T21:00:00Z",
+      "title": "Quiet Wednesday, nothing much to report, work fine, made…",
+      "content": "Quiet Wednesday, nothing much to report, work fine, made a simple dinner, read for a while before bed. Some days are just pleasantly uneventful and that's genuinely fine, doesn't need to be more than that."
+    },
+    {
+      "id": "e-2026-07-16-1",
+      "createdAt": "2026-07-16T22:00:00Z",
+      "title": "Pottery Thursday, finally finished that ambitious vase…",
+      "content": "Pottery Thursday, finally finished that ambitious vase I've been working on for a week now, walls even, form actually balanced, genuinely proud of this one. Going to let it dry slowly before the first firing. Nice steady rhythm to Thursdays now even in the new studio."
+    },
+    {
+      "id": "e-2026-07-17-2",
+      "createdAt": "2026-07-17T08:00:00Z",
+      "title": "Easy Friday morning run, comfortable weather continuing,…",
+      "content": "Easy Friday morning run, comfortable weather continuing, legs feeling good after a full week of consistent training. Simple quiet start to the day before a busy one at work."
+    },
+    {
+      "id": "e-2026-07-17-1",
+      "createdAt": "2026-07-17T21:30:00Z",
+      "title": "Friday, good tired after a full week at Meridian,…",
+      "content": "Friday, good tired after a full week at Meridian, nothing dramatic to report just steady solid work. Made a quick cooking experiment with one of Nonna's other recipes Mom sent over recently, didn't turn out quite right but the attempt itself felt good, keeping a little of her alive in the kitchen even imperfectly."
+    },
+    {
+      "id": "e-2026-07-18-2",
+      "createdAt": "2026-07-18T07:00:00Z",
+      "title": "Morning run along the canal, quiet reflective mood…",
+      "content": "Morning run along the canal, quiet reflective mood already starting before I even sat down to write tonight's longer entry. Half marathon fitness still holding up nicely even without formal training right now, just maintaining for the joy of it these days."
+    },
+    {
+      "id": "e-2026-07-18-1",
+      "createdAt": "2026-07-18T21:00:00Z",
+      "title": "Six months exactly since I sat in the car on an overcast…",
+      "content": "Six months exactly since I sat in the car on an overcast January Monday and said out loud for the first time that I was burnt out. Reading back over some old entries tonight, hard to fully recognize myself in some of them, the version of me that hadn't yet found pottery, that hadn't heard from Dario in two years, that was still grinding through Atlas without any end in sight, that hadn't lost Nonna yet or found out what that particular grief actually felt like. So much happened in between that January morning and tonight. I actually enjoy my work again, genuinely, most days at Meridian feel like contributing to something instead of just surviving it. I have a brother back, not perfectly, we proved that with the fight two weeks ago, but real, weathered, actually built to last through hard conversations now instead of collapsing at the first one. I run because it steadies something in me, not because an app is telling me to. I make things with my hands now and occasionally someone pays actual money for them, which still feels a little unbelievable every time. I live somewhere with a window that shows me water and light every morning. None of it erases what was hard, Nonna's still gone, Sam and I still didn't work out, the burnout was real and the grief was real. But looking at the whole shape of these six months together, I don't think I'm the same person who wrote that January entry, and mostly, I think I like who I've become instead. Wanted to write that down properly, not just feel it in passing."
+    },
+    {
+      "id": "e-2026-07-19-2",
+      "createdAt": "2026-07-19T08:00:00Z",
+      "title": "Weekend morning run before the market, warm but not…",
+      "content": "Weekend morning run before the market, warm but not brutal, summer settling into a more comfortable rhythm since the heat wave passed. Legs feeling good, easy pace, nice quiet way to start a Sunday."
+    },
+    {
+      "id": "e-2026-07-19-1",
+      "createdAt": "2026-07-19T20:00:00Z",
+      "title": "Weekend market again, said a friendly hello to the same…",
+      "content": "Weekend market again, said a friendly hello to the same person from last week at the food stall, nothing more than that, a nice small human moment and then moving on with my day. Content with things exactly as they are right now, no urgency to fill every gap."
+    },
+    {
+      "id": "e-2026-07-20-1",
+      "createdAt": "2026-07-20T21:00:00Z",
+      "title": "Lazy Sunday, canal walk, a little reading, called Mom…",
+      "content": "Lazy Sunday, canal walk, a little reading, called Mom just to talk, no particular reason, first time in a while I've called just to check in rather than around some specific worry. She sounded good, lighter than she has in months, mentioned she's thinking about visiting this fall. Nice normal conversation, the kind that used to feel rare this year and is starting to feel more common again."
+    },
+    {
+      "id": "e-2026-07-21-2",
+      "createdAt": "2026-07-21T07:00:00Z",
+      "title": "Quick morning run, uneventful and good, canal path quiet…",
+      "content": "Quick morning run, uneventful and good, canal path quiet at this hour, just me and a couple of herons standing in the shallows like always. Nice small ritual to start the day these days."
+    },
+    {
+      "id": "e-2026-07-21-1",
+      "createdAt": "2026-07-21T21:15:00Z",
+      "title": "Solid Monday at Meridian, nothing remarkable, just…",
+      "content": "Solid Monday at Meridian, nothing remarkable, just steady competent work, which after this year's version of eventful I've come to genuinely appreciate. Evening run, comfortable summer weather holding, good rhythm to the days lately."
+    },
+    {
+      "id": "e-2026-07-22-1",
+      "createdAt": "2026-07-22T22:00:00Z",
+      "title": "Pottery Thursday, glazed the big vase from last week…",
+      "content": "Pottery Thursday, glazed the big vase from last week finally, curious to see how it turns out once it's fired, took a risk on a color combination I haven't tried before. Good end to the week, small steady joy in a class that's meant so much more to me this year than I expected back when I nervously signed up in January not knowing a single thing about clay."
+    }
+  ]
+}

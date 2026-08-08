@@ -16,8 +16,9 @@ back in, use the device passcode fallback on the lock screen.
 Memento reflects on entries, and a fresh install has none. To see it working:
 
   a. Complete onboarding (~20 seconds; skip the app lock).
-  b. Settings > [SEEDED SAMPLE AFFORDANCE — EXACT LABEL AND PATH TO BE FILLED
-     IN BEFORE SUBMISSION] loads a small set of sample entries.
+  b. Swipe in from the left edge > Settings > Your Data > "Load Sample
+     Entries" adds a fictional nine-month journal, so the reflection features
+     have something to work from. Reversible from the same row.
   c. Weekly generates a reflection over them, citing the entries it drew from;
      tap a citation to jump to the source.
   d. Patterns shows recurring themes.

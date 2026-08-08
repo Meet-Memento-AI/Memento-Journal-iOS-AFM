@@ -19,6 +19,8 @@ struct SettingsView: View {
     @State private var deleteEverythingError = ""
 
     @ObservedObject private var preferences = PreferencesService.shared
+    @ObservedObject private var sampleContent = SampleContentService.shared
+    @State private var isSampleWorking = false
 
     var body: some View {
         ScrollView {
@@ -238,6 +240,26 @@ struct SettingsView: View {
                     .background(theme.border)
                     .padding(.horizontal, Spacing.md)
 
+                // Sample entries. Memento reflects on what you've written, so a
+                // fresh install has nothing for Weekly, Patterns or Ask to work
+                // with — a weak first impression, and a Guideline 2.1 risk since
+                // a reviewer opens the app cold with an empty journal.
+                SettingsRow(
+                    icon: sampleContent.isLoaded ? "trash" : "text.book.closed",
+                    title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
+                    subtitle: sampleContent.isLoaded
+                        ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
+                        : "Adds a fictional 9-month journal so you can try reflections right away",
+                    showChevron: false,
+                    showProgress: isSampleWorking,
+                    accessibilityIdentifier: "settings.sampleEntries",
+                    action: { toggleSampleEntries() }
+                )
+
+                Divider()
+                    .background(theme.border)
+                    .padding(.horizontal, Spacing.md)
+
                 SettingsRow(
                     icon: "hand.raised",
                     title: "Privacy Policy",
@@ -299,6 +321,24 @@ struct SettingsView: View {
     /// Interim scope (spec 023 R4): local entry storage + security/encryption
     /// Keychain entries + UserDefaults + caches. Spec 015 extends this to the
     /// full five-store deletion per REQ-DATA-013.
+    /// Loads or removes the bundled sample journal. Reversible by design — it
+    /// tracks the ids it created, so removal never touches the user's own
+    /// entries even if a sample was edited afterwards.
+    private func toggleSampleEntries() {
+        guard !isSampleWorking else { return }
+        isSampleWorking = true
+        let wasLoaded = sampleContent.isLoaded
+        Task {
+            if wasLoaded {
+                sampleContent.remove()
+            } else {
+                sampleContent.load()
+            }
+            await entryViewModel.loadEntries()
+            isSampleWorking = false
+        }
+    }
+
     private func deleteEverything() {
         isDeletingEverything = true
         deleteEverythingError = ""
