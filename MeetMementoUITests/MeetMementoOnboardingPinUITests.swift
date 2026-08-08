@@ -56,11 +56,12 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         XCTAssertTrue(learnContinue.waitForExistence(timeout: 10))
         learnContinue.tap()
 
-        // YourGoalsView — pick one goal to enable Continue.
-        let goalChip = app.buttons["Self awareness"]
-        XCTAssertTrue(goalChip.waitForExistence(timeout: 10))
-        goalChip.tap()
-        app.buttons["onboarding.continueGoals"].tap()
+        // ThemeConfirmationView — empty reflection opens the full catalog;
+        // pick one theme to enable Continue.
+        let themeChip = app.buttons["onboarding.theme.awareness"]
+        XCTAssertTrue(themeChip.waitForExistence(timeout: 15))
+        themeChip.tap()
+        app.buttons["onboarding.continueThemes"].tap()
 
         // FaceIDView — take the PIN path.
         let createPinInstead = app.buttons["Create a PIN instead"]

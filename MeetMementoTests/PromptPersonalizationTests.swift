@@ -19,49 +19,70 @@ final class PromptPersonalizationTests: XCTestCase {
         let p = PromptPersonalization(
             firstName: "Sebastian",
             reflection: "I want to understand my stress patterns",
-            goals: ["Self awareness", "Stress relief"]
+            goals: ["Awareness", "Stress"],
+            promptLens: "Lean toward noticing stress patterns without prescribing fixes."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@3+p")
+        XCTAssertEqual(resolved.version, "ask@3+p2")
         XCTAssertTrue(resolved.text.contains("About this person"))
         XCTAssertTrue(resolved.text.contains("Sebastian"))
         XCTAssertTrue(resolved.text.contains("I want to understand my stress patterns"))
-        XCTAssertTrue(resolved.text.contains("Self awareness, Stress relief"))
+        XCTAssertTrue(resolved.text.contains("Awareness, Stress"))
+        XCTAssertTrue(resolved.text.contains("Personalization lens:"))
         XCTAssertTrue(resolved.text.contains("never recite this back"))
     }
 
     func test_reflection_isTruncated() {
         let long = String(repeating: "a", count: 600)
-        let p = PromptPersonalization(firstName: nil, reflection: long, goals: [])
+        let p = PromptPersonalization(firstName: nil, reflection: long, goals: [], promptLens: nil)
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
         XCTAssertFalse(resolved.text.contains(long))
         XCTAssertTrue(resolved.text.contains(String(repeating: "a", count: PromptRegistry.maxReflectionChars) + "…"))
     }
 
     func test_degradedVariant_skipsReflection_keepsGoals() {
-        let p = PromptPersonalization(firstName: nil, reflection: "my long reflection text", goals: ["Honesty"])
+        let p = PromptPersonalization(
+            firstName: nil,
+            reflection: "my long reflection text",
+            goals: ["Honesty"],
+            promptLens: nil
+        )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@3+p")
+        XCTAssertEqual(resolved.version, "ask-degraded@3+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
         XCTAssertTrue(resolved.text.contains("Honesty"))
     }
 
     func test_summaryPrompt_ignoresPersonalization() {
-        let p = PromptPersonalization(firstName: "Sam", reflection: nil, goals: ["Honesty"])
+        let p = PromptPersonalization(firstName: "Sam", reflection: nil, goals: ["Honesty"], promptLens: nil)
         let resolved = PromptRegistry.instructions(for: .summary, personalization: p)
         XCTAssertEqual(resolved.version, "summarize@1")
         XCTAssertFalse(resolved.text.contains("About this person"))
     }
 
+    func test_profileEstimatePrompt_isBundled() {
+        let resolved = PromptRegistry.instructions(for: .profileEstimate)
+        XCTAssertEqual(resolved.version, "profile-estimate@1")
+        XCTAssertTrue(resolved.text.contains("closed catalog") || resolved.text.contains("theme ids"))
+    }
+
     func test_fromLocalProfile_roundTrip() {
         UserDefaults.standard.set("  Sebastian ", forKey: "memento_first_name")
-        LocalProfileStore.personalizationText = "understand myself better"
-        LocalProfileStore.selectedGoals = ["Self awareness"]
+        LocalProfileStore.experienceProfile = ExperienceProfile(
+            reflection: "understand myself better",
+            confirmedThemeIds: ["awareness"],
+            suggestedThemeIds: ["awareness", "stress"],
+            promptLens: "Lean toward self-awareness questions.",
+            catalogVersion: ThemeCatalog.catalogVersion,
+            builtAt: Date(),
+            modelIdentifier: nil
+        )
 
         let p = PromptPersonalization.fromLocalProfile()
         XCTAssertEqual(p.firstName, "Sebastian")
         XCTAssertEqual(p.reflection, "understand myself better")
-        XCTAssertEqual(p.goals, ["Self awareness"])
+        XCTAssertEqual(p.goals, ["Awareness"])
+        XCTAssertEqual(p.promptLens, "Lean toward self-awareness questions.")
         XCTAssertFalse(p.isEmpty)
     }
 

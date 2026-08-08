@@ -2,7 +2,8 @@
 //  YourGoalsView.swift
 //  MeetMemento
 //
-//  Onboarding screen for selecting journaling themes/goals
+//  Legacy onboarding goals screen. Onboarding now uses ThemeConfirmationView;
+// this remains for previews and any residual references, backed by ThemeCatalog.
 //
 
 import SwiftUI
@@ -19,16 +20,8 @@ public struct YourGoalsView: View {
     public var isFirstStep: Bool = false
     public var onBack: (() -> Void)?
 
-    private let goals = [
-        "Self awareness",
-        "Emotion mapping",
-        "Calming control",
-        "Stress relief",
-        "Thoughtful responses",
-        "Self-kindness",
-        "Honesty",
-        "Compassion"
-    ]
+    /// Small starter subset of the catalog for this legacy screen.
+    private let goals = ["Awareness", "Emotion", "Regulation", "Stress", "Communication", "Nurture", "Honesty", "Compassion"]
 
     public init(onComplete: (() -> Void)? = nil, isFirstStep: Bool = false, onBack: (() -> Void)? = nil) {
         self.onComplete = onComplete
@@ -41,25 +34,19 @@ public struct YourGoalsView: View {
             theme.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Custom header with back button
                 headerSection
 
-                // Content area
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        // Title section
                         titleSection
                             .padding(.top, 8)
 
-                        // Goal chips in flow layout
-                        FlowLayout(spacing: 12) {
+                        LegacyGoalsFlowLayout(spacing: 12) {
                             ForEach(goals, id: \.self) { goal in
                                 Chip(
                                     text: goal,
                                     isSelected: selectedGoals.contains(goal),
-                                    onTap: {
-                                        toggleGoal(goal)
-                                    }
+                                    onTap: { toggleGoal(goal) }
                                 )
                             }
                         }
@@ -71,7 +58,6 @@ public struct YourGoalsView: View {
                 }
             }
 
-            // Continue button at bottom
             VStack {
                 Spacer()
                 PrimaryButton(title: "Continue") {
@@ -87,47 +73,25 @@ public struct YourGoalsView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    // MARK: - Subviews
-
     private var headerSection: some View {
-        ZStack(alignment: .top) {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: theme.background, location: 0),
-                    .init(color: theme.background.opacity(0), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
+        HStack(alignment: .center, spacing: 12) {
+            IconButtonNav(
+                icon: "chevron.left",
+                iconSize: 20,
+                buttonSize: 40,
+                foregroundColor: theme.foreground,
+                useDarkBackground: false,
+                enableHaptic: true,
+                onTap: { onBack?() ?? dismiss() }
             )
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .frame(height: 64)
+            .accessibilityLabel("Back")
 
-            // Header content
-            HStack(alignment: .center, spacing: 12) {
-                // Back button - always visible with liquid glass styling
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 20,
-                    buttonSize: 40,
-                    foregroundColor: theme.foreground,
-                    useDarkBackground: false,
-                    enableHaptic: true,
-                    onTap: { onBack?() ?? dismiss() }
-                )
-                .accessibilityLabel("Back")
-
-                Spacer()
-
-                // Placeholder for alignment
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
+            Spacer()
+            Color.clear.frame(width: 40, height: 40)
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
     }
 
     private var titleSection: some View {
@@ -143,17 +107,10 @@ public struct YourGoalsView: View {
         }
     }
 
-    // MARK: - Computed Properties
-
-    private var canContinue: Bool {
-        !selectedGoals.isEmpty
-    }
-
-    // MARK: - Actions
+    private var canContinue: Bool { !selectedGoals.isEmpty }
 
     private func toggleGoal(_ goal: String) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-
         if selectedGoals.contains(goal) {
             selectedGoals.remove(goal)
         } else {
@@ -163,29 +120,21 @@ public struct YourGoalsView: View {
 
     private func saveAndContinue() {
         guard canContinue else { return }
-
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
-        // Save to view model
         onboardingViewModel.selectedGoals = Array(selectedGoals)
-
         onComplete?()
     }
 }
 
-// MARK: - Flow Layout
-
-private struct FlowLayout: Layout {
+private struct LegacyGoalsFlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = calculateLayout(proposal: proposal, subviews: subviews)
-        return result.size
+        calculateLayout(proposal: proposal, subviews: subviews).size
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let result = calculateLayout(proposal: proposal, subviews: subviews)
-
         for (index, position) in result.positions.enumerated() {
             subviews[index].place(
                 at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
@@ -205,26 +154,20 @@ private struct FlowLayout: Layout {
 
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
-
             if currentX + size.width > maxWidth && currentX > 0 {
-                // Move to next line
                 currentX = 0
                 currentY += lineHeight + spacing
                 lineHeight = 0
             }
-
             positions.append(CGPoint(x: currentX, y: currentY))
             lineHeight = max(lineHeight, size.height)
             currentX += size.width + spacing
             totalWidth = max(totalWidth, currentX - spacing)
             totalHeight = max(totalHeight, currentY + lineHeight)
         }
-
         return (CGSize(width: totalWidth, height: totalHeight), positions)
     }
 }
-
-// MARK: - Previews
 
 #Preview("Light") {
     YourGoalsView()
@@ -232,12 +175,4 @@ private struct FlowLayout: Layout {
         .useTypography()
         .environmentObject(OnboardingViewModel())
         .preferredColorScheme(.light)
-}
-
-#Preview("Dark") {
-    YourGoalsView()
-        .useTheme()
-        .useTypography()
-        .environmentObject(OnboardingViewModel())
-        .preferredColorScheme(.dark)
 }

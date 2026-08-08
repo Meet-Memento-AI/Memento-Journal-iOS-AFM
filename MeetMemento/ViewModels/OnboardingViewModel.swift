@@ -18,8 +18,11 @@ class OnboardingViewModel: ObservableObject {
     // Personalization
     @Published var personalizationText = ""
 
-    // Goals
+    // Themes / experience profile
     @Published var selectedGoals: [String] = []
+    @Published var confirmedThemeIds: [String] = []
+    @Published var suggestedThemeIds: [String] = []
+    @Published var promptLens: String?
 
     // Security
     @Published var useFaceID = false
@@ -55,10 +58,19 @@ class OnboardingViewModel: ObservableObject {
             personalizationText = text
         }
 
-        let goals = LocalProfileStore.selectedGoals
-        if !goals.isEmpty {
+        let profile = LocalProfileStore.ensureMigratedProfile()
+        if !profile.confirmedThemeIds.isEmpty {
             hasGoals = true
-            selectedGoals = goals
+            confirmedThemeIds = profile.confirmedThemeIds
+            suggestedThemeIds = profile.suggestedThemeIds
+            promptLens = profile.promptLens
+            selectedGoals = profile.confirmedThemeNames
+        } else {
+            let goals = LocalProfileStore.selectedGoals
+            if !goals.isEmpty {
+                hasGoals = true
+                selectedGoals = goals
+            }
         }
     }
 
@@ -83,13 +95,46 @@ class OnboardingViewModel: ObservableObject {
                 AppLogger.log("✅ [OnboardingViewModel] Personalization text saved locally")
     }
 
-    /// Persists selected goals locally.
+    /// Persists selected goals locally (legacy display-name path).
     func saveGoals() async throws {
         guard !selectedGoals.isEmpty else { return }
         LocalProfileStore.selectedGoals = selectedGoals
         hasGoals = true
 
                 AppLogger.log("✅ [OnboardingViewModel] Goals saved locally: \(selectedGoals)")
+    }
+
+    /// Persists the ExperienceProfile (confirmed ThemeCatalog ids + optional lens).
+    func saveExperienceProfile(
+        themeIds: [String],
+        promptLens: String?,
+        suggestedIds: [String]
+    ) async throws {
+        isProcessing = true
+        defer { isProcessing = false }
+
+        let validated = ThemeCatalog.validate(themeIds)
+        guard !validated.isEmpty else { return }
+
+        confirmedThemeIds = validated
+        suggestedThemeIds = ThemeCatalog.validate(suggestedIds, max: 12)
+        self.promptLens = promptLens
+        selectedGoals = ThemeCatalog.displayNames(for: validated)
+
+        let trimmedReflection = personalizationText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedLens = promptLens?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var profile = LocalProfileStore.experienceProfile ?? .empty
+        profile.reflection = trimmedReflection.isEmpty ? nil : trimmedReflection
+        profile.confirmedThemeIds = validated
+        profile.suggestedThemeIds = suggestedThemeIds
+        profile.promptLens = (trimmedLens?.isEmpty == false) ? trimmedLens : nil
+        profile.catalogVersion = ThemeCatalog.catalogVersion
+        profile.builtAt = Date()
+        LocalProfileStore.experienceProfile = profile
+        hasGoals = true
+
+        AppLogger.log("✅ [OnboardingViewModel] Experience profile saved: \(validated)")
     }
 
     /// Creates the first journal entry from the personalization text via the
