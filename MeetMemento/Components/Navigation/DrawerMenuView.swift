@@ -21,7 +21,6 @@ public struct DrawerMenuView: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
 
     /// Width of the drawer
     static let drawerWidth: CGFloat = 280
@@ -149,23 +148,9 @@ public struct DrawerMenuView: View {
 
     @ViewBuilder
     private var settingsButtonBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Capsule()
-                .fill(Color.white.opacity(0.3))
-                .mementoGlassEffect(.regular, in: Capsule())
-        } else {
-            fallbackSettingsButtonBackground
-        }
-        #else
-        fallbackSettingsButtonBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackSettingsButtonBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(colorScheme == .dark ? GrayScale.gray800 : GrayScale.gray100)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Safe Area Helpers

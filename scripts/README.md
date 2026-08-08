@@ -3,6 +3,23 @@
 - **`ci/`** — scripts invoked by GitHub Actions workflows (coverage gate, lint,
   periphery). These are live; changes affect CI.
 
+### `ci/` — Memento 2.0 constitutional gate ladder
+
+SDK-free governance gates run by `.github/workflows/spec-gates.yml`. Each
+enforces one spec-derived rule continuously (bash/python, no Xcode). All pass on
+the current tree; each was verified to fail on a planted violation.
+
+| Script | Spec | Enforces | Mode |
+|--------|------|----------|------|
+| `check_single_intelligence_importer.sh` | 017 R1 (REQ-INT-001, P3) | ≤1 file imports `FoundationModels` | blocking |
+| `lint_forbidden_phrases.py` | 014 R3 (REQ-POS-001) | no absolute-privacy claims in string literals / ASC metadata (comment-aware; `// REQ-POS-001-EXEMPT` opt-out) | blocking |
+| `speakability_lint.py` | 018 R9 (REQ-VOX-006, P6) | no markdown/bullets/headings/emoji/URLs/blank-runs in spoken prose (`--selftest`, or pass generation files) | blocking (selftest) |
+| `check_dependency_allowlist.sh` | 021 R6 (REQ-MON-005) | SPM deps ⊆ `specs/dependency-allowlist.txt` | report-only until spec 015 decommission; then `ALLOWLIST_ENFORCE=1` |
+| `../Fixtures/validate_corpus.py` | 013 R4 / 016 R8 / 022 R1 | fixture corpus structure + honesty scrub + gold integrity; `corpus-validation` job also diffs `questions.resolved.json` for drift | blocking |
+
+Making any of these a *required* status check is a branch-protection setting
+(`docs/BRANCH_PROTECTION_SETUP.md`).
+
 ## Utility scripts (relocated from repo root by spec-001, 2026-07-13)
 
 None of these are referenced by CI or docs. Verify against the current backend

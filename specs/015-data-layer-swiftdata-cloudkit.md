@@ -56,7 +56,10 @@ R8 → `REQ-MIG-001`; R9 → this spec's §16 verification-queue subset (items 1
 11, 15 + V25). Zone tags per spec 014 R1's `TrustZone` contract — cited, never
 reinvented. **Xcode 27 gate, stated once:** the iOS 27 SDK is required for the
 deployment-target bump (R7) and for every 🔴 API verification below (V5, V25,
-V27); the beta is **not installed** (standing blocker, spec 013 evidence row 0).
+V27). The Xcode 27 beta (beta 4, 27A5228h) was **installed and API-swept
+2026-07-26** (spec 013 task 8), so the SDK is available and the bump plus
+SDK-only checks are unblocked; what remains gated is **on-device** verification
+of the device-dependent items (V5, V25, V27) on a physical iOS 27 device.
 Requirements below note per-block what is unblocked regardless.
 
 ### R1. `@Model` schema — interface contracts and mirroring deltas
@@ -357,9 +360,9 @@ Spotlight-leg and TTS-leg assertions land as those stores come into existence
 
 ### R7. Platform baseline — target, concurrency, offline, capability tier
 - `IPHONEOS_DEPLOYMENT_TARGET = 27.0` (`REQ-PLAT-001`; currently 17.0 in
-  `project.pbxproj`). **Xcode-27-gated — the beta is not installed** (standing
-  blocker). Everything else in this spec that can compile against iOS 26 SDK
-  proceeds; the bump is the last mechanical step, not the first.
+  `project.pbxproj`). **Unblocked — Xcode 27 beta installed 2026-07-26** (spec
+  013 task 8); the bump is the last mechanical step, not the first, and must be
+  verified to build before dependent work proceeds.
 - Swift 6 language mode, strict concurrency **complete** (`REQ-PLAT-002`);
   isolation model per `technology/09` §1 (SwiftData `ModelContext`:
   `@MainActor` for UI contexts, background contexts explicit; R1's

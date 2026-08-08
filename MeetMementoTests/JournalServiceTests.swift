@@ -164,25 +164,4 @@ final class JournalServiceTests: XCTestCase {
         XCTAssertEqual(matching.first?.updatedAt, t2)
     }
 
-    // MARK: - Retry/error classification
-
-    func test_isTransientError_trueForRetryableURLErrors() {
-        let service = makeService()
-        for code in [NSURLErrorTimedOut, NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost, NSURLErrorCannotConnectToHost] {
-            let error = NSError(domain: NSURLErrorDomain, code: code)
-            XCTAssertTrue(service.isTransientError(error), "expected code \(code) to be transient")
-        }
-    }
-
-    func test_isTransientError_trueForServerAndRateLimitHTTPStatus() {
-        let service = makeService()
-        XCTAssertTrue(service.isTransientError(URLError(.init(rawValue: 500))))
-        XCTAssertTrue(service.isTransientError(URLError(.init(rawValue: 429))))
-    }
-
-    func test_isTransientError_falseForClientErrorsAndUnrelatedErrors() {
-        let service = makeService()
-        XCTAssertFalse(service.isTransientError(URLError(.init(rawValue: 404))))
-        XCTAssertFalse(service.isTransientError(NSError(domain: "SomethingElse", code: 1)))
-    }
 }

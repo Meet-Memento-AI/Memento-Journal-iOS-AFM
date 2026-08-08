@@ -44,14 +44,6 @@ extension Color {
 /// - overlayTextSecondary (.opacity(0.8)): May fail at small sizes
 /// - glassBorder (.opacity(0.2)): Decorative only, not critical info
 
-/// Shadow specifications for glass elements
-struct GlassShadow {
-    static let blur: CGFloat = 16
-    static let offsetY: CGFloat = 16
-    static let opacity: Double = 0.32
-    static let color = Color.gray
-}
-
 /// Gray scale color tokens - neutral colors for backgrounds, borders, and text
 struct GrayScale {
     static let gray50  = Color(hex: "#F9FBFC")
@@ -190,13 +182,8 @@ struct Theme {
     let overlayText: Color
     let overlayTextSecondary: Color
 
-    // Glass effect borders
+    // Card-stroke color used on non-glass insight cards (decorative hairline).
     let glassBorder: Color
-
-    // Glass effect fill colors (for iOS 26+ liquid glass)
-    let glassFill: Color
-    // Fallback card background for non-glass devices
-    let glassFallback: Color
 
     // Emotion colors (for charts)
     let emotionJoy: Color
@@ -265,8 +252,6 @@ struct Theme {
         overlayText: BaseColors.white,
         overlayTextSecondary: BaseColors.white.opacity(0.8),
         glassBorder: BaseColors.white.opacity(0.2),
-        glassFill: Color.black.opacity(0.05),
-        glassFallback: BaseColors.white,
         emotionJoy: Color(hex: "#7FE87D"),
         emotionSadness: Color(hex: "#5DD4E8"),
         emotionAnger: Color(hex: "#F19B8D"),
@@ -332,8 +317,6 @@ struct Theme {
         overlayText: BaseColors.white,
         overlayTextSecondary: BaseColors.white.opacity(0.8),
         glassBorder: BaseColors.white.opacity(0.2),
-        glassFill: Color.white.opacity(0.075),
-        glassFallback: GrayScale.gray800,
         // Emotion colors adjusted for dark mode visibility (slightly brighter)
         emotionJoy: Color(hex: "#8FFF8D"),
         emotionSadness: Color(hex: "#6DE4F8"),

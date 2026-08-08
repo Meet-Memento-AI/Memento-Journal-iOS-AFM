@@ -276,12 +276,13 @@ exercised through available / approaching-limit / limit-reached /
 unavailable, and behavior is validated at all four capability tiers from
 source doc §4.1 (Full / Local / Reduced / Blocked-is-uninstallable).
 
-**Gating, stated plainly: the Xcode 27 beta is NOT installed.** Everything in
-this R-block is instrument- or debug-option-driven and therefore not runnable
-today. These criteria are written as executable plans for when the beta
-lands — they are not pretended to be currently-runnable acceptance tests
-(same posture as spec 017 R10). Nothing in R1–R5 blocks on this R-block
-beyond R1's shared SDK note.
+**Gating, stated plainly: the Xcode 27 beta is installed (2026-07-26), but
+these runs need a physical iOS 27 device.** Everything in this R-block is
+instrument- or debug-option-driven on real hardware and therefore not runnable
+on the simulator alone. These criteria are written as executable plans for
+when a device is available — they are not pretended to be currently-runnable
+acceptance tests (same posture as spec 017 R10). Nothing in R1–R5 blocks on
+this R-block beyond R1's shared SDK note.
 
 **Acceptance (executed when the beta is available):** an instrument trace
 exists per Z1 intent; the p50 < 2s check runs on the minimum supported
@@ -399,8 +400,9 @@ string). Re-confirm this is still true when implementation starts.
       four manual instruments drafted; the forced-degradation cohort uses the
       shipped router Z0-pin, not a fork; dependency audit shows zero analytics
       SDKs (R5, `REQ-EVAL-001`, `REQ-EVAL-005`).
-- [ ] **Gated on Xcode 27 beta (not installed) — carried as outstanding,
-      never silently skipped:** Foundation Models instrument traces per Z1
+- [ ] **Gated on a physical iOS 27 device (Xcode 27 beta installed
+      2026-07-26) — carried as outstanding, never silently skipped:**
+      Foundation Models instrument traces per Z1
       intent; p50 < 2s entry-reflection check on minimum supported hardware
       (closes V28 jointly with spec 017 R10); availability matrix via the
       "Simulate Apple Foundation Models Availability" debug option across the

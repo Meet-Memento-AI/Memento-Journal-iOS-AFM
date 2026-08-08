@@ -1,0 +1,82 @@
+name: Spec gates (2.0)
+
+# Memento 2.0 constitutional gate ladder. Each job enforces one spec-derived,
+# SDK-free governance rule so it holds continuously as the rewrite lands, rather
+# than being checked once in review. All jobs are pure shell/python (no Xcode),
+# so they run on the Linux runner.
+#
+# These are wired here; making any of them a *required* status check is a branch-
+# protection setting (see docs/BRANCH_PROTECTION_SETUP.md). Report-only jobs
+# (dependency allowlist) intentionally pass until their precondition is met.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  single-intelligence-importer:
+    name: Single FoundationModels importer (spec 017 R1 / P3)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enforce exactly-one FoundationModels importer
+        run: scripts/ci/check_single_intelligence_importer.sh
+
+  forbidden-phrases:
+    name: Positioning-claim lint (spec 014 R3 / REQ-POS-001)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lint forbidden absolute-privacy phrasing
+        run: python3 scripts/ci/lint_forbidden_phrases.py
+
+  speakability:
+    name: Speakability linter selftest (spec 018 R9 / REQ-VOX-006)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run speakability pattern selftest
+        run: python3 scripts/ci/speakability_lint.py --selftest
+      # Once spec 022's harness produces fixture-corpus generations, add:
+      #   python3 scripts/ci/speakability_lint.py <generation files...>
+
+  dependency-allowlist:
+    name: Dependency allowlist (spec 021 R6 / REQ-MON-005) [report-only]
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check SPM deps against allowlist (report-only until spec 015 decommission)
+        # Flip to ALLOWLIST_ENFORCE=1 after spec 015 removes supabase-swift and the
+        # two UI packages get a REQ-MON-005 decision record. Must be enforcing
+        # before spec 021 closes.
+        env:
+          ALLOWLIST_ENFORCE: "0"
+        run: scripts/ci/check_dependency_allowlist.sh
+
+  corpus-validation:
+    name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate corpus structure + honesty scrub + gold set
+        # sys.exit(1) on any structural error, missing gold entry id, or
+        # honesty-scrub leak. Guards the one real 2.0 asset that specs 016 R8's
+        # recall@5 gate and 022's harness both consume.
+        run: python3 Fixtures/validate_corpus.py
+      - name: Guard against a stale resolved gold set
+        # The validator regenerates Fixtures/gold/questions.resolved.json from the
+        # corpus; if the committed copy drifted, fail with guidance instead of
+        # silently shipping a mismatched eval input.
+        run: |
+          if ! git diff --exit-code -- Fixtures/gold/questions.resolved.json; then
+            echo "FAIL: Fixtures/gold/questions.resolved.json is stale relative to the corpus."
+            echo "Re-run 'python3 Fixtures/validate_corpus.py' and commit the regenerated file."
+            exit 1
+          fi
+          echo "OK: resolved gold set is in sync with the corpus."

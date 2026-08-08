@@ -114,7 +114,10 @@ public struct ChatMessage: Identifiable, Hashable {
 
     /// True for messages created in the current session (should animate).
     /// False for messages loaded from database (should display instantly).
-    public let isNew: Bool
+    /// Mutable so the view model can mark a message as "seen" once its
+    /// entrance animation has played — otherwise LazyVStack recycling and
+    /// tab switches replay the typewriter effect on the whole transcript.
+    public var isNew: Bool
 
     /// True when this user message failed to send (spec-010): kept visible
     /// in the transcript with a retry affordance instead of being dropped.

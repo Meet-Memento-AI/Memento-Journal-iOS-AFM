@@ -116,6 +116,13 @@ where generation happened.
   configuration, not just code review" demand — the grep is the checkable
   floor; if target-level framework linking can additionally enforce it,
   do both).
+  > **Partial — landed 2026-08-02:** the CI grep is implemented and wired
+  > (`scripts/ci/check_single_intelligence_importer.sh`,
+  > `.github/workflows/spec-gates.yml`), enforcing `count ≤ 1` and green on the
+  > current tree (0 importers; `#if canImport` guards correctly excluded). Set
+  > `INTELLIGENCE_IMPORTER_EXPECT_EXACTLY=1` once the `IntelligenceService`
+  > module lands to also catch accidental removal. The protocol/type
+  > implementation (bullets below) is still pending the Swift work.
 - `IntelligenceService`, `GenerationRequest`, `GenerationOutcome` compile
   with the shapes above; `GenerationRequest.zone` is 014 R1's `TrustZone`
   (Codable round-trip already tested under 014 R1's acceptance).
@@ -572,8 +579,9 @@ still-open with findings) before this spec's status moves to done; no other
       governor design holds under either V4 answer (R3, R10).
 - [ ] **Source doc §16 item 14** (→ V28): context sizes marked ✅ confirmed
       (4096/8192/32768); on-device latency on minimum supported hardware
-      marked **outstanding** — gated on the Xcode 27 beta (not installed) and
-      its Foundation Models instrument; p50 < 2s target unvalidated until
+      marked **outstanding** — the Xcode 27 Foundation Models instrument is
+      available (beta installed 2026-07-26); validation is now gated on a
+      physical minimum-spec iOS 27 device; p50 < 2s target unvalidated until
       then (R10, Task 10).
 
 ## Regression Guards

@@ -84,6 +84,16 @@ instead of no-ops. Then migrate all 11 native-call files to the wrapper and dele
 their per-file `#if canImport` scaffolding + `fallback*Background` duplicates.
 Grep for `.glassEffect(` finds only `GlassEffectCompat.swift`.
 
+> **AMENDED 2026-08-07 (superseded by spec 024).** The "one glass system" goal
+> holds, but the *chosen* system flipped: the deployment target is iOS 26.0, so
+> native Liquid Glass is always available and no material fallback is needed. Spec
+> 024 **deleted** the `mementoGlassEffect` wrapper (`GlassEffectCompat.swift`) and
+> adopted native `.glassEffect` / `.buttonStyle(.glass|.glassProminent)` /
+> `GlassEffectContainer` **directly** in the view files. The revised acceptance:
+> `GlassEffectCompat.swift` is gone; **no** `mementoGlassEffect` and **no**
+> `fallback*Background` remain; native `.glassEffect(` appears directly across the
+> migrated files. See `reference/technology/12-liquid-glass.md`.
+
 ### R4. No deprecated navigation containers
 **Acceptance:** zero `NavigationView` in the app target; replaced with
 `NavigationStack` (behavior verified on the affected screens).
@@ -119,8 +129,11 @@ Grep for `.glassEffect(` finds only `GlassEffectCompat.swift`.
 - [ ] Device/simulator in dark mode: cold launch screen-recording shows no white frame.
 - [ ] Airplane-mode cold launch: app resolves to welcome/lock screen in ≤8s via the
       single failsafe (add a temporary log to prove which path fired, then remove it).
-- [ ] `grep -rn "\.glassEffect(" MeetMemento/ --include="*.swift"` → only
-      `GlassEffectCompat.swift`; `grep -rn "fallback.*Background" MeetMemento/` → 0.
+- [ ] ~~`grep -rn "\.glassEffect(" MeetMemento/ --include="*.swift"` → only
+      `GlassEffectCompat.swift`~~ **(superseded by spec 024)** — now:
+      `grep -rn "mementoGlassEffect" MeetMemento/ --include="*.swift"` → 0 (wrapper
+      deleted); `grep -rn "fallback.*Background" MeetMemento/` → 0; native
+      `.glassEffect(` appears directly in the view files.
 - [ ] `grep -rln "NavigationView" MeetMemento/` → 0.
 - [ ] Side-by-side screenshots (before/after) of: chat input pills, top nav, tab pill,
       settings cards, FAB, drawer, AddEntryView — light and dark — appearance preserved.

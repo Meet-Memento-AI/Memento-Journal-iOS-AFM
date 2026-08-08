@@ -17,6 +17,8 @@ public struct ChatMessageBubble: View {
     var onThumbsDown: (() -> Void)?
     /// spec-010: tapped when a failed-to-send user message's retry row is tapped.
     var onRetry: (() -> Void)?
+    /// Forwarded from AIOutputComponent when the reply finishes typing.
+    var onAnimationComplete: (() -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -29,7 +31,8 @@ public struct ChatMessageBubble: View {
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
         onThumbsDown: (() -> Void)? = nil,
-        onRetry: (() -> Void)? = nil
+        onRetry: (() -> Void)? = nil,
+        onAnimationComplete: (() -> Void)? = nil
     ) {
         self.message = message
         self.animate = animate
@@ -39,6 +42,7 @@ public struct ChatMessageBubble: View {
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
         self.onRetry = onRetry
+        self.onAnimationComplete = onAnimationComplete
     }
 
     public var body: some View {
@@ -84,7 +88,8 @@ public struct ChatMessageBubble: View {
                 onCitationsTapped: onCitationsTapped,
                 onRedo: onRedo,
                 onThumbsUp: onThumbsUp,
-                onThumbsDown: onThumbsDown
+                onThumbsDown: onThumbsDown,
+                onAnimationComplete: onAnimationComplete
             )
         } else {
             // AI messages: support markdown/rich text (fallback)

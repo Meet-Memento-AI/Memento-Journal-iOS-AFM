@@ -72,6 +72,10 @@ public struct AIOutputComponent: View {
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
+    /// Called once when the typewriter finishes. Lets the owner mark the message
+    /// "seen" so a LazyVStack recycle (scroll / keyboard / re-render) doesn't
+    /// replay the whole reply — the fix for a reply appearing to repeat.
+    var onAnimationComplete: (() -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -104,7 +108,8 @@ public struct AIOutputComponent: View {
         onCitationsTapped: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
-        onThumbsDown: (() -> Void)? = nil
+        onThumbsDown: (() -> Void)? = nil,
+        onAnimationComplete: (() -> Void)? = nil
     ) {
         self.content = content
         self.animate = animate
@@ -113,6 +118,7 @@ public struct AIOutputComponent: View {
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
+        self.onAnimationComplete = onAnimationComplete
     }
 
     /// Full text for copy (heading1 + heading2 + body).
@@ -301,6 +307,8 @@ public struct AIOutputComponent: View {
             guard !Task.isCancelled else { return }
             isAnimating = false
             hasAnimated = true
+            // Reply finished typing: tell the owner so it won't replay on recycle.
+            onAnimationComplete?()
         }
     }
 }

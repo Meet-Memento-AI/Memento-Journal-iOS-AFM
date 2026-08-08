@@ -42,6 +42,12 @@ class ChatViewModel: ObservableObject {
     /// its continuation alive in the background.
     private var activeTasks: [Task<Void, Never>] = []
 
+    /// Bumped by `cancelActiveTasks()`. A send task captures the generation
+    /// at launch and compares before writing shared state (`messages`,
+    /// `isLoading`, error alert) so a cancelled task resuming late can't
+    /// stomp the conversation that's now on screen.
+    private var sendGeneration = 0
+
     private func track(_ task: Task<Void, Never>) {
         activeTasks.append(task)
     }
@@ -49,8 +55,12 @@ class ChatViewModel: ObservableObject {
     /// Cancels every tracked in-flight task. Safe to call from `onDisappear`
     /// even with nothing in flight.
     func cancelActiveTasks() {
+        sendGeneration += 1
         activeTasks.forEach { $0.cancel() }
         activeTasks.removeAll()
+        // Cancelled work can no longer finish, so don't leave the input
+        // dimmed and the loading indicator up.
+        isLoading = false
     }
 
     // MARK: - Initialization
@@ -208,11 +218,17 @@ class ChatViewModel: ObservableObject {
     /// retyping.
     private func performSend(text: String, userMessageId: UUID) {
         isLoading = true
+        let generation = sendGeneration
 
         track(Task { [weak self] in
             guard let self else { return }
             do {
                 let response = try await chatService.sendMessage(text, sessionId: currentSessionId)
+
+                // Cancelled or superseded mid-flight (user left the view or
+                // switched conversations): don't append the reply into
+                // whatever conversation is now on screen.
+                guard generation == sendGeneration, !Task.isCancelled else { return }
 
                 // Update current session ID from response (handles new session creation)
                 if let newSessionId = UUID(uuidString: response.sessionId) {
@@ -240,10 +256,18 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
+                // Keep the retry affordance on the bubble even when the send
+                // was cancelled (no-op if the conversation was cleared).
                 setSendFailed(true, forMessageId: userMessageId)
-                errorMessage = chatErrorMessage(for: error)
-                showingError = true
+                // A cancelled/superseded send shouldn't pop the error alert
+                // over unrelated content.
+                if generation == sendGeneration, !Task.isCancelled,
+                   !(error is CancellationError) {
+                    errorMessage = chatErrorMessage(for: error)
+                    showingError = true
+                }
             }
+            guard generation == sendGeneration else { return }
             isLoading = false
         })
     }
@@ -270,6 +294,9 @@ class ChatViewModel: ObservableObject {
 
     /// Loads a specific session's messages
     func loadSession(_ session: ChatSession) async {
+        // Stop any in-flight send from the previous conversation so its
+        // reply can't land in this one.
+        cancelActiveTasks()
         currentSessionId = session.id
 
         // Check cache first - if cached, show instantly without loading state
@@ -318,6 +345,9 @@ class ChatViewModel: ObservableObject {
 
     /// Starts a new chat by clearing state
     func startNewChat() {
+        // Stop any in-flight send so a stale reply can't appear in the
+        // fresh conversation.
+        cancelActiveTasks()
         messages = []
         currentSessionId = nil
         inputText = ""
@@ -346,10 +376,13 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Retry
 
-    /// Retries sending the last user message if it failed
+    /// Retries sending the last failed user message. Routes through
+    /// `retryMessage` so the existing bubble is reused — previously this
+    /// appended a duplicate user bubble while the original stayed marked
+    /// "Failed to send".
     func retrySend() {
-        guard let lastUserMessage = messages.last(where: { $0.isFromUser }) else { return }
-        sendMessage(prompt: lastUserMessage.content)
+        guard let lastFailed = messages.last(where: { $0.isFromUser && $0.sendFailed }) else { return }
+        retryMessage(lastFailed)
     }
 
     // MARK: - Chat Summary
@@ -478,9 +511,32 @@ class ChatViewModel: ObservableObject {
     // MARK: - Private Helpers
 
     private func appendMessage(_ message: ChatMessage) {
+        // Only the incoming message should play its entrance animation;
+        // earlier ones have already been seen.
+        for index in messages.indices where messages[index].isNew {
+            messages[index].isNew = false
+        }
         messages.append(message)
         if messages.count > maxMessagesInMemory {
             messages.removeFirst(messages.count - maxMessagesInMemory)
+        }
+    }
+
+    /// Marks a single message as seen once its typewriter finishes, so a
+    /// LazyVStack recycle (scroll / keyboard / re-render) shows the full reply
+    /// instead of replaying the animation. This is the fix for a reply appearing
+    /// to "repeat" — `animate` (== `isNew`) flips false so recycles skip typing.
+    func markMessageSeen(_ id: UUID) {
+        guard let index = messages.firstIndex(where: { $0.id == id }), messages[index].isNew else { return }
+        messages[index].isNew = false
+    }
+
+    /// Marks every message as already seen so the transcript doesn't replay
+    /// its typewriter animation when the view is rebuilt (tab switch,
+    /// LazyVStack recycling). Called from the view's `onDisappear`.
+    func markAllMessagesSeen() {
+        for index in messages.indices where messages[index].isNew {
+            messages[index].isNew = false
         }
     }
 

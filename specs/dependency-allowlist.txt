@@ -1,0 +1,21 @@
+# Third-party SPM dependency allowlist — spec 021 R6 (REQ-MON-005), source doc §12.4
+#
+# The near-zero third-party surface is both a marketing asset and a security
+# posture. Any package NOT listed here requires an explicit decision record in
+# the owning spec before it may be added. Apple system frameworks are out of
+# scope (this governs third-party SPM packages only). Test-target-only tooling
+# still counts (see spec 017 R7's provider escape hatch).
+#
+# Format: one normalized package identity per line, lowercased `owner/repo`
+# (the tail of the repositoryURL, minus any trailing `.git`). Comments start `#`.
+#
+# --- TARGET (2.0 end state) ---
+revenuecat/purchases-ios
+#
+# --- LEGACY, pending removal (do NOT add more; these fail once enforcement is on) ---
+# The following are linked today but are slated for deletion; the allowlist
+# reflects the TARGET state, so the check runs REPORT-ONLY until spec 015's
+# backend decommission and a design decision on the two UI packages:
+#   supabase/supabase-swift      -> removed by spec 015 (backend decommission)
+#   dominikmartn/progressiveblurheader -> needs a REQ-MON-005 decision record or removal
+#   svgkit/svgkit                -> needs a REQ-MON-005 decision record or removal

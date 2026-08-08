@@ -268,16 +268,16 @@ public struct AddEntryView: View {
 
     @ViewBuilder
     private var iconButtonBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .mementoGlassEffect(.regular.interactive(), in: Circle())
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     @ViewBuilder
     private var datePillBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .mementoGlassEffect(.regular.interactive(), in: Capsule())
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     @ViewBuilder
@@ -285,28 +285,10 @@ public struct AddEntryView: View {
         let isEmpty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let baseColor = isEmpty ? theme.primary.opacity(0.4) : theme.primary
 
-        ZStack {
-            Circle().fill(baseColor)
-            // Glassy sheen overlay
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.white.opacity(0.05), Color.clear],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Circle()
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
-                )
-        }
-        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+        // Liquid Glass removed — brand color intentionally kept (prominent submit
+        // action); flat purple fill, no glass or shadow.
+        Circle()
+            .fill(baseColor)
     }
 
     private var titleField: some View {
@@ -396,9 +378,9 @@ public struct AddEntryView: View {
 
     @ViewBuilder
     private var microphoneFABBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color.white.opacity(0.3))
-            .mementoGlassEffect(.regular.interactive(), in: Capsule())
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Actions

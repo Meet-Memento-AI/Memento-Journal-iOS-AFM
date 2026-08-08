@@ -21,12 +21,6 @@ struct IconButtonNav: View {
     var onTap: (() -> Void)?
 
     @Environment(\.theme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
-
-    // Determine if we should use dark styling
-    private var isDark: Bool {
-        useDarkBackground || colorScheme == .dark
-    }
 
     var body: some View {
         Button(action: {
@@ -36,34 +30,9 @@ struct IconButtonNav: View {
             onTap?()
         }) {
             ZStack {
-                // Circular glass background
-                if isDark {
-                    // Dark mode: very subtle transparent glass
-                    Circle()
-                        .fill(Color.white.opacity(Spacing.Opacity.fill))
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    Color.white.opacity(Spacing.Opacity.overlay),
-                                    lineWidth: 0.5
-                                )
-                        )
-                } else {
-                    // Light mode: prominent frosted glass
-                    Circle()
-                        .fill(.regularMaterial)
-                        .overlay(
-                            Circle()
-                                .fill(Color.white.opacity(Spacing.Opacity.strong))
-                        )
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    Color.white.opacity(Spacing.Opacity.disabled),
-                                    lineWidth: 0.5
-                                )
-                        )
-                }
+                // Liquid Glass removed — flat #fafafa surface.
+                Circle()
+                    .fill(Color(hex: "#FAFAFA"))
 
                 // Icon
                 Image(systemName: icon)
@@ -71,12 +40,6 @@ struct IconButtonNav: View {
                     .foregroundStyle(foregroundColor ?? theme.foreground)
             }
             .frame(width: buttonSize, height: buttonSize)
-            .shadow(
-                color: .black.opacity(isDark ? Spacing.Opacity.subtle : Spacing.Opacity.tint),
-                radius: isDark ? 10 : 8,
-                x: 0,
-                y: isDark ? 3 : 2
-            )
         }
         .buttonStyle(IconButtonPressStyle())
         .accessibilityLabel(accessibilityLabel ?? icon)

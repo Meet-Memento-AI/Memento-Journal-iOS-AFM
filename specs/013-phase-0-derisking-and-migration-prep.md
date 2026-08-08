@@ -45,7 +45,7 @@ prevent.
 
 | # | Problem | Evidence | Severity |
 |---|---|---|---|
-| 0 | **Toolchain: Xcode 26.0.1 / iOS 26 SDK installed — Xcode 27 beta NOT installed** (checked 2026-07-23, `xcodebuild -version`). Blocks Spikes A/B/C and the task-8 API sweep (`SpotlightSearchTool`, PCC, AFM3 are iOS 27). R4 corpus + R7 manifest check proceed regardless. | `xcodebuild -version` → 26.0.1 (17A400) | Blocking for R1–R3, task 8 — **user action: install Xcode 27 beta** |
+| 0 | ~~**Toolchain: Xcode 26.0.1 / iOS 26 SDK installed — Xcode 27 beta NOT installed** (checked 2026-07-23).~~ **RESOLVED 2026-07-26:** Xcode 27 beta 4 (27A5228h) installed; task-8 API sweep run against the iOS 27.0 SDK (15 V-items resolved). The simulator halves of Spikes A/C ran on it; the remaining gate is a **physical iOS 27 + Apple-Intelligence device** for the on-device Gate α runs, not the toolchain. | `xcodebuild -version` → 27.x (27A5228h), 2026-07-26 | ~~Blocking~~ Resolved — toolchain no longer a blocker; device-gated items tracked in R1–R3 |
 | 1 | No Core Spotlight or App Intents integration exists in the codebase | repo-wide search for `CoreSpotlight`, `CSSearchable*`, `AppIntent` returns zero hits (confirmed 2026-07-23) | Blocking — Spike A has nothing to build on yet |
 | 2 | No fixture corpus exists for retrieval evaluation | no `≥250 entries / ≥8 months / ≥40 gold questions` fixture set found anywhere in the repo | Blocking — REQ-IDX-010's recall@5 gate cannot be measured without one |
 | 3 | Journaling Suggestions entitlement not requested | no evidence of a filed request; `REQ-CAP-009` requires filing "in week 1" | Time-sensitive — Apple review lead time is unknown and must be measured |
@@ -132,6 +132,13 @@ scrub, gold-ID referential integrity) and materializes the 4 pattern-derived
 gold questions (overcast-Monday mood, hardest weeks, bad-sleep periods, spring
 running frequency) into `gold/questions.resolved.json` — all four resolved to
 non-trivial match sets (10–16 entries each). All checks pass.
+
+> **CI-guarded 2026-08-02:** `validate_corpus.py` is now wired as a gate
+> (`.github/workflows/spec-gates.yml` → `corpus-validation`) so the corpus
+> can't silently break the downstream recall@5 gate (016 R8) or 022's harness.
+> The job runs the validator (fails on any structural/honesty/gold-integrity
+> error) and then `git diff --exit-code` on `questions.resolved.json` to catch a
+> stale resolved gold set. Verified green, and verified to catch planted drift.
 
 **Gap found and closed 2026-07-24:** `Fixtures/gold/adversarial.json` — named
 in `Fixtures/README.md`'s own layout and required by this R's third deliberate

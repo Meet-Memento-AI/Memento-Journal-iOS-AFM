@@ -359,7 +359,7 @@ render failure: rendering → failed  (reflection stays readable — audio is
 **`REQ-VOX-007` / §16 item 8 / V18 — verify-first, Xcode-27-gated:** whether
 iOS 27 shipped any synthesis API beyond `AVSpeechSynthesizer`. WWDC26 review
 surfaced none; the assumption is none shipped. This design commits to
-`AVSpeechSynthesizer`; if the Xcode 27 beta (**not installed**) reveals a
+`AVSpeechSynthesizer`; if the Xcode 27 SDK (**installed 2026-07-26**) reveals a
 newer — especially streaming-capable — API, that finding would revisit the
 chat/reflection split and is recorded in V18 first, not preempted here.
 
@@ -443,6 +443,16 @@ integers zero through ten).
 the linter over fixture-corpus generations (spec 013 R4 corpus, produced via
 spec 022's harness) of every prose-producing prompt — `PeriodReflection.body`
 and `.observation` at minimum — and **violations fail the build**.
+
+> **Partial — landed 2026-08-02:** the forbidden-pattern engine + per-pattern
+> test suite is implemented and wired (`scripts/ci/speakability_lint.py`,
+> `.github/workflows/spec-gates.yml`). `--selftest` covers one fixture per
+> hard-fail pattern (markdown headings, emphasis/backticks, list markers, URLs,
+> emoji, blank-line runs) plus clean/allowlist fixtures (years, clock times);
+> green, and verified to fail on a planted bad generation. Two pieces remain:
+> (a) the in-app Swift `SpeakabilityLinter.validate(_:)` wrapper (a thin port of
+> these rules, lands with 017's Swift code), and (b) wiring the linter over
+> real fixture-corpus generations once spec 022's harness produces them.
 Retrofitting speakability after prompt tuning is a rewrite of every prompt,
 which is why this lands with the first prompt, not after.
 

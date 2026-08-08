@@ -123,13 +123,9 @@ public struct AppearanceSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(theme.glassFallback)
-            .mementoGlassEffect(
-                .regular.tint(theme.glassFill),
-                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            )
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Actions

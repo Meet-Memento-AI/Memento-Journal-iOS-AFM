@@ -37,6 +37,13 @@ Every type crossing an isolation boundary must be `Sendable`. `GenerationRequest
 
 **REQ-SYS-012:** Liquid Glass, second-iteration design tokens, verified against the transparency-reduction accessibility control.
 
+> **The full Liquid Glass API reference now lives in `12-liquid-glass.md`** —
+> `glassEffect(_:in:)`, `Glass` variants, `GlassEffectContainer`, morphing, glass
+> button styles, and the "never layer opaque fills under glass" rule. Read that
+> file before touching any glass surface. The app adopts native `.glassEffect`
+> directly (deployment target iOS 26.0; no wrapper, no availability gate) — see
+> spec 024.
+
 🔴 The second-iteration token names and any migration from the first iteration need SDK confirmation.
 
 **Design guidance specific to Memento's position:** Slate's aesthetic — austere, monochrome, minimal — is the house style of a developer shipping four near-identical apps. It is a *category*, and it gets crowded. The unclaimed ground is **warmth**.

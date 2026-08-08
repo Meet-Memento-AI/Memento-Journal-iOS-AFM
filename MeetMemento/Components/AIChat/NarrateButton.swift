@@ -72,14 +72,14 @@ struct NarrateButton: View {
     private var sendContent: some View {
         Image(systemName: "arrow.up")
             .font(.system(size: 18, weight: .bold)) // icon-size: not user text
-            .foregroundColor(.white)
+            .foregroundColor(theme.primary)
     }
 
     // MARK: - Sending Content
 
     private var sendingContent: some View {
         ProgressView()
-            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            .progressViewStyle(CircularProgressViewStyle(tint: theme.primary))
             .scaleEffect(0.9)
     }
 
@@ -87,31 +87,16 @@ struct NarrateButton: View {
 
     @ViewBuilder
     private var backgroundForState: some View {
-        switch state {
-        case .narrate:
-            glassBackground
-        case .send, .sending:
-            Circle()
-                .fill(theme.primary)
-                .shadow(
-                    color: GlassShadow.color.opacity(GlassShadow.opacity),
-                    radius: GlassShadow.blur,
-                    x: 0,
-                    y: GlassShadow.offsetY
-                )
-        }
+        // Every state sits on the same pure liquid glass — no purple fill, no
+        // gray drop shadow. State is conveyed by the icon, not the background.
+        glassBackground
     }
 
     @ViewBuilder
     private var glassBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .mementoGlassEffect(.regular.interactive().tint(theme.glassFill), in: Circle())
-            .shadow(
-                color: GlassShadow.color.opacity(GlassShadow.opacity),
-                radius: GlassShadow.blur,
-                x: 0,
-                y: GlassShadow.offsetY
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Haptics

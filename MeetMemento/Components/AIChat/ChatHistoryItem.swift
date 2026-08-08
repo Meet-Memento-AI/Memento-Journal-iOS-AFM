@@ -13,7 +13,6 @@ public struct ChatHistoryItem: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
 
     public init(session: ChatSession, onTap: @escaping () -> Void) {
         self.session = session
@@ -50,27 +49,9 @@ public struct ChatHistoryItem: View {
 
     @ViewBuilder
     private var cardBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                .fill(Color.white.opacity(0.3))
-                .mementoGlassEffect(.regular, in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-        } else {
-            fallbackCardBackground
-        }
-        #else
-        fallbackCardBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackCardBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(colorScheme == .dark ? GrayScale.gray800 : GrayScale.gray100)
-            .overlay(
-                RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-                    .stroke(theme.border, lineWidth: 1)
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Formatted Date

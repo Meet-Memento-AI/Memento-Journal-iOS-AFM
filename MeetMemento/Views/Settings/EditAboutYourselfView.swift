@@ -307,27 +307,9 @@ public struct EditAboutYourselfView: View {
 
     @ViewBuilder
     private var microphoneFABBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Capsule()
-                .fill(Color.white.opacity(0.3))
-                .mementoGlassEffect(.regular.interactive(), in: Capsule())
-        } else {
-            fallbackMicrophoneFABBackground
-        }
-        #else
-        fallbackMicrophoneFABBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackMicrophoneFABBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(.ultraThinMaterial)
-            .overlay(
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 

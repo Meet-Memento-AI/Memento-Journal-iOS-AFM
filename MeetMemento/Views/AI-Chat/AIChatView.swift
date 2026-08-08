@@ -169,6 +169,9 @@ public struct AIChatView: View {
             // spec-010: stop leaking in-flight send/feedback Tasks when the
             // view goes away, matching the existing scrollTask convention above.
             viewModel.cancelActiveTasks()
+            // Already-animated messages shouldn't replay their typewriter
+            // entrance when the user switches back to this tab.
+            viewModel.markAllMessagesSeen()
         }
         .sheet(item: $selectedCitations) { wrapper in
             CitationsBottomSheet(citations: wrapper.citations)
@@ -291,7 +294,8 @@ public struct AIChatView: View {
                                     onThumbsDown: message.isFromUser ? nil : {
                                         viewModel.toggleThumbsDown(for: message.id)
                                     },
-                                    onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil
+                                    onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil,
+                                    onAnimationComplete: { viewModel.markMessageSeen(message.id) }
                                 )
                                 .id(message.id)
                             }
@@ -569,21 +573,4 @@ public struct AIChatView: View {
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)
-}
-
-// MARK: - Glass-like Effect Extension
-// Fallback for iOS versions that don't support glassEffect
-
-extension View {
-    @ViewBuilder
-    func glassLikeEffect(in shape: some Shape = Capsule()) -> some View {
-        self.background(.thinMaterial, in: shape)
-            .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-    }
-
-    @ViewBuilder
-    func glassLikeEffect(cornerRadius: CGFloat) -> some View {
-        self.background(.thinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-    }
 }

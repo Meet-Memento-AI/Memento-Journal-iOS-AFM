@@ -33,6 +33,7 @@ public struct TopNavHeader: View {
     }
 
     public var body: some View {
+        // Liquid Glass removed — plain row (no GlassEffectContainer grouping).
         HStack(spacing: 12) {
             AvatarInitialButton(
                 initial: userInitial,
@@ -72,9 +73,9 @@ public struct TopNavHeader: View {
     // MARK: - Icon Button Background
     @ViewBuilder
     private var iconButtonBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .mementoGlassEffect(.regular.interactive(), in: Circle())
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Action Button Styling
@@ -102,47 +103,10 @@ public struct TopNavHeader: View {
     @ViewBuilder
     private var actionButtonBackground: some View {
         if selection == .digDeeper && hasActiveChat {
-            // Active chat state: gradient circle with glassy sheen and shadow
-            ZStack {
-                // Base gradient
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [PrimaryScale.primary600, PrimaryScale.primary800],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                // Glassy sheen overlay
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.25),
-                                Color.white.opacity(0.05),
-                                Color.clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                // Subtle inner border for glass edge
-                Circle()
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.4),
-                                Color.white.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.5
-                    )
-            }
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            // Liquid Glass removed — brand color intentionally kept (prominent
+            // active-chat action); flat purple fill, no glass.
+            Circle()
+                .fill(PrimaryScale.primary600)
         } else {
             iconButtonBackground
         }

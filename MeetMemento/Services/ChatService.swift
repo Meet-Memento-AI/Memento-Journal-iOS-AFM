@@ -68,24 +68,7 @@ enum ChatServiceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Request Types
-
-private struct ChatRequestBody: Codable {
-    let message: String
-    let sessionId: String?
-}
-
 // MARK: - Summary Types
-
-struct ChatSummaryRequest: Codable {
-    let sessionId: String?
-    let messages: [SummaryMessage]
-}
-
-struct SummaryMessage: Codable {
-    let role: String
-    let content: String
-}
 
 struct ChatSummaryResponse: Codable {
     let title: String?
@@ -123,6 +106,23 @@ class ChatService {
 
     private var client: SupabaseClient {
         SupabaseService.shared.client
+    }
+
+    // MARK: - Native intelligence (Apple Foundation Models)
+
+    /// The on-device intelligence boundary. ChatService itself never imports
+    /// FoundationModels — it depends only on the protocol (P3 / REQ-INT-001).
+    private let intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared
+
+    /// Reused across citation mapping (avoids a per-source allocation).
+    private static let iso8601 = ISO8601DateFormatter()
+
+    /// Loads and decrypts the on-device journal entries the retriever ranks over
+    /// (the sole source of truth — no server). Empty when the store is locked or
+    /// unavailable, in which case chat answers without journal grounding.
+    private func loadLocalEntries() -> [Entry] {
+        guard let pin = SecurityService.shared.getPIN() else { return [] }
+        return JournalService.shared.loadAllEntriesLocally(withPIN: pin)
     }
 
     /// Executes an async operation with exponential backoff retry for transient failures
@@ -210,192 +210,123 @@ class ChatService {
     }
 
     func sendMessage(_ text: String, sessionId: UUID? = nil) async throws -> ChatResponse {
-        let requestBody = ChatRequestBody(message: text, sessionId: sessionId?.uuidString)
+        let conversationId = sessionId ?? UUID()
+                AppLogger.log("💬 [ChatService] Generating on-device reply (conversation: \(conversationId.uuidString.prefix(8)))...")
 
-                AppLogger.log("💬 [ChatService] Sending message to chat Edge Function (session: \(sessionId?.uuidString.prefix(8) ?? "new"))...")
+        // History comes from the on-device store (the single source of truth),
+        // so reopening a saved conversation or relaunching keeps full context —
+        // the fix for the model losing the thread / re-greeting each turn.
+        let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+        let entries = loadLocalEntries()
 
-        // Refresh session to ensure we have a valid access token
-        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
-        let session = try await client.auth.refreshSession()
+        let result = try await intelligence.ask(text, history: history, entries: entries)
 
-        do {
-            let response: ChatResponse = try await withRetry {
-                try await self.client.functions.invoke(
-                    "chat",
-                    options: FunctionInvokeOptions(
-                        headers: ["Authorization": "Bearer \(session.accessToken)"],
-                        body: requestBody
-                    )
-                )
-            }
-
-                    AppLogger.log("✅ [ChatService] Received reply (\(response.reply.count) chars), \(response.sources.count) sources, cited: \(response.citedEntryIds?.count ?? 0), session: \(response.sessionId.prefix(8))...")
-
-            return response
-        } catch {
-            throw Self.mapServerError(error)
-        }
-    }
-
-    /// Decodes the spec-010 structured error body out of a raw
-    /// `FunctionsError.httpError`, if present, so callers get a typed
-    /// `ChatServiceError` (message + retryable + code) instead of having to
-    /// reach into the raw response bytes themselves. Errors that aren't an
-    /// HTTP failure with that body shape (network errors, legacy endpoints)
-    /// pass through unchanged.
-    private static func mapServerError(_ error: Error) -> Error {
-        guard case let FunctionsError.httpError(code, data) = error,
-              let body = try? JSONDecoder().decode(ChatServerError.self, from: data) else {
-            return error
-        }
-        return ChatServiceError.server(body, httpStatus: code)
-    }
-
-    // MARK: - Embedding Trigger
-
-    /// Triggers embedding generation for a specific journal entry
-    /// Called after saving entries to ensure embeddings are generated
-    func triggerEmbedding(entryId: UUID) async throws {
-                AppLogger.log("🔄 [ChatService] Triggering embedding for entry \(entryId.uuidString.prefix(8))...")
-
-        struct EmbedRequest: Codable {
-            let entryId: String
-        }
-
-        let request = EmbedRequest(entryId: entryId.uuidString)
-
-        // Refresh session to ensure we have a valid access token
-        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
-        let session = try await client.auth.refreshSession()
-
-        try await withRetry {
-            try await self.client.functions.invoke(
-                "sync-embedding",
-                options: FunctionInvokeOptions(
-                    headers: ["Authorization": "Bearer \(session.accessToken)"],
-                    body: request
-                )
+        let sources = result.citations.map { citation in
+            ChatSource(
+                id: citation.entryId.uuidString,
+                createdAt: Self.iso8601.string(from: citation.entryDate),
+                preview: citation.excerpt
             )
         }
 
-                AppLogger.log("✅ [ChatService] Embedding triggered for entry \(entryId.uuidString.prefix(8))")
+                AppLogger.log("✅ [ChatService] Reply (\(result.body.count) chars), \(sources.count) citations, zone: \(String(describing: result.zoneUsed)), prompt: \(result.promptVersion)")
+
+        // Persist locally so the conversation survives relaunch and shows in the
+        // history list (multiple chat windows). The assistant turn is stored in
+        // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
+        LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
+        LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
+        LocalChatStore.shared.appendMessage(
+            role: "assistant",
+            content: Self.assistantContentJSON(body: result.body, heading1: result.heading1, heading2: result.heading2, sources: sources),
+            to: conversationId
+        )
+
+        return ChatResponse(
+            reply: result.body,
+            heading1: result.heading1,
+            heading2: result.heading2,
+            citedEntryIds: result.citations.map { $0.entryId.uuidString },
+            sources: sources,
+            sessionId: conversationId.uuidString
+        )
     }
 
     // MARK: - History Management
 
     func clearHistory() async throws {
-        guard let userId = client.auth.currentUser?.id else {
-                        AppLogger.log("⚠️ [ChatService] Cannot clear history — no authenticated user")
-            return
-        }
-
-        try await client
-            .from("chat_messages")
-            .delete()
-            .eq("user_id", value: userId)
-            .execute()
-
-                AppLogger.log("🗑️ [ChatService] Chat history cleared for user \(userId.uuidString.prefix(8))...")
+        LocalChatStore.shared.clear()
+                AppLogger.log("🗑️ [ChatService] Local chat history cleared")
     }
 
-    // MARK: - Session Management
+    // MARK: - Session Management (local, on-device)
 
-    /// Fetches all chat sessions for the current user, sorted by most recent first
+    /// All chat sessions, most recently updated first.
     func fetchSessions() async throws -> [ChatSession] {
-        guard let userId = client.auth.currentUser?.id else {
-                        AppLogger.log("⚠️ [ChatService] Cannot fetch sessions — no authenticated user")
-            return []
-        }
-
-                AppLogger.log("📋 [ChatService] Fetching chat sessions...")
-
-        let response: [ChatSession] = try await client
-            .from("chat_sessions")
-            .select()
-            .eq("user_id", value: userId)
-            .order("updated_at", ascending: false)
-            .execute()
-            .value
-
-                AppLogger.log("✅ [ChatService] Fetched \(response.count) sessions")
-
-        return response
+        let sessions = LocalChatStore.shared.sessions()
+                AppLogger.log("📋 [ChatService] Fetched \(sessions.count) local sessions")
+        return sessions
     }
 
-    /// Loads all messages for a specific session
+    /// All messages for a session, oldest first.
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO] {
-        guard let userId = client.auth.currentUser?.id else {
-                        AppLogger.log("⚠️ [ChatService] Cannot load session messages — no authenticated user")
-            return []
-        }
-
-                AppLogger.log("📖 [ChatService] Loading messages for session \(sessionId.uuidString.prefix(8))...")
-
-        let response: [ChatMessageDTO] = try await client
-            .from("chat_messages")
-            .select("id, role, content, created_at")
-            .eq("session_id", value: sessionId)
-            .eq("user_id", value: userId)
-            .order("created_at", ascending: true)
-            .execute()
-            .value
-
-                AppLogger.log("✅ [ChatService] Loaded \(response.count) messages")
-
-        return response
+        let messages = LocalChatStore.shared.messages(for: sessionId)
+                AppLogger.log("📖 [ChatService] Loaded \(messages.count) local messages for \(sessionId.uuidString.prefix(8))")
+        return messages
     }
 
-    /// Deletes a chat session and all its messages (cascade delete via FK)
+    /// Deletes a chat session and its messages.
     func deleteSession(sessionId: UUID) async throws {
-        guard let userId = client.auth.currentUser?.id else {
-                        AppLogger.log("⚠️ [ChatService] Cannot delete session — no authenticated user")
-            return
+        LocalChatStore.shared.deleteSession(sessionId)
+                AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
+    }
+
+    /// Rebuilds the prior conversation as `[ChatTurn]` from the stored messages,
+    /// unwrapping each assistant message's `{…, body}` JSON back to plain text.
+    static func historyTurns(from dtos: [ChatMessageDTO]) -> [ChatTurn] {
+        dtos.map { dto in
+            dto.role == "user"
+                ? ChatTurn(role: .user, text: dto.content)
+                : ChatTurn(role: .assistant, text: unwrapAssistantBody(dto.content))
         }
+    }
 
-                AppLogger.log("🗑️ [ChatService] Deleting session \(sessionId.uuidString.prefix(8))...")
+    static func unwrapAssistantBody(_ content: String) -> String {
+        guard let data = content.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let body = object["body"] as? String else {
+            return content   // legacy plain text
+        }
+        return body
+    }
 
-        try await client
-            .from("chat_sessions")
-            .delete()
-            .eq("id", value: sessionId)
-            .eq("user_id", value: userId)
-            .execute()
-
-                AppLogger.log("✅ [ChatService] Session deleted")
+    /// Builds the assistant message content in the JSON shape the chat UI parses
+    /// on load (`ChatViewModel.extractBodyContent`): body + optional headings +
+    /// sources so citations re-render for reloaded conversations.
+    static func assistantContentJSON(body: String, heading1: String?, heading2: String?, sources: [ChatSource]) -> String {
+        var object: [String: Any] = ["body": body]
+        if let heading1 { object["heading1"] = heading1 }
+        if let heading2 { object["heading2"] = heading2 }
+        object["sources"] = sources.map { ["id": $0.id, "created_at": $0.createdAt, "preview": $0.preview] }
+        guard let data = try? JSONSerialization.data(withJSONObject: object),
+              let json = String(data: data, encoding: .utf8) else {
+            return body
+        }
+        return json
     }
 
     // MARK: - Chat Summary
 
-    /// Summarizes a chat conversation into a journal entry using AI
+    /// Summarizes a chat conversation into a journal entry, on-device.
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse {
-                AppLogger.log("📝 [ChatService] Summarizing chat (\(messages.count) messages)...")
+                AppLogger.log("📝 [ChatService] Summarizing chat on-device (\(messages.count) messages)...")
 
-        let summaryMessages = messages.map { msg in
-            SummaryMessage(role: msg.isFromUser ? "user" : "assistant", content: msg.content)
-        }
+        let turns = messages.map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
+        let content = try await intelligence.summarizeConversation(turns)
 
-        let requestBody = ChatSummaryRequest(
-            sessionId: sessionId?.uuidString,
-            messages: summaryMessages
-        )
+                AppLogger.log("✅ [ChatService] Summary generated (\(content.count) chars)")
 
-        // Refresh session to ensure we have a valid access token
-        // (the SDK's auto-refresh doesn't trigger when manually extracting tokens)
-        let session = try await client.auth.refreshSession()
-
-        let response: ChatSummaryResponse = try await withRetry {
-            try await self.client.functions.invoke(
-                "summarize-chat",
-                options: FunctionInvokeOptions(
-                    headers: ["Authorization": "Bearer \(session.accessToken)"],
-                    body: requestBody
-                )
-            )
-        }
-
-                AppLogger.log("✅ [ChatService] Summary generated (\(response.content.count) chars)")
-
-        return response
+        return ChatSummaryResponse(title: nil, content: content)
     }
 
     // MARK: - Chat Feedback

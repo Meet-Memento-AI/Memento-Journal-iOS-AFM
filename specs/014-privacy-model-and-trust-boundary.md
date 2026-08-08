@@ -192,6 +192,16 @@ session.
   exempted from the lint — it's the rule's source, not a violation of it.
   (Already live: `WelcomeView.swift`'s `welcome.positioning` text, spec 023 R2.)
 
+> **R3 landed 2026-08-02:** the forbidden-phrase lint is implemented and wired
+> (`scripts/ci/lint_forbidden_phrases.py`, `.github/workflows/spec-gates.yml`).
+> It is comment-aware (scans string literals only, so a comment *mentioning* a
+> phrase is not a violation), scans `MeetMemento/**/*.swift` plus ASC metadata
+> `.txt` if present, and honors a `// REQ-POS-001-EXEMPT` line marker (and
+> `// REQ-POS-001-EXEMPT-FILE`) for the positioning claim. Green on the current
+> tree; verified to fail on a planted forbidden literal and to respect the
+> exemption. This satisfies R3's acceptance. (R1/R2/R4 remain pending the Swift
+> `TrustZone` type + zone UI component.)
+
 ### R4. `REQ-PRIV-001` acceptance criteria — verified in tests, not asserted in prose
 **Given/When/Then:**
 - Given any `GenerationRequest` constructed anywhere in the codebase, when

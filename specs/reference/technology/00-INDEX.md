@@ -35,6 +35,7 @@ Anything marked 🔴 that blocks work goes to `11-verification-queue.md`.
 | `09-ui-swift6-testing.md` | SwiftUI, Liquid Glass, Swift Charts, Core Haptics, accessibility, Swift 6 concurrency, Swift Testing | Any UI or concurrency work |
 | `10-monetization-and-privacy.md` | StoreKit 2, RevenueCat, Small Business Program, privacy labels, entitlements | Paywall, App Store, compliance |
 | `11-verification-queue.md` | Every 🔴 item, consolidated, with how to check | Before starting any phase |
+| `12-liquid-glass.md` | `glassEffect(_:in:)`, `Glass` variants/tint/interactive, `GlassEffectContainer`, `glassEffectID`/`glassEffectUnion`, `.buttonStyle(.glass/.glassProminent)`, accessibility, simulator caveat | Any Liquid Glass surface work |
 
 ---
 

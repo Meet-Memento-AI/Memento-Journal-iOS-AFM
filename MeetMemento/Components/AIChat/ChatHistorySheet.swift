@@ -121,8 +121,9 @@ public struct ChatHistorySheet: View {
 
     @ViewBuilder
     private var newButtonBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .mementoGlassEffect(.regular.tint(theme.primary.opacity(0.1)), in: Capsule())
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 

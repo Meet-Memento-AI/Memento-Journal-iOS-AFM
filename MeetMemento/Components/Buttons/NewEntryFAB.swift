@@ -3,8 +3,8 @@
 //  MeetMemento
 //
 //  Floating Action Button for creating new journal entries.
-//  Uses iOS 26 Liquid Glass effect when available, falls back to
-//  gradient with inner glow on earlier versions.
+//  Rendered as a prominent, tinted Liquid Glass button (native `.glassProminent`
+//  button style). The deployment target is iOS 26, so glass is always available.
 //
 
 import SwiftUI
@@ -15,7 +15,6 @@ public struct NewEntryFAB: View {
     var enableHaptic: Bool = true
 
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     public init(size: CGFloat = 64, enableHaptic: Bool = true, action: @escaping () -> Void) {
         self.size = size
@@ -30,66 +29,17 @@ public struct NewEntryFAB: View {
             }
             action()
         } label: {
-            fabContent
+            // Liquid Glass removed — brand color intentionally kept (prominent
+            // FAB); flat purple circle, no glass.
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+                .background(Circle().fill(theme.primary))
         }
         .buttonStyle(FABPressStyle())
         .accessibilityLabel("New Journal Entry")
         .accessibilityIdentifier("journal.newEntryFAB")
-    }
-
-    @ViewBuilder
-    private var fabContent: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            glassStyleContent
-        } else {
-            fallbackStyleContent
-        }
-        #else
-        fallbackStyleContent
-        #endif
-    }
-
-    #if canImport(FoundationModels)
-    // iOS 26+: Pure liquid glass with primary/600 icon
-    @available(iOS 26.0, *)
-    private var glassStyleContent: some View {
-        Image(systemName: "square.and.pencil")
-            .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
-            .foregroundStyle(PrimaryScale.primary600)
-            .frame(width: size, height: size)
-            .mementoGlassEffect(
-                .regular.tint(theme.primary.opacity(0.85)).interactive(),
-                in: Circle()
-            )
-    }
-    #endif
-
-    // iOS 18-25: Gradient with inner glow
-    private var fallbackStyleContent: some View {
-        ZStack {
-            Circle()
-                .fill(LinearGradient(
-                    colors: [theme.fabGradientStart, theme.fabGradientEnd],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-
-            // Inner glow for depth
-            Circle()
-                .fill(RadialGradient(
-                    colors: [Color.white.opacity(0.25), Color.white.opacity(0.0)],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: size * 0.8
-                ))
-
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
-                .foregroundStyle(theme.primaryForeground)
-        }
-        .frame(width: size, height: size)
-        .shadow(color: theme.primary.opacity(0.3), radius: 12, x: 0, y: 6)
     }
 }
 

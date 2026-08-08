@@ -51,9 +51,9 @@ struct AvatarInitialButton: View {
 
     @ViewBuilder
     private var glassBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .mementoGlassEffect(.regular.interactive(), in: Circle())
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 

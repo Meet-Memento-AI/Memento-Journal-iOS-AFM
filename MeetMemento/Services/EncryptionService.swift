@@ -29,13 +29,36 @@ class EncryptionService {
 
     // MARK: - Key Derivation
 
+    private let cacheLock = NSLock()
+    /// The last successfully derived key, keyed by (PIN, salt). The salt is fixed
+    /// per install, so for a given PIN the key is stable — caching it collapses
+    /// the per-entry PBKDF2 (100k iterations) into one derivation per session,
+    /// which is the dominant per-chat-message cost when decrypting every entry.
+    private var derivedKeyCache: (pin: String, saltHash: Int, key: SymmetricKey)?
+    /// Number of times the expensive PBKDF2 derivation actually ran (test hook).
+    private(set) var pbkdf2DerivationCount = 0
+
+    /// Clears the cached derived key. Call on PIN change / sign-out / delete-everything.
+    func clearDerivedKeyCache() {
+        cacheLock.lock(); derivedKeyCache = nil; cacheLock.unlock()
+    }
+
     /// Derives a 256-bit encryption key from PIN using PBKDF2-SHA256 with stored salt
-    /// Uses 100,000 iterations as recommended by OWASP for password-based key derivation
+    /// Uses 100,000 iterations as recommended by OWASP for password-based key derivation.
+    /// Cached per (PIN, salt) so repeated decrypts don't re-run PBKDF2.
     func deriveKey(from pin: String) -> SymmetricKey? {
         guard let salt = getOrCreateSalt(),
               let pinData = pin.data(using: .utf8) else {
             return nil
         }
+
+        let saltHash = salt.hashValue
+        cacheLock.lock()
+        if let cached = derivedKeyCache, cached.pin == pin, cached.saltHash == saltHash {
+            cacheLock.unlock()
+            return cached.key
+        }
+        cacheLock.unlock()
 
         // Use PBKDF2-SHA256 for secure key derivation
         var derivedKeyData = Data(count: derivedKeyLength)
@@ -62,7 +85,12 @@ class EncryptionService {
             return nil
         }
 
-        return SymmetricKey(data: derivedKeyData)
+        let key = SymmetricKey(data: derivedKeyData)
+        cacheLock.lock()
+        pbkdf2DerivationCount += 1
+        derivedKeyCache = (pin, saltHash, key)
+        cacheLock.unlock()
+        return key
     }
 
     // MARK: - Encryption/Decryption
@@ -156,6 +184,7 @@ class EncryptionService {
     /// Deletes the encryption salt from Keychain (used on PIN change or account deletion)
     func deleteSalt() {
         keychain.delete(forAccount: saltKeychainKey)
+        clearDerivedKeyCache()   // the salt changed → any cached key is stale
     }
 
     /// Clears all encryption data (salt). Call this when PIN is changed.

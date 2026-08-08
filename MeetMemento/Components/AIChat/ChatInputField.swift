@@ -45,6 +45,9 @@ struct ChatInputField: View {
     @State private var showPermissionDenied = false
     @State private var showSTTError = false
     @State private var showListeningContent = false
+    /// Ensures one voice utterance sends exactly once (both speech observers can
+    /// fire for the same utterance). Reset when a new recording starts.
+    @State private var didConsumeTranscript = false
     @Namespace private var animationNamespace
 
     /// Unique identifier for this view's speech session ownership
@@ -54,7 +57,6 @@ struct ChatInputField: View {
 
     private let pillHeight: CGFloat = 48
     private let cornerRadius: CGFloat = 24
-    private let expandedHeight: CGFloat = 128
     private let listeningPanelHeight: CGFloat = 280
     private let sendButtonSize: CGFloat = 36
     private let backButtonSize: CGFloat = 48
@@ -110,23 +112,31 @@ struct ChatInputField: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: inputState)
         .allowsHitTesting(isInteractive)
+        // A single utterance can satisfy BOTH observers below (recording stops
+        // with text present, then a final transcript lands). `consumeTranscriptOnce`
+        // guards so exactly one send fires per recording session — the previous
+        // code relied on the `!isLoading` guard racing, which was fragile.
         .onChange(of: speechService.isRecording) { oldValue, newValue in
             guard speechService.isOwner(speechOwnerId) else { return }
-            if oldValue == true && newValue == false && !speechService.transcribedText.isEmpty {
-                insertTranscribedText(speechService.transcribedText)
+            if newValue == true {
+                didConsumeTranscript = false            // new recording — arm one consume
+            } else if oldValue == true {
+                consumeTranscriptOnce(speechService.transcribedText)
             }
         }
         .onChange(of: speechService.transcribedText) { _, newText in
             guard speechService.isOwner(speechOwnerId) else { return }
-            if !newText.isEmpty && !speechService.isRecording {
-                insertTranscribedText(newText)
+            if !speechService.isRecording {              // final transcript after stop
+                consumeTranscriptOnce(newText)
             }
         }
         .onChange(of: isFocused) { _, newValue in
-            // Return to default state when focus is lost in chatActive state
+            // Return to default state when focus is lost in chatActive state.
+            // The draft is intentionally kept: dismissing the keyboard by
+            // tapping or scrolling the conversation must not erase what the
+            // user has typed — reopening the input restores it.
             if !newValue && inputState == .chatActive {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                    text = ""
                     inputState = .defaultState
                 }
                 onDismiss?()
@@ -254,8 +264,10 @@ struct ChatInputField: View {
     // MARK: - State 2: Chat Active View
 
     private var chatActiveView: some View {
-        VStack(alignment: .trailing, spacing: 8) {
-            // Text input area with styled placeholder
+        // Regular chat-bar layout: stays pill-height for a single line and
+        // grows only as the text wraps (up to 5 lines), instead of jumping
+        // to a tall composer panel the moment the pill is tapped.
+        HStack(alignment: .bottom, spacing: 12) {
             TextField(
                 "",
                 text: $text,
@@ -268,9 +280,9 @@ struct ChatInputField: View {
                 .focused($isFocused)
                 .lineLimit(1...5)
                 .textInputAutocapitalization(.sentences)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-
-            Spacer(minLength: 0)
+                // Vertically centers a single line against the send button.
+                .frame(minHeight: sendButtonSize)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             // Send button
             Button(action: sendMessage) {
@@ -289,14 +301,12 @@ struct ChatInputField: View {
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityLabel("Send message")
         }
-        .padding(.top, 16)
         .padding(.leading, 16)
-        .padding(.bottom, 12)
-        .padding(.trailing, 12)
-        // AX5: minHeight lets the panel grow instead of clipping the input, which
-        // allows up to 5 wrapped lines (lineLimit 1...5) that get much taller at
-        // large Dynamic Type sizes.
-        .frame(minHeight: expandedHeight)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        // AX5: minHeight (not a fixed height) so wrapped lines and large
+        // Dynamic Type sizes grow the bar instead of clipping the input.
+        .frame(minHeight: pillHeight)
         .frame(maxWidth: .infinity)
         .background(
             glassBackground(cornerRadius: cornerRadius)
@@ -419,20 +429,9 @@ struct ChatInputField: View {
 
     @ViewBuilder
     private func glassBackground(cornerRadius: CGFloat) -> some View {
-        // Theme-aware frost layer underneath for readability, on both the
-        // native glass path and the material fallback.
+        // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(theme.glassFallback.opacity(0.9))
-            .mementoGlassEffect(
-                .regular.interactive(),
-                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            )
-            .shadow(
-                color: Color.black.opacity(0.08),
-                radius: 12,
-                x: 0,
-                y: 4
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Speech Actions
@@ -538,6 +537,14 @@ struct ChatInputField: View {
         text = ""
         inputState = .defaultState
         isFocused = false
+    }
+
+    /// Consume the transcript at most once per recording session, so the two
+    /// speech observers can't both send it.
+    private func consumeTranscriptOnce(_ transcribedText: String) {
+        guard !didConsumeTranscript, !transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        didConsumeTranscript = true
+        insertTranscribedText(transcribedText)
     }
 
     private func insertTranscribedText(_ transcribedText: String) {

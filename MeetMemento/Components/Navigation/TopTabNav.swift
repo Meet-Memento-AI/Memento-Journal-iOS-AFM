@@ -149,11 +149,13 @@ public struct TopNav: View {
     }
 
     // MARK: - Pill Background
+    // Liquid Glass removed — flat #fafafa surface. The selected-tab pill still
+    // slides between tabs via `matchedGeometryEffect` (PRES-004); only the fill
+    // changed.
     @ViewBuilder
     private var pillBackground: some View {
         Capsule()
-            .mementoGlassEffect(.regular.interactive(), in: Capsule())
-            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 

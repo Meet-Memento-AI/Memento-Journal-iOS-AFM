@@ -267,29 +267,9 @@ public struct LearnAboutYourselfView: View {
 
     @ViewBuilder
     private var microphoneFABBackground: some View {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            // iOS 26: Liquid glass with frosted effect
-            Capsule()
-                .fill(Color.white.opacity(0.3))
-                .mementoGlassEffect(.regular.interactive(), in: Capsule())
-        } else {
-            fallbackMicrophoneFABBackground
-        }
-        #else
-        fallbackMicrophoneFABBackground
-        #endif
-    }
-
-    @ViewBuilder
-    private var fallbackMicrophoneFABBackground: some View {
-        // iOS 18+: Ultra thin material fallback
+        // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(.ultraThinMaterial)
-            .overlay(
-                Capsule()
-                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 

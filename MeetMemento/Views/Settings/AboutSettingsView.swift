@@ -13,7 +13,6 @@ public struct AboutSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var showShareSheet = false
     @State private var showCopiedAlert = false
@@ -243,13 +242,9 @@ public struct AboutSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(colorScheme == .dark ? GrayScale.gray800 : Color.white)
-            .mementoGlassEffect(
-                .regular.tint(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.7)),
-                in: RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            )
-            .shadow(color: colorScheme == .dark ? .clear : Color.black.opacity(0.06), radius: 8, x: 0, y: 2)
+            .fill(Color(hex: "#FAFAFA"))
     }
 
     // MARK: - Actions

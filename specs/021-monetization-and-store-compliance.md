@@ -286,6 +286,17 @@ written rule someone can forget**:
 on the allowlist, when CI runs, then the check fails naming `REQ-MON-005` —
 demonstrated once with a throwaway fixture branch/package and recorded here.
 
+> **Partial — landed 2026-08-02:** the allowlist file
+> (`specs/dependency-allowlist.txt`, target = RevenueCat only) and the CI check
+> (`scripts/ci/check_dependency_allowlist.sh`, `.github/workflows/spec-gates.yml`)
+> are implemented. Per this R6's sequencing note it runs **report-only**
+> (`ALLOWLIST_ENFORCE=0`): it currently reports three off-allowlist packages
+> (`supabase/supabase-swift` — removed by spec 015; `dominikmartn/progressiveblurheader`
+> and `svgkit/svgkit` — need a REQ-MON-005 decision record or removal).
+> Verified: `ALLOWLIST_ENFORCE=1` fails on the current tree, confirming the
+> gate works. Flip to enforcing after spec 015's decommission — must be a hard
+> gate before this spec closes.
+
 ### R7. `REQ-MON-002` — Small Business Program + PCC access, an operational requirement
 SBP enrollment is **mandatory** — it is the eligibility condition for free
 PCC inference, i.e. for the architecture itself, not merely a commission

@@ -50,6 +50,22 @@ resolving each:
 | `DEC-001` — ship on non-Apple-Intelligence devices? | 021 | P1 | `technology/10-monetization-and-privacy.md` §1 |
 | `DEC-004` — final pricing and trial length | 021 | P1 | `technology/10-monetization-and-privacy.md` §7 |
 
+**2.0 constitutional gate ladder (partial, landed 2026-08-02).** The SDK-free,
+decision-free CI gates that can run before the Swift rewrite exist and are wired
+in `.github/workflows/spec-gates.yml` (green on the current tree; each verified
+to fail on a planted violation):
+
+- Single `FoundationModels` importer — spec 017 R1 / P3 (blocking)
+- REQ-POS-001 forbidden-phrase lint — spec 014 R3 (blocking)
+- SpeakabilityLinter pattern engine + selftest — spec 018 R9 (blocking)
+- Dependency allowlist — spec 021 R6 (report-only until spec 015 decommission)
+- Fixture-corpus validation + resolved-gold drift guard — spec 013 R4 / 016 R8 (blocking)
+
+These are engine/CI halves; the Swift implementations they guard still depend on
+Gate α + the toolchain/device. Making them *required* checks is a branch-
+protection setting (`docs/BRANCH_PROTECTION_SETUP.md`). No `DEC-nnn` was resolved:
+015/020 explicitly hold DEC-006/007/005 open for a human decision.
+
 Spec 013's re-audit of whether specs 002, 007, 008, 009, 011, 012 (below) still
 apply once 2.0 lands is **resolved** — see spec 013's "Legacy spec disposition"
 section and the Status board rows immediately below, which already reflect it.

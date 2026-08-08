@@ -1,21 +1,11 @@
 
 import Foundation
-import Supabase
 
-// MARK: - Network Retry Configuration
-
-private struct RetryConfig {
-    let maxAttempts: Int
-    let baseDelayMs: UInt64
-    let maxDelayMs: UInt64
-
-    static let `default` = RetryConfig(
-        maxAttempts: 3,
-        baseDelayMs: 500,
-        maxDelayMs: 4000
-    )
-}
-
+/// On-device journal persistence (no accounts, spec 023). Entries live
+/// exclusively in encrypted local storage — this service has no Supabase
+/// dependency, so a missing or invalid API key can never affect the
+/// journal. The server-backed CRUD that used to live here was dead code
+/// from the pre-023 architecture and has been removed.
 class JournalService {
     static let shared = JournalService()
 
@@ -27,194 +17,6 @@ class JournalService {
 
     init(encryptionService: EncryptionService = .shared) {
         self.encryptionService = encryptionService
-    }
-
-    private var client: SupabaseClient {
-        SupabaseService.shared.client
-    }
-
-    // MARK: - Retry Helper
-
-    /// Executes an async operation with exponential backoff retry for transient failures
-    private func withRetry<T>(
-        config: RetryConfig = .default,
-        operation: () async throws -> T
-    ) async throws -> T {
-        var lastError: Error?
-        var currentDelay = config.baseDelayMs
-
-        for attempt in 1...config.maxAttempts {
-            do {
-                return try await operation()
-            } catch {
-                lastError = error
-
-                // Check if error is retryable
-                let isRetryable = isTransientError(error)
-
-                                AppLogger.log("⚠️ [JournalService] Attempt \(attempt)/\(config.maxAttempts) failed: \(error.localizedDescription)")
-                AppLogger.log("   Retryable: \(isRetryable)")
-
-                // Don't retry on final attempt or non-transient errors
-                if attempt == config.maxAttempts || !isRetryable {
-                    break
-                }
-
-                // Exponential backoff with jitter
-                let jitter = UInt64.random(in: 0...100)
-                let delay = min(currentDelay + jitter, config.maxDelayMs)
-
-                                AppLogger.log("   Retrying in \(delay)ms...")
-
-                try await Task.sleep(nanoseconds: delay * 1_000_000)
-                currentDelay = min(currentDelay * 2, config.maxDelayMs)
-            }
-        }
-
-        throw lastError ?? NSError(
-            domain: "JournalService",
-            code: -1,
-            userInfo: [NSLocalizedDescriptionKey: "Unknown error after retries"]
-        )
-    }
-
-    /// Determines if an error is transient and should be retried.
-    /// Internal (not private) so tests can exercise the classification
-    /// directly without needing a live network call to fail.
-    func isTransientError(_ error: Error) -> Bool {
-        let nsError = error as NSError
-
-        // URL session errors that are transient
-        let transientURLErrors: Set<Int> = [
-            NSURLErrorTimedOut,
-            NSURLErrorCannotFindHost,
-            NSURLErrorCannotConnectToHost,
-            NSURLErrorNetworkConnectionLost,
-            NSURLErrorDNSLookupFailed,
-            NSURLErrorNotConnectedToInternet,
-            NSURLErrorSecureConnectionFailed,
-            -1001, // kCFURLErrorTimedOut
-            -1009  // kCFURLErrorNotConnectedToInternet
-        ]
-
-        if nsError.domain == NSURLErrorDomain && transientURLErrors.contains(nsError.code) {
-            return true
-        }
-
-        // HTTP 5xx errors and 429 (rate limit) are retryable
-        if let httpCode = (error as? URLError)?.errorCode {
-            return httpCode >= 500 || httpCode == 429
-        }
-
-        return false
-    }
-
-    /// Fetches all non-deleted journal entries for the current user, ordered by creation date (newest first).
-    func fetchEntries() async throws -> [JournalEntry] {
-        guard let userId = client.auth.currentUser?.id else {
-            return []
-        }
-
-        let response: [JournalEntryDTO] = try await withRetry {
-            try await self.client
-                .from("journal_entries")
-                .select()
-                .eq("user_id", value: userId)
-                .eq("is_deleted", value: false)
-                .order("created_at", ascending: false)
-                .execute()
-                .value
-        }
-
-        return response.compactMap { $0.toDomain() }
-    }
-
-    /// Creates a new journal entry and returns the created entry with server-assigned values.
-    @discardableResult
-    func createEntry(_ entry: JournalEntry) async throws -> JournalEntry {
-        let dto = JournalEntryDTO(from: entry)
-        let response: [JournalEntryDTO] = try await withRetry {
-            try await self.client
-                .from("journal_entries")
-                .insert(dto)
-                .select()
-                .execute()
-                .value
-        }
-
-        guard let createdDTO = response.first, let created = createdDTO.toDomain() else {
-            throw NSError(domain: "JournalService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to parse created entry"])
-        }
-
-        // Trigger embedding generation (fire-and-forget)
-        Task {
-            do {
-                try await ChatService.shared.triggerEmbedding(entryId: created.id)
-            } catch {
-                                AppLogger.log("⚠️ [JournalService] Failed to trigger embedding: \(error)")
-            }
-        }
-
-        return created
-    }
-
-    /// Updates an existing journal entry.
-    func updateEntry(_ entry: JournalEntry) async throws {
-        guard let userId = client.auth.currentUser?.id else {
-            throw NSError(domain: "JournalService", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "No authenticated user"])
-        }
-
-        let dto = JournalEntryDTO(from: entry)
-        _ = try await withRetry {
-            try await self.client
-                .from("journal_entries")
-                .update(dto)
-                .eq("id", value: entry.id)
-                .eq("user_id", value: userId)
-                .execute()
-        }
-
-        // Trigger embedding regeneration (fire-and-forget)
-        Task {
-            do {
-                try await ChatService.shared.triggerEmbedding(entryId: entry.id)
-            } catch {
-                                AppLogger.log("⚠️ [JournalService] Failed to trigger embedding: \(error)")
-            }
-        }
-    }
-
-    struct SoftDeleteUpdate: Encodable {
-        let is_deleted: Bool
-        let deleted_at: String // Use String for ISO date
-    }
-
-    /// Soft deletes a journal entry by setting is_deleted = true.
-    func deleteEntry(id: UUID) async throws {
-        guard let userId = client.auth.currentUser?.id else {
-            throw NSError(domain: "JournalService", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "No authenticated user"])
-        }
-
-        // Formatter for deleted_at
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let dateString = formatter.string(from: Date())
-
-        let updatePayload = SoftDeleteUpdate(is_deleted: true, deleted_at: dateString)
-
-        _ = try await withRetry {
-            try await self.client
-                .from("journal_entries")
-                .update(updatePayload)
-                .eq("id", value: id)
-                .eq("user_id", value: userId)
-                .execute()
-        }
-
-        // Also delete local encrypted content
-        LocalJournalStorage.shared.deleteEncrypted(entryId: id)
     }
 
     // MARK: - Local-First Helpers (spec-007)
@@ -284,13 +86,28 @@ class JournalService {
     ///   and migrated to envelope format on first read, so the fallback only
     ///   ever runs once per entry.
     func loadAllEntriesLocally(withPIN pin: String) -> [Entry] {
+        let ids = LocalJournalStorage.shared.allStoredEntryIds()
+
+        // Return the cached decrypted set when nothing on disk changed. The
+        // signature (ids + modification dates) busts automatically on any
+        // add/edit/delete, so this avoids re-reading and re-decrypting every
+        // entry on every chat message. Decrypted content is PIN-independent, so
+        // the cache is valid across PIN changes.
+        let signature = Self.cacheSignature(for: ids)
+        entriesCacheLock.lock()
+        if let cache = entriesCache, cache.signature == signature {
+            entriesCacheLock.unlock()
+            return cache.entries
+        }
+        entriesCacheLock.unlock()
+
         // Pending-sync ops are the only local record of a legacy entry's
         // title (encrypted) and creation time. Fetch once, not per entry.
         let pendingOps = Dictionary(
             uniqueKeysWithValues: LocalJournalStorage.shared.allPendingSyncOperations().map { ($0.entryId, $0) }
         )
 
-        return LocalJournalStorage.shared.allStoredEntryIds().compactMap { id -> Entry? in
+        let entries: [Entry] = ids.compactMap { id -> Entry? in
             guard let data = LocalJournalStorage.shared.loadEncrypted(entryId: id),
                   let decrypted = encryptionService.decrypt(data, withPIN: pin) else {
                 return nil
@@ -329,6 +146,31 @@ class JournalService {
                 createdAt: timestamp, updatedAt: timestamp, syncStatus: .synced
             )
         }
+
+        entriesCacheLock.lock()
+        entriesCache = (signature, entries)
+        entriesCacheLock.unlock()
+        return entries
+    }
+
+    // MARK: - Decrypted-entries cache
+
+    private let entriesCacheLock = NSLock()
+    /// Cache of the decrypted entry set, keyed by a signature of (ids + mtimes).
+    private var entriesCache: (signature: String, entries: [Entry])?
+
+    /// Clears the decrypted-entries cache (e.g. on delete-everything / sign-out).
+    func invalidateEntriesCache() {
+        entriesCacheLock.lock(); entriesCache = nil; entriesCacheLock.unlock()
+    }
+
+    private static func cacheSignature(for ids: [UUID]) -> String {
+        ids.sorted { $0.uuidString < $1.uuidString }
+            .map { id in
+                let mtime = LocalJournalStorage.shared.modificationDate(entryId: id)?.timeIntervalSince1970 ?? 0
+                return "\(id.uuidString):\(mtime)"
+            }
+            .joined(separator: "|")
     }
 
     /// Best-effort title for a legacy entry with no recoverable title: its
@@ -343,82 +185,4 @@ class JournalService {
         return firstLine.count > 50 ? String(firstLine.prefix(50)) + "…" : firstLine
     }
 
-}
-
-// MARK: - DTO
-// Private Data Transfer Object to handle string-based dates from Supabase
-private struct JournalEntryDTO: Codable {
-    let id: UUID
-    let user_id: UUID
-    let title: String
-    let content: String
-    let word_count: Int?
-    let sentiment_score: Double?
-    let is_deleted: Bool
-    let deleted_at: String?
-    let content_hash: String?
-    let created_at: String
-    let updated_at: String
-    
-    // Mapping from Domain to DTO
-    init(from domain: JournalEntry) {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        self.id = domain.id
-        self.user_id = domain.userId
-        self.title = domain.title
-        self.content = domain.content
-        self.word_count = domain.wordCount
-        self.sentiment_score = domain.sentimentScore
-        self.is_deleted = domain.isDeleted
-        self.deleted_at = domain.deletedAt.map { formatter.string(from: $0) }
-        self.content_hash = domain.contentHash
-        self.created_at = formatter.string(from: domain.createdAt)
-        self.updated_at = formatter.string(from: domain.updatedAt)
-    }
-    
-    // Mapping from DTO to Domain
-    func toDomain() -> JournalEntry? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        // Try parsing with fractional seconds first, fallback to standard if needed
-        guard let created = formatter.date(from: created_at),
-              let updated = formatter.date(from: updated_at) else {
-            // Fallback for dates without fractional seconds (rare in Postgres but possible)
-            let simpleFormatter = ISO8601DateFormatter()
-            if let simpleCreated = simpleFormatter.date(from: created_at),
-               let simpleUpdated = simpleFormatter.date(from: updated_at) {
-                return JournalEntry(
-                    id: id,
-                    userId: user_id,
-                    title: title,
-                    content: content,
-                    wordCount: word_count,
-                    sentimentScore: sentiment_score,
-                    isDeleted: is_deleted,
-                    deletedAt: deleted_at.flatMap { simpleFormatter.date(from: $0) },
-                    contentHash: content_hash,
-                    createdAt: simpleCreated,
-                    updatedAt: simpleUpdated
-                )
-            }
-            return nil
-        }
-        
-        return JournalEntry(
-            id: id,
-            userId: user_id,
-            title: title,
-            content: content,
-            wordCount: word_count,
-            sentimentScore: sentiment_score,
-            isDeleted: is_deleted,
-            deletedAt: deleted_at.flatMap { formatter.date(from: $0) },
-            contentHash: content_hash,
-            createdAt: created,
-            updatedAt: updated
-        )
-    }
 }

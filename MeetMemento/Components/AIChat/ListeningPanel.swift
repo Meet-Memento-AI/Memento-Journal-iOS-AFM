@@ -78,11 +78,13 @@ struct ListeningPanel: View {
         } label: {
             Image(systemName: "checkmark")
                 .font(.system(size: 16, weight: .bold)) // icon-size: not user text
-                .foregroundColor(.white)
+                .foregroundColor(theme.primary)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(
+                    // Liquid Glass removed (was glass-on-glass — a glass button on
+                    // a glass panel). Flat #fafafa surface.
                     Circle()
-                        .fill(theme.primary)
+                        .fill(Color(hex: "#FAFAFA"))
                 )
         }
         .buttonStyle(.plain)
@@ -94,17 +96,10 @@ struct ListeningPanel: View {
 
     @ViewBuilder
     private var glassBackground: some View {
+        // Liquid Glass removed — flat #fafafa surface (was the outer glass panel
+        // in the removed glass-on-glass pair).
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .mementoGlassEffect(
-                .regular.interactive().tint(theme.glassFill),
-                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            )
-            .shadow(
-                color: GlassShadow.color.opacity(GlassShadow.opacity),
-                radius: GlassShadow.blur,
-                x: 0,
-                y: GlassShadow.offsetY
-            )
+            .fill(Color(hex: "#FAFAFA"))
     }
 }
 
