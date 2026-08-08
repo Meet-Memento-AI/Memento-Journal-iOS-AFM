@@ -64,7 +64,7 @@ public struct DrawerMenuView: View {
 
                 DrawerMenuItem(
                     icon: "slider.horizontal.3",
-                    title: "Your journal goals",
+                    title: "Your journal themes",
                     onTap: {
                         onJournalGoalsTapped()
                     }

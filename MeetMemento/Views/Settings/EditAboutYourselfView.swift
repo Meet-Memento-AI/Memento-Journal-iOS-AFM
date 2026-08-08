@@ -256,10 +256,10 @@ public struct EditAboutYourselfView: View {
                 }
             } catch {
                 await MainActor.run {
+                    // Reflection is already saved; stay here so the alert can be read.
+                    // User can dismiss manually after acknowledging.
                     rebuildError = error.localizedDescription
                     isSaving = false
-                    // Reflection already saved; allow dismiss after acknowledging.
-                    dismiss()
                 }
             }
         }

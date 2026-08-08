@@ -136,6 +136,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
     }
 
     func test_deleteEverything_clearsExperienceProfile() {
+        UserDefaults.standard.set("Ada", forKey: "memento_first_name")
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "keep me",
             confirmedThemeIds: ["awareness"],
@@ -145,9 +146,31 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             builtAt: Date(),
             modelIdentifier: "mock"
         )
-        LocalProfileStore.clearAll()
+
+        let store = AppStateStore()
+        store.deleteEverything()
+
         XCTAssertNil(LocalProfileStore.experienceProfile)
         XCTAssertTrue(PromptPersonalization.fromLocalProfile().isEmpty)
+        XCTAssertFalse(store.hasCompletedOnboarding)
+        XCTAssertNil(store.firstName)
+    }
+
+    func test_saveExperienceProfile_realignsLensWhenUserDivergesFromSuggestions() async throws {
+        let vm = OnboardingViewModel()
+        vm.personalizationText = "I want creative play"
+        try await vm.saveExperienceProfile(
+            themeIds: ["creativity", "play"],
+            promptLens: "Lean toward stress patterns.", // stale AFM lens from different themes
+            suggestedIds: ["stress", "burnout"]
+        )
+        let profile = LocalProfileStore.experienceProfile
+        XCTAssertEqual(Set(profile?.confirmedThemeIds ?? []), Set(["creativity", "play"]))
+        XCTAssertEqual(
+            profile?.promptLens,
+            ExperienceProfileBuilder.deterministicLens(themes: ["creativity", "play"])
+        )
+        XCTAssertFalse(profile?.promptLens?.lowercased().contains("stress") == true)
     }
 
     func test_dualProfile_differentThemes_differentPromptLeanAndStarters() {

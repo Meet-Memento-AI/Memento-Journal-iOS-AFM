@@ -45,6 +45,12 @@ grouped by `ThemeFamily` (164 themes).
 | L1 Lens | ExperienceProfile via `PromptPersonalization` | Yes — reflection, themes, lens |
 | L2 Session | Stance + retrieval + citations | No personalization influence |
 
+## Persistence timing
+
+The Experience Profile is persisted when the user confirms themes (before
+security setup). The first journal entry is created after security in
+`finishSecuritySetup`, still from the LearnAboutYourself reflection.
+
 ## Acceptance criteria
 
 ### Onboarding estimate + confirm

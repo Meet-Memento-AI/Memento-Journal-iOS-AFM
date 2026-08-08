@@ -6,10 +6,14 @@ final class ThemeCatalogTests: XCTestCase {
     func test_catalog_hasUniqueIdsAndOneWordDisplayNames() {
         let ids = ThemeCatalog.all.map(\.id)
         XCTAssertEqual(ids.count, Set(ids).count, "theme ids must be unique")
-        XCTAssertGreaterThanOrEqual(ThemeCatalog.all.count, 100)
+        XCTAssertEqual(ThemeCatalog.all.count, 164, "themes@1 ships 164 one-word themes")
+        XCTAssertEqual(ThemeCatalog.catalogVersion, "themes@1")
+        XCTAssertEqual(ThemeCatalog.maxConfirmedThemes, 6)
+        XCTAssertEqual(ThemeCatalog.defaultSuggestionCount, 4)
 
         for theme in ThemeCatalog.all {
             XCTAssertFalse(theme.displayName.contains(" "), "\(theme.id) displayName should be one word")
+            XCTAssertFalse(theme.displayName.contains("-"), "\(theme.id) displayName should not use hyphens")
             XCTAssertFalse(theme.displayName.isEmpty)
             XCTAssertEqual(ThemeCatalog.theme(id: theme.id)?.id, theme.id)
         }

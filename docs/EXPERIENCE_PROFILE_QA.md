@@ -11,9 +11,10 @@ verification. Physical-device AFM generation remains a Gate α / device check.
 | Dual-profile lean (different themes → different questions/focus, same L0 facts) | `ExperienceProfileBuilderTests.test_dualProfile_differentThemes_differentPromptLeanAndStarters` |
 | AFM unavailable still completable | `ThemeConfirmationView` keyword/browse fallback; `test_rebuildLens_fallsBackToKeywordsWhenUnavailable` |
 | Settings explainability (“How Memento is tuned for you”) | `EditJournalGoalsView.tuningSummary` + `settings.tuningLens` / `settings.rebuildLens` |
-| Delete everything clears profile | `AppStateStore.deleteEverything` → `LocalProfileStore.clearAll()`; `test_deleteEverything_clearsExperienceProfile` |
-| Closed vocabulary | `ThemeCatalog.validate` + builder tests stripping unknown ids |
+| Delete everything clears profile | `AppStateStore.deleteEverything()` call-site covered by `test_deleteEverything_clearsExperienceProfile` |
+| Closed vocabulary | `ThemeCatalog.validate` + builder tests stripping unknown ids; catalog locked at 164 / `themes@1` |
 | Chat starters themed | `ThemeAwareChatStarters` + `AIChatView.rotateSuggestions` |
+| Lens matches confirmed themes | Onboarding realigns AFM lens when user diverges from suggestions |
 | Legacy YourGoalsView removed | File deleted; onboarding uses `ThemeConfirmationView` only |
 
 ## Manual device follow-ups (human)

@@ -109,17 +109,27 @@ class OnboardingViewModel: ObservableObject {
 
         confirmedThemeIds = validated
         suggestedThemeIds = ThemeCatalog.validate(suggestedIds, max: 12)
-        self.promptLens = promptLens
         selectedGoals = ThemeCatalog.displayNames(for: validated)
 
         let trimmedReflection = personalizationText.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedLens = promptLens?.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Keep the AFM lens only when confirmed themes still overlap suggestions;
+        // otherwise align the lens to what the user actually confirmed.
+        let overlapsSuggestions = !Set(validated).isDisjoint(with: Set(suggestedThemeIds))
+        let resolvedLens: String?
+        if overlapsSuggestions, let trimmedLens, !trimmedLens.isEmpty {
+            resolvedLens = trimmedLens
+        } else {
+            resolvedLens = ExperienceProfileBuilder.deterministicLens(themes: validated)
+        }
+        self.promptLens = resolvedLens
+
         var profile = LocalProfileStore.experienceProfile ?? .empty
         profile.reflection = trimmedReflection.isEmpty ? nil : trimmedReflection
         profile.confirmedThemeIds = validated
         profile.suggestedThemeIds = suggestedThemeIds
-        profile.promptLens = (trimmedLens?.isEmpty == false) ? trimmedLens : nil
+        profile.promptLens = resolvedLens
         profile.catalogVersion = ThemeCatalog.catalogVersion
         profile.builtAt = Date()
         LocalProfileStore.experienceProfile = profile

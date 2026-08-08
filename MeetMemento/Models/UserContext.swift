@@ -60,7 +60,7 @@ extension UserContext {
     public static let mock = UserContext(
         userId: UUID(),
         onboardingSelfReflection: "I want to stress less.",
-        selectedGoals: ["Self awareness", "Stress relief"],
+        selectedGoals: ["Awareness", "Stress"],
         identifiedThemes: ["anxiety", "work"],
         themeSelectionCount: 2
     )
