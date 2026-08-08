@@ -51,10 +51,12 @@ jobs:
     runs-on: [self-hosted, Linux, x64]
     steps:
       - uses: actions/checkout@v6
-      - name: Check SPM deps against allowlist (report-only until spec 015 decommission)
-        # Flip to ALLOWLIST_ENFORCE=1 after spec 015 removes supabase-swift and the
-        # two UI packages get a REQ-MON-005 decision record. Must be enforcing
-        # before spec 021 closes.
+      - name: Check SPM deps against allowlist (report-only)
+        # Still report-only: `supabase-swift` remains a required dependency for the
+        # two live edge-function calls (chat-feedback, generate-insights) even
+        # though journals/chat moved on-device. Flip to ALLOWLIST_ENFORCE=1 once
+        # those two surfaces are decommissioned or migrated and the two UI packages
+        # get a REQ-MON-005 decision record. Must be enforcing before spec 021 closes.
         env:
           ALLOWLIST_ENFORCE: "0"
         run: scripts/ci/check_dependency_allowlist.sh

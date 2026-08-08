@@ -10,17 +10,13 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireAuth } from '../_shared/auth.ts';
+import { type FeedbackRequest, resolveFeedbackAction, validateFeedbackRequest } from './lib.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
 };
-
-interface FeedbackRequest {
-  messageId: string;
-  feedbackType: 'positive' | 'negative';
-}
 
 interface FeedbackResponse {
   success: boolean;
@@ -51,15 +47,13 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid JSON body' }, 400);
     }
 
-    const { messageId, feedbackType } = body;
-
-    if (!messageId) {
-      return jsonResponse({ error: 'messageId is required' }, 400);
+    const validationError = validateFeedbackRequest(body);
+    if (validationError) {
+      return jsonResponse({ error: validationError }, 400);
     }
-
-    if (feedbackType && !['positive', 'negative'].includes(feedbackType)) {
-      return jsonResponse({ error: 'feedbackType must be "positive" or "negative"' }, 400);
-    }
+    // validateFeedbackRequest guarantees messageId is present.
+    const messageId = body.messageId as string;
+    const feedbackType = body.feedbackType;
 
     // 3. Validate message belongs to user
     const { data: message, error: messageError } = await supabase
@@ -90,8 +84,10 @@ serve(async (req) => {
       .eq('message_id', messageId)
       .single();
 
-    // 5. Handle DELETE request or toggle behavior
-    if (req.method === 'DELETE' || existingFeedback?.feedback_type === feedbackType) {
+    // 5. Resolve and perform the write (delete / update / create)
+    const action = resolveFeedbackAction(req.method, existingFeedback?.feedback_type, feedbackType);
+
+    if (action === 'delete') {
       // Delete existing feedback (toggle off)
       if (existingFeedback) {
         const { error: deleteError } = await supabase
@@ -121,7 +117,7 @@ serve(async (req) => {
     }
 
     // 6. Upsert feedback (create or update)
-    if (existingFeedback) {
+    if (action === 'update' && existingFeedback) {
       // Update existing feedback to new type
       const { error: updateError } = await supabase
         .from('chat_feedback')

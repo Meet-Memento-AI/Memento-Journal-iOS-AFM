@@ -14,8 +14,24 @@ jobs:
   ios-unit-ui:
     name: iOS quality gates
     runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    env:
+      # The on-device Intelligence layer requires the Foundation Models SDK
+      # (Xcode 26+/iOS 26+). Pin the toolchain for reproducibility; a runner
+      # with Xcode installed elsewhere can override IOS_DEVELOPER_DIR /
+      # IOS_SIM_DESTINATION as repo variables.
+      DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
+      # OS=latest resolves to whatever iOS runtime the runner has (26 or 27 both
+      # carry the Foundation Models SDK); override IOS_SIM_DESTINATION to pin an
+      # exact runtime on a runner that has several.
+      IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Show pinned toolchain
+        run: |
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          xcodebuild -version
+          echo "Destination: $IOS_SIM_DESTINATION"
 
       - name: Install SwiftLint
         run: brew install swiftlint
@@ -62,7 +78,7 @@ jobs:
             rm -rf TestResults.xcresult
             xcodebuild \
               -scheme MeetMemento \
-              -destination "platform=iOS Simulator,name=iPhone 17" \
+              -destination "$IOS_SIM_DESTINATION" \
               -resultBundlePath TestResults \
               -enableCodeCoverage YES \
               -parallel-testing-enabled NO \
@@ -80,12 +96,14 @@ jobs:
       - name: Coverage gate
         env:
           # spec-006/011: RATCHET-ONLY. This floor may only ever INCREASE.
-          # Raised from the "3" rollout baseline now that spec 011 has added
-          # EncryptionService/SecurityService/AuthViewModel/JournalService
-          # tests for the previously-untested security-critical paths.
-          # Locally measured line coverage after that work: 5.08% — set a
-          # hair below that so minor coverage fluctuation doesn't flake CI.
-          MIN_COVERAGE: "5"
+          # Baseline covers the spec-011 security paths (Encryption/Security/
+          # Auth/Journal) plus the on-device Intelligence suites (TurnClassifier,
+          # RetrievalPolicy, EntryRetriever confidence, conversation flow, prompt
+          # stance/personalization). Measured global line coverage after the
+          # Intelligence suites landed: 13.31% (Xcode 26, iPhone 17). Floor set a
+          # hair below so normal fluctuation doesn't flake CI; raise as coverage
+          # grows — never lower it.
+          MIN_COVERAGE: "13"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 
       - name: Install Periphery
@@ -112,8 +130,8 @@ jobs:
           name: periphery-report
           path: periphery-report.txt
 
-  deno-chat-lib:
-    name: Deno chat tests
+  deno-functions:
+    name: Deno edge-function tests
     runs-on: [self-hosted, Linux, x64]
     steps:
       - uses: actions/checkout@v6
@@ -172,14 +190,20 @@ jobs:
           fi
           deno --version
 
-      - name: Deno test (chat lib)
-        working-directory: supabase/functions/chat
-        run: deno test --allow-read --allow-net lib_test.ts
+      - name: Deno check (live functions compile)
+        working-directory: supabase/functions
+        # Type-check the only two functions the app still calls. This catches
+        # compile/type regressions that `deno test --no-check` would miss.
+        run: deno check chat-feedback/index.ts generate-insights/index.ts
 
-      - name: Deno test (shared rate limit + auth)
+      - name: Deno test (live function helpers + shared middleware)
         working-directory: supabase/functions
         # --no-check: supabase-js's type graph pulls in npm:@types/node in a way
         # `deno test` can't resolve without a node_modules dir (spec-004 R2/R5).
-        # `deno check` on the function entrypoints (which import these same
-        # modules) is unaffected — only the test-runner's type-check path hits this.
-        run: deno test --no-check --allow-net --allow-env _shared/rate_limit_test.ts _shared/auth_test.ts
+        # The `deno check` step above type-checks the entrypoints separately.
+        run: >
+          deno test --no-check --allow-read --allow-net --allow-env
+          chat-feedback/lib_test.ts
+          generate-insights/lib_test.ts
+          _shared/rate_limit_test.ts
+          _shared/auth_test.ts

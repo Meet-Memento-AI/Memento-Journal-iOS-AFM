@@ -27,7 +27,7 @@ Enable these options:
 
 Add required status checks:
 - iOS quality gates
-- Deno chat tests
+- Deno edge-function tests
 - CodeQL analysis
 - Dependency review
 - Secret scanning
@@ -50,7 +50,7 @@ Enable these options:
 
 Add required status checks:
 - iOS quality gates
-- Deno chat tests
+- Deno edge-function tests
 - CodeQL analysis
 - Dependency review
 - Secret scanning

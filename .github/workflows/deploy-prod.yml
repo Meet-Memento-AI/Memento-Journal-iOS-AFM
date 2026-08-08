@@ -55,13 +55,18 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Deno test (chat lib)
-        working-directory: supabase/functions/chat
-        run: deno test --allow-read --allow-net lib_test.ts
-
-      - name: Deno test (shared rate limit + auth)
+      - name: Deno check (live functions compile)
         working-directory: supabase/functions
-        run: deno test --no-check --allow-net --allow-env _shared/rate_limit_test.ts _shared/auth_test.ts
+        run: deno check chat-feedback/index.ts generate-insights/index.ts
+
+      - name: Deno test (live function helpers + shared middleware)
+        working-directory: supabase/functions
+        run: >
+          deno test --no-check --allow-read --allow-net --allow-env
+          chat-feedback/lib_test.ts
+          generate-insights/lib_test.ts
+          _shared/rate_limit_test.ts
+          _shared/auth_test.ts
 
       - name: Require the iOS test workflow to have passed for this SHA
         uses: actions/github-script@v7
@@ -74,7 +79,8 @@ jobs:
               ref: sha,
               per_page: 100,
             });
-            // The iOS test job is named "iOS unit + UI tests" (see ios-tests.yml).
+            // The iOS test job is named "iOS quality gates" (see ios-tests.yml);
+            // the regex matches it via /iOS/.
             const iosChecks = data.check_runs.filter(c =>
               /iOS|ios-unit-ui|SwiftLint|coverage/i.test(c.name));
             if (iosChecks.length === 0) {

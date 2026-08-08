@@ -24,6 +24,13 @@ import type {
   OpenAIInsightResponse,
   CachedInsight,
 } from './types.ts';
+import {
+  buildEntriesData,
+  estimateCost,
+  extractInsightJson,
+  validateAndNormalizeInsight,
+  validateEntries,
+} from './lib.ts';
 
 // ============================================================
 // CONFIGURATION
@@ -35,9 +42,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const MAX_ENTRIES = 20;               // Limit to prevent huge prompts
-const MIN_ENTRIES = 1;
-const MAX_CONTENT_LENGTH = 500;       // Chars per entry (token optimization)
 const CACHE_TTL_HOURS = 168;          // 7 days = 168 hours
 const CACHE_STALE_HOURS = 24;         // Refresh if older than 24 hours
 
@@ -104,36 +108,10 @@ serve(async (req) => {
 
     const { entries, force_refresh = false } = body;
 
-    // Validate entries array
-    if (!entries || !Array.isArray(entries)) {
-      return jsonResponse(
-        { error: 'Missing or invalid entries array', code: 'MISSING_ENTRIES' },
-        400
-      );
-    }
-
-    if (entries.length < MIN_ENTRIES) {
-      return jsonResponse(
-        { error: `Need at least ${MIN_ENTRIES} entry`, code: 'INVALID_ENTRIES' },
-        400
-      );
-    }
-
-    if (entries.length > MAX_ENTRIES) {
-      return jsonResponse(
-        { error: `Maximum ${MAX_ENTRIES} entries allowed`, code: 'TOO_MANY_ENTRIES' },
-        400
-      );
-    }
-
-    // Validate each entry has required fields
-    for (const entry of entries) {
-      if (!entry.content || entry.content.trim().length === 0) {
-        return jsonResponse(
-          { error: 'All entries must have content', code: 'EMPTY_CONTENT' },
-          400
-        );
-      }
+    // Validate entries array (pure helper — unit-tested in lib_test.ts)
+    const entriesError = validateEntries(entries);
+    if (entriesError) {
+      return jsonResponse(entriesError, 400);
     }
 
     console.log(`✅ Input validated: ${entries.length} entries`);
@@ -360,15 +338,7 @@ async function generateWithOpenAI(
   const openai = new OpenAI({ apiKey });
 
   // Format entries for prompt (limit content length to save tokens)
-  const entriesData = {
-    entries: entries.map(entry => ({
-      date: formatDate(entry.date),
-      title: entry.title || 'Untitled',
-      content: entry.content.substring(0, MAX_CONTENT_LENGTH),
-      word_count: entry.word_count,
-      mood: entry.mood || 'neutral'
-    }))
-  };
+  const entriesData = buildEntriesData(entries);
 
   console.log(`🤖 Calling OpenAI with ${entries.length} entries...`);
   console.log(`📊 Entries data preview: ${JSON.stringify(entriesData).substring(0, 200)}...`);
@@ -483,80 +453,11 @@ ${JSON.stringify(entriesData)}`
   console.log(`✅ OpenAI response received (${completion.usage?.total_tokens} tokens)`);
   console.log(`💰 Cost: ~$${estimateCost(completion.usage?.total_tokens || 0)}`);
 
-  // Parse and validate response
-  let parsedResponse: OpenAIInsightResponse;
-  try {
-    console.log('⏳ Step 4: Attempting to parse JSON response...');
-    console.log('📄 Response text length:', responseText.length);
-    console.log('📄 First 300 chars:', responseText.substring(0, 300));
-
-    parsedResponse = JSON.parse(responseText);
-    console.log('✅ Step 4: JSON parsing successful');
-    console.log(`📊 Parsed response keys: ${Object.keys(parsedResponse).join(', ')}`);
-  } catch (error) {
-    console.error('❌ Step 4 FAILED: JSON parsing error');
-    console.error('❌ Parse error details:', error);
-
-    // Try to extract JSON if it's wrapped in text
-    console.log('🔧 Attempting to extract JSON from response...');
-    try {
-      const firstBrace = responseText.indexOf('{');
-      const lastBrace = responseText.lastIndexOf('}');
-
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        const extractedJson = responseText.substring(firstBrace, lastBrace + 1);
-        console.log('🔧 Extracted JSON (length: ' + extractedJson.length + ')');
-        console.log('🔧 First 200 chars:', extractedJson.substring(0, 200));
-
-        parsedResponse = JSON.parse(extractedJson);
-        console.log('✅ JSON extraction successful!');
-        console.log(`📊 Parsed response keys: ${Object.keys(parsedResponse).join(', ')}`);
-      } else {
-        throw new Error('Could not find JSON braces in response');
-      }
-    } catch (extractError) {
-      console.error('❌ JSON extraction also failed:', extractError);
-      console.error('❌ Full response:', responseText);
-      throw new Error(`Invalid JSON response from AI. First 200 chars: ${responseText.substring(0, 200)}`);
-    }
-  }
-
-  // Validate response structure
-  console.log('⏳ Step 5: Validating response structure...');
-  console.log(`   - summary: ${parsedResponse.summary ? 'YES (' + parsedResponse.summary.length + ' chars)' : 'NO'}`);
-  console.log(`   - description: ${parsedResponse.description ? 'YES (' + parsedResponse.description.length + ' chars)' : 'NO'}`);
-  console.log(`   - descriptionExtended: ${parsedResponse.descriptionExtended ? 'YES (' + parsedResponse.descriptionExtended.length + ' chars)' : 'NO'}`);
-  console.log(`   - sentiments: ${parsedResponse.sentiments ? 'YES (' + parsedResponse.sentiments.length + ' items)' : 'NO'}`);
-  console.log(`   - keywords: ${parsedResponse.keywords ? 'YES (' + parsedResponse.keywords.length + ' items)' : 'NO'}`);
-  console.log(`   - annotations: ${parsedResponse.annotations ? 'YES (' + parsedResponse.annotations.length + ' items)' : 'NO'}`);
-  console.log(`   - themes: ${parsedResponse.themes ? 'YES (' + parsedResponse.themes.length + ' items)' : 'NO'}`);
-
-  if (!parsedResponse.summary ||
-      !parsedResponse.description ||
-      !parsedResponse.themes) {
-    console.error('❌ Step 5 FAILED: Invalid response structure. Missing required fields.');
-    console.error('Has summary:', !!parsedResponse.summary);
-    console.error('Has description:', !!parsedResponse.description);
-    console.error('Has annotations:', !!parsedResponse.annotations);
-    console.error('Has themes:', !!parsedResponse.themes);
-    throw new Error('Invalid response structure from AI');
-  }
-
-  // Ensure optional fields have fallbacks
-  if (!parsedResponse.annotations) {
-    console.warn('⚠️ No annotations in response, using empty array');
-    parsedResponse.annotations = [];
-  }
-
-  if (!parsedResponse.sentiments) {
-    console.warn('⚠️ No sentiments in response, using empty array');
-    parsedResponse.sentiments = [];
-  }
-
-  if (!parsedResponse.keywords) {
-    console.warn('⚠️ No keywords in response, using empty array');
-    parsedResponse.keywords = [];
-  }
+  // Parse (with brace-extraction fallback) and validate/normalize — both pure
+  // helpers, unit-tested in lib_test.ts.
+  console.log('⏳ Step 4: Parsing JSON response...');
+  const parsedResponse = validateAndNormalizeInsight(extractInsightJson(responseText));
+  console.log(`📊 Parsed response keys: ${Object.keys(parsedResponse).join(', ')}`);
 
   if (parsedResponse.themes.length < 4 || parsedResponse.themes.length > 5) {
     console.warn(`⚠️ Expected 4-5 themes, got ${parsedResponse.themes.length}`);
@@ -566,30 +467,6 @@ ${JSON.stringify(entriesData)}`
   console.log(`✅ Step 6: Returning parsed response with ${parsedResponse.themes.length} themes and ${parsedResponse.annotations.length} annotations`);
 
   return parsedResponse;
-}
-
-/**
- * Format ISO8601 date to YYYY-MM-DD
- */
-function formatDate(isoDate: string): string {
-  try {
-    const date = new Date(isoDate);
-    return date.toISOString().split('T')[0];
-  } catch {
-    return isoDate;
-  }
-}
-
-/**
- * Estimate cost of OpenAI API call
- * gpt-4.1-nano: $0.10 per 1M input tokens, $0.40 per 1M output tokens
- */
-function estimateCost(totalTokens: number): string {
-  // Rough estimate: assume 60% input, 40% output
-  const inputTokens = totalTokens * 0.6;
-  const outputTokens = totalTokens * 0.4;
-  const cost = (inputTokens / 1_000_000 * 0.1) + (outputTokens / 1_000_000 * 0.4);
-  return cost.toFixed(6);
 }
 
 /**

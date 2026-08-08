@@ -7,12 +7,13 @@
 # protocol. This is the "checkable by build configuration, not just code review"
 # floor the spec's Regression Guards demand.
 #
-# Enforcement is `count <= MAX` (default 1):
-#   * Before spec 017 lands, the intelligence module doesn't exist yet -> count 0 -> pass.
-#   * Once it lands, count 1 -> pass.
+# Enforcement is `count <= MAX` (default 1) AND, now that the intelligence
+# module has landed, `count == 1` (EXPECT_EXACTLY defaults to 1):
+#   * count 1 -> pass (FoundationModelsIntelligenceService is the sole importer).
 #   * A second importer anywhere -> count 2 -> FAIL (FoundationModels is leaking).
-# Set INTELLIGENCE_IMPORTER_EXPECT_EXACTLY=1 after 017 lands to also catch an
-# accidental REMOVAL (count 0) of the single importer.
+#   * The single importer removed -> count 0 -> FAIL (the boundary is gone).
+# Set INTELLIGENCE_IMPORTER_EXPECT_EXACTLY=0 only to temporarily allow the
+# pre-017 "not yet created" state (no longer applicable).
 #
 # Note: `#if canImport(FoundationModels)` availability guards are NOT imports and
 # are intentionally not matched. (The Liquid Glass code no longer uses such
@@ -23,7 +24,7 @@
 set -euo pipefail
 
 MAX="${INTELLIGENCE_IMPORTER_MAX:-1}"
-EXPECT_EXACTLY="${INTELLIGENCE_IMPORTER_EXPECT_EXACTLY:-0}"
+EXPECT_EXACTLY="${INTELLIGENCE_IMPORTER_EXPECT_EXACTLY:-1}"
 
 roots=()
 for d in MeetMemento MeetMementoTests MeetMementoUITests; do

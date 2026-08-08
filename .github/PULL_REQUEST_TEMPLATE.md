@@ -5,8 +5,8 @@
 ## Testing
 
 - [ ] I added or updated tests for behavior changes (unit / UI / Edge Function helpers as applicable).
-- [ ] `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' test` (adjust `OS` if your Xcode only lists another runtime; `xcodebuild -showdestinations -scheme MeetMemento`)
-- [ ] `cd supabase/functions/chat && deno test lib_test.ts` (if chat `lib.ts` / `index.ts` changed)
+- [ ] `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' test` (requires Xcode 26+ for the Foundation Models SDK; adjust name to a device you have via `xcodebuild -showdestinations -scheme MeetMemento`)
+- [ ] `cd supabase/functions && deno check chat-feedback/index.ts generate-insights/index.ts && deno test --no-check --allow-read --allow-net --allow-env chat-feedback/lib_test.ts generate-insights/lib_test.ts _shared/rate_limit_test.ts _shared/auth_test.ts` (if an edge function changed)
 
 ## CI and Security
 

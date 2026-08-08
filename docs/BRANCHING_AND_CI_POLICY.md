@@ -20,7 +20,7 @@
 The following checks are expected to be required in repository branch protection settings:
 
 - iOS quality gates
-- Deno chat tests
+- Deno edge-function tests
 - CodeQL analysis
 - Dependency review
 - Secret scanning

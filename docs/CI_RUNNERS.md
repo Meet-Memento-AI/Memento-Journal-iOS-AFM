@@ -8,7 +8,7 @@ what they must provide so a runner can be rebuilt or replaced (spec-006).
 | Label set | Used by | Purpose |
 |-----------|---------|---------|
 | `[self-hosted, macOS, arm64]` (or the default macOS runner) | `ios-tests.yml` (ios-unit-ui) | Xcode build + unit/UI tests, coverage, SwiftLint, Periphery |
-| `[self-hosted, Linux, x64]` | `ios-tests.yml` (deno-chat-lib), `security.yml`, `deploy-dev-staging.yml`, `deploy-prod.yml` | Deno tests, Sonar/gitleaks, Supabase deploys |
+| `[self-hosted, Linux, x64]` | `ios-tests.yml` (deno-functions), `security.yml`, `deploy-dev-staging.yml`, `deploy-prod.yml`, `spec-gates.yml` | Deno tests, Sonar/gitleaks, Supabase deploys, spec gates |
 
 ## Required software
 
