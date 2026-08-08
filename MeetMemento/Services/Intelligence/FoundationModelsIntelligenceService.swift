@@ -9,7 +9,7 @@
 //  (scripts/ci/check_single_intelligence_importer.sh) fails.
 //
 //  This pass: on-device (`SystemLanguageModel`, Z0) generation for Ask + Chat
-//  summary, replacing the Supabase `chat` / `summarize-chat` edge functions.
+//  summary, replacing the former server-side `chat` / `summarize-chat` functions.
 //  The Private Cloud Compute (Z1) path is wired behind `if #available(iOS 27)`
 //  + availability so it auto-upgrades once the app is approved (spec 017 R2).
 //

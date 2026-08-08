@@ -2,10 +2,10 @@
 import Foundation
 
 /// On-device journal persistence (no accounts, spec 023). Entries live
-/// exclusively in encrypted local storage — this service has no Supabase
-/// dependency, so a missing or invalid API key can never affect the
-/// journal. The server-backed CRUD that used to live here was dead code
-/// from the pre-023 architecture and has been removed.
+/// exclusively in encrypted local storage — this service has no backend
+/// dependency, so there is no network or API key in the path. The
+/// server-backed CRUD that used to live here was dead code from the
+/// pre-023 architecture and has been removed.
 class JournalService {
     static let shared = JournalService()
 

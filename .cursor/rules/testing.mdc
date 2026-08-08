@@ -3,23 +3,19 @@ description: When to add or update regression tests for MeetMemento
 globs:
   - MeetMemento/**/*ChatViewModel*.swift
   - MeetMemento/**/*ChatService*.swift
-  - MeetMemento/**/*AuthViewModel*.swift
   - MeetMemento/**/*Onboarding*.swift
-  - supabase/functions/chat/**/*.ts
+  - MeetMemento/Services/Intelligence/**/*.swift
 ---
 
 # Regression tests
 
-When you change **chat behavior**, **auth/onboarding flow**, or the **chat Edge Function**, add or update tests in the **same PR**.
+When you change **chat behavior**, the **onboarding flow**, or the **on-device intelligence layer**, add or update tests in the **same PR**.
 
 ## Commands
 
-- **iOS (unit + UI):**  
-  `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' test`  
+- **iOS (unit + UI):**
+  `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' test`
   If the destination is not found, pick an available iPhone simulator from `xcodebuild -showdestinations -scheme MeetMemento`.
-
-- **Chat pure helpers (Deno):**  
-  `cd supabase/functions/chat && deno test lib_test.ts`
 
 ## Conventions
 

@@ -5,7 +5,6 @@ excluded:
   - MeetMemento.xcodeproj
   - MeetMementoTests/Fixtures
   - UIPlayground
-  - supabase
 
 opt_in_rules:
   - array_init

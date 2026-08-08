@@ -100,7 +100,7 @@ class EntryViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
-        #if DISABLE_SUPABASE
+        #if USE_MOCK_DATA
         // UI Testing Mode - Use mock data
         try? await Task.sleep(nanoseconds: 500_000_000) // Simulate network delay
         self.entries = MockDataProvider.shared.mockEntries
@@ -128,7 +128,7 @@ class EntryViewModel: ObservableObject {
         }
         #endif
 
-        #if DISABLE_SUPABASE
+        #if USE_MOCK_DATA
         hasInitiallyLoaded = true
         #endif
         isLoading = false
@@ -186,7 +186,7 @@ class EntryViewModel: ObservableObject {
                 }
             }
 
-            #if DISABLE_SUPABASE
+            #if USE_MOCK_DATA
             // UI Testing Mode - Add to mock data
             MockDataProvider.shared.addMockEntry(newEntry)
             await MainActor.run { self.markSynced(entryId) }
@@ -251,7 +251,7 @@ class EntryViewModel: ObservableObject {
 
             await MainActor.run { self.isLoading = true }
 
-            #if DISABLE_SUPABASE
+            #if USE_MOCK_DATA
             // UI Testing Mode - Update mock data
             MockDataProvider.shared.updateMockEntry(entry)
             await MainActor.run {
@@ -308,7 +308,7 @@ class EntryViewModel: ObservableObject {
         updateEntriesByMonth()
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
 
-        #if DISABLE_SUPABASE
+        #if USE_MOCK_DATA
         // UI Testing Mode - Remove from mock data
         MockDataProvider.shared.deleteMockEntry(id: id)
         AppLogger.log("📱 UI Mode: Deleted mock entry")

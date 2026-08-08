@@ -1,91 +1,67 @@
 # MeetMemento
 
-A journaling app with AI-powered insights.
+A private journaling app with an on-device AI companion. Everything runs
+**on device** — there are no accounts and no backend, and your journal never
+leaves the phone.
 
 ## Setup
 
-### 1. Supabase Configuration
+No configuration, accounts, or API keys are required.
 
-**⚠️ IMPORTANT:** Use local xcconfig override files for Supabase values. Do not commit real keys.
+1. Open `MeetMemento.xcodeproj` in Xcode.
+2. Select a device or simulator.
+3. Build and run (⌘R).
 
-1. Copy the local override templates:
-   ```bash
-   cp MeetMemento/Config/Debug.local.xcconfig.template MeetMemento/Config/Debug.local.xcconfig
-   cp MeetMemento/Config/Release.local.xcconfig.template MeetMemento/Config/Release.local.xcconfig
-   ```
-
-2. Open both local files and replace placeholders with your actual credentials:
-   - Get your Supabase URL and anon key from: [Supabase Dashboard → Settings → API](https://app.supabase.com/project/_/settings/api)
-
-3. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are injected into `Info.plist` from xcconfig and read at runtime by `SupabaseService`.
-
-4. **Never commit** `Debug.local.xcconfig` or `Release.local.xcconfig` (already ignored in `.gitignore`).
-
-### 2. Build & Run
-
-1. Open `MeetMemento.xcodeproj` in Xcode
-2. Select your target device/simulator
-3. Build and run (⌘R)
-
-### 3. Supabase Auth URL Configuration (OAuth)
-
-Use this checklist for OAuth providers (Google/Apple web flows) and iOS deep-link callbacks.
-
-1. In Supabase Dashboard, go to Authentication -> URL Configuration.
-2. Set Site URL:
-   - Production: `https://www.meetmemento.com`
-3. Keep only required production Redirect URLs:
-   - `memento://auth/callback`
-   - `https://www.meetmemento.com/auth/callback`
-4. Remove unused Redirect URLs in production:
-   - `exp://*`, `latest://auth/callback`, `localhost`, and LAN IP callback URLs.
-5. For Google OAuth in Google Cloud Console, keep this authorized redirect URI:
-   - `https://fhsgvlbedqwxwpubtlls.supabase.co/auth/v1/callback`
-
-Notes:
-- The iOS app expects `memento://auth/callback` (configured in `Info.plist` and Supabase client auth options).
-- Keep development callback URLs only in development environments/projects.
-- Avoid wildcard redirect URLs in production.
+The AI features use Apple's on-device Foundation Models, so they need a device
+(or simulator) that supports Apple Intelligence; where the model is unavailable
+the app degrades gracefully.
 
 ## Project Structure
 
 ```
 MeetMemento/
-├── Components/        # Reusable UI components
-├── Models/           # Data models
-├── Resources/        # Fonts, themes, configurations
-├── Services/         # API services, auth, etc.
-├── ViewModels/       # Business logic
-└── Views/            # SwiftUI views
+├── Components/          # Reusable UI components
+├── Models/              # Data models
+├── Resources/           # Fonts, themes, configurations
+├── Services/            # On-device services (storage, security, intelligence)
+│   └── Intelligence/    # The single Foundation Models boundary + retrieval
+├── ViewModels/          # Business logic
+└── Views/               # SwiftUI views
 ```
 
 ## Features
 
-- **Journal Entries:** Create, edit, and delete journal entries
-- **AI Insights:** View themes and summaries from your entries
-- **Authentication:** Secure sign-in with Apple
-- **Speech-to-Text:** Voice input for journal entries
+- **Journal entries:** create, edit, and delete entries, stored **encrypted on device**.
+- **AI chat:** converse with an on-device assistant that grounds its replies in
+  your own entries (retrieval runs locally — nothing is uploaded).
+- **Chat summary:** turn a conversation into a first-person journal entry.
+- **Speech-to-text:** voice input for journaling and chat.
 
-## Security
+## Privacy & security
 
-- Supabase credentials are stored locally and never committed to version control
-- Supabase values are loaded from local `*.local.xcconfig` files
-- Use the `.template` files as references for required configuration keys
+- Journal content is stored in encrypted local storage; there is no server copy.
+- No accounts, no sign-in, no third-party data processors.
+- AI generation and journal retrieval run entirely on device.
 
 ## Development
 
 ### Requirements
-- Xcode 15.0+
-- iOS 17.0+
-- Swift 5.9+
+- Xcode **26+** (the on-device intelligence layer needs the Foundation Models SDK)
+- iOS **26+**
+- Swift 6
 
 ### Testing
-Run tests with ⌘U in Xcode.
+Run tests with ⌘U in Xcode, or:
+
+```bash
+xcodebuild -scheme MeetMemento \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+  -skip-testing:MeetMementoUITests test
+```
 
 ### Branching and CI/CD
-- Branch model: feature branches merge into dev, then dev is promoted into main by pull request.
-- CI quality and security checks run on pull requests to dev and main.
-- Pushes to dev trigger automated deployment to dev and staging environments.
+- Branch model: feature branches merge into `dev`, then `dev` is promoted into `main` by pull request.
+- CI runs iOS build/test, coverage, SwiftLint, Periphery, security scanning, and the SDK-free spec gates on pull requests.
 - Full policy: [docs/BRANCHING_AND_CI_POLICY.md](docs/BRANCHING_AND_CI_POLICY.md)
 - Branch protection setup: [docs/BRANCH_PROTECTION_SETUP.md](docs/BRANCH_PROTECTION_SETUP.md)
 - Quality gate rollout: [docs/QUALITY_GATE_ROLLOUT.md](docs/QUALITY_GATE_ROLLOUT.md)

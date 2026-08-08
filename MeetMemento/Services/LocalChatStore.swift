@@ -2,14 +2,14 @@
 //  LocalChatStore.swift
 //  MeetMemento
 //
-//  On-device persistence for chat sessions and messages, replacing the Supabase
-//  chat_sessions/chat_messages tables. The edge function used to persist turns
-//  server-side; with native on-device chat there is no server, so multiple chat
-//  windows (create / list / switch / delete / persist across launches) live here.
+//  On-device persistence for chat sessions and messages, replacing the former
+//  server chat tables. Turns used to be persisted server-side; with native
+//  on-device chat there is no server, so multiple chat windows (create / list /
+//  switch / delete / persist across launches) live here.
 //
 //  Stored as JSON under Application Support with complete file protection
 //  (device-encrypted at rest — no PIN required). Uses its own Codable DTOs so it
-//  doesn't depend on ChatSession's Supabase-oriented (asymmetric) Codable.
+//  doesn't depend on ChatSession's server-oriented (asymmetric) Codable.
 //
 
 import Foundation

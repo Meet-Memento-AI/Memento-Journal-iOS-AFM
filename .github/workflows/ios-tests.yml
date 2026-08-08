@@ -48,8 +48,8 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --strict
 
-      # No secrets/config stubs needed: the app is on-device only (no Supabase,
-      # no backend), so it builds and tests with no API keys or xcconfig setup.
+      # No secrets/config stubs needed: the app is on-device only (no backend),
+      # so it builds and tests with no API keys or xcconfig setup.
 
       - name: Build and test (simulator)
         run: |

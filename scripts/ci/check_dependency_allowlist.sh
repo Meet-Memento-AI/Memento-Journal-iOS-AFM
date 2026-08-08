@@ -6,12 +6,11 @@
 # allowlist (specs/dependency-allowlist.txt). Any package identity not on the
 # list is a violation naming REQ-MON-005 and spec 021.
 #
-# MODE (spec 021 R6 sequencing note): supabase-swift has been removed (the
-# product is on-device only). Only the two UI packages (ProgressiveBlurHeader,
-# SVGKit) remain outside the TARGET allowlist (RevenueCat only), so this runs
-# REPORT-ONLY by default (warns, exits 0). Once those two get a REQ-MON-005
-# decision record or are removed, flip to enforcing: ALLOWLIST_ENFORCE=1 (must
-# be a hard gate before spec 021 closes).
+# MODE (spec 021 R6 sequencing note): the product is on-device only. Only the two
+# UI packages (ProgressiveBlurHeader, SVGKit) remain outside the TARGET allowlist
+# (RevenueCat only), so this runs REPORT-ONLY by default (warns, exits 0). Once
+# those two get a REQ-MON-005 decision record or are removed, flip to enforcing:
+# ALLOWLIST_ENFORCE=1 (must be a hard gate before spec 021 closes).
 #
 # Usage: scripts/ci/check_dependency_allowlist.sh
 #   ALLOWLIST_ENFORCE=1  -> violations fail the build (default: report-only)

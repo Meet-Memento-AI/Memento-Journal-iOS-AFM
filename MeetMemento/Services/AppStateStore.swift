@@ -3,8 +3,8 @@
 //  MeetMemento
 //
 //  Local, account-free app state. Replaces the old auth view model (spec 023 R1).
-//  No network calls, no Supabase Auth, no accounts. Onboarding-complete is a
-//  local UserDefaults flag; identity is a locally stored display name.
+//  No network calls, no auth, no accounts. Onboarding-complete is a local
+//  UserDefaults flag; identity is a locally stored display name.
 //
 
 import Foundation
@@ -16,7 +16,7 @@ class AppStateStore: ObservableObject {
     private static let firstNameKey = "memento_first_name"
     private static let lastNameKey = "memento_last_name"
     private static let localUserIDKey = "memento_local_user_id"
-    /// Set on first post-update launch when a prior Supabase session was found and
+    /// Set on first post-update launch when a prior account session was found and
     /// migrated (spec 023 R5). Informational only; nothing currently reads it besides
     /// the migration path itself, kept for support/debugging visibility.
     private static let migratedFromAccountKey = "memento_migrated_from_account"
@@ -145,7 +145,7 @@ class AppStateStore: ObservableObject {
 
     /// Existing-user migration (spec 023 R5), run once on first post-update
     /// launch. Deliberately makes this decision from **local evidence only**
-    /// — no network call, no Supabase session check. The account layer is
+    /// — no network call, no remote session check. The account layer is
     /// gone; what matters is whether *this device* already completed
     /// onboarding under the old account-based app, which is fully
     /// determinable from data that was already being cached locally before
@@ -153,7 +153,7 @@ class AppStateStore: ObservableObject {
     /// either a configured lock method or locally stored entries).
     ///
     /// This does not cover the case of a user whose entries exist only on
-    /// the Supabase server and were never opened locally on this device —
+    /// the old server and were never opened locally on this device —
     /// per `REQ-MIG-001`, that requires a one-time server pull while a
     /// session is still valid, scoped to spec 015, and gated on confirming
     /// the real user count is non-zero (spec 013 R5, a user action — not yet

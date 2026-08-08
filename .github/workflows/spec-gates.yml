@@ -52,10 +52,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Check SPM deps against allowlist (report-only)
-        # supabase-swift has been fully removed (the product is on-device only).
-        # Still report-only ONLY because the two UI packages (ProgressiveBlurHeader,
-        # SVGKit) need a REQ-MON-005 decision record or removal; flip to
-        # ALLOWLIST_ENFORCE=1 once that lands. Must be enforcing before spec 021 closes.
+        # The product is on-device only. Still report-only ONLY because the two UI
+        # packages (ProgressiveBlurHeader, SVGKit) need a REQ-MON-005 decision
+        # record or removal; flip to ALLOWLIST_ENFORCE=1 once that lands. Must be
+        # enforcing before spec 021 closes.
         env:
           ALLOWLIST_ENFORCE: "0"
         run: scripts/ci/check_dependency_allowlist.sh

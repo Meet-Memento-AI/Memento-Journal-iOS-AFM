@@ -104,7 +104,6 @@ iOSInjectionProject/
 
 # Specific project secrets
 MeetMemento/Secrets.swift
-MeetMemento/Resources/SupabaseConfig.swift
 MeetMemento/Config/Debug.local.xcconfig
 MeetMemento/Config/Release.local.xcconfig
 
@@ -114,19 +113,7 @@ MeetMemento/Config/Release.local.xcconfig
 !.env.example
 *.local
 
-# Supabase local development
-supabase/.branches
-supabase/.temp
-supabase/.db
-supabase/.edge-runtime
-supabase/types/
-
-# Supabase Edge Function secrets
-supabase/functions/.env
-supabase/.env
-
 # Test/analysis artifacts (spec-001)
-supabase/functions/**/coverage/
 .scannerwork/
 
 # Claude Code worktrees (embedded git repos)
@@ -134,3 +121,8 @@ supabase/functions/**/coverage/
 
 # macOS
 .DS_Store
+
+# Xcode test result bundles (build artifacts)
+/TestResults
+/TestResults.xcresult
+*.xcresult

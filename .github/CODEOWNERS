@@ -8,5 +8,3 @@
 # Application security-sensitive areas
 MeetMemento/Services/ @Meet-Memento-AI
 MeetMemento/Resources/ @Meet-Memento-AI
-supabase/migrations/ @Meet-Memento-AI
-supabase/functions/ @Meet-Memento-AI

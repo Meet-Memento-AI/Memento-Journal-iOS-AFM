@@ -228,8 +228,8 @@ class ChatService {
 
     // MARK: - Chat Feedback (local-only stub)
 
-    // Thumbs up/down had a Supabase backend (`chat-feedback` + a `chat_feedback`
-    // table). Supabase was removed from the product, so feedback is now
+    // Thumbs up/down had a server backend (a feedback endpoint + table).
+    // The backend was removed from the product, so feedback is now
     // UI-only: `ChatViewModel` already tracks the up/down state in memory for
     // the session. These stubs keep that surface working without persistence —
     // reimplement on-device if feedback needs to survive relaunches.

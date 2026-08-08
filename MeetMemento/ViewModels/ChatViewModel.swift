@@ -70,7 +70,7 @@ class ChatViewModel: ObservableObject {
     }
 
     /// Reads the user's first name for personalized welcome messages. No
-    /// accounts / no Supabase (the name is captured during onboarding and
+    /// accounts / no backend (the name is captured during onboarding and
     /// stored locally); this is a local UserDefaults read, kept `async` to
     /// preserve the call sites.
     func fetchUserName() async {

@@ -7,8 +7,8 @@
 //  fallback — no resource-bundling or network fetch. The remote signed manifest
 //  (REQ-PRM-002 / DEC-003) is deliberately out of scope for this pass.
 //
-//  This registry is the authoritative Memento persona — the Supabase
-//  MEMENTO_SYSTEM_PROMPT.md files are legacy (unused by the app). House rules
+//  This registry is the authoritative Memento persona (the former
+//  server-side system-prompt files are gone). House rules
 //  from technology/01 §12: no markdown (everything may be spoken aloud), second
 //  person, mirror-not-therapist, cite entry dates, never fabricate,
 //  crisis → 988. Structured fields (heading/citedRefs) replace the server's

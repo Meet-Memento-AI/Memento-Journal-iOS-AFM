@@ -48,7 +48,6 @@
 				PLAN.md,
 				"Preview Content/PreviewMocks.json",
 				Resources/Fonts/README.md,
-				Resources/SupabaseConfig.swift.template,
 				Utilities/COMPONENT_TEMPLATE.md,
 				Utilities/UTILITIES_GUIDE.md,
 				Views/Monetization/Configuration.storekit,

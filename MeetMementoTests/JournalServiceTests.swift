@@ -1,10 +1,8 @@
 import XCTest
 @testable import MeetMemento
 
-/// Coverage note: full CRUD-over-network testing (create/update/delete
-/// hitting Supabase) would need a `SupabaseClienting` seam abstracting
-/// `SupabaseClient` — the same larger abstraction scoped out of
-/// `AuthViewModelTests` for the same reason. What's covered here is
+/// Coverage note: the journal is on-device only, so there is no
+/// CRUD-over-network path to test. What's covered here is
 /// everything reachable without that seam: the local-first helpers added
 /// in this session's offline-resilience work (via an injected
 /// `EncryptionService` so no test touches the real Keychain), the pending

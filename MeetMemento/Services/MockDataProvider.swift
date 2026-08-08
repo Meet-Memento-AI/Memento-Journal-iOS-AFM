@@ -2,13 +2,13 @@
 //  MockDataProvider.swift
 //  MeetMemento
 //
-//  Mock data provider for UI development without Supabase backend.
-//  Active when DISABLE_SUPABASE flag is set.
+//  Mock data provider for UI development without a live data source.
+//  Active when USE_MOCK_DATA flag is set.
 //
 
 import Foundation
 
-#if DISABLE_SUPABASE
+#if USE_MOCK_DATA
 
 /// Mock data provider for UI testing
 class MockDataProvider {

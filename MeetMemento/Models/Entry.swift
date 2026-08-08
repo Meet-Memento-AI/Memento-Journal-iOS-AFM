@@ -5,7 +5,7 @@
 //  The journal entry model used throughout the app. The app is on-device only
 //  (no accounts, no backend), so this is the single entry model — persisted as
 //  an encrypted local envelope by JournalService. (A separate server DTO used
-//  to exist for the Supabase backend; it was removed with the backend.)
+//  to exist for the server backend; it was removed with the backend.)
 //
 
 import Foundation
