@@ -354,9 +354,29 @@ spec's status moves to done.
 - Which specific surfaces are gated behind the paywall beyond the free/paid split
   in `REQ-MON-003` — that's each surface spec's (019, 018) concern to implement;
   this spec sets the policy.
-- App Store Connect metadata mechanics beyond the privacy label — largely spec
-  002's pre-2.0 scope; this spec only owns what changes *because of* the
-  architecture rewrite (privacy label, data-collection disclosures).
+- **App Store Connect metadata mechanics beyond the privacy label** — owned by
+  **`docs/app-store/`** (added 2026-08-07), which supersedes spec 002's
+  store-facing scope. The split, so the privacy label has exactly one owner:
+  - **This spec owns the *decision*** — `REQ-MON-004`'s "Data Not Collected"
+    target and the ⚠️ V8 verification (does RevenueCat's SDK force a collection
+    disclosure?), including §12.3's priority ordering that the label beats the
+    dashboard.
+  - **`docs/app-store/03-privacy-labels-and-manifest.md` owns the *execution***
+    — the `PrivacyInfo.xcprivacy` target state, the App Store Connect form, and
+    the standing rule that the manifest, the label, and the published privacy
+    policy must always agree. It cites R5; it does not re-decide it.
+  - Two things it already did, both agent-side and verified: removed the
+    unjustified `NSPrivacyAccessedAPICategorySystemBootTime` (`35F9.1`)
+    declaration — no boot-time API is called anywhere — and landed
+    `scripts/ci/check_privacy_manifest.sh`, which fails on both an
+    under-declared and an over-declared required-reason API, plus on any
+    regression of `NSPrivacyTracking` or the empty
+    `NSPrivacyCollectedDataTypes`. R5's remaining work is V8 and the label
+    itself.
+  - R6's dependency allowlist gains a store consequence recorded in
+    `docs/app-store/03` §3: **RevenueCat is on Apple's list of SDKs requiring a
+    bundled privacy manifest *and* a signature**, so landing it adds an upload
+    obligation (`ITMS-91061`) on top of the V8 label question.
 
 ## Tasks
 - [ ] 1. Resolve `DEC-004` (pricing/trial).

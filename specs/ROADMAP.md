@@ -30,6 +30,38 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 | 3 — Surfaces | [018](018-capture-and-voice-output.md), [019](019-surfaces.md) | Weekly → Patterns → Ask shipped in that order | in-progress (spec-writing only) — 018 and 019 Requirements written; implementation gated on Phases 1–2 landing and the Xcode 27 toolchain |
 | 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | in-progress (spec-writing only) — 020 Requirements written; `DEC-005` (Watch) open, `REQ-SYS-002` gated on `DEC-002` |
 | 5 — Study | [021](021-monetization-and-store-compliance.md), [022](022-evaluation-and-quality-study.md) | Re-baselined 30-day quality study running | in-progress (spec-writing only) — 021 and 022 Requirements written; `DEC-001`/`DEC-004` and the LLM-as-judge decision open |
+| **S — Ship** | [`docs/app-store/`](../docs/app-store/) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below |
+
+**Gate S — Ship (added 2026-08-07).** Store readiness is not a spec, because it
+is mostly *not* code: it is App Store Connect fields, Apple-side filings with
+review queues, and published web pages. It lives in `docs/app-store/` and is
+tracked here so it is visible alongside the engineering phases.
+[`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md)
+is the single pre-Submit page; it defines **Gate T (TestFlight external)**,
+**Gate S (Submit)**, and **Gate L (Live)**.
+
+Compiling it surfaced three defects that were live, not theoretical:
+
+1. **The Support URL returns HTTP 404 in production** — the exact Guideline 1.5
+   reason Apple rejected v1.0 in November 2025, still unfixed. The corrected
+   page *was* committed, but GitHub Pages serves from a **different repository
+   and branch** (`sebmendo1/MeetMemento` @ `Memento-v1.1`), so it never
+   published.
+2. **The published privacy policy still names OpenAI, Google, and Supabase** —
+   third-party AI and a backend the app no longer uses. Same root cause, and it
+   directly contradicts the "Data Not Collected" label target.
+3. **`PrivacyInfo.xcprivacy` declared `SystemBootTime` (`35F9.1`) for an API the
+   app never calls** — fixed 2026-08-07, now guarded by CI.
+
+Four gates were added to `spec-gates.yml` alongside the existing ladder:
+`check_privacy_manifest.sh` (bidirectional — under- *and* over-declaration),
+`check_store_metadata.sh` (export compliance, purpose-string quality, and a
+build-number floor, since `1.0(2)` was consumed by the rejected upload),
+`check_archive_hygiene.sh` (which immediately caught the `Config/*.xcconfig`
+entries missing from the synchronized-group exception set — the same regression
+class as spec 002 evidence row 7), and `check_asc_metadata.sh` (App Store copy
+held to `REQ-POS-001`, field limits, no pricing, no clinical framing). Each was
+verified to fail on a planted violation.
 
 Nothing in Phase 0 deletes anything — it is pure de-risking (entitlement filings,
 fixture corpus, spikes, `DEC-002` resolution). Phase 1 is where `supabase/` actually
@@ -87,7 +119,7 @@ section**. The entire existing front-end is under non-regression protection via
 | Spec | Title | Tier | Effort | Depends on | Status |
 |------|-------|------|--------|------------|--------|
 | [001](001-repo-hygiene-and-secrets-audit.md) | Repo Hygiene and Secrets Audit | P0 | 1 | — | ✅ done (2026-07-13) |
-| [002](002-store-metadata-compliance.md) | Store Metadata and Binary Compliance | P0 | 1–2 | 001 | ⏸ paused (2026-07-23) — hygiene work done and still valid; ASC submission on hold until a 2.0/interim build exists |
+| [002](002-store-metadata-compliance.md) | Store Metadata and Binary Compliance | P0 | 1–2 | 001 | ⛔️ superseded (2026-08-07) — store-facing scope moved to [`docs/app-store/`](../docs/app-store/); the completed binary hygiene stays valid and is now guarded by CI |
 | [003](003-database-baseline-and-account-deletion.md) | Database Baseline and Account Deletion | P0 | 2 | — | ⛔️ obsolete (2026-07-23) — superseded by 2.0 rewrite, see [015](015-data-layer-swiftdata-cloudkit.md) |
 | [004](004-edge-function-security-and-cost.md) | Edge Function Security and LLM Cost Controls | P1 | 2 | 003 | ⛔️ obsolete (2026-07-23) — superseded by 2.0 rewrite, see [016](016-indexing-retrieval-core-spotlight.md) |
 | [005](005-release-logging-privacy.md) | Release Logging Privacy | P1 | 1 | — | ✅ done (2026-07-14) |
@@ -172,4 +204,7 @@ Rewrite — Phase Plan" for current sequencing and effort.)
   `specs/reference/memento-2.0-architecture-spec.md`
 - Apple-framework API reference library (`tech_refs:` cited by specs 013–022):
   `specs/reference/technology/00-INDEX.md`
+- **App Store Connect submission and review readiness (Gate S): `docs/app-store/`**
+  — start at `docs/app-store/00-readiness-checklist.md`. Supersedes spec 002's
+  store-facing scope.
 - Superseded: `TESTFLIGHT_READINESS.md` (Oct 2025 snapshot — historical only)

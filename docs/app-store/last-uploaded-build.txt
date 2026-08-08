@@ -1,0 +1,14 @@
+# Builds already uploaded to App Store Connect, per version string.
+#
+# Build numbers are consumed PERMANENTLY per version string — even by builds
+# that were rejected or deleted. Reusing one is rejected at upload.
+# Version strings themselves are compared against the last version actually
+# RELEASED, so a version that was uploaded but never released stays available.
+#
+# Append a row after every successful upload.
+# Format:  <MARKETING_VERSION> <CURRENT_PROJECT_VERSION>  # note
+#
+# Read by scripts/ci/check_store_metadata.sh.
+# Background: docs/app-store/07-build-signing-and-upload.md section 2.
+
+1.0 2   # Nov 2025 — submitted, REJECTED (Guidelines 5.1.2, 1.5), never released

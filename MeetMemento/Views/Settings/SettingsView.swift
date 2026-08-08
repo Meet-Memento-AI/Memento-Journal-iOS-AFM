@@ -26,6 +26,11 @@ struct SettingsView: View {
                 // Appearance Section
                 appearanceSection
 
+                // Security Section — the app lock, changeable after onboarding.
+                // Onboarding's skip dialog promises "you can turn this on later
+                // in Settings"; before this section existed, it could not.
+                securitySection
+
                 // About Section
                 aboutSection
 
@@ -102,6 +107,42 @@ struct SettingsView: View {
             }
             .background(sectionCardBackground)
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+        }
+    }
+
+    /// The app lock, controllable after onboarding. `SecuritySettingsView`
+    /// explains why this was structurally impossible until the encryption key
+    /// was decoupled from the PIN.
+    private var securitySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Security")
+                .font(type.h5)
+                .foregroundStyle(theme.foreground)
+                .padding(.bottom, Spacing.xxs)
+
+            VStack(spacing: 0) {
+                NavigationLink(value: SettingsRoute.security) {
+                    SettingsRow(
+                        icon: "lock.fill",
+                        title: "App Lock",
+                        subtitle: securitySubtitle,
+                        showChevron: true,
+                        accessibilityIdentifier: "settings.security",
+                        action: nil
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .background(sectionCardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+        }
+    }
+
+    private var securitySubtitle: String {
+        switch SecurityService.shared.currentMode {
+        case .faceID: return "\(SecurityService.shared.biometricType ?? "Face ID") and PIN"
+        case .pin: return "PIN required to open"
+        case .none: return "Off — anyone with your phone can read your journal"
         }
     }
 

@@ -141,8 +141,9 @@ CONSTITUTION.md strengths this work touches and must not break.
 | Location | Status |
 |----------|--------|
 | `specs/reference/technology/` | Apple-framework API reference library (WWDC26 session notes, ✅/🟡/🔴 confidence markers). Companion to `memento-2.0-architecture-spec.md`; cited by `tech_refs:` in specs 013–022. Not itself an executable spec — read-only reference. |
-| `docs/` | Engineering / how-it-works docs (RAG setup, CI policy, MEM-xx tickets) + hosted legal HTML. Unchanged, still authoritative for *how things work*. |
-| `TESTFLIGHT_READINESS.md` (root) | **Superseded** by this folder (banner added). Kept as a historical record of pre-beta work completed in Oct 2025. |
+| **`docs/app-store/`** | **App Store Connect submission and review readiness — Gate S.** Added 2026-08-07; supersedes spec 002's store-facing scope. Not an executable spec: it is mostly *not* code, but App Store Connect fields, Apple-side filings with review queues, and published web pages. Start at `docs/app-store/00-readiness-checklist.md`. Four CI gates in `spec-gates.yml` enforce its machine-checkable half. |
+| `docs/` | Engineering / how-it-works docs (RAG setup, CI policy, MEM-xx tickets) + hosted legal HTML. Unchanged, still authoritative for *how things work*. **Note:** `docs/` is the GitHub Pages publishing root; `docs/_config.yml` excludes the internal folders from the public site. |
+| `TESTFLIGHT_READINESS.md` (root) | **Superseded** by this folder (banner added). Kept as a historical record of pre-beta work completed in Oct 2025. Current TestFlight guidance: `docs/app-store/09-testflight.md`. |
 | `.claude-instructions/` | Historical ad-hoc implementation plans. Read-only reference. |
 | `.archive/APP_STORE_REJECTION_*.md` | Prior App Store rejection context — linked from spec 002. |
 | `.sprints/` | Old sprint planning. Read-only reference. |

@@ -214,7 +214,11 @@ public struct ContentView: View {
                                 }
                             )
                         case .digDeeper:
-                            AIChatView(viewModel: chatViewModel, isEmbedded: true)
+                            AIChatView(
+                                viewModel: chatViewModel,
+                                isEmbedded: true,
+                                hasEntries: !entryViewModel.entries.isEmpty
+                            )
                         }
                     }
 
@@ -263,8 +267,15 @@ public struct ContentView: View {
                         )
                         .padding(.top, safeAreaTop + 8)
 
-                        OfflineBannerContainer()
-                            .padding(.top, 8)
+                        // NOTE: the global OfflineBannerContainer was removed 2026-08-08.
+                        // Nothing in this app needs a network — there are zero URLSession
+                        // call sites — and the banner's own copy ("entries save locally
+                        // and sync when you're back") promised a sync that no longer
+                        // exists after the Supabase decommission. Shown in theme.destructive
+                        // red, it presented the app's normal state as an error on every
+                        // screen. PRES-010 already scopes it to Z1-only features; no Z1
+                        // feature has shipped, so it applies to nothing. The component and
+                        // NetworkMonitor are retained for when Z1 lands.
 
                         Spacer()
                     }
@@ -550,6 +561,11 @@ public struct ContentView: View {
                 .environment(\.fabVisible, false)
         case .appearance:
             AppearanceSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .security:
+            SecuritySettingsView()
+                .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         case .about:

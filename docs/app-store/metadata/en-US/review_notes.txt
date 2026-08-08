@@ -1,0 +1,95 @@
+REVIEW NOTES — Memento 1.0
+
+1. NO ACCOUNT REQUIRED. NO DEMO CREDENTIALS NEEDED.
+
+Memento has no sign-in of any kind — no account system, no server, no login
+screen. Every feature is reachable immediately after installing. The Sign-In
+Information fields are blank for this reason, not by oversight.
+
+Onboarding offers an OPTIONAL app lock (Face ID or 4-digit passcode). It is
+skippable ("Not now") and off unless enabled. If you enable it and need to get
+back in, use the device passcode fallback on the lock screen.
+
+
+2. HOW TO REACH THE CORE EXPERIENCE
+
+Memento reflects on entries, and a fresh install has none. To see it working:
+
+  a. Complete onboarding (~20 seconds; skip the app lock).
+  b. Settings > [SEEDED SAMPLE AFFORDANCE — EXACT LABEL AND PATH TO BE FILLED
+     IN BEFORE SUBMISSION] loads a small set of sample entries.
+  c. Weekly generates a reflection over them, citing the entries it drew from;
+     tap a citation to jump to the source.
+  d. Patterns shows recurring themes.
+  e. Ask answers a typed question, e.g. "what have I been worried about?", from
+     those entries, and shows its sources.
+
+To test capture: tap record, grant microphone and speech recognition access,
+speak for ten seconds, stop. The text appears in the timeline. A recording
+indicator is visible the whole time the microphone is active.
+
+A demo video of this flow is attached to this submission.
+
+
+3. HOW DATA IS PROCESSED (Guidelines 5.1.1, 5.1.2)
+
+No account, no analytics SDK, no third-party AI service.
+
+Entries are stored on device in SwiftData and synced only through the user's own
+iCloud private database, which we cannot read.
+
+Text generation runs on device via the Foundation Models framework, or on
+Apple's Private Cloud Compute for longer-context work. No user content is sent
+to any non-Apple service. The app shows which of the two produced each piece of
+generated text, where it is shown. Speech is transcribed with Apple's speech
+recognition framework. The app makes no other network requests.
+
+Our privacy policy describes all of this and is linked from Settings in the app
+as well as from the product page.
+
+
+4. PERMISSIONS
+
+  Microphone          recording voice entries, only while actively recording
+  Speech Recognition  turning those recordings into journal text
+  Face ID             unlocking the optional app lock; LocalAuthentication
+                      only, never used for identification
+
+No location, photos, contacts, calendar, or tracking permission is requested,
+and the app contains no tracking functionality.
+
+
+5. AGE RATING AND CONTENT
+
+A private, single-user journal. No content is shared with anyone, no messaging,
+no social features, no in-app web browsing, no advertising.
+
+Generated reflections describe what the user wrote. The app does not give
+advice, make recommendations, diagnose, or offer treatment information, and is
+not presented as a health or wellness product. Where an entry suggests possible
+crisis, the app shows a static, region-appropriate list of support resources —
+fixed text, never model-generated.
+
+
+6. WHAT IS IN THIS VERSION
+
+[REWRITE EVERY RELEASE — Guideline 2.3.1(a) requires new features described with
+specificity; generic descriptions are rejected.]
+
+First release. Voice and text capture with on-device transcription; searchable
+timeline; weekly reflections with citations; Patterns; Ask, answering from the
+user's own entries; read-aloud playback; Markdown and JSON export; optional
+Face ID or passcode lock.
+
+
+7. SUBSCRIPTION
+
+[FILL IN BEFORE SUBMISSION — product identifiers, where the paywall is reached,
+and confirmation the products are Ready to Submit. Guideline 2.1(b) requires
+in-app purchases to be complete, visible to the reviewer, and functional.]
+
+
+8. CONTACT
+
+[NAME], [PHONE] — contact@sebastianmendo.design
+We reply within one business day. Thank you for your time.

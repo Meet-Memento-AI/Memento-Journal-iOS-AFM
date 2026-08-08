@@ -22,11 +22,18 @@ class EntryViewModel: ObservableObject {
     /// Cached month groups for efficient SwiftUI diffing
     @Published private(set) var entriesByMonth: [MonthGroup] = []
 
-    /// Session PIN stored in memory for encryption operations (cleared on lock)
-    private var sessionPIN: String?
+    /// The user's PIN, held in memory ONLY to read entries still encrypted under
+    /// the pre-data-key scheme (see `EncryptionService`). Reads and writes no
+    /// longer depend on it: content is encrypted under the Keychain-resident
+    /// data key, so a missing PIN can no longer make the journal unreadable.
+    ///
+    /// Once every entry has been lazily re-encrypted this is dead weight, but it
+    /// must stay until we can prove no device still holds legacy content.
+    private var legacyPIN: String?
 
-    /// Whether we have a valid session PIN for encryption
-    var hasSessionPIN: Bool { sessionPIN != nil }
+    /// Whether a PIN is available for reading legacy content.
+    /// **Not** a precondition for loading or saving entries — do not gate on it.
+    var hasSessionPIN: Bool { legacyPIN != nil }
 
     /// Tracks pending entry operations to prevent race conditions
     private var pendingOperations: Set<UUID> = []
@@ -55,17 +62,18 @@ class EntryViewModel: ObservableObject {
     /// between view-appear loads and PIN delivery in one place, instead of
     /// requiring each PIN call site to remember to also reload.
     func setSessionPIN(_ pin: String) {
-        self.sessionPIN = pin
-        AppLogger.log("🔐 [EntryViewModel] Session PIN set")
+        self.legacyPIN = pin
+        AppLogger.log("🔐 [EntryViewModel] Legacy-read PIN set")
         if entries.isEmpty {
             Task { await loadEntries() }
         }
     }
 
-    /// Clears the session PIN (call on app lock)
+    /// Clears the legacy-read PIN (call on app lock). Entries stay readable —
+    /// they are encrypted under the data key, not under this.
     func clearSessionPIN() {
-        self.sessionPIN = nil
-                AppLogger.log("🔐 [EntryViewModel] Session PIN cleared")
+        self.legacyPIN = nil
+                AppLogger.log("🔐 [EntryViewModel] Legacy-read PIN cleared")
     }
 
     // MARK: - Search
@@ -111,21 +119,18 @@ class EntryViewModel: ObservableObject {
         // Production Mode — local-only (no accounts, spec 023): entries are
         // read directly from on-device encrypted storage. There is no server
         // to fetch from anymore, so this is authoritative, not a cache.
-        if let pin = sessionPIN {
-            let localEntries = JournalService.shared.loadAllEntriesLocally(withPIN: pin)
-            self.entries = localEntries.sorted { $0.createdAt > $1.createdAt }
-            updateEntriesByMonth()
-            await loadUserProfile()
-            hasInitiallyLoaded = true
-        } else {
-            // No session PIN yet (e.g. this view loaded before PIN delivery
-            // finished) — nothing can be decrypted, so this wasn't a real
-            // load attempt. Deliberately do NOT set `hasInitiallyLoaded`:
-            // that would flip the UI to the "no entries yet" empty state,
-            // which is a lie. Leaving it false keeps the loading state until
-            // `setSessionPIN` triggers the real load.
-            AppLogger.log("⚠️ [EntryViewModel] loadEntries called with no session PIN")
-        }
+        //
+        // This no longer gates on a PIN. Content is encrypted under the
+        // Keychain-resident data key, so entries load whether or not a PIN has
+        // been delivered yet — which removes the failure mode where a Keychain
+        // miss left the user staring at a permanently empty journal with a save
+        // error and no way out. `legacyPIN`, when present, only lets entries
+        // still encrypted under the old PBKDF2(PIN) scheme be read and rewritten.
+        let localEntries = JournalService.shared.loadAllEntriesLocally(legacyPIN: legacyPIN)
+        self.entries = localEntries.sorted { $0.createdAt > $1.createdAt }
+        updateEntriesByMonth()
+        await loadUserProfile()
+        hasInitiallyLoaded = true
         #endif
 
         #if USE_MOCK_DATA
@@ -195,29 +200,21 @@ class EntryViewModel: ObservableObject {
             // Production Mode — local-only (no accounts, spec 023). There is
             // no server: the local encrypted save below is the entire
             // operation, not a fallback for a failed network call.
-            if let pin = self.sessionPIN {
-                let saved = JournalService.shared.saveEntryLocally(
-                    entryId: entryId, title: resolvedTitle, content: text,
-                    createdAt: now, updatedAt: now, withPIN: pin
-                )
-                if saved {
-                    await MainActor.run { self.markSynced(entryId) }
-                } else {
-                    // Local save itself failed (e.g. disk/Keychain issue) — this is
-                    // a real failure, not a network hiccup to retry later.
-                    await MainActor.run {
-                        self.entries.removeAll { $0.id == entryId }
-                        self.updateEntriesByMonth()
-                        self.errorMessage = "Failed to save entry."
-                    }
-                }
+            // No PIN needed: the data key comes from the Keychain, so a save can
+            // no longer be blocked by PIN delivery ordering.
+            let saved = JournalService.shared.saveEntryLocally(
+                entryId: entryId, title: resolvedTitle, content: text,
+                createdAt: now, updatedAt: now
+            )
+            if saved {
+                await MainActor.run { self.markSynced(entryId) }
             } else {
-                // No PIN session means nothing can be encrypted/persisted —
-                // there's nothing durable to keep.
+                // Local save itself failed (e.g. disk/Keychain issue) — this is
+                // a real failure, not a network hiccup to retry later.
                 await MainActor.run {
                     self.entries.removeAll { $0.id == entryId }
                     self.updateEntriesByMonth()
-                    self.errorMessage = "Failed to save: no active session."
+                    self.errorMessage = "Failed to save entry."
                 }
             }
             #endif
@@ -264,25 +261,19 @@ class EntryViewModel: ObservableObject {
             #else
             // Production Mode — local-only (no accounts, spec 023). No server:
             // the local encrypted save below is the entire operation.
-            if let pin = self.sessionPIN {
-                let saved = JournalService.shared.saveEntryLocally(
-                    entryId: entry.id, title: entry.title, content: entry.text,
-                    createdAt: entry.createdAt, updatedAt: Date(), withPIN: pin
-                )
-                await MainActor.run {
-                    if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                        var updated = entry
-                        updated.syncStatus = saved ? .synced : entry.syncStatus
-                        self.entries[i] = updated
-                        self.updateEntriesByMonth()
-                    }
-                    if !saved {
-                        self.errorMessage = "Failed to update entry."
-                    }
+            let saved = JournalService.shared.saveEntryLocally(
+                entryId: entry.id, title: entry.title, content: entry.text,
+                createdAt: entry.createdAt, updatedAt: Date()
+            )
+            await MainActor.run {
+                if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                    var updated = entry
+                    updated.syncStatus = saved ? .synced : entry.syncStatus
+                    self.entries[i] = updated
+                    self.updateEntriesByMonth()
                 }
-            } else {
-                await MainActor.run {
-                    self.errorMessage = "Failed to update entry: no active session."
+                if !saved {
+                    self.errorMessage = "Failed to update entry."
                 }
             }
             #endif

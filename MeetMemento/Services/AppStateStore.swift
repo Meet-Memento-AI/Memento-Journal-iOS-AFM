@@ -188,6 +188,11 @@ class AppStateStore: ObservableObject {
     func deleteEverything() {
         SecurityService.shared.clearAll()
         LocalJournalStorage.shared.clearAll()
+        // Destroy the key material too, after the files are gone. Previously the
+        // encryption salt survived Delete Everything; now that a long-lived data
+        // key exists, leaving it behind would mean "delete everything" left the
+        // means to read anything restored from a backup.
+        EncryptionService.shared.clearAll()
         LocalProfileStore.clearAll()
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)

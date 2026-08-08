@@ -427,6 +427,11 @@ public struct JournalView: View {
             AppearanceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        case .security:
+            SecuritySettingsView()
+                .environmentObject(entryViewModel)
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
         case .about:
             AboutSettingsView()
                 .toolbar(.hidden, for: .tabBar)

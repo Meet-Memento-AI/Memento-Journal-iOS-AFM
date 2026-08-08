@@ -2,8 +2,27 @@
 //  EncryptionService.swift
 //  MeetMemento
 //
-//  Handles PIN-based encryption for journal content using AES-GCM.
-//  Derives encryption keys from the user's PIN using PBKDF2.
+//  Encrypts journal content with AES-GCM under a random, Keychain-resident
+//  data-encryption key (DEK).
+//
+//  The DEK is the current design. Journal content used to be encrypted under
+//  PBKDF2(PIN, salt), which made the PIN do two unrelated jobs at once — the
+//  unlock gate AND the key. That coupling had two consequences:
+//
+//    1. Changing or setting a PIN silently orphaned every existing entry,
+//       because the key changed underneath them. That is why there was no way
+//       to change the PIN in Settings, even though onboarding promised one.
+//    2. A Keychain miss on the PIN meant the journal could not be read at all,
+//       with no recovery path.
+//
+//  Now: the DEK is generated once, stored in the Keychain as
+//  `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and never changes. The PIN
+//  is purely an app-access gate. Changing, setting, or removing it is free.
+//
+//  Legacy PIN-derived content is migrated lazily and per-entry by
+//  `EncryptionMigrator` — see `decryptMigrating(_:legacyPIN:)`. The PBKDF2 path
+//  below exists ONLY to read that legacy content and must not be used for new
+//  writes.
 //
 
 import CryptoKit
@@ -16,7 +35,9 @@ class EncryptionService {
 
     private let keychain: KeychainStoring
     private let saltKeychainKey = "com.sebastianmendo.MeetMemento.encryptionSalt"
+    private let dataKeyKeychainKey = "com.sebastianmendo.MeetMemento.dataEncryptionKey"
     private let saltLength = 32 // 256 bits
+    private let dataKeyLength = 32 // 256 bits for AES-256
     private let pbkdf2Iterations: UInt32 = 100_000 // OWASP recommended minimum
     private let derivedKeyLength = 32 // 256 bits for AES-256
 
@@ -27,7 +48,104 @@ class EncryptionService {
         self.keychain = keychain
     }
 
-    // MARK: - Key Derivation
+    // MARK: - Data Encryption Key (current design)
+
+    private let dataKeyLock = NSLock()
+    private var cachedDataKey: SymmetricKey?
+
+    /// True when a DEK already exists in the Keychain. Does not create one.
+    var hasDataKey: Bool {
+        keychain.data(forAccount: dataKeyKeychainKey) != nil
+    }
+
+    /// The random 256-bit data-encryption key, creating and persisting one on
+    /// first use. Unlike the PBKDF2 path this is a Keychain read, not a
+    /// derivation, so it is cheap enough to call per operation.
+    ///
+    /// Returns nil only if the Keychain is unreadable or a new key cannot be
+    /// persisted — never a silently-unpersisted key, which would encrypt
+    /// content nothing could ever decrypt again.
+    func dataKey() -> SymmetricKey? {
+        dataKeyLock.lock()
+        defer { dataKeyLock.unlock() }
+
+        if let cached = cachedDataKey { return cached }
+
+        if let existing = keychain.data(forAccount: dataKeyKeychainKey) {
+            guard existing.count == dataKeyLength else {
+                AppLogger.log("⚠️ [EncryptionService] Stored data key has unexpected length \(existing.count); refusing to use it")
+                return nil
+            }
+            let key = SymmetricKey(data: existing)
+            cachedDataKey = key
+            return key
+        }
+
+        var raw = Data(count: dataKeyLength)
+        let status = raw.withUnsafeMutableBytes { buffer in
+            SecRandomCopyBytes(kSecRandomDefault, dataKeyLength, buffer.baseAddress!)
+        }
+        guard status == errSecSuccess else {
+            AppLogger.log("⚠️ [EncryptionService] Failed to generate a random data key")
+            return nil
+        }
+        guard keychain.save(raw, forAccount: dataKeyKeychainKey) else {
+            AppLogger.log("⚠️ [EncryptionService] Failed to persist the data key; refusing to encrypt with an ephemeral key")
+            return nil
+        }
+
+        let key = SymmetricKey(data: raw)
+        cachedDataKey = key
+        AppLogger.log("🔐 [EncryptionService] Generated a new data-encryption key")
+        return key
+    }
+
+    /// Encrypts plaintext under the data key. This is the path all new writes use.
+    func encrypt(_ plaintext: String) -> Data? {
+        guard let key = dataKey(), let data = plaintext.data(using: .utf8) else { return nil }
+        do {
+            return try AES.GCM.seal(data, using: key).combined
+        } catch {
+            AppLogger.log("⚠️ [EncryptionService] Encryption failed: \(error)")
+            return nil
+        }
+    }
+
+    /// Decrypts ciphertext under the data key. Returns nil for legacy
+    /// PIN-encrypted content — use `decryptMigrating(_:legacyPIN:)` for that.
+    func decrypt(_ ciphertext: Data) -> String? {
+        guard let key = dataKey() else { return nil }
+        return Self.open(ciphertext, using: key)
+    }
+
+    /// Reads content written under either scheme.
+    ///
+    /// Tries the data key first, then falls back to the legacy PBKDF2(PIN) key.
+    /// `needsRewrite` is true when the fallback succeeded, which is the signal
+    /// for `EncryptionMigrator` to re-encrypt that entry under the data key.
+    ///
+    /// AES-GCM is authenticated, so a wrong key fails cleanly rather than
+    /// returning plausible garbage — trying both is safe.
+    func decryptMigrating(_ ciphertext: Data, legacyPIN: String?) -> (text: String, needsRewrite: Bool)? {
+        if let text = decrypt(ciphertext) {
+            return (text, false)
+        }
+        if let pin = legacyPIN, let text = decrypt(ciphertext, withPIN: pin) {
+            return (text, true)
+        }
+        return nil
+    }
+
+    private static func open(_ ciphertext: Data, using key: SymmetricKey) -> String? {
+        do {
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            return String(data: try AES.GCM.open(sealedBox, using: key), encoding: .utf8)
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Legacy PIN Key Derivation (migration reads only)
 
     private let cacheLock = NSLock()
     /// The last successfully derived key, keyed by (PIN, salt). The salt is fixed
@@ -95,11 +213,10 @@ class EncryptionService {
 
     // MARK: - Encryption/Decryption
 
-    /// Encrypts plaintext using AES-GCM with PIN-derived key
-    /// - Parameters:
-    ///   - plaintext: The text to encrypt
-    ///   - pin: The user's PIN for key derivation
-    /// - Returns: Combined nonce + ciphertext + tag data, or nil on failure
+    /// Encrypts under the legacy PIN-derived key.
+    ///
+    /// **Do not use for new writes** — `encrypt(_:)` is the current path. This
+    /// remains only so tests can build legacy fixtures for the migration.
     func encrypt(_ plaintext: String, withPIN pin: String) -> Data? {
         guard let key = deriveKey(from: pin),
               let data = plaintext.data(using: .utf8) else {
@@ -116,24 +233,12 @@ class EncryptionService {
         }
     }
 
-    /// Decrypts ciphertext using AES-GCM with PIN-derived key
-    /// - Parameters:
-    ///   - ciphertext: Combined nonce + ciphertext + tag data
-    ///   - pin: The user's PIN for key derivation
-    /// - Returns: Decrypted plaintext, or nil on failure
+    /// Decrypts legacy PIN-encrypted content. **Migration reads only** — new
+    /// content is written under the data key. Called speculatively by
+    /// `decryptMigrating(_:legacyPIN:)`, so failure is expected and not logged.
     func decrypt(_ ciphertext: Data, withPIN pin: String) -> String? {
-        guard let key = deriveKey(from: pin) else {
-            return nil
-        }
-
-        do {
-            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
-            let decryptedData = try AES.GCM.open(sealedBox, using: key)
-            return String(data: decryptedData, encoding: .utf8)
-        } catch {
-            AppLogger.log("⚠️ [EncryptionService] Decryption failed: \(error)")
-            return nil
-        }
+        guard let key = deriveKey(from: pin) else { return nil }
+        return Self.open(ciphertext, using: key)
     }
 
     /// Validates that the PIN can decrypt existing data
@@ -181,14 +286,21 @@ class EncryptionService {
         keychain.save(salt, forAccount: saltKeychainKey)
     }
 
-    /// Deletes the encryption salt from Keychain (used on PIN change or account deletion)
+    /// Deletes the legacy encryption salt from Keychain.
     func deleteSalt() {
         keychain.delete(forAccount: saltKeychainKey)
         clearDerivedKeyCache()   // the salt changed → any cached key is stale
     }
 
-    /// Clears all encryption data (salt). Call this when PIN is changed.
+    /// Destroys **all** key material: the data key and the legacy salt.
+    ///
+    /// This makes every existing entry permanently unreadable, which is the
+    /// point — it backs Delete Everything. It must NOT be called on a PIN
+    /// change: the PIN no longer has anything to do with the data key, and
+    /// wiping the key here would destroy the user's journal.
     func clearAll() {
+        keychain.delete(forAccount: dataKeyKeychainKey)
+        dataKeyLock.lock(); cachedDataKey = nil; dataKeyLock.unlock()
         deleteSalt()
     }
 }

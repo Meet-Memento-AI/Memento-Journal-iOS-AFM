@@ -22,9 +22,9 @@ class JournalService {
     // MARK: - Local-First Helpers (spec-007)
 
     /// Queues an entry for later sync (offline write, or a transient sync
-    /// failure), encrypting the title with the same PIN/path as content.
-    func queuePendingSync(entryId: UUID, opType: PendingSyncOperation.OpType, title: String, withPIN pin: String) {
-        guard let encryptedTitle = encryptionService.encrypt(title, withPIN: pin) else {
+    /// failure), encrypting the title under the same data key as content.
+    func queuePendingSync(entryId: UUID, opType: PendingSyncOperation.OpType, title: String) {
+        guard let encryptedTitle = encryptionService.encrypt(title) else {
             AppLogger.log("⚠️ [JournalService] Failed to encrypt title for pending sync: \(entryId)")
             return
         }
@@ -56,13 +56,12 @@ class JournalService {
         title: String,
         content: String,
         createdAt: Date,
-        updatedAt: Date,
-        withPIN pin: String
+        updatedAt: Date
     ) -> Bool {
         let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt)
         guard let json = try? JSONEncoder().encode(envelope),
               let jsonString = String(data: json, encoding: .utf8),
-              let encrypted = encryptionService.encrypt(jsonString, withPIN: pin) else {
+              let encrypted = encryptionService.encrypt(jsonString) else {
             AppLogger.log("⚠️ [JournalService] Failed to encrypt entry for local storage: \(entryId)")
             return false
         }
@@ -85,7 +84,15 @@ class JournalService {
     ///   queue, never in this file. Legacy entries are recovered best-effort
     ///   and migrated to envelope format on first read, so the fallback only
     ///   ever runs once per entry.
-    func loadAllEntriesLocally(withPIN pin: String) -> [Entry] {
+    ///
+    /// It also handles two *key* schemes, by the same lazy per-entry rule:
+    /// content encrypted under the current data key, and legacy content
+    /// encrypted under PBKDF2(`legacyPIN`). Anything read via the legacy key is
+    /// immediately rewritten under the data key, so the fallback runs at most
+    /// once per entry and a crash mid-migration only leaves the remainder to be
+    /// picked up next launch. Pass `legacyPIN: nil` once no legacy content can
+    /// exist.
+    func loadAllEntriesLocally(legacyPIN: String?) -> [Entry] {
         let ids = LocalJournalStorage.shared.allStoredEntryIds()
 
         // Return the cached decrypted set when nothing on disk changed. The
@@ -109,12 +116,19 @@ class JournalService {
 
         let entries: [Entry] = ids.compactMap { id -> Entry? in
             guard let data = LocalJournalStorage.shared.loadEncrypted(entryId: id),
-                  let decrypted = encryptionService.decrypt(data, withPIN: pin) else {
+                  let read = encryptionService.decryptMigrating(data, legacyPIN: legacyPIN) else {
                 return nil
             }
+            let decrypted = read.text
 
             if let json = decrypted.data(using: .utf8),
                let envelope = try? JSONDecoder().decode(LocalEntryEnvelope.self, from: json) {
+                if read.needsRewrite {
+                    // Correct envelope, legacy key — rewrite under the data key.
+                    saveEntryLocally(entryId: id, title: envelope.title, content: envelope.content,
+                                     createdAt: envelope.createdAt, updatedAt: envelope.updatedAt)
+                    AppLogger.log("🔐 [JournalService] Re-encrypted entry under the data key: \(id)")
+                }
                 return Entry(
                     id: id,
                     title: envelope.title,
@@ -127,17 +141,19 @@ class JournalService {
 
             // Legacy format: `decrypted` is the raw content itself.
             let pendingOp = pendingOps[id]
-            let title = pendingOp.flatMap { encryptionService.decrypt($0.encryptedTitle, withPIN: pin) }
-                ?? Self.fallbackTitle(fromContent: decrypted)
+            let title = pendingOp.flatMap { op in
+                legacyPIN.flatMap { encryptionService.decrypt(op.encryptedTitle, withPIN: $0) }
+                    ?? encryptionService.decrypt(op.encryptedTitle)
+            } ?? Self.fallbackTitle(fromContent: decrypted)
             let timestamp = pendingOp?.timestamp
                 ?? LocalJournalStorage.shared.modificationDate(entryId: id)
                 ?? Date()
 
-            // Migrate to envelope format so this path never runs again for
-            // this entry, then drop the queue file — it existed only to
-            // retry a server sync that no longer exists.
+            // Migrate to envelope format (and, implicitly, to the data key) so
+            // neither fallback runs again for this entry, then drop the queue
+            // file — it existed only to retry a server sync that no longer exists.
             saveEntryLocally(entryId: id, title: title, content: decrypted,
-                             createdAt: timestamp, updatedAt: timestamp, withPIN: pin)
+                             createdAt: timestamp, updatedAt: timestamp)
             LocalJournalStorage.shared.dequeuePendingSync(entryId: id)
             AppLogger.log("📁 [JournalService] Migrated legacy-format entry to envelope: \(id)")
 
@@ -147,9 +163,20 @@ class JournalService {
             )
         }
 
-        entriesCacheLock.lock()
-        entriesCache = (signature, entries)
-        entriesCacheLock.unlock()
+        // Only cache a COMPLETE read. If any stored id failed to decrypt, the
+        // key material available on this call was insufficient — and that can
+        // change (a PIN arrives after unlock, or lazy migration rewrites a file).
+        // Caching a partial result keys a *failure* to a signature that will not
+        // change, so a later successful read would keep returning the stale
+        // shortfall. Before this guard, loading once before PIN delivery cached
+        // an empty journal and the user kept seeing it after unlocking.
+        if entries.count == ids.count {
+            entriesCacheLock.lock()
+            entriesCache = (signature, entries)
+            entriesCacheLock.unlock()
+        } else {
+            AppLogger.log("⚠️ [JournalService] \(ids.count - entries.count)/\(ids.count) entries unreadable with the current key material — not caching")
+        }
         return entries
     }
 

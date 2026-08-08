@@ -1,0 +1,18 @@
+# GitHub Pages configuration for the public legal/support site served from docs/.
+#
+# docs/ is the Pages publishing root: privacy.html, terms.html, support.html and
+# index.html are the public site. Everything listed under `exclude` is internal
+# working documentation that lives in this folder for proximity but must NOT be
+# served as a web page.
+#
+# Note: this repository is public, so `exclude` is a "don't publish it as a
+# page" control, not a secrecy control. Never put secrets in docs/ — see
+# docs/app-store/README.md.
+
+title: Memento
+description: Privacy policy, terms, and support for Memento.
+
+exclude:
+  - app-store/
+  - prompts/
+  - "*.md"
