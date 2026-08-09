@@ -199,7 +199,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String) -> AskResult {
         let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question, grounded: prep.stance.isGrounded
+            citedRefs, retrieval: prep.retrieval, question: question
         )
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
@@ -251,7 +251,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     // non-grounded turns (reconcile returns [] when not grounded).
                     // `.final` supersedes these with the model's cited subset.
                     let reviewed = Self.reconcileCitations(
-                        [], retrieval: prep.retrieval, question: question, grounded: prep.stance.isGrounded
+                        [], retrieval: prep.retrieval, question: question
                     )
                     var lastHeading1: String?
                     var lastHeading2: String?
@@ -482,27 +482,26 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     private static let maxCitations = 3
 
-    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult, question: String, grounded: Bool) -> [AskCitation] {
-        guard !retrieval.isEmpty else { return [] }
+    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult, question: String) -> [AskCitation] {
+        // Show "Reviewed your journals" whenever retrieval produced a real,
+        // non-ambient match — the exact condition the stance uses to decide
+        // `.journalGrounded`. This is known before generation, so the link can be
+        // emitted from the first delta (via reviewedCitations) and stays identical
+        // through the final reconcile: it appears right away and never vanishes.
+        // Ambient/empty retrieval (casual chat, or a "no matches" journal ask)
+        // still yields no citations.
+        guard !retrieval.isEmpty, !retrieval.isAmbient else { return [] }
         let byRef = Dictionary(uniqueKeysWithValues: retrieval.entries.map { ($0.ref, $0) })
-        // Intersect the model's refs with the ones actually provided. The
-        // cited-nothing → top-entries fallback only applies to grounded turns:
-        // on casual/sharing turns empty citations are correct, and forcing
-        // pills onto them was part of the "always grounded" feel.
+        // Prefer the entries the model actually cited; fall back to the top
+        // reviewed entries when it cited nothing (or nothing valid), so the set is
+        // always non-empty for a real match and the link stays stable.
         let chosenRefs: [Int]
         if refs.isEmpty {
-            chosenRefs = grounded ? retrieval.entries.prefix(maxCitations).map(\.ref) : []
+            chosenRefs = retrieval.entries.prefix(maxCitations).map(\.ref)
         } else {
             var seen = Set<Int>()
             let valid = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
-            // A grounded turn should always surface the journals it reviewed. If
-            // the model's refs don't intersect what we actually provided, fall
-            // back to the top entries (same as citing nothing) so the streamed
-            // "Reviewed your journals" link stays stable instead of vanishing at
-            // the final reconcile.
-            chosenRefs = (valid.isEmpty && grounded)
-                ? retrieval.entries.prefix(maxCitations).map(\.ref)
-                : valid
+            chosenRefs = valid.isEmpty ? retrieval.entries.prefix(maxCitations).map(\.ref) : valid
         }
         return chosenRefs.prefix(maxCitations).compactMap { ref in
             guard let entry = byRef[ref] else { return nil }

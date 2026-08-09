@@ -126,6 +126,10 @@ public struct ChatMessageBubble: View {
         content.body.isEmpty
             && (content.heading1 ?? "").isEmpty
             && (content.heading2 ?? "").isEmpty
+            // Citations arrive on the very first delta for a grounded turn, before
+            // any body text — mounting the component then lets "Reviewed your
+            // journals" be the first thing to appear rather than waiting for text.
+            && (content.citations?.isEmpty ?? true)
     }
 
     // MARK: - Retry Row
