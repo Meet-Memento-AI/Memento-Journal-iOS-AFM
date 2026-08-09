@@ -79,7 +79,7 @@ final class ConversationFlowTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: ambient), .noMatch)
     }
 
-    /// Venting stays conversational unless a high-confidence match promotes it.
+    /// Venting stays conversational — never promoted to journalGrounded.
     func test_share_staysConversationalByDefault() {
         let turn = TurnClassifier.classify("today was exhausting, meetings all day", hasHistory: true)
         XCTAssertEqual(turn, .share)
@@ -87,6 +87,29 @@ final class ConversationFlowTests: XCTestCase {
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: .empty)
         XCTAssertEqual(stance, .sharing)
         XCTAssertFalse(stance.isGrounded)
+    }
+
+    /// Even a strong retrieval hit must not turn a share into an entry report.
+    func test_share_neverPromotesToJournalGrounded() {
+        let turn = TurnClassifier.classify("today was exhausting, meetings all day", hasHistory: true)
+        let strong = RetrievalResult(
+            entries: [RetrievedEntry(ref: 1, id: UUID(), date: Date(), text: "meetings drained me")],
+            contextBlock: "[ref 1]",
+            isAmbient: false
+        )
+        XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: strong), .sharing)
+    }
+
+    /// Reflective musings stay conversational (grounded reserved for journal asks).
+    func test_reflectiveQuestion_staysSharing() {
+        let turn = TurnClassifier.classify("why do I keep doing this?", hasHistory: true)
+        XCTAssertEqual(turn, .reflectiveQuestion)
+        let strong = RetrievalResult(
+            entries: [RetrievedEntry(ref: 1, id: UUID(), date: Date(), text: "I keep repeating the same pattern")],
+            contextBlock: "[ref 1]",
+            isAmbient: false
+        )
+        XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: strong), .sharing)
     }
 
     /// World-fact question → out-of-scope stance, no journal references.

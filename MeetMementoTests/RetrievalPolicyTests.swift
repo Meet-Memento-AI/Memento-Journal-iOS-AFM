@@ -73,8 +73,8 @@ final class RetrievalPolicyTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.stance(turn: .followup, retrieval: grounded()), .followupThread)
     }
 
-    func test_stance_sharePromotesOnlyOnRealMatch() {
-        XCTAssertEqual(RetrievalPolicy.stance(turn: .share, retrieval: grounded()), .journalGrounded)
+    func test_stance_shareNeverPromotesToGrounded() {
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .share, retrieval: grounded()), .sharing)
         XCTAssertEqual(RetrievalPolicy.stance(turn: .share, retrieval: ambient()), .sharing)
         XCTAssertEqual(RetrievalPolicy.stance(turn: .share, retrieval: .empty), .sharing)
     }
@@ -85,8 +85,10 @@ final class RetrievalPolicyTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: .empty), .noMatch)
     }
 
-    func test_stance_reflectiveDegradesToSharingNotRefusal() {
+    func test_stance_reflectiveStaysSharing() {
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .reflectiveQuestion, retrieval: grounded()), .sharing)
         XCTAssertEqual(RetrievalPolicy.stance(turn: .reflectiveQuestion, retrieval: ambient()), .sharing)
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .reflectiveQuestion, retrieval: .empty), .sharing)
     }
 
     func test_groundedFlag() {

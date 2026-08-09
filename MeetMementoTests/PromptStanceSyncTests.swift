@@ -22,14 +22,26 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@3")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@3")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@4")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@4")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 
-    func test_askPrompt_hasAntiTemplateRule() {
+    func test_askPrompt_hasAntiTemplateHardBans() {
         let prompt = PromptRegistry.instructions(for: .ask).text
         XCTAssertTrue(prompt.contains("Never open a reply with \"You wrote\""))
+        XCTAssertTrue(prompt.contains("Looking at your entries"))
+        XCTAssertTrue(prompt.contains("In your journal"))
+        // Conflicting voice examples must stay gone (ask@3 taught these).
+        XCTAssertFalse(prompt.contains("(\"you wrote"))
+        XCTAssertFalse(prompt.contains("\"you mentioned"))
+    }
+
+    func test_askPrompt_isConversationNotReport() {
+        let prompt = PromptRegistry.instructions(for: .ask).text
+        XCTAssertTrue(prompt.contains("conversation, not a report"))
+        XCTAssertTrue(prompt.contains("at most one natural entry reference")
+            || prompt.contains("at most one natural entry"))
     }
 
     func test_stancePromptLines_areBracketedSingleLines() {
@@ -38,5 +50,10 @@ final class PromptStanceSyncTests: XCTestCase {
             XCTAssertTrue(stance.promptLine.hasSuffix("]"), "\(stance)")
             XCTAssertFalse(stance.promptLine.contains("\n"), "\(stance)")
         }
+    }
+
+    func test_journalGroundedStance_forbidsMultiEntryDump() {
+        XCTAssertTrue(TurnStance.journalGrounded.promptLine.contains("at most one natural entry reference"))
+        XCTAssertTrue(TurnStance.followupThread.promptLine.contains("entry inventory"))
     }
 }

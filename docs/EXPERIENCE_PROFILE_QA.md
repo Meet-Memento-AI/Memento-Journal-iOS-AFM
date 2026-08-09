@@ -23,3 +23,10 @@ verification. Physical-device AFM generation remains a Gate α / device check.
 2. Onboarding with Intelligence off → browse catalog → complete to main app.
 3. Settings → Themes → Rebuild lens updates the tuning summary copy.
 4. Insights empty state shows theme-flavored starters after profile exists.
+
+## Chat quality (`ask@4`) — device check
+
+1. “I’ve been overwhelmed at work” → empathetic reply, **no** “You wrote…” opener / entry inventory.
+2. “What did I write about work?” → grounded, conversational, at most one clear entry reference unless surveying.
+3. “Tell me more” → continues prior point; does not restart with a fresh entry list.
+4. Three-turn thread → openings differ; no recycled first sentence.
