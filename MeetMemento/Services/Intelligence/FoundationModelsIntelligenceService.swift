@@ -273,21 +273,26 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // conversation in journal entries.
         var parts: [String] = [stance.promptLine]
         if !retrieval.contextBlock.isEmpty {
-            parts.append(retrieval.contextBlock)
+            // Frame as optional evidence so the model does not treat the block
+            // as a script to paraphrase ("you wrote this, this, and this").
+            parts.append(
+                "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
+                + retrieval.contextBlock
+            )
         } else if stance == .noMatch || stance.isGrounded {
             parts.append("[No journal entries matched this topic]")
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
-        // The conversation so far, for continuity (recent turns, each trimmed to
-        // protect the on-device context budget). More than a couple of turns so
-        // the model holds the thread and doesn't re-greet.
         let recent = history.suffix(8)
         if !recent.isEmpty {
             let convo = recent
                 .map { ($0.role == .user ? "You: " : "Memento: ") + String($0.text.prefix(400)) }
                 .joined(separator: "\n")
             parts.append("Conversation so far (most recent last):\n\(convo)")
+            parts.append(
+                "Do not reuse openings, questions, or entry summaries already present in Conversation so far."
+            )
         }
         parts.append("The person's latest message: \(question)")
         return parts.joined(separator: "\n\n")

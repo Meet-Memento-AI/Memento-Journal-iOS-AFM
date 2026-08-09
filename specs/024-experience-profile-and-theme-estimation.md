@@ -41,7 +41,7 @@ grouped by `ThemeFamily` (164 themes).
 
 | Layer | Source | Mutable per user? |
 |---|---|---|
-| L0 Core | `PromptRegistry` `ask@3` | No — companion constitution |
+| L0 Core | `PromptRegistry` `ask@4` | No — companion constitution |
 | L1 Lens | ExperienceProfile via `PromptPersonalization` | Yes — reflection, themes, lens |
 | L2 Session | Stance + retrieval + citations | No personalization influence |
 
