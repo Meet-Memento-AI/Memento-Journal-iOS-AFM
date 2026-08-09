@@ -265,6 +265,24 @@ final class SpeechService: ObservableObject {
         return (engine, request, task)
     }
 
+    /// Runs on a background thread to avoid blocking the main thread on the
+    /// AVAudioSession HAL (watchdog / hang). Symmetric with `performEngineSetup`:
+    /// `setActive(false)` and `engine.stop()` can each block for hundreds of ms
+    /// while audio routes are torn down, so they must not run on the main actor.
+    private nonisolated static func performEngineTeardown(
+        engine: AVAudioEngine?,
+        request: SFSpeechAudioBufferRecognitionRequest?
+    ) {
+        // Preserve the original ordering: end audio input, remove the tap while
+        // the engine is still valid, stop the engine, then release the session.
+        request?.endAudio()
+        if let engine {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+        }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
     // MARK: - Recording
 
     /// Starts a recording session owned by the specified view.
@@ -350,35 +368,34 @@ final class SpeechService: ObservableObject {
     }
 
     func stopRecording() async {
+        // Main-actor UI/state resets — immediate, non-blocking so the mic UI
+        // flips the moment the user stops, before the hardware finishes tearing down.
         durationTimer?.invalidate()
         durationTimer = nil
         currentDuration = 0
         silenceStartTime = nil
-
-        // End audio input to recognition request
-        recognitionRequest?.endAudio()
-
-        // Stop and release audio engine BEFORE nullifying request
-        // This ensures the tap is removed while engine is still valid
-        if let engine = audioEngine {
-            let inputNode = engine.inputNode
-            inputNode.removeTap(onBus: 0)
-            engine.stop()
-        }
-        audioEngine = nil
-
-        // Release recognition request after engine stopped
-        recognitionRequest = nil
-
-        // Note: recognitionTask is NOT cancelled - let it finish for final transcription
-        // It will be set to nil in handleRecognitionResult when isFinal
-
-        // Deactivate audio session to release system audio resources
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-
         audioLevel = 0
         smoothedLevel = 0
         isRecording = false
+
+        // Hand the hardware objects to a background thread and clear our refs on
+        // the main actor. The closure retains them until teardown completes, so
+        // nulling here is safe.
+        let engine = audioEngine
+        let request = recognitionRequest
+        audioEngine = nil
+        recognitionRequest = nil
+        // Note: recognitionTask is intentionally NOT cancelled — it finishes for
+        // the final transcription and is cleared in handleRecognitionResult when isFinal.
+
+        // Run the blocking AVAudioSession/engine teardown off the main actor
+        // (mirror of the setup path). Awaited — not fire-and-forget — so that
+        // `setActive(false)` is strictly ordered before any immediate restart's
+        // `setActive(true)`, avoiding an activate/deactivate race on the shared session.
+        await Task.detached(priority: .userInitiated) {
+            Self.performEngineTeardown(engine: engine, request: request)
+        }.value
+
         // Note: activeSessionOwner is intentionally NOT cleared here.
         // It remains set so the owning view can consume the transcribedText.
         // It will be cleared when the next recording starts.
