@@ -113,7 +113,12 @@ public struct AIOutputComponent: View {
             content.heading1 ?? "",
             content.heading2 ?? "",
             content.body,
-            String(content.citations?.count ?? 0)
+            String(content.citations?.count ?? 0),
+            // The final `.delta` and the `.final` event carry byte-identical body
+            // text for a citation-less reply, so without this the `isStreaming`
+            // flip alone wouldn't re-trigger `syncTargets` and the typewriter
+            // would idle forever (caret blinking, action bar never shown).
+            isStreaming ? "streaming" : "done"
         ].joined(separator: "\u{0}")
     }
 

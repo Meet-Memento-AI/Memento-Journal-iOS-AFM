@@ -233,6 +233,17 @@ class ChatViewModel: ObservableObject {
 
         track(Task { [weak self] in
             guard let self else { return }
+            // Whatever ends the stream — success, error, or cancel — settle the
+            // assistant bubble so the typewriter can complete instead of blinking
+            // its caret forever. On the success path `.final` already cleared this,
+            // so the flip is a no-op; on error/cancel `.final` never arrives, so
+            // this is the only thing that settles a partial reply.
+            defer {
+                if let idx = messages.firstIndex(where: { $0.id == assistantId }),
+                   messages[idx].isStreaming {
+                    messages[idx].isStreaming = false
+                }
+            }
             var sawContent = false
             do {
                 for try await event in chatService.sendMessageStream(text, sessionId: currentSessionId) {
