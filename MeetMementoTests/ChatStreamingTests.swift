@@ -19,7 +19,7 @@ final class ChatStreamingTests: XCTestCase {
 
         XCTAssertGreaterThanOrEqual(events.count, 2, "expected at least a delta and a final")
 
-        guard case .delta(let bodySoFar, _, _) = events.first else {
+        guard case .delta(let bodySoFar, _, _, _) = events.first else {
             return XCTFail("first event should be a .delta, got \(String(describing: events.first))")
         }
         guard case .final(let result) = events.last else {

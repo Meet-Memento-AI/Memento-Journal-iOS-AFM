@@ -244,6 +244,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         generating: AskAnswer.self,
                         options: GenerationOptions(temperature: 0.7)
                     )
+                    // The journals retrieval surfaced for a grounded turn — known
+                    // now, before the first token. Emitting them on every delta
+                    // lets the "Reviewed your journals" link appear right away
+                    // instead of waiting for the model's final citedRefs. Empty on
+                    // non-grounded turns (reconcile returns [] when not grounded).
+                    // `.final` supersedes these with the model's cited subset.
+                    let reviewed = Self.reconcileCitations(
+                        [], retrieval: prep.retrieval, question: question, grounded: prep.stance.isGrounded
+                    )
                     var lastHeading1: String?
                     var lastHeading2: String?
                     var lastBody = ""
@@ -259,7 +268,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         continuation.yield(.delta(
                             bodySoFar: Self.strippingReferenceMarkers(lastBody),
                             heading1: lastHeading1?.isEmpty == true ? nil : lastHeading1,
-                            heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2
+                            heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2,
+                            reviewedCitations: reviewed
                         ))
                     }
                     let result = makeResult(heading1: lastHeading1, heading2: lastHeading2,
@@ -484,7 +494,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             chosenRefs = grounded ? retrieval.entries.prefix(maxCitations).map(\.ref) : []
         } else {
             var seen = Set<Int>()
-            chosenRefs = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
+            let valid = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
+            // A grounded turn should always surface the journals it reviewed. If
+            // the model's refs don't intersect what we actually provided, fall
+            // back to the top entries (same as citing nothing) so the streamed
+            // "Reviewed your journals" link stays stable instead of vanishing at
+            // the final reconcile.
+            chosenRefs = (valid.isEmpty && grounded)
+                ? retrieval.entries.prefix(maxCitations).map(\.ref)
+                : valid
         }
         return chosenRefs.prefix(maxCitations).compactMap { ref in
             guard let entry = byRef[ref] else { return nil }

@@ -63,8 +63,13 @@ struct AskResult: Sendable {
 /// An incremental event from a streaming ask (spec 017 R6). `delta` carries the
 /// reply **so far** (cumulative, not just the new chunk) so the UI can render it
 /// directly; `final` carries the completed result with reconciled citations.
+///
+/// `reviewedCitations` are the journals retrieval already surfaced for a grounded
+/// turn — known before the first token — so the "Reviewed your journals" link can
+/// appear right away instead of waiting for the model's final `citedRefs`. Empty
+/// for non-grounded turns. `final`'s reconciled citations supersede them.
 enum AskStreamEvent: Sendable {
-    case delta(bodySoFar: String, heading1: String?, heading2: String?)
+    case delta(bodySoFar: String, heading1: String?, heading2: String?, reviewedCitations: [AskCitation])
     case final(AskResult)
 }
 
@@ -171,7 +176,8 @@ extension IntelligenceService {
             let task = Task {
                 do {
                     let result = try await ask(question, history: history, entries: entries)
-                    continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1, heading2: result.heading2))
+                    continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1,
+                                              heading2: result.heading2, reviewedCitations: result.citations))
                     continuation.yield(.final(result))
                     continuation.finish()
                 } catch {

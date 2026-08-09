@@ -252,12 +252,17 @@ class ChatViewModel: ObservableObject {
                     guard generation == sendGeneration, !Task.isCancelled else { return }
 
                     switch event {
-                    case .delta(let body, let heading1, let heading2):
+                    case .delta(let body, let heading1, let heading2, let sources):
                         // First visible token: drop the "thinking" indicator.
                         if isLoading { isLoading = false }
                         sawContent = sawContent || !body.isEmpty
+                        // Reviewed-journals citations arrive from the first delta on
+                        // grounded turns, so the "Reviewed your journals" link shows
+                        // right away rather than waiting for `.final`.
+                        let reviewed = mapSourcesToCitations(sources)
                         updateStreamingMessage(id: assistantId, body: body,
-                                               heading1: heading1, heading2: heading2, citations: nil,
+                                               heading1: heading1, heading2: heading2,
+                                               citations: reviewed.isEmpty ? nil : reviewed,
                                                isStreaming: true)
 
                     case .final(let response):

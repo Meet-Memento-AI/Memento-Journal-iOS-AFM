@@ -78,7 +78,10 @@ struct ChatSummaryResponse: Codable {
 /// `final` carries the complete `ChatResponse` (sources, session id) once
 /// generation finishes and the turn is persisted.
 enum ChatStreamEvent: Sendable {
-    case delta(body: String, heading1: String?, heading2: String?)
+    /// `sources` are the journals reviewed for a grounded turn, forwarded from the
+    /// first delta so the "Reviewed your journals" link can show right away. Empty
+    /// for non-grounded turns; the `.final` sources supersede them.
+    case delta(body: String, heading1: String?, heading2: String?, sources: [ChatSource])
     case final(ChatResponse)
 }
 
@@ -106,7 +109,8 @@ extension ChatServiceProtocol {
             let task = Task {
                 do {
                     let response = try await sendMessage(text, sessionId: sessionId)
-                    continuation.yield(.delta(body: response.reply, heading1: response.heading1, heading2: response.heading2))
+                    continuation.yield(.delta(body: response.reply, heading1: response.heading1,
+                                              heading2: response.heading2, sources: response.sources))
                     continuation.yield(.final(response))
                     continuation.finish()
                 } catch {
@@ -199,6 +203,18 @@ class ChatService {
         )
     }
 
+    /// Maps intelligence-layer citations to the `ChatSource` shape used by both
+    /// the streamed `.delta`/`.final` events and local persistence.
+    private static func sources(from citations: [AskCitation]) -> [ChatSource] {
+        citations.map { citation in
+            ChatSource(
+                id: citation.entryId.uuidString,
+                createdAt: iso8601.string(from: citation.entryDate),
+                preview: citation.excerpt
+            )
+        }
+    }
+
     /// Streaming send: forwards the model's incremental output as `.delta`
     /// events (so the bubble fills as it generates), then persists the turn and
     /// emits `.final`. Persistence and citation mapping run *after* the stream
@@ -213,8 +229,9 @@ class ChatService {
                     var finalResult: AskResult?
                     for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
                         switch event {
-                        case .delta(let bodySoFar, let h1, let h2):
-                            continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2))
+                        case .delta(let bodySoFar, let h1, let h2, let reviewed):
+                            continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2,
+                                                      sources: Self.sources(from: reviewed)))
                         case .final(let result):
                             finalResult = result
                         }
@@ -224,13 +241,7 @@ class ChatService {
                         continuation.finish()
                         return
                     }
-                    let sources = result.citations.map { citation in
-                        ChatSource(
-                            id: citation.entryId.uuidString,
-                            createdAt: Self.iso8601.string(from: citation.entryDate),
-                            preview: citation.excerpt
-                        )
-                    }
+                    let sources = Self.sources(from: result.citations)
                     LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
                     LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
                     LocalChatStore.shared.appendMessage(

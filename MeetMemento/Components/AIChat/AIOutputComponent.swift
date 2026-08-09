@@ -312,11 +312,11 @@ public struct AIOutputComponent: View {
         }
         .padding(.top, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear { syncTargets(animateCitation: false) }
+        .onAppear { syncTargets() }
         // Each delta grows `content.body`; mirror the new target into @State and
         // let the persistent drain loop chase it. The loop — not this callback —
         // paces the reveal, so text flows smoothly instead of jumping per snapshot.
-        .onChange(of: contentIdentity) { _, _ in syncTargets(animateCitation: true) }
+        .onChange(of: contentIdentity) { _, _ in syncTargets() }
         .onDisappear {
             drainTask?.cancel()
             drainTask = nil
@@ -328,21 +328,24 @@ public struct AIOutputComponent: View {
     /// Copies the latest `content`/`isStreaming` into the @State the drain loop
     /// reads, updates the citation reveal, and ensures the loop is running.
     ///
-    /// - Parameter animateCitation: true for mid-stream updates, where the
-    ///   citation link is inserted long after the body has laid out and needs to
-    ///   ease in rather than snap. False on first appear, so reloaded history
-    ///   renders settled instead of animating on scroll.
-    private func syncTargets(animateCitation: Bool) {
+    /// The "Reviewed your journals" link eases in whenever its presence changes on
+    /// a new (animating) message — including the first appear, since grounded turns
+    /// now carry the reviewed journals from the first delta, so the link shows
+    /// right away with a gentle fade rather than waiting for the reply to finish.
+    /// Reloaded history (`!animate`) renders settled, with no fade on scroll.
+    private func syncTargets() {
         tHeading1 = content.heading1 ?? ""
         tHeading2 = content.heading2 ?? ""
         tBody = content.body
         streamingState = isStreaming
 
         let shouldShowCitation = (content.citations?.isEmpty == false)
-        if animateCitation && shouldShowCitation != showCitation {
-            withAnimation(.easeOut(duration: 0.25)) { showCitation = shouldShowCitation }
-        } else {
-            showCitation = shouldShowCitation
+        if shouldShowCitation != showCitation {
+            if animate {
+                withAnimation(.easeOut(duration: 0.3)) { showCitation = shouldShowCitation }
+            } else {
+                showCitation = shouldShowCitation
+            }
         }
 
         guard animate else {
