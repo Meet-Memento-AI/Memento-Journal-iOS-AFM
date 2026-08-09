@@ -15,7 +15,9 @@ public struct ThemeConfirmationView: View {
 
     public var onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String]) -> Void)?
     public var onBack: (() -> Void)?
-    public var intelligence: IntelligenceService
+    // Internal: `IntelligenceService` / `FoundationModelsIntelligenceService`
+    // are app-internal types, so this can't be part of the public API.
+    var intelligence: IntelligenceService
 
     @State private var selectedIds: Set<String> = []
     @State private var suggestedIds: [String] = []
@@ -24,7 +26,7 @@ public struct ThemeConfirmationView: View {
     @State private var usedFallback = false
     @State private var showAllThemes = false
 
-    public init(
+    init(
         intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared,
         onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String]) -> Void)? = nil,
         onBack: (() -> Void)? = nil
