@@ -54,11 +54,11 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
         case .outsideScope:
             return "[Turn: outside scope — say that's outside what you can see, then gently return to them; no journal references; leave citedRefs empty]"
         case .sharing:
-            return "[Turn: sharing — respond to what they said on its own terms; mention an entry only if it clearly helps; do not force an insight]"
+            return "[Turn: sharing — respond to what they said as a friend; mention an entry only if it clearly helps; do not force an insight or citation]"
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; do not re-acknowledge or restart]"
+            return "[Turn: follow-up — continue your previous point in the same thread; do not restart, re-acknowledge, or begin a new entry inventory]"
         case .journalGrounded:
-            return "[Turn: journal question — ground your reply in the journal context block, name dates naturally, and list the refs you used in citedRefs]"
+            return "[Turn: journal question — answer conversationally first; use at most one natural entry reference if it helps; ask one forward question; list only the refs you used in citedRefs; do not list multiple entries unless they asked what they wrote about a topic]"
         case .noMatch:
             return "[Turn: journal question, no matches — say you don't see entries about that yet and invite them to write about it; do not invent any]"
         }
@@ -116,8 +116,9 @@ enum RetrievalPolicy {
     }
 
     /// Resolves the final stance from the turn type and what retrieval
-    /// actually produced. The confidence bar (non-ambient retrieval) — not the
-    /// classifier — decides whether a share/reflective turn gets grounded.
+    /// actually produced. Explicit journal asks stay grounded/noMatch;
+    /// shares and reflective musings stay conversational so chat does not
+    /// become an entry report.
     static func stance(turn: TurnType, retrieval: RetrievalResult) -> TurnStance {
         switch turn {
         case .social, .acknowledgement:
@@ -129,14 +130,16 @@ enum RetrievalPolicy {
         case .followup:
             return .followupThread
         case .share:
-            // Promoted to grounded only when the high bar produced a real match.
-            return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .sharing
+            // Emotional/event shares stay conversational — never promote to
+            // journalGrounded just because retrieval found a weak topical hit.
+            return .sharing
         case .journalQuery:
             // An explicit journal ask with no real match gets the honest answer.
             return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .noMatch
         case .reflectiveQuestion:
-            // Reflective questions degrade to warm conversation, not refusal.
-            return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .sharing
+            // Reflective musings stay warm conversation; grounded reports are
+            // reserved for explicit journal asks.
+            return .sharing
         }
     }
 }

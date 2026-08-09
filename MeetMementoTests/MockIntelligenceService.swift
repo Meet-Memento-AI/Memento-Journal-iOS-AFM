@@ -17,7 +17,7 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
             citations: [],
             zoneUsed: .onDevice,
             wasDegraded: false,
-            promptVersion: "ask@3",
+            promptVersion: "ask@4",
             modelIdentifier: "mock"
         )
     }
