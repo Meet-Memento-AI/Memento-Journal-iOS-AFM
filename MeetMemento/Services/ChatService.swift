@@ -74,6 +74,14 @@ struct ChatSummaryResponse: Codable {
     let content: String
 }
 
+/// Incremental chat output. `delta` is the reply body so far (cumulative);
+/// `final` carries the complete `ChatResponse` (sources, session id) once
+/// generation finishes and the turn is persisted.
+enum ChatStreamEvent: Sendable {
+    case delta(body: String, heading1: String?, heading2: String?)
+    case final(ChatResponse)
+}
+
 // MARK: - Service protocol (enables unit tests with mocks)
 
 protocol ChatServiceProtocol: AnyObject {
@@ -82,6 +90,32 @@ protocol ChatServiceProtocol: AnyObject {
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO]
     func deleteSession(sessionId: UUID) async throws
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse
+    /// Warm the on-device model ahead of the first send (chat view appears).
+    func prewarm()
+    /// Streaming send: emits the reply as it generates, then a final response.
+    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
+}
+
+extension ChatServiceProtocol {
+    func prewarm() {}
+
+    /// Default streaming: run the one-shot `sendMessage` and emit a single
+    /// delta + final. Mocks that only implement `sendMessage` still work.
+    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let response = try await sendMessage(text, sessionId: sessionId)
+                    continuation.yield(.delta(body: response.reply, heading1: response.heading1, heading2: response.heading2))
+                    continuation.yield(.final(response))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }
 
 // MARK: - Service
@@ -94,6 +128,17 @@ class ChatService {
     /// The on-device intelligence boundary. ChatService itself never imports
     /// FoundationModels — it depends only on the protocol (P3 / REQ-INT-001).
     private let intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared
+
+    /// Warm the model AND precompute entry embeddings ahead of the first send,
+    /// off the main thread, so message #1 doesn't pay cold model load + cold
+    /// "embed every entry" costs.
+    func prewarm() {
+        intelligence.prewarm()
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            EntryRetriever.warmEmbeddings(self.loadLocalEntries())
+        }
+    }
 
     /// Reused across citation mapping (avoids a per-source allocation).
     private static let iso8601 = ISO8601DateFormatter()
@@ -152,6 +197,64 @@ class ChatService {
             sources: sources,
             sessionId: conversationId.uuidString
         )
+    }
+
+    /// Streaming send: forwards the model's incremental output as `.delta`
+    /// events (so the bubble fills as it generates), then persists the turn and
+    /// emits `.final`. Persistence and citation mapping run *after* the stream
+    /// so nothing blocks first-token.
+    func sendMessageStream(_ text: String, sessionId: UUID? = nil) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                let conversationId = sessionId ?? UUID()
+                let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+                let entries = self.loadLocalEntries()
+                do {
+                    var finalResult: AskResult?
+                    for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
+                        switch event {
+                        case .delta(let bodySoFar, let h1, let h2):
+                            continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2))
+                        case .final(let result):
+                            finalResult = result
+                        }
+                    }
+                    guard let result = finalResult else {
+                        // Stream ended without a final (e.g. cancelled) — no persist.
+                        continuation.finish()
+                        return
+                    }
+                    let sources = result.citations.map { citation in
+                        ChatSource(
+                            id: citation.entryId.uuidString,
+                            createdAt: Self.iso8601.string(from: citation.entryDate),
+                            preview: citation.excerpt
+                        )
+                    }
+                    LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
+                    LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
+                    LocalChatStore.shared.appendMessage(
+                        role: "assistant",
+                        content: Self.assistantContentJSON(body: result.body, heading1: result.heading1, heading2: result.heading2, sources: sources),
+                        to: conversationId
+                    )
+                    continuation.yield(.final(ChatResponse(
+                        reply: result.body,
+                        heading1: result.heading1,
+                        heading2: result.heading2,
+                        citedEntryIds: result.citations.map { $0.entryId.uuidString },
+                        sources: sources,
+                        sessionId: conversationId.uuidString
+                    )))
+                    continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     // MARK: - History Management

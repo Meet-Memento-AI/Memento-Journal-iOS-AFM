@@ -30,10 +30,10 @@ struct AskAnswer {
     @Guide(description: "Optional rare subheading. Usually empty.")
     let heading2: String?
 
-    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji. Second person. Three to ten sentences.")
+    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. Three to ten sentences.")
     let body: String
 
-    @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none.")
+    @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
     let citedRefs: [Int]
 }
 
@@ -57,20 +57,73 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     init() {}
 
+    private let stateLock = NSLock()
+
+    /// Cached availability. Once the model reports `.available` it stays
+    /// available for the process, so we resolve it once instead of querying
+    /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
+    private var cachedAvailability: IntelligenceAvailability?
+
+    /// A prewarmed session held so the first send doesn't pay the cold model
+    /// load. Prewarming any session loads the shared on-device model weights,
+    /// which benefits the next `respond` regardless of which session runs it.
+    /// (Phase 3 extends this into a per-conversation persistent session.)
+    private var warmSession: LanguageModelSession?
+    private var warmInstructions: String?
+
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
+        stateLock.lock()
+        if case .available = cachedAvailability, let cached = cachedAvailability {
+            stateLock.unlock()
+            return cached
+        }
+        stateLock.unlock()
+
         // On-device (Z0) only against the iOS 26 SDK. The Private Cloud Compute
         // (Z1) path — `PrivateCloudComputeLanguageModel`, reasoning levels, quota
         // governance (spec 017 R2/R3) — is an iOS-27-SDK type; it re-enables when
         // the app builds against Xcode 27 and is approved for PCC. On-device-first.
+        let resolved: IntelligenceAvailability
         switch SystemLanguageModel.default.availability {
         case .available:
-            return .available(.onDevice)
+            resolved = .available(.onDevice)
         case .unavailable(let reason):
-            return .unavailable(Self.map(reason))
+            resolved = .unavailable(Self.map(reason))
         @unknown default:
-            return .unavailable(.other("Intelligence is unavailable on this device."))
+            resolved = .unavailable(.other("Intelligence is unavailable on this device."))
+        }
+        // Only cache the positive result — an "unavailable" (still downloading)
+        // can flip to available later, so keep re-checking that case.
+        if case .available = resolved {
+            stateLock.lock(); cachedAvailability = resolved; stateLock.unlock()
+        }
+        return resolved
+    }
+
+    // MARK: Prewarm
+
+    /// Warms the on-device model ahead of the first send (call when the chat
+    /// view appears / the input gains focus). Cheap and idempotent; safe to
+    /// call when the model is unavailable (the session simply can't run).
+    func prewarm() {
+        let instructions = PromptRegistry.instructions(
+            for: .ask,
+            personalization: PromptPersonalization.fromLocalProfile()
+        ).text
+        stateLock.lock()
+        let needsNew = (warmSession == nil || warmInstructions != instructions)
+        if needsNew {
+            let session = LanguageModelSession(instructions: instructions)
+            warmSession = session
+            warmInstructions = instructions
+            stateLock.unlock()
+            session.prewarm()
+        } else {
+            let session = warmSession
+            stateLock.unlock()
+            session?.prewarm()
         }
     }
 
@@ -85,7 +138,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     // MARK: Ask
 
-    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+    /// Everything the model call needs, computed once and shared by the
+    /// one-shot `ask` and the streaming `askStream`.
+    private struct AskPreparation {
+        let zone: IntelligenceZone
+        let retrieval: RetrievalResult
+        let stance: TurnStance
+        let prompt: String
+        let resolved: ResolvedPrompt
+    }
+
+    /// Availability → turn classification → retrieval → stance → prompt +
+    /// instructions. Pure aside from the availability await.
+    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskPreparation {
         let availability = await availability()
         guard case .available(let zone) = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
@@ -101,9 +166,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .none:
             retrieval = .empty
         case .reusePrevious:
-            // Stateless re-derivation of the previous grounding: retrieval is
-            // deterministic and entry vectors are cached, so re-querying with
-            // the last substantive user turn reproduces it.
             if let anchor = RetrievalPolicy.followupAnchor(history: history) {
                 retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor), entries: entries)
             } else {
@@ -122,44 +184,98 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
         let prompt = Self.buildAskPrompt(question: question, history: history, retrieval: retrieval, stance: stance)
-
-        // On-device (Z0). PCC (Z1) uses the same call site with a different model;
-        // for this pass we run on-device — a degraded prompt variant would be used
-        // for the smaller model if we were falling back from a PCC prompt.
         let resolved = PromptRegistry.instructions(
             for: .ask,
             degraded: false,
             personalization: PromptPersonalization.fromLocalProfile()
         )
-        let session = LanguageModelSession(instructions: resolved.text)
+        return AskPreparation(zone: zone, retrieval: retrieval, stance: stance, prompt: prompt, resolved: resolved)
+    }
 
+    /// Builds the final `AskResult` (citations reconciled, reference markers
+    /// stripped) from either the whole-answer `respond` or the last streamed
+    /// snapshot. Reference stripping happens here so the live reply and the
+    /// JSON ChatService persists both carry the cleaned body.
+    private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
+                            prep: AskPreparation, question: String) -> AskResult {
+        let citations = Self.reconcileCitations(
+            citedRefs, retrieval: prep.retrieval, question: question, grounded: prep.stance.isGrounded
+        )
+        return AskResult(
+            heading1: heading1?.isEmpty == true ? nil : heading1,
+            heading2: heading2?.isEmpty == true ? nil : heading2,
+            body: Self.strippingReferenceMarkers(body),
+            citations: citations,
+            zoneUsed: prep.zone,
+            wasDegraded: false,
+            promptVersion: prep.resolved.version,
+            modelIdentifier: Self.modelIdentifier(for: prep.zone)
+        )
+    }
+
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+        let prep = try await prepareAsk(question: question, history: history, entries: entries)
+        let session = LanguageModelSession(instructions: prep.resolved.text)
         do {
             let response = try await session.respond(
-                to: prompt,
+                to: prep.prompt,
                 generating: AskAnswer.self,
                 options: GenerationOptions(temperature: 0.7)
             )
             let answer = response.content
-            let citations = Self.reconcileCitations(
-                answer.citedRefs,
-                retrieval: retrieval,
-                question: question,
-                grounded: stance.isGrounded
-            )
-            return AskResult(
-                heading1: answer.heading1?.isEmpty == true ? nil : answer.heading1,
-                heading2: answer.heading2?.isEmpty == true ? nil : answer.heading2,
-                body: answer.body,
-                citations: citations,
-                zoneUsed: zone,
-                wasDegraded: false,
-                promptVersion: resolved.version,
-                modelIdentifier: Self.modelIdentifier(for: zone)
-            )
+            return makeResult(heading1: answer.heading1, heading2: answer.heading2,
+                              body: answer.body, citedRefs: answer.citedRefs,
+                              prep: prep, question: question)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
             throw IntelligenceError.generationFailed(error.localizedDescription)
+        }
+    }
+
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let prep = try await prepareAsk(question: question, history: history, entries: entries)
+                    let session = LanguageModelSession(instructions: prep.resolved.text)
+                    let stream = session.streamResponse(
+                        to: prep.prompt,
+                        generating: AskAnswer.self,
+                        options: GenerationOptions(temperature: 0.7)
+                    )
+                    var lastHeading1: String?
+                    var lastHeading2: String?
+                    var lastBody = ""
+                    var lastCitedRefs: [Int] = []
+                    for try await snapshot in stream {
+                        let content = snapshot.content
+                        lastBody = content.body ?? ""
+                        lastHeading1 = content.heading1 ?? nil
+                        lastHeading2 = content.heading2 ?? nil
+                        if let refs = content.citedRefs { lastCitedRefs = refs }
+                        // Emit the cleaned body-so-far so the live reply matches
+                        // exactly what gets persisted at the end.
+                        continuation.yield(.delta(
+                            bodySoFar: Self.strippingReferenceMarkers(lastBody),
+                            heading1: lastHeading1?.isEmpty == true ? nil : lastHeading1,
+                            heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2
+                        ))
+                    }
+                    let result = makeResult(heading1: lastHeading1, heading2: lastHeading2,
+                                            body: lastBody, citedRefs: lastCitedRefs,
+                                            prep: prep, question: question)
+                    continuation.yield(.final(result))
+                    continuation.finish()
+                } catch let error as LanguageModelSession.GenerationError {
+                    continuation.finish(throwing: Self.mapGenerationError(error))
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: IntelligenceError.generationFailed(error.localizedDescription))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -284,10 +400,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
-        let recent = history.suffix(8)
+        // Six turns keeps ample thread context while trimming the prompt the
+        // small on-device model has to ingest (faster time-to-first-token).
+        let recent = history.suffix(6)
         if !recent.isEmpty {
             let convo = recent
-                .map { ($0.role == .user ? "You: " : "Memento: ") + String($0.text.prefix(400)) }
+                .map { ($0.role == .user ? "You: " : "Memento: ") + String($0.text.prefix(320)) }
                 .joined(separator: "\n")
             parts.append("Conversation so far (most recent last):\n\(convo)")
             parts.append(
@@ -296,6 +414,58 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         parts.append("The person's latest message: \(question)")
         return parts.joined(separator: "\n\n")
+    }
+
+    // MARK: - Reference-marker stripping
+
+    /// Removes `[ref 2]`, `(ref 2)`, `ref 2`, and bare `[2]` from a reply.
+    ///
+    /// The prompt and the `body` @Guide both ban these, but the `[ref N]` labels
+    /// are sitting right there in the model's context as the naming convention
+    /// for entries, and a small on-device model leaks them into prose. Nothing
+    /// downstream strips markers — `RichTextParser` only handles bold, italic,
+    /// and bullets — so anything the model writes reaches the screen verbatim.
+    /// This is the backstop.
+    ///
+    /// Inline citations return in a later release; this whole function goes
+    /// away then, along with the prompt bans.
+    static func strippingReferenceMarkers(_ body: String) -> String {
+        // Ordered: bracketed/parenthesised ref forms, then bare square-bracket
+        // numbers, then a bare "ref 2". Each tolerates lists ("ref 1 and 2").
+        let numberList = #"\d+(?:\s*(?:,|and|&)\s*\d+)*"#
+        let patterns = [
+            #"\s*[\[(]\s*refs?\.?\s*#?"# + numberList + #"\s*[\])]"#,
+            #"\s*\[\s*"# + numberList + #"\s*\]"#,
+            #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#
+        ]
+
+        var out = body
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+            out = regex.stringByReplacingMatches(
+                in: out,
+                range: NSRange(out.startIndex..., in: out),
+                withTemplate: ""
+            )
+        }
+
+        // Tidy what removal left behind: a space before punctuation, doubled
+        // spaces, and a space before a closing bracket.
+        let cleanups: [(String, String)] = [
+            (#"\s+([,.;:!?])"#, "$1"),
+            (#"[ \t]{2,}"#, " "),
+            (#"\(\s*\)"#, "")
+        ]
+        for (pattern, template) in cleanups {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            out = regex.stringByReplacingMatches(
+                in: out,
+                range: NSRange(out.startIndex..., in: out),
+                withTemplate: template
+            )
+        }
+
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Citation reconciliation (the anti-fabrication guard)

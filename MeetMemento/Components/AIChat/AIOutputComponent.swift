@@ -84,12 +84,7 @@ public struct AIOutputComponent: View {
     @State private var displayedHeading2 = ""
     @State private var displayedBody = ""
     @State private var showCitation = false
-    @State private var isAnimating = false
     @State private var hasAnimated = false
-    @State private var animationTask: Task<Void, Never>?
-
-    // Fast typing speed like ChatGPT (characters per second)
-    private let charactersPerSecond: Double = 120
 
     /// Stable value that changes when content changes; used with onChange to avoid relying on AIOutputContent Equatable synthesis.
     private var contentIdentity: String {
@@ -132,9 +127,12 @@ public struct AIOutputComponent: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
         
-            // Citation link: appears first with a quick, sudden appearance
+            // The journals this answer used, listed above the reply. Replaces
+            // the inline "[ref N]" markers the model used to write into prose —
+            // see ReviewedJournalsList. Still the first element, and still a
+            // quick, sudden appearance ahead of the body typewriter.
             if let citations = content.citations, !citations.isEmpty {
-                CitationLink(count: citations.count, onTap: onCitationsTapped)
+                ReviewedJournalsList(citations: citations, onTap: onCitationsTapped)
                     .opacity(showCitation ? 1 : 0)
                     .animation(.easeOut(duration: 0.12), value: showCitation)
             }
@@ -224,92 +222,27 @@ public struct AIOutputComponent: View {
         }
         .padding(.top, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            if animate && !hasAnimated {
-                startTypewriterSequence()
-            } else if !animate {
-                showAllContent()
-            }
-        }
-        .onChange(of: contentIdentity) { _, _ in
-            if animate {
-                resetAnimation()
-                startTypewriterSequence()
-            } else {
-                showAllContent()
-            }
-        }
+        .onAppear { revealContent(markComplete: animate) }
+        // Streaming: `content.body` grows as the model produces tokens; each
+        // update re-renders immediately (no artificial per-character delay), so
+        // text appears at the model's real cadence. Non-streamed messages (e.g.
+        // reloaded history) render whole on first appear.
+        .onChange(of: contentIdentity) { _, _ in revealContent(markComplete: false) }
     }
 
-    // MARK: - Animation Helpers
+    // MARK: - Reveal
 
-    private func showAllContent() {
+    /// Show whatever `content` currently holds, immediately. During streaming
+    /// this is called repeatedly as the body grows; `markComplete` fires the
+    /// seen-callback exactly once on first appear so a finished reply isn't
+    /// re-revealed when the row is recycled.
+    private func revealContent(markComplete: Bool) {
         displayedHeading1 = content.heading1 ?? ""
         displayedHeading2 = content.heading2 ?? ""
         displayedBody = content.body
-        showCitation = true
+        showCitation = (content.citations?.isEmpty == false)
         hasAnimated = true
-    }
-
-    private func resetAnimation() {
-        animationTask?.cancel()
-        animationTask = nil
-        displayedHeading1 = ""
-        displayedHeading2 = ""
-        displayedBody = ""
-        showCitation = false
-        hasAnimated = false
-        isAnimating = false
-    }
-
-    // MARK: - Typewriter Animation Sequence
-
-    private func startTypewriterSequence() {
-        animationTask?.cancel()
-        guard !isAnimating else { return }
-        isAnimating = true
-
-        // Citation appears first, quick and sudden
-        if content.citations != nil, !(content.citations?.isEmpty ?? true) {
-            showCitation = true
-        }
-
-        animationTask = Task { @MainActor in
-            let interval: UInt64 = UInt64(1_000_000_000 / charactersPerSecond)
-
-            // Phase 1: Heading 1
-            if let heading1 = content.heading1, !heading1.isEmpty {
-                for character in heading1 {
-                    guard !Task.isCancelled else { return }
-                    displayedHeading1.append(character)
-                    try? await Task.sleep(nanoseconds: interval)
-                }
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms pause between sections
-            }
-
-            // Phase 2: Heading 2
-            if let heading2 = content.heading2, !heading2.isEmpty {
-                for character in heading2 {
-                    guard !Task.isCancelled else { return }
-                    displayedHeading2.append(character)
-                    try? await Task.sleep(nanoseconds: interval)
-                }
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms pause between sections
-            }
-
-            // Phase 3: Body
-            for character in content.body {
-                guard !Task.isCancelled else { return }
-                displayedBody.append(character)
-                try? await Task.sleep(nanoseconds: interval)
-            }
-
-            guard !Task.isCancelled else { return }
-            isAnimating = false
-            hasAnimated = true
-            // Reply finished typing: tell the owner so it won't replay on recycle.
-            onAnimationComplete?()
-        }
+        if markComplete { onAnimationComplete?() }
     }
 }
 

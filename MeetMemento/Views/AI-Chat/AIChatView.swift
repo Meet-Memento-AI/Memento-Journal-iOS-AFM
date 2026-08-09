@@ -232,6 +232,8 @@ public struct AIChatView: View {
             Text(summaryError ?? "Unable to generate summary. Please try again.")
         }
         .onAppear {
+            // Warm the on-device model now so the first send is fast.
+            viewModel.prewarm()
             // Initialize suggestions on first appear
             if currentSuggestions.isEmpty {
                 rotateSuggestions()

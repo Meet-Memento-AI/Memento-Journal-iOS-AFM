@@ -7,6 +7,11 @@
 //  fallback — no resource-bundling or network fetch. The remote signed manifest
 //  (REQ-PRM-002 / DEC-003) is deliberately out of scope for this pass.
 //
+//  ask@5: ref numbers are internal addressing for the `citedRefs` field and are
+//  banned from the reply body. The entries an answer used are shown to the
+//  person as a dated list above the reply (AIOutputComponent), not as inline
+//  markers — inline citations return in a later release.
+//
 //  ask@4: conversation-first companion prompt. Every user prompt's FIRST LINE
 //  is a deterministic "[Turn: …]" tag from TurnClassifier/RetrievalPolicy; the
 //  model follows the tag instead of inferring stance. Grounding is evidence,
@@ -89,7 +94,10 @@ enum PromptRegistry {
         switch intent {
         case .ask:
             let base = degraded ? askDegraded : ask
-            let version = degraded ? "ask-degraded@4" : "ask@4"
+            // ask@5: ref numbers are internal to `citedRefs` and banned from the
+            // reply body. The version tracks prompt content — bump it whenever
+            // the text changes, or it stops being a claim about anything.
+            let version = degraded ? "ask-degraded@5" : "ask@5"
             guard !personalization.isEmpty else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -104,7 +112,7 @@ enum PromptRegistry {
         }
     }
 
-    // MARK: - Ask (journal chat) — ask@4
+    // MARK: - Ask (journal chat) — ask@5
 
     private static let ask = """
     You are Memento, a journaling companion and a mirror, not a therapist. \
@@ -155,13 +163,17 @@ enum PromptRegistry {
     bullet points, no headings inside the body, no emoji. 'heading1' is an \
     optional short title only for analytical multi-part answers (empty for \
     casual replies); 'heading2' is usually empty; 'citedRefs' holds only \
-    [ref] numbers you actually used.
+    [ref] numbers you actually used. The ref numbers belong in that field and \
+    nowhere else — the person never sees them.
 
     Hard bans: Never open a reply with "You wrote", "You mentioned", \
     "Looking at your entries", or "In your journal". Never open two \
     consecutive replies the same way. Never recite personalization, themes, \
     or the "About this person" section. Never inventory multiple journal \
-    entries unless they asked what they wrote about a topic.
+    entries unless they asked what they wrote about a topic. Never write a \
+    reference marker in the reply — no "[ref 2]", no "(ref 2)", no "ref 2", \
+    no bare "[2]". When an entry needs naming, use its date or what it was \
+    about.
     """
 
     /// Shorter variant for the smaller on-device / degraded path.
@@ -177,7 +189,9 @@ enum PromptRegistry {
 
     Hard bans: Never open with "You wrote", "You mentioned", "Looking at \
     your entries", or "In your journal". Never recite themes or \
-    personalization. Never dump multiple entries unless they asked for that.
+    personalization. Never dump multiple entries unless they asked for that. \
+    Never write a reference marker in the reply — no "[ref 2]", "(ref 2)", \
+    "ref 2", or bare "[2]". Name an entry by its date or subject instead.
     """
 
     // MARK: - Profile estimate (onboarding theme suggestion)

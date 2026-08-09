@@ -69,6 +69,12 @@ class ChatViewModel: ObservableObject {
         self.chatService = chatService
     }
 
+    /// Warm the on-device model so the first send doesn't pay cold model load.
+    /// Call when the chat view appears / the input gains focus.
+    func prewarm() {
+        chatService.prewarm()
+    }
+
     /// Reads the user's first name for personalized welcome messages. No
     /// accounts / no backend (the name is captured during onboarding and
     /// stored locally); this is a local UserDefaults read, kept `async` to
@@ -219,44 +225,48 @@ class ChatViewModel: ObservableObject {
         isLoading = true
         let generation = sendGeneration
 
+        // Empty assistant bubble appended immediately; it fills as the model
+        // streams so text appears the moment generation starts (no waiting for
+        // the whole reply, no artificial typewriter).
+        let assistantId = UUID()
+        appendMessage(ChatMessage.aiMessage(id: assistantId, body: "", isNew: true))
+
         track(Task { [weak self] in
             guard let self else { return }
+            var sawContent = false
             do {
-                let response = try await chatService.sendMessage(text, sessionId: currentSessionId)
+                for try await event in chatService.sendMessageStream(text, sessionId: currentSessionId) {
+                    // Cancelled or superseded mid-flight (user left / switched
+                    // conversations): stop writing into whatever is on screen now.
+                    guard generation == sendGeneration, !Task.isCancelled else { return }
 
-                // Cancelled or superseded mid-flight (user left the view or
-                // switched conversations): don't append the reply into
-                // whatever conversation is now on screen.
-                guard generation == sendGeneration, !Task.isCancelled else { return }
+                    switch event {
+                    case .delta(let body, let heading1, let heading2):
+                        // First visible token: drop the "thinking" indicator.
+                        if isLoading { isLoading = false }
+                        sawContent = sawContent || !body.isEmpty
+                        updateStreamingMessage(id: assistantId, body: body,
+                                               heading1: heading1, heading2: heading2, citations: nil)
 
-                // Update current session ID from response (handles new session creation)
-                if let newSessionId = UUID(uuidString: response.sessionId) {
-                    if currentSessionId == nil {
-                        currentSessionId = newSessionId
-                        // Refresh sessions list when a new session is created
-                        await fetchSessions()
+                    case .final(let response):
+                        // Handle new-session creation (first message of a chat).
+                        if let newSessionId = UUID(uuidString: response.sessionId), currentSessionId == nil {
+                            currentSessionId = newSessionId
+                            await fetchSessions()
+                        }
+                        let citations = mapSourcesToCitations(response.sources)
+                        updateStreamingMessage(id: assistantId, body: response.reply,
+                                               heading1: response.heading1, heading2: response.heading2,
+                                               citations: citations.isEmpty ? nil : citations)
+                        sawContent = sawContent || !response.reply.isEmpty
+                        if let sessionId = currentSessionId { messageCache[sessionId] = messages }
                     }
-                }
-
-                let citations = mapSourcesToCitations(response.sources)
-
-                let aiMessage = ChatMessage.aiMessage(
-                    heading1: response.heading1,
-                    heading2: response.heading2,
-                    body: response.reply,
-                    citations: citations.isEmpty ? nil : citations,
-                    isNew: true
-                )
-                appendMessage(aiMessage)
-
-                // Update cache after successful send
-                if let sessionId = currentSessionId {
-                    messageCache[sessionId] = messages
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
-                // Keep the retry affordance on the bubble even when the send
-                // was cancelled (no-op if the conversation was cleared).
+                // Drop the empty placeholder so a failed send doesn't leave a
+                // blank bubble; keep the retry affordance on the user's message.
+                if !sawContent { messages.removeAll { $0.id == assistantId } }
                 setSendFailed(true, forMessageId: userMessageId)
                 // A cancelled/superseded send shouldn't pop the error alert
                 // over unrelated content.
@@ -267,8 +277,25 @@ class ChatViewModel: ObservableObject {
                 }
             }
             guard generation == sendGeneration else { return }
+            // Nothing streamed at all (e.g. immediate cancel): clean the placeholder.
+            if !sawContent { messages.removeAll { $0.id == assistantId } }
             isLoading = false
         })
+    }
+
+    /// Replaces the streaming assistant bubble (matched by id) with the
+    /// latest body/headings/citations. Called on every delta and once on final.
+    private func updateStreamingMessage(id: UUID, body: String, heading1: String?, heading2: String?, citations: [JournalCitation]?) {
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[index] = ChatMessage.aiMessage(
+            id: id,
+            heading1: heading1,
+            heading2: heading2,
+            body: body,
+            citations: citations,
+            timestamp: messages[index].timestamp,
+            isNew: true
+        )
     }
 
     // MARK: - Clear Conversation

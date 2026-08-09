@@ -60,6 +60,14 @@ struct AskResult: Sendable {
     let modelIdentifier: String
 }
 
+/// An incremental event from a streaming ask (spec 017 R6). `delta` carries the
+/// reply **so far** (cumulative, not just the new chunk) so the UI can render it
+/// directly; `final` carries the completed result with reconciled citations.
+enum AskStreamEvent: Sendable {
+    case delta(bodySoFar: String, heading1: String?, heading2: String?)
+    case final(AskResult)
+}
+
 /// Onboarding personalization estimate: closed-vocab theme ids + a bounded lens.
 struct ProfileEstimateResult: Sendable, Equatable {
     let themeIds: [String]
@@ -130,6 +138,10 @@ protocol IntelligenceService: Sendable {
     /// caller owns the transcript.
     func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult
 
+    /// Streaming variant of `ask` (spec 017 R6): emits the reply as it
+    /// generates so the UI shows text immediately instead of after completion.
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error>
+
     /// Turn a conversation into a first-person journal-entry summary.
     func summarizeConversation(_ turns: [ChatTurn]) async throws -> String
 
@@ -139,4 +151,34 @@ protocol IntelligenceService: Sendable {
 
     /// Whether generation can run right now, and in which zone.
     func availability() async -> IntelligenceAvailability
+
+    /// Warm the model ahead of the first request (e.g. when the chat view
+    /// appears). Fire-and-forget; no-op where unsupported.
+    func prewarm()
+}
+
+extension IntelligenceService {
+    // Default no-op so non-model implementations (mocks/tests) opt in only if
+    // they want to.
+    func prewarm() {}
+
+    /// Default streaming implementation: run the one-shot `ask` and emit a
+    /// single delta + final. Mocks and any non-streaming implementation get
+    /// correct (if non-incremental) behavior for free; the real Foundation
+    /// Models service overrides this with true snapshot streaming.
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let result = try await ask(question, history: history, entries: entries)
+                    continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1, heading2: result.heading2))
+                    continuation.yield(.final(result))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }

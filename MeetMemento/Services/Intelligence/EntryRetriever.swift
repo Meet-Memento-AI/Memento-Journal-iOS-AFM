@@ -88,12 +88,30 @@ struct RetrievalQuery: Sendable, Equatable {
 
 enum EntryRetriever {
     static let maxEntries = 7
-    static let maxContentChars = 600
+    // Trimmed from 600 → 500: still enough of each entry to ground a reply,
+    // while shrinking the journal-evidence block the model ingests per turn
+    // (faster time-to-first-token). Tunable.
+    static let maxContentChars = 500
 
     // Hybrid weights. Semantic dominates when available; keyword and recency
     // keep it grounded and break ties.
     private static let semanticWeight = 5.0
     private static let recencyWeight = 0.5
+
+    /// The canonical text an entry is embedded under — must match what
+    /// `retrieve` uses so the warm pass and the retrieval pass hit the same
+    /// `EmbeddingService` cache key.
+    static func embedText(for entry: Entry) -> String { "\(entry.title). \(entry.text)" }
+
+    /// Precompute and cache every entry's embedding off the send path, so the
+    /// first chat message doesn't pay the cold "embed all entries" cost. Cheap
+    /// on repeat (the per-entry cache short-circuits unchanged entries). Call
+    /// from a background context.
+    static func warmEmbeddings(_ entries: [Entry]) {
+        for entry in entries {
+            _ = EmbeddingService.shared.embedEntry(id: entry.id, text: embedText(for: entry))
+        }
+    }
 
     private static let stopwords: Set<String> = [
         "the", "a", "an", "and", "or", "but", "if", "then", "so", "to", "of", "in",
@@ -122,7 +140,7 @@ enum EntryRetriever {
             let keyword = keywordScore(entry: entry, terms: terms)
             var cosine: Double? = nil
             if let currentVector,
-               let entryVector = EmbeddingService.shared.embedEntry(id: entry.id, text: "\(entry.title). \(entry.text)") {
+               let entryVector = EmbeddingService.shared.embedEntry(id: entry.id, text: embedText(for: entry)) {
                 var value = EmbeddingService.cosineSimilarity(currentVector, entryVector) * tuning.currentWeight
                 if let historyVector {
                     value += EmbeddingService.cosineSimilarity(historyVector, entryVector) * tuning.historyWeight
@@ -253,9 +271,19 @@ enum EntryRetriever {
 
     private static func buildContextBlock(_ entries: [RetrievedEntry], ambient: Bool) -> String {
         guard !entries.isEmpty else { return "" }
+        // The [ref N] labels below are an INTERNAL handle so the model can name
+        // which entries it used in `citedRefs` — they are not a citation style
+        // to reproduce in the reply. The header used to say "reference entries
+        // by their [ref] number", which taught the model to write "ref 1" into
+        // prose; nothing in the render path strips such markers, so they reached
+        // the screen verbatim. Say plainly where the numbers belong instead.
+        //
+        // The per-entry line format below is load-bearing and must not change:
+        // it is the addressing scheme `citedRefs` → `reconcileCitations` depends
+        // on, and therefore what produces citations at all.
         let header = ambient
             ? "[Recent journal entries — background context. The person didn't ask about a specific one; use these to talk naturally, not to force citations.]"
-            : "[Journal context — reference entries by their [ref] number and date]"
+            : "[Journal context. Each entry is tagged with a [ref] number for the citedRefs field only — never write these numbers, or any bracketed reference, in your reply. Refer to entries by their date or content.]"
         var lines = [header, ""]
         for entry in entries {
             lines.append("[ref \(entry.ref) | \(formattedDate(entry.date))] \(entry.text)")
