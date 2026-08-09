@@ -295,6 +295,7 @@ public struct AIChatView: View {
                                 ChatMessageBubble(
                                     message: message,
                                     animate: message.isNew,
+                                    isStreaming: message.isStreaming,
                                     feedbackType: viewModel.feedbackType(for: message.id),
                                     onCitationsTapped: {
                                         if let citations = message.citations, !citations.isEmpty {
@@ -360,6 +361,14 @@ public struct AIChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollContentBackground(.hidden)
             .background(theme.background)
+            // ⚠️ This gesture spans the whole message list, and it will SWALLOW
+            // taps from any descendant that is not a `Button`. A plain
+            // `.onTapGesture` on a child loses to it across the ScrollView
+            // boundary, and the child silently stops responding — that is
+            // exactly how the citations modal broke once (CitationLink was
+            // briefly reimplemented with `.onTapGesture` instead of `Button`).
+            // Make tappable children `Button`s, or attach
+            // `.highPriorityGesture` if a Button is genuinely unsuitable.
             .onTapGesture {
                 dismissKeyboard()
             }

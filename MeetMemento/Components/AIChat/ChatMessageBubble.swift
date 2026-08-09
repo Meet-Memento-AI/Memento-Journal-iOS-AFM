@@ -10,6 +10,9 @@ import SwiftUI
 public struct ChatMessageBubble: View {
     let message: ChatMessage
     var animate: Bool
+    /// True while the assistant reply is still streaming — forwarded to the
+    /// typewriter so it only completes once the full reply has arrived.
+    var isStreaming: Bool
     var feedbackType: FeedbackType?
     var onCitationsTapped: (() -> Void)?
     var onRedo: (() -> Void)?
@@ -26,6 +29,7 @@ public struct ChatMessageBubble: View {
     public init(
         message: ChatMessage,
         animate: Bool = true,
+        isStreaming: Bool = false,
         feedbackType: FeedbackType? = nil,
         onCitationsTapped: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
@@ -36,6 +40,7 @@ public struct ChatMessageBubble: View {
     ) {
         self.message = message
         self.animate = animate
+        self.isStreaming = isStreaming
         self.feedbackType = feedbackType
         self.onCitationsTapped = onCitationsTapped
         self.onRedo = onRedo
@@ -79,11 +84,12 @@ public struct ChatMessageBubble: View {
                 .font(type.body1.weight(.medium))
                 .foregroundStyle(theme.foreground) // Use semantic token for proper contrast
                 .lineSpacing(type.bodyLineSpacing)
-        } else if let aiContent = message.aiOutputContent {
+        } else if let aiContent = message.aiOutputContent, !isEmptyStreamingPlaceholder(aiContent) {
             // AI messages with structured content (headings, body, citations)
             AIOutputComponent(
                 content: aiContent,
                 animate: animate,
+                isStreaming: isStreaming,
                 feedbackType: feedbackType,
                 onCitationsTapped: onCitationsTapped,
                 onRedo: onRedo,
@@ -95,11 +101,31 @@ public struct ChatMessageBubble: View {
             // AI messages: support markdown/rich text (fallback)
             // Clean any JSON artifacts that might have leaked through
             let cleanContent = cleanJSONFromContent(message.content)
-            Text(LocalizedStringKey(cleanContent))
-                .font(type.body1)
-                .foregroundStyle(theme.foreground)
-                .lineSpacing(type.bodyLineSpacing)
+            if cleanContent.isEmpty {
+                // The pre-stream placeholder lands here once the branch above
+                // rejects it. Render nothing — an empty Text still claims a
+                // line's height, which is the gap above the loading indicator.
+                EmptyView()
+            } else {
+                Text(LocalizedStringKey(cleanContent))
+                    .font(type.body1)
+                    .foregroundStyle(theme.foreground)
+                    .lineSpacing(type.bodyLineSpacing)
+            }
         }
+    }
+
+    /// True for the empty assistant bubble `ChatViewModel.performSend` appends
+    /// the instant a prompt is sent, before any token has streamed back.
+    ///
+    /// Rendering a response shell for it puts padding — and, before this,
+    /// a visible action bar — directly above the "Memento is thinking"
+    /// indicator. `AILoadingState` already communicates that state, so the
+    /// placeholder should occupy no space at all until it has content.
+    private func isEmptyStreamingPlaceholder(_ content: AIOutputContent) -> Bool {
+        content.body.isEmpty
+            && (content.heading1 ?? "").isEmpty
+            && (content.heading2 ?? "").isEmpty
     }
 
     // MARK: - Retry Row

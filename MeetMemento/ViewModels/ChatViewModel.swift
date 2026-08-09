@@ -246,7 +246,8 @@ class ChatViewModel: ObservableObject {
                         if isLoading { isLoading = false }
                         sawContent = sawContent || !body.isEmpty
                         updateStreamingMessage(id: assistantId, body: body,
-                                               heading1: heading1, heading2: heading2, citations: nil)
+                                               heading1: heading1, heading2: heading2, citations: nil,
+                                               isStreaming: true)
 
                     case .final(let response):
                         // Handle new-session creation (first message of a chat).
@@ -257,7 +258,8 @@ class ChatViewModel: ObservableObject {
                         let citations = mapSourcesToCitations(response.sources)
                         updateStreamingMessage(id: assistantId, body: response.reply,
                                                heading1: response.heading1, heading2: response.heading2,
-                                               citations: citations.isEmpty ? nil : citations)
+                                               citations: citations.isEmpty ? nil : citations,
+                                               isStreaming: false)
                         sawContent = sawContent || !response.reply.isEmpty
                         if let sessionId = currentSessionId { messageCache[sessionId] = messages }
                     }
@@ -284,8 +286,10 @@ class ChatViewModel: ObservableObject {
     }
 
     /// Replaces the streaming assistant bubble (matched by id) with the
-    /// latest body/headings/citations. Called on every delta and once on final.
-    private func updateStreamingMessage(id: UUID, body: String, heading1: String?, heading2: String?, citations: [JournalCitation]?) {
+    /// latest body/headings/citations. Called on every delta (`isStreaming:
+    /// true`) and once on final (`isStreaming: false`) so the typewriter knows
+    /// when the stream has genuinely ended.
+    private func updateStreamingMessage(id: UUID, body: String, heading1: String?, heading2: String?, citations: [JournalCitation]?, isStreaming: Bool) {
         guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
         messages[index] = ChatMessage.aiMessage(
             id: id,
@@ -294,7 +298,8 @@ class ChatViewModel: ObservableObject {
             body: body,
             citations: citations,
             timestamp: messages[index].timestamp,
-            isNew: true
+            isNew: true,
+            isStreaming: isStreaming
         )
     }
 
