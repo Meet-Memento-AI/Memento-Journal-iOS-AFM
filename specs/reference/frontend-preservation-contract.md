@@ -87,10 +87,10 @@ before relying on a row.
 | ID | Behavior | Implementation |
 |---|---|---|
 | PRES-060 | Welcome: looping video background with progressive blur + staged dissolve, logo, headline — auth buttons replaced by single "Get Started" (spec 023 R2) | `Views/Onboarding/WelcomeView.swift`, `Components/VideoBackground.swift` |
-| PRES-061 | Step order: YourName → LearnAboutYourself → YourGoals → app-lock setup → LoadingStateView; back from first step returns to Welcome | `OnboardingCoordinatorView.swift` |
+| PRES-061 | Step order: YourName → LearnAboutYourself → ThemeConfirmation → app-lock setup → LoadingStateView; back from first step returns to Welcome | `OnboardingCoordinatorView.swift` |
 | PRES-062 | Name collection (first + last, continue gated on both) populates the local display name | `YourNameView.swift` |
-| PRES-063 | "Learn about yourself" free-text step with voice-dictation FAB and live duration; the text becomes the user's **first journal entry** | `LearnAboutYourselfView.swift` |
-| PRES-064 | Goals: multi-select chips (8 goals) in flow layout, ≥1 required; editable later from the drawer | `YourGoalsView.swift`, `EditJournalGoalsView.swift` |
+| PRES-063 | "Learn about yourself" free-text step with voice-dictation FAB and live duration; the text becomes the user's **first journal entry** and seeds Experience Profile estimation | `LearnAboutYourselfView.swift` |
+| PRES-064 | Themes: AFM/keyword-suggested ThemeCatalog chips (1–6), browse-all by family; editable later from the drawer with Rebuild lens | `ThemeConfirmationView.swift`, `EditJournalGoalsView.swift` |
 | PRES-065 | App-lock setup: Face ID offer → PIN alternative (4-box entry, confirm step with shake-on-mismatch) — 2.0: default-on with explicit-friction skip (spec 023 R3) | `FaceIDView.swift`, `SetupPinView.swift`, `ConfirmPinView.swift` |
 | PRES-066 | Completion: animated progress ring, phased status messages, rotating tip cards | `LoadingStateView.swift`, `Components/Loading/*` |
 

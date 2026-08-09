@@ -37,6 +37,19 @@ struct AskAnswer {
     let citedRefs: [Int]
 }
 
+/// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
+@Generable
+struct ProfileEstimateAnswer {
+    @Guide(description: "3 to 4 primary theme ids from the provided catalog only.")
+    let themeIds: [String]
+
+    @Guide(description: "Up to 2 secondary theme ids from the catalog. May be empty.")
+    let secondaryThemeIds: [String]
+
+    @Guide(description: "1 to 3 short third-person sentences guiding tone and questions. Under 400 characters. No therapy language.")
+    let promptLens: String
+}
+
 // MARK: - Service
 
 final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked Sendable {
@@ -148,6 +161,75 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         } catch {
             throw IntelligenceError.generationFailed(error.localizedDescription)
         }
+    }
+
+    // MARK: Profile estimate (onboarding)
+
+    func estimateProfile(reflection: String) async throws -> ProfileEstimateResult {
+        let availability = await availability()
+        guard case .available(let zone) = availability else {
+            if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
+            throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
+        }
+
+        let trimmed = reflection.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw IntelligenceError.generationFailed("Reflection text is empty.")
+        }
+
+        let resolved = PromptRegistry.instructions(for: .profileEstimate, degraded: false)
+        let session = LanguageModelSession(instructions: resolved.text)
+        let prompt = Self.buildProfileEstimatePrompt(reflection: trimmed)
+
+        do {
+            let response = try await session.respond(
+                to: prompt,
+                generating: ProfileEstimateAnswer.self,
+                options: GenerationOptions(temperature: 0.4)
+            )
+            let answer = response.content
+            let primary = ThemeCatalog.validate(answer.themeIds, max: ThemeCatalog.defaultSuggestionCount)
+            let secondary = ThemeCatalog.validate(answer.secondaryThemeIds, max: 2)
+                .filter { !primary.contains($0) }
+            var lens = answer.promptLens.trimmingCharacters(in: .whitespacesAndNewlines)
+            if lens.count > PromptRegistry.maxPromptLensChars {
+                lens = String(lens.prefix(PromptRegistry.maxPromptLensChars))
+            }
+            // If the model returned nothing usable, fall back to keyword overlap.
+            let themes = primary.isEmpty
+                ? ThemeCatalog.suggestFromKeywords(trimmed)
+                : primary
+            return ProfileEstimateResult(
+                themeIds: themes,
+                secondaryThemeIds: secondary,
+                promptLens: lens,
+                zoneUsed: zone,
+                wasDegraded: false,
+                promptVersion: resolved.version,
+                modelIdentifier: Self.modelIdentifier(for: zone)
+            )
+        } catch let error as LanguageModelSession.GenerationError {
+            throw Self.mapGenerationError(error)
+        } catch {
+            throw IntelligenceError.generationFailed(error.localizedDescription)
+        }
+    }
+
+    private static func buildProfileEstimatePrompt(reflection: String) -> String {
+        // Compact catalog projection — id + display name only — to protect context.
+        let catalogLines = ThemeCatalog.all
+            .map { "\($0.id): \($0.displayName)" }
+            .joined(separator: "\n")
+        let cappedReflection = reflection.count > 800
+            ? String(reflection.prefix(800)) + "…"
+            : reflection
+        return """
+        Catalog (id: DisplayName) — choose only from these ids:
+        \(catalogLines)
+
+        Their reflection:
+        \"\(cappedReflection)\"
+        """
     }
 
     // MARK: Summarize

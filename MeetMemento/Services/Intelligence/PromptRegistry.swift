@@ -21,11 +21,9 @@
 //  open question) applies ONLY under the journal-question tag. The tag strings
 //  here must stay in sync with TurnStance.promptLine (PromptStanceSyncTests).
 //
-//  Personalization: onboarding refinement data (About Yourself reflection +
-//  selected journal goals + first name, all local via LocalProfileStore /
-//  UserDefaults) is appended as a bounded "About this person" section — quiet
-//  background for tone and question-shaping, never recited back. Versions get
-//  a "+p" suffix so logs distinguish personalized prompts.
+//  Personalization (+p2): ExperienceProfile (reflection + ThemeCatalog themes +
+//  prompt lens + first name) is appended as a bounded "About this person"
+//  section — quiet background for tone and question-shaping, never recited back.
 //
 //  No `import FoundationModels` — pure Swift.
 //
@@ -42,25 +40,38 @@ struct ResolvedPrompt: Sendable, Equatable {
 struct PromptPersonalization: Sendable, Equatable {
     let firstName: String?
     let reflection: String?
+    /// Display names of confirmed ThemeCatalog themes.
     let goals: [String]
+    /// Bounded AFM-authored lens; optional.
+    let promptLens: String?
 
     /// Nothing to personalize with — the base prompt is used unchanged.
     var isEmpty: Bool {
-        (firstName?.isEmpty ?? true) && (reflection?.isEmpty ?? true) && goals.isEmpty
+        (firstName?.isEmpty ?? true)
+            && (reflection?.isEmpty ?? true)
+            && goals.isEmpty
+            && (promptLens?.isEmpty ?? true)
     }
 
-    static let none = PromptPersonalization(firstName: nil, reflection: nil, goals: [])
+    static let none = PromptPersonalization(
+        firstName: nil,
+        reflection: nil,
+        goals: [],
+        promptLens: nil
+    )
 
     /// Reads the locally stored refinement data (spec 023 — all on-device).
     static func fromLocalProfile() -> PromptPersonalization {
+        let profile = LocalProfileStore.ensureMigratedProfile()
         let name = UserDefaults.standard.string(forKey: "memento_first_name")?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let reflection = LocalProfileStore.personalizationText?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let reflection = profile.reflection?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lens = profile.promptLens?.trimmingCharacters(in: .whitespacesAndNewlines)
         return PromptPersonalization(
             firstName: (name?.isEmpty == false) ? name : nil,
             reflection: (reflection?.isEmpty == false) ? reflection : nil,
-            goals: LocalProfileStore.selectedGoals
+            goals: profile.confirmedThemeNames,
+            promptLens: (lens?.isEmpty == false) ? lens : nil
         )
     }
 }
@@ -70,6 +81,9 @@ enum PromptRegistry {
     /// The reflection is user free-text — cap it so it can't crowd the small
     /// on-device context window.
     static let maxReflectionChars = 300
+
+    /// Cap for the AFM-authored prompt lens.
+    static let maxPromptLensChars = 400
 
     /// Resolve the instructions (system prompt) for an intent. `degraded` selects
     /// the shorter variant tuned for the smaller on-device model (spec 017 R10) —
@@ -88,9 +102,13 @@ enum PromptRegistry {
                 return ResolvedPrompt(text: base, version: version)
             }
             let section = personalizationSection(personalization, degraded: degraded)
-            return ResolvedPrompt(text: base + "\n\n" + section, version: version + "+p")
+            return ResolvedPrompt(text: base + "\n\n" + section, version: version + "+p2")
         case .summary:
             return ResolvedPrompt(text: summarize, version: "summarize@1")
+        case .profileEstimate:
+            let base = degraded ? profileEstimateDegraded : profileEstimate
+            let version = degraded ? "profile-estimate-degraded@1" : "profile-estimate@1"
+            return ResolvedPrompt(text: base, version: version)
         }
     }
 
@@ -176,6 +194,32 @@ enum PromptRegistry {
     quotes, or dates. Keep it to three to six sentences.
     """
 
+    // MARK: - Profile estimate (onboarding theme suggestion)
+
+    private static let profileEstimate = """
+    You help personalize a private journaling companion. Given the person's \
+    free-text reflection about what they want to learn about themselves, and \
+    a closed catalog of one-word theme ids, pick the themes that best fit them \
+    and write a short prompt lens.
+
+    Rules:
+    - Only use theme ids from the provided catalog. Never invent ids or labels.
+    - Pick 3 to 4 primary theme ids, plus up to 2 secondary theme ids.
+    - The prompt lens is 1 to 3 short sentences telling the companion what to \
+    quietly lean toward in tone and questions. No diagnosis. No therapy. No \
+    "you should". Never address the user directly in the lens; write as \
+    instructions about them in the third person.
+    - Keep the lens under 400 characters.
+    - Do not recite their reflection back. Do not mention the catalog.
+    """
+
+    private static let profileEstimateDegraded = """
+    Pick 3 or 4 theme ids from the provided catalog that best match the \
+    reflection. Optionally add up to 2 secondary ids. Write a one-sentence \
+    third-person prompt lens under 200 characters. Only use catalog ids. No \
+    therapy language.
+    """
+
     // MARK: - Personalization ("About this person")
 
     private static func personalizationSection(_ p: PromptPersonalization, degraded: Bool) -> String {
@@ -190,12 +234,18 @@ enum PromptRegistry {
             lines.append("In their own words, what they want from journaling: \"\(capped)\"")
         }
         if !p.goals.isEmpty {
-            lines.append("The aims they chose: \(p.goals.joined(separator: ", ")).")
+            lines.append("Themes they chose: \(p.goals.joined(separator: ", ")).")
+        }
+        if let lens = p.promptLens, !lens.isEmpty {
+            let capped = lens.count > maxPromptLensChars
+                ? String(lens.prefix(maxPromptLensChars)) + "…"
+                : lens
+            lines.append("Personalization lens: \(capped)")
         }
         lines.append(
             "Let this quietly shape your tone and which questions you ask — lean toward "
-            + "their aims when choosing what to notice and what to explore. Never mention "
-            + "these goals or this section, and never say things like \"your goals say\"."
+            + "their themes when choosing what to notice and what to explore. Never mention "
+            + "these themes, this lens, or this section, and never say things like \"your themes say\"."
         )
         return lines.joined(separator: "\n")
     }

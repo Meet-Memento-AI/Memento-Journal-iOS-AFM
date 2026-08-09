@@ -14,8 +14,9 @@ import Foundation
 
 /// What kind of generation is being requested (spec 017 R2 routing).
 enum GenerationIntent: Sendable {
-    case ask       // journal chat / Ask surface
-    case summary   // turn a conversation into a journal entry
+    case ask              // journal chat / Ask surface
+    case summary          // turn a conversation into a journal entry
+    case profileEstimate  // map LearnAboutYourself text → ThemeCatalog ids + prompt lens
 }
 
 /// The trust zone a generation actually ran in (spec 014 R1 / REQ-INT-002).
@@ -53,6 +54,17 @@ struct AskResult: Sendable {
     let heading2: String?
     let body: String
     let citations: [AskCitation]
+    let zoneUsed: IntelligenceZone
+    let wasDegraded: Bool
+    let promptVersion: String
+    let modelIdentifier: String
+}
+
+/// Onboarding personalization estimate: closed-vocab theme ids + a bounded lens.
+struct ProfileEstimateResult: Sendable, Equatable {
+    let themeIds: [String]
+    let secondaryThemeIds: [String]
+    let promptLens: String
     let zoneUsed: IntelligenceZone
     let wasDegraded: Bool
     let promptVersion: String
@@ -120,6 +132,10 @@ protocol IntelligenceService: Sendable {
 
     /// Turn a conversation into a first-person journal-entry summary.
     func summarizeConversation(_ turns: [ChatTurn]) async throws -> String
+
+    /// Map a user's onboarding reflection onto ThemeCatalog ids and a short
+    /// prompt lens. Callers must validate ids through `ThemeCatalog.validate`.
+    func estimateProfile(reflection: String) async throws -> ProfileEstimateResult
 
     /// Whether generation can run right now, and in which zone.
     func availability() async -> IntelligenceAvailability

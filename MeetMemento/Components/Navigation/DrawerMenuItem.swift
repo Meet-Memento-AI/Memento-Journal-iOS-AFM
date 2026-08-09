@@ -52,7 +52,7 @@ public struct DrawerMenuItem: View {
 #Preview("DrawerMenuItem • Light") {
     VStack(spacing: 0) {
         DrawerMenuItem(icon: "person", title: "About yourself") {}
-        DrawerMenuItem(icon: "slider.horizontal.3", title: "Your journal goals") {}
+        DrawerMenuItem(icon: "slider.horizontal.3", title: "Your journal themes") {}
     }
     .background(Color.white)
     .useTheme()
@@ -62,7 +62,7 @@ public struct DrawerMenuItem: View {
 #Preview("DrawerMenuItem • Dark") {
     VStack(spacing: 0) {
         DrawerMenuItem(icon: "person", title: "About yourself") {}
-        DrawerMenuItem(icon: "slider.horizontal.3", title: "Your journal goals") {}
+        DrawerMenuItem(icon: "slider.horizontal.3", title: "Your journal themes") {}
     }
     .background(Color.black)
     .useTheme()

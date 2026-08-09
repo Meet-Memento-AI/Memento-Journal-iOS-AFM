@@ -8,7 +8,7 @@
 import SwiftUI
 
 // MARK: - Onboarding Routes
-// Flow order: YourName → LearnAboutYourself → YourGoals → FaceID →
+// Flow order: YourName → LearnAboutYourself → ThemeConfirmation → FaceID →
 // (Use Face ID → SetupPin(backup) → ConfirmPin → Loading) or
 // (Create PIN → SetupPin → ConfirmPin → Loading) or
 // (Skip → Loading, spec 023 R3 — app lock defaults on but is skippable).
@@ -16,7 +16,7 @@ import SwiftUI
 enum OnboardingRoute: Hashable {
     case yourName
     case learnAboutYourself
-    case yourGoals
+    case themeConfirmation
     case faceID
     case setupPin(isFaceIDBackup: Bool)
     case confirmPin(originalPin: String, isFaceIDBackup: Bool)
@@ -98,9 +98,14 @@ public struct OnboardingCoordinatorView: View {
             LearnAboutYourselfView(onComplete: { userInput in handleLearnAboutYourselfComplete(userInput) }, isFirstStep: false, onBack: { handleBack() })
                 .environmentObject(appState)
 
-        case .yourGoals:
-            YourGoalsView(onComplete: { handleYourGoalsComplete() }, isFirstStep: false, onBack: { handleBack() })
-                .environmentObject(appState)
+        case .themeConfirmation:
+            ThemeConfirmationView(
+                onComplete: { themeIds, lens, suggested in
+                    handleThemeConfirmationComplete(themeIds: themeIds, promptLens: lens, suggestedIds: suggested)
+                },
+                onBack: { handleBack() }
+            )
+            .environmentObject(appState)
 
         case .faceID:
             FaceIDView(
@@ -167,7 +172,7 @@ public struct OnboardingCoordinatorView: View {
         Task {
             do {
                 try await onboardingViewModel.savePersonalizationText()
-                navigationPath.append(OnboardingRoute.yourGoals)
+                navigationPath.append(OnboardingRoute.themeConfirmation)
             } catch {
                 AppLogger.log("⚠️ Failed to save personalization: \(error)")
                 saveErrorMessage = "Failed to save your preferences. Please try again."
@@ -176,14 +181,18 @@ public struct OnboardingCoordinatorView: View {
         }
     }
 
-    private func handleYourGoalsComplete() {
+    private func handleThemeConfirmationComplete(themeIds: [String], promptLens: String?, suggestedIds: [String]) {
         Task {
             do {
-                try await onboardingViewModel.saveGoals()
+                try await onboardingViewModel.saveExperienceProfile(
+                    themeIds: themeIds,
+                    promptLens: promptLens,
+                    suggestedIds: suggestedIds
+                )
                 navigationPath.append(OnboardingRoute.faceID)
             } catch {
-                AppLogger.log("⚠️ Failed to save goals: \(error)")
-                saveErrorMessage = "Failed to save your goals. Please try again."
+                AppLogger.log("⚠️ Failed to save experience profile: \(error)")
+                saveErrorMessage = "Failed to save your themes. Please try again."
                 showSaveError = true
             }
         }
