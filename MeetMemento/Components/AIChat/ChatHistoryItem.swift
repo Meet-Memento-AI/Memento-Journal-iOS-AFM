@@ -51,7 +51,7 @@ public struct ChatHistoryItem: View {
     private var cardBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Formatted Date

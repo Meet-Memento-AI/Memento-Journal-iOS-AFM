@@ -335,7 +335,7 @@ public struct EditAboutYourselfView: View {
     private var microphoneFABBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

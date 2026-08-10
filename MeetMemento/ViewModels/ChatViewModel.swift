@@ -280,7 +280,7 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Session Management
 
-    /// Fetches all chat sessions from the backend
+    /// Loads all chat sessions from on-device storage.
     func fetchSessions() async {
         isLoadingSessions = true
         do {
@@ -546,21 +546,14 @@ class ChatViewModel: ObservableObject {
         // user-facing message written for exactly this case — prefer it
         // over the generic per-status-code guesses below.
         if let chatError = error as? ChatServiceError {
-            return chatError.errorDescription ?? "Unable to get a response. Please check your connection and try again."
+            return chatError.errorDescription ?? "Unable to get a response right now. Please try again."
         }
 
-        let code = extractHTTPStatusCode(from: error)
-        AppLogger.log("[ChatViewModel] Extracted HTTP code: \(code ?? -1)", type: .error)
-
-        switch code {
-        case 404:
-            return "Chat service is not set up yet. Please ensure Edge Functions are deployed."
-        case 401:
-            return "Please sign in again."
+        switch extractHTTPStatusCode(from: error) {
         case 429:
             return "You've sent a lot of messages recently. Please wait a bit and try again."
         default:
-            return "Unable to get a response. Please check your connection and try again."
+            return "Unable to get a response right now. Please try again."
         }
     }
 

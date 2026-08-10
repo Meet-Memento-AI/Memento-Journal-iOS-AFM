@@ -229,7 +229,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "questionmark.circle.fill",
                     title: "Contact Us",
-                    description: "For any privacy questions or data requests, contact support@sebastianmendo.com"
+                    description: "For any privacy questions or data requests, contact \(Constants.Support.email)"
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -244,7 +244,7 @@ public struct DataUsageInfoView: View {
     private var sectionCardBackground: some View {
         // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

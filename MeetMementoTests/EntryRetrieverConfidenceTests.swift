@@ -42,7 +42,7 @@ final class EntryRetrieverConfidenceTests: XCTestCase {
     private func entry(_ title: String, _ text: String, daysAgo: Double = 1) -> Entry {
         Entry(id: UUID(), title: title, text: text,
               createdAt: Date().addingTimeInterval(-daysAgo * 86_400),
-              updatedAt: Date(), syncStatus: .synced)
+              updatedAt: Date())
     }
 
     /// Gibberish-token corpus: embeddings (if present) can't produce hot

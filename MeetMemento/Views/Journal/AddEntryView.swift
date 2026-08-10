@@ -248,18 +248,6 @@ public struct AddEntryView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-
-            if editingEntry?.syncStatus == .pending {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 10, weight: .bold)) // icon-size: not user text
-                    Text("Waiting to sync — will retry automatically")
-                        .font(type.captionBold)
-                }
-                .foregroundStyle(theme.mutedForeground)
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-            }
         }
         .padding(.bottom, 8)
     }
@@ -270,14 +258,14 @@ public struct AddEntryView: View {
     private var iconButtonBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     @ViewBuilder
     private var datePillBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     @ViewBuilder
@@ -380,7 +368,7 @@ public struct AddEntryView: View {
     private var microphoneFABBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions

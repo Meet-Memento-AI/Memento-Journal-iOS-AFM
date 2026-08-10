@@ -183,14 +183,27 @@ public struct AboutSettingsView: View {
                 .padding(.bottom, Spacing.xxs)
 
             VStack(spacing: 0) {
-                // Terms of Service
+                SettingsRow(
+                    icon: "hand.raised.fill",
+                    title: "Privacy Policy",
+                    subtitle: nil,
+                    showChevron: true,
+                    action: {
+                        openURL(Constants.Legal.privacyPolicyURL)
+                    }
+                )
+
+                Divider()
+                    .background(theme.border)
+                    .padding(.horizontal, Spacing.md)
+
                 SettingsRow(
                     icon: "doc.text.fill",
                     title: "Terms of Service",
                     subtitle: nil,
                     showChevron: true,
                     action: {
-                        openURL("https://sebmendo1.github.io/MeetMemento/terms.html")
+                        openURL(Constants.Legal.termsOfServiceURL)
                     }
                 )
             }
@@ -244,7 +257,7 @@ public struct AboutSettingsView: View {
     private var sectionCardBackground: some View {
         // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions
@@ -256,7 +269,7 @@ public struct AboutSettingsView: View {
     }
 
     private func openContactSupport() {
-        let email = "support@sebastianmendo.com"
+        let email = Constants.Support.email
         let subject = "MeetMemento Support Request"
         let body = """
 
@@ -277,8 +290,7 @@ public struct AboutSettingsView: View {
         }
     }
 
-    private func openURL(_ urlString: String) {
-        guard let url = URL(string: urlString) else { return }
+    private func openURL(_ url: URL) {
         UIApplication.shared.open(url)
     }
 

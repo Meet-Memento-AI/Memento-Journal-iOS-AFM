@@ -53,7 +53,7 @@ struct AvatarInitialButton: View {
     private var glassBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

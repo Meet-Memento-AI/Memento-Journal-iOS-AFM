@@ -155,7 +155,7 @@ public struct TopNav: View {
     @ViewBuilder
     private var pillBackground: some View {
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

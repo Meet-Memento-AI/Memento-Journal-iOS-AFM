@@ -7,9 +7,6 @@ struct JournalCard: View {
     let title: String
     let excerpt: String
     let date: Date
-    /// True while this entry is written locally but hasn't reached the
-    /// server yet (offline write, or a sync retry in progress).
-    var isPendingSync: Bool = false
 
     /// Optional actions (no-op by default so previews never depend on app state)
     var onTap: (() -> Void)? = nil
@@ -21,7 +18,6 @@ struct JournalCard: View {
     // MARK: - Environment
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
      
     // MARK: - State
     @State private var isPressed = false
@@ -60,9 +56,9 @@ struct JournalCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 1.5)
+                .stroke(theme.border, lineWidth: 1.5)
         )
-        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
+        .shadow(color: theme.foreground.opacity(0.08), radius: 6, x: 0, y: 3)
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -116,29 +112,10 @@ struct JournalCard: View {
                 .typographyCaptionBold()
                 .foregroundStyle(theme.mutedForeground)
 
-            if isPendingSync {
-                pendingSyncBadge
-            }
-
             Spacer()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Journal entry date \(formattedDate)\(isPendingSync ? ", waiting to sync" : "")")
-    }
-
-    private var pendingSyncBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 10, weight: .bold)) // icon-size: not user text
-            Text("Pending sync")
-                .typographyCaptionBold()
-        }
-        .foregroundStyle(theme.mutedForeground)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(
-            Capsule().fill(theme.muted)
-        )
+        .accessibilityLabel("Journal entry date \(formattedDate)")
     }
 
     // MARK: - Date Formatting

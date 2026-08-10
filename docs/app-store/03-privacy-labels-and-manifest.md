@@ -57,14 +57,12 @@ two `UIApplication.shared.open` links to the privacy policy and terms.
 
 ### The two things that can break "Data Not Collected"
 
-**1. `SFSpeechRecognizer` without `requiresOnDeviceRecognition = true`.**
-`MeetMemento/Services/SpeechService.swift` does not set it, so for some locales
-recognition may be performed on Apple's servers. Apple's speech-recognition
-service is Apple's, not a third party, and audio is not retained by us — but the
-honest reading is that **audio leaves the device on a path we did not design or
-disclose**. Resolve it (spec 018 R1's `SpeechAnalyzer` migration is the planned
-path) before declaring the label, or disclose it. Do not declare "Data Not
-Collected" while leaving this unexamined.
+**1. On-device speech recognition.** `MeetMemento/Services/SpeechService.swift`
+sets `requiresOnDeviceRecognition = true` unconditionally (2026-08-10). Where
+on-device recognition is unavailable for a locale, transcription fails with a
+user-visible message rather than silently sending audio off device. Spec 018
+R1's `SpeechAnalyzer` migration remains the long-term path; until then the flag
+and the failure UX are the honest disclosure.
 
 **2. RevenueCat, if spec 021 ships it.** `REQ-MON-004` / **V8** is an open
 verification item: does RevenueCat's SDK itself trigger a collection disclosure
