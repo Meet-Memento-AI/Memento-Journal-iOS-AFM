@@ -6,15 +6,19 @@
 import Foundation
 
 struct Constants {
-    // Add your app constants here
-    
-    struct API {
-        static let baseURL = ""
-        static let timeout: TimeInterval = 30
+    struct Legal {
+        /// GitHub Pages root for this repo (`docs/` publishing source).
+        static let siteBaseURL = "https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM"
+        static var privacyPolicyURL: URL { URL(string: "\(siteBaseURL)/privacy.html")! }
+        static var termsOfServiceURL: URL { URL(string: "\(siteBaseURL)/terms.html")! }
+        static var supportPageURL: URL { URL(string: "\(siteBaseURL)/support.html")! }
     }
-    
+
+    struct Support {
+        static let email = "contact@sebastianmendo.design"
+    }
+
     struct Storage {
         static let userDefaultsKey = "com.meetmemento.userdefaults"
     }
 }
-

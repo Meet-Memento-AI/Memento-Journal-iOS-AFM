@@ -75,7 +75,7 @@ public struct TopNavHeader: View {
     private var iconButtonBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Circle()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Action Button Styling

@@ -187,7 +187,6 @@ struct YourEntriesView: View {
                                     title: entry.displayTitle,
                                     excerpt: entry.excerpt,
                                     date: entry.createdAt,
-                                    isPendingSync: entry.syncStatus == .pending,
                                     onTap: {
                                         onNavigateToEntry(.edit(entry))
                                     },

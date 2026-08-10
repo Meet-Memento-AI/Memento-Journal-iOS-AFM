@@ -181,23 +181,18 @@ class AppStateStore: ObservableObject {
         firstName = UserDefaults.standard.string(forKey: Self.firstNameKey)
     }
 
-    /// "Delete everything" (spec 023 R4). Interim scope: local entry storage +
-    /// security/encryption Keychain entries + UserDefaults + caches. Spec 015
-    /// extends this to the full five-store deletion (SwiftData, Spotlight index,
-    /// TTS cache, CloudKit) per REQ-DATA-013.
     func deleteEverything() {
         SecurityService.shared.clearAll()
         LocalJournalStorage.shared.clearAll()
-        // Destroy the key material too, after the files are gone. Previously the
-        // encryption salt survived Delete Everything; now that a long-lived data
-        // key exists, leaving it behind would mean "delete everything" left the
-        // means to read anything restored from a backup.
         EncryptionService.shared.clearAll()
         LocalProfileStore.clearAll()
+        LocalChatStore.shared.clear()
+        JournalService.shared.invalidateEntriesCache()
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)
         UserDefaults.standard.removeObject(forKey: Self.onboardingCompleteKey)
         UserDefaults.standard.removeObject(forKey: Self.localUserIDKey)
+        UserDefaults.standard.removeObject(forKey: Self.migratedFromAccountKey)
         PreferencesService.shared.resetToDefaults()
 
         firstName = nil

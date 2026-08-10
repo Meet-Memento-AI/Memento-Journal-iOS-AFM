@@ -157,15 +157,8 @@ class EntryViewModel: ObservableObject {
         await loadEntries()
     }
 
-    /// Creates an entry local-first (spec-007): the entry is encrypted and
-    /// written to disk before any network call, so it's durable even if the
-    /// device is offline or the request fails. A sync failure queues the
-    /// entry for retry on reconnect instead of rolling back the optimistic
-    /// UI insert — losing a journal entry to a network error is the one
-    /// failure mode this app cannot have.
+    /// Creates an entry and persists it to encrypted on-device storage.
     func createEntry(title: String, text: String) {
-        // One ID from the start, shared by the UI entry, the local encrypted
-        // file, and the eventual server row — no ID swap needed later.
         let entryId = UUID()
         let resolvedTitle = title.isEmpty ? "Untitled" : title
         let now = Date()
@@ -176,9 +169,8 @@ class EntryViewModel: ObservableObject {
         }
         pendingOperations.insert(entryId)
 
-        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, syncStatus: .pending)
+        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now)
 
-        // Optimistic insert - UI updates instantly
         entries.insert(newEntry, at: 0)
         updateEntriesByMonth()
 
@@ -192,25 +184,14 @@ class EntryViewModel: ObservableObject {
             }
 
             #if USE_MOCK_DATA
-            // UI Testing Mode - Add to mock data
             MockDataProvider.shared.addMockEntry(newEntry)
-            await MainActor.run { self.markSynced(entryId) }
             AppLogger.log("📱 UI Mode: Created mock entry")
             #else
-            // Production Mode — local-only (no accounts, spec 023). There is
-            // no server: the local encrypted save below is the entire
-            // operation, not a fallback for a failed network call.
-            // No PIN needed: the data key comes from the Keychain, so a save can
-            // no longer be blocked by PIN delivery ordering.
             let saved = JournalService.shared.saveEntryLocally(
                 entryId: entryId, title: resolvedTitle, content: text,
                 createdAt: now, updatedAt: now
             )
-            if saved {
-                await MainActor.run { self.markSynced(entryId) }
-            } else {
-                // Local save itself failed (e.g. disk/Keychain issue) — this is
-                // a real failure, not a network hiccup to retry later.
+            if !saved {
                 await MainActor.run {
                     self.entries.removeAll { $0.id == entryId }
                     self.updateEntriesByMonth()
@@ -218,13 +199,6 @@ class EntryViewModel: ObservableObject {
                 }
             }
             #endif
-        }
-    }
-
-    /// Marks an entry as synced in the in-memory list, if still present.
-    private func markSynced(_ entryId: UUID) {
-        if let index = entries.firstIndex(where: { $0.id == entryId }) {
-            entries[index].syncStatus = .synced
         }
     }
 
@@ -266,10 +240,8 @@ class EntryViewModel: ObservableObject {
                 createdAt: entry.createdAt, updatedAt: Date()
             )
             await MainActor.run {
-                if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                    var updated = entry
-                    updated.syncStatus = saved ? .synced : entry.syncStatus
-                    self.entries[i] = updated
+                if saved, let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                    self.entries[i] = entry
                     self.updateEntriesByMonth()
                 }
                 if !saved {
@@ -292,12 +264,10 @@ class EntryViewModel: ObservableObject {
         pendingOperations.insert(id)
         defer { pendingOperations.remove(id) }
 
-        // Local-only (no accounts, spec 023): deleting the on-device encrypted
-        // file *is* the entire operation — there's no server copy to also
-        // delete, so this is fully synchronous with no retry or rollback path.
         entries.removeAll { $0.id == id }
         updateEntriesByMonth()
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
+        JournalService.shared.invalidateEntriesCache()
 
         #if USE_MOCK_DATA
         // UI Testing Mode - Remove from mock data

@@ -4,44 +4,31 @@
 //
 //  The journal entry model used throughout the app. The app is on-device only
 //  (no accounts, no backend), so this is the single entry model — persisted as
-//  an encrypted local envelope by JournalService. (A separate server DTO used
-//  to exist for the server backend; it was removed with the backend.)
+//  an encrypted local envelope by JournalService.
 //
 
 import Foundation
 
 /// Journal entry model for UI rendering and local persistence.
 public struct Entry: Identifiable, Hashable {
-    /// Whether this entry has reached the server yet (spec-007: local-first writes).
-    public enum SyncStatus: Hashable {
-        /// Confirmed on the server.
-        case synced
-        /// Saved locally; still queued to reach the server (offline, or a
-        /// transient failure being retried on reconnect).
-        case pending
-    }
-
     public let id: UUID
     public var title: String
     public var text: String
     public var createdAt: Date
     public var updatedAt: Date
-    public var syncStatus: SyncStatus
 
     public init(
         id: UUID = UUID(),
         title: String = "",
         text: String = "",
         createdAt: Date = Date(),
-        updatedAt: Date? = nil,
-        syncStatus: SyncStatus = .synced
+        updatedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
         self.text = text
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
-        self.syncStatus = syncStatus
     }
 }
 
@@ -82,11 +69,6 @@ extension Entry {
             ),
             Entry(
                 title: "Goals for the Year",
-                // Deliberately not phrased as a health or wellness goal. Sample
-                // content ships in the binary, so it is content the app authors
-                // — and App Store age rating turns on whether the app surfaces
-                // health/treatment topics (docs/app-store/05 §1). Keep fixtures
-                // in the register of an ordinary journal, not a wellness product.
                 text: "This year I want to focus on learning something difficult, building deeper connections with friends and family, and paying attention to how I actually spend my days. Writing in this journal daily is my first step.",
                 createdAt: jan2026
             ),

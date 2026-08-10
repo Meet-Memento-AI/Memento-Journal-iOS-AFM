@@ -266,9 +266,7 @@ struct SettingsView: View {
                     subtitle: "How we protect your data",
                     showChevron: true,
                     action: {
-                        if let url = URL(string: "https://sebmendo1.github.io/MeetMemento/privacy.html") {
-                            UIApplication.shared.open(url)
-                        }
+                        UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
                     }
                 )
 
@@ -313,7 +311,7 @@ struct SettingsView: View {
     private var sectionCardBackground: some View {
         // Liquid Glass removed — flat #fafafa surface (no shadow).
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions

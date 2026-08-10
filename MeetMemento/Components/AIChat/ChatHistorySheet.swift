@@ -123,7 +123,7 @@ public struct ChatHistorySheet: View {
     private var newButtonBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

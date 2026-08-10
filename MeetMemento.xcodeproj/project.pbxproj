@@ -31,7 +31,6 @@
 		A52968642E8CCF12004F65BE /* MeetMemento.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MeetMemento.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
 		B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
 		B7F000032F00110000A00001 /* MeetMemento/Config/Debug.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.local.xcconfig.template; sourceTree = "<group>"; };
@@ -130,7 +129,6 @@
 		A5296C8E2E8D9B15004F65BE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A5296C8F2E8D9B15004F65BE /* AuthenticationServices.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";

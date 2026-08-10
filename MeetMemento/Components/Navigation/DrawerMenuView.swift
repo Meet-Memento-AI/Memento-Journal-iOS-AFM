@@ -150,7 +150,7 @@ public struct DrawerMenuView: View {
     private var settingsButtonBackground: some View {
         // Liquid Glass removed — flat #fafafa surface.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Safe Area Helpers

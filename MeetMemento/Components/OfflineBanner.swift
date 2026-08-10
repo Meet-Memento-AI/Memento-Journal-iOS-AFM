@@ -2,9 +2,8 @@
 //  OfflineBanner.swift
 //  MeetMemento
 //
-//  Dismissible banner shown while the device has no connectivity
-//  (spec-007 R4). Journal writes still work locally while this is up —
-//  it's informational, not a blocker.
+//  Dismissible banner shown while the device has no connectivity.
+//  Journaling remains fully local — this is informational only.
 //
 
 import SwiftUI
@@ -20,7 +19,7 @@ struct OfflineBanner: View {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 13, weight: .bold)) // icon-size: not user text
 
-            Text("You're offline. Journal entries save locally and sync when you're back.")
+            Text("You're offline. Your journal stays on this device and keeps working.")
                 .font(type.caption)
                 .fontWeight(.medium)
                 .lineLimit(2)
@@ -36,22 +35,20 @@ struct OfflineBanner: View {
                 .accessibilityLabel("Dismiss offline notice")
             }
         }
-        .foregroundStyle(BaseColors.white)
+        .foregroundStyle(theme.overlayText)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
             Capsule().fill(theme.destructive)
         )
-        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
+        .shadow(color: theme.foreground.opacity(0.12), radius: 8, x: 0, y: 3)
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
-/// Wraps `OfflineBanner` with the show/dismiss state driven by `NetworkMonitor`:
-/// appears when connectivity drops, re-appears on a later drop even if
-/// previously dismissed, and clears automatically on reconnect.
+/// Wraps `OfflineBanner` with the show/dismiss state driven by `NetworkMonitor`.
 struct OfflineBannerContainer: View {
     @EnvironmentObject private var networkMonitor: NetworkMonitor
     @State private var isDismissed = false

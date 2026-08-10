@@ -32,7 +32,7 @@ struct IconButtonNav: View {
             ZStack {
                 // Liquid Glass removed — flat #fafafa surface.
                 Circle()
-                    .fill(Color(hex: "#FAFAFA"))
+                    .fill(theme.cardBackground)
 
                 // Icon
                 Image(systemName: icon)

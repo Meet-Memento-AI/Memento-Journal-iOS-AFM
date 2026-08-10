@@ -84,7 +84,7 @@ struct ListeningPanel: View {
                     // Liquid Glass removed (was glass-on-glass — a glass button on
                     // a glass panel). Flat #fafafa surface.
                     Circle()
-                        .fill(Color(hex: "#FAFAFA"))
+                        .fill(theme.cardBackground)
                 )
         }
         .buttonStyle(.plain)
@@ -99,7 +99,7 @@ struct ListeningPanel: View {
         // Liquid Glass removed — flat #fafafa surface (was the outer glass panel
         // in the removed glass-on-glass pair).
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

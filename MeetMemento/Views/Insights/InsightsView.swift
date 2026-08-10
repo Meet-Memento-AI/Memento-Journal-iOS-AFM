@@ -281,15 +281,6 @@ public struct InsightsView: View {
                     title: "No insights yet",
                     message: "Your insights will appear here after journaling."
                 )
-            } else if !networkMonitor.isConnected && insight == nil {
-                // spec-007 R3: generating an insight needs a connection, and
-                // there's no cached one to fall back to — say so rather than
-                // spinning forever or failing silently.
-                emptyState(
-                    icon: "wifi.slash",
-                    title: "You're offline",
-                    message: "Insights need a connection. Reconnect to see what's on your mind."
-                )
             } else {
                 placeholderContent
             }
