@@ -7,6 +7,23 @@ The app is **on-device only** — no accounts, no backend, no Supabase. CI there
 builds and tests the iOS app and runs security/governance gates; there are no
 deploy jobs and no Deno/edge-function tests.
 
+## Online vs on-device (spec 025)
+
+Merge CI must stay honest **without** a provisioned Apple Intelligence model.
+Full matrix and acceptance criteria: [`specs/025-ci-online-ios-build-gates.md`](../specs/025-ci-online-ios-build-gates.md).
+
+| Lane | Required to merge? | Runner | Proves |
+|------|--------------------|--------|--------|
+| Spec gates (2.0) + store hygiene | Yes | Linux | Constitution / App Store machine checks, fixture corpus |
+| Security | Yes | Linux | Sonar, gitleaks, dependency-review |
+| iOS build (online) | Yes | macOS + Xcode 26+ | Build specs + mockable unit tests; **not** live FM generation |
+| Device / eval (022, spikes, FM generation) | No | Local device or optional workflow | On-device model, Spotlight spikes, Evaluations harness |
+
+**iOS build specifications (online job contract):** scheme `MeetMemento`;
+destination `platform=iOS Simulator,name=iPhone 17,OS=latest` (overridable);
+`IPHONEOS_DEPLOYMENT_TARGET >= 26.0`; UITests skipped; device-gated generation
+suites skipped by policy.
+
 ## Runner labels
 
 | Label set | Used by | Purpose |

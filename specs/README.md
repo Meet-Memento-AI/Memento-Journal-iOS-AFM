@@ -16,7 +16,7 @@ specs/
 ├── ROADMAP.md         ← status board, dependency graph, launch gates
 ├── 001…012-*.md       ← the original twelve specs (pre-2.0 app; 003/004/007/008/010
 │                        obsolete, 002 paused — see ROADMAP.md's Status board)
-├── 013…023-*.md       ← Memento 2.0 rewrite specs (see below)
+├── 013…025-*.md       ← Memento 2.0 rewrite + Ship CI specs (see below)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

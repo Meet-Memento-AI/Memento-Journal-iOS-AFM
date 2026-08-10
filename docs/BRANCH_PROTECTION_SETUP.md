@@ -25,11 +25,13 @@ Enable these options:
 - Do not allow bypassing the above settings
 - Restrict who can push to matching branches (optional, recommended)
 
-Add required status checks:
-- iOS quality gates
-- CodeQL analysis
+Add required status checks (online lanes only — [spec 025](../specs/025-ci-online-ios-build-gates.md)):
+- iOS quality gates (rename to **iOS build (online)** when 025 lands)
+- Spec gates jobs you choose to require from `spec-gates.yml`
 - Dependency review
 - Secret scanning
+
+Do not require device/eval workflows or checks that need a provisioned on-device model.
 
 ## Required branch rules: main
 
@@ -47,9 +49,9 @@ Enable these options:
 - Do not allow bypassing the above settings
 - Restrict who can push to matching branches
 
-Add required status checks:
-- iOS quality gates
-- CodeQL analysis
+Add required status checks (same online set as `dev`):
+- iOS quality gates (rename to **iOS build (online)** when 025 lands)
+- Spec gates jobs you choose to require from `spec-gates.yml`
 - Dependency review
 - Secret scanning
 
@@ -59,21 +61,11 @@ Add required status checks:
 - Only release promotion PRs should target main (dev -> main).
 - Direct commits to dev/main should be blocked.
 
-## Environments and deployment secrets
+## Environments and secrets
 
-If using repository environments, create:
-- dev
-- staging
-
-Set secrets for each target (or repository secrets if not using environments):
-- DEV_SUPABASE_ACCESS_TOKEN
-- DEV_SUPABASE_PROJECT_REF
-- STAGING_SUPABASE_ACCESS_TOKEN
-- STAGING_SUPABASE_PROJECT_REF
-
-Recommendation:
-- Require reviewers for staging environment deployments.
-- Keep production deployment manual in this phase.
+No Supabase/deploy environments are required for the on-device product. For
+`security.yml` Sonar analysis, configure `SONAR_TOKEN` plus
+`SONAR_PROJECT_KEY` / `SONAR_HOST_URL` as documented in `docs/CI_RUNNERS.md`.
 
 ## Verification script
 

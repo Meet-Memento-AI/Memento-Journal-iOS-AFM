@@ -4,9 +4,13 @@ This guide defines safe rollout of strict quality gates without blocking deliver
 
 ## Current gate stack
 
-- SwiftLint strict mode (blocking)
-- iOS test execution (blocking)
-- Coverage gate at baseline threshold (blocking)
+Online merge stack (see [spec 025](../specs/025-ci-online-ios-build-gates.md)):
+
+- Linux constitutional / store gates (`spec-gates.yml`)
+- Security: gitleaks, dependency-review, Sonar
+- SwiftLint strict mode on changed files (blocking on PR)
+- iOS **build specifications** + online unit tests (blocking; not live FM generation)
+- Coverage gate at baseline threshold (blocking; ratchet-only over the online suite)
 - Periphery scan report (artifact)
 - Periphery regression gate on changed Swift files only (blocking on PR)
 

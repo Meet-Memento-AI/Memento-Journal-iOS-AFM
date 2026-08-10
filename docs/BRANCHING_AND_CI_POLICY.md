@@ -17,13 +17,17 @@
 
 ## Required checks
 
-The following checks are expected to be required in repository branch protection settings:
+The following checks are expected to be required in repository branch protection settings
+(online-testable lanes per [spec 025](../specs/025-ci-online-ios-build-gates.md)):
 
-- iOS quality gates
-- Spec gates (2.0)
-- CodeQL analysis
+- iOS quality gates → target name **"iOS build (online)"** after spec 025 lands
+- Spec gates (2.0) — individual Linux jobs in `spec-gates.yml`
 - Dependency review
 - Secret scanning
+
+Do **not** require on-device Foundation Models generation, Spotlight device spikes,
+or spec 022 Evaluations as merge blockers. CodeQL is not wired in
+`.github/workflows/` today — do not list it as required until a workflow exists.
 
 Branch protection setup guide: [docs/BRANCH_PROTECTION_SETUP.md](docs/BRANCH_PROTECTION_SETUP.md)
 
@@ -45,14 +49,9 @@ The project uses Swift-native quality checks as a Sonar-equivalent gate:
 
 ## Deployment policy
 
-- Pushes to dev trigger automated deployment workflow.
-- Deployment runs first to dev environment, then to staging.
-- GitHub Environments should enforce reviewer approvals and protect secrets.
-- Required deployment secrets:
-  - DEV_SUPABASE_ACCESS_TOKEN
-  - DEV_SUPABASE_PROJECT_REF
-  - STAGING_SUPABASE_ACCESS_TOKEN
-  - STAGING_SUPABASE_PROJECT_REF
+The product is **on-device only** — there is no backend deploy pipeline in the
+current workflow set (`ios-tests.yml`, `security.yml`, `spec-gates.yml`). Store
+upload / TestFlight remain manual operator steps (`docs/app-store/`).
 
 ## Rollout notes
 
