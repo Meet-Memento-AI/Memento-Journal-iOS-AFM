@@ -30,9 +30,9 @@ are now obsolete — superseded by 015 and 019 respectively.) Depends on 006
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | iOS tests: `ChatViewModelTests.swift` (83 L), `ChatResponseDecodingTests.swift` (55 L), `RegressionSmokeTests.swift` (8 L), `MockChatService.swift` (38 L). UITests exist but are `-skip-testing` in CI (`ios-tests.yml:71`). | `MeetMementoTests/` | — |
+| 1 | iOS tests: `ChatViewModelTests.swift` (83 L), `ChatResponseDecodingTests.swift` (55 L), `RegressionSmokeTests.swift` (8 L), `MockChatService.swift` (38 L). UITests exist but are `-skip-testing` in merge CI (`ios-build-online.yml`). | `MeetMementoTests/` | — |
 | 2 | Zero tests for `EncryptionService`, `SecurityService`, `AuthViewModel`, `JournalService`, `LocalJournalStorage`, onboarding VMs. | `MeetMemento/Services/`, `ViewModels/` | HIGH |
-| 3 | Coverage gate 3% (spec 006 raises to the honest floor; this spec raises the floor itself). | `ios-tests.yml:84` | MEDIUM |
+| 3 | Coverage gate ratchet (spec 006/025 set the honest online floor; this spec raises it further). | `ios-build-online.yml` | MEDIUM |
 | 4 | Deno: only `chat/lib_test.ts` pure helpers; no handler/auth/limiter tests (004/010 add some). | `supabase/functions/` | MEDIUM |
 
 ## Requirements
@@ -108,7 +108,7 @@ workflow says so, per 006).
 
 - [ ] `xcodebuild test -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17'`
       → all green locally.
-- [ ] CI `ios-tests.yml` green at the new gate on a PR branch.
+- [ ] CI `ios-build-online.yml` green at the new gate on a PR branch.
 - [ ] Mutation spot-check: intentionally break the constant-time compare (flip the
       accumulator) → a test fails; break decrypt (wrong key path) → a test fails.
       Revert.

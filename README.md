@@ -51,18 +51,23 @@ MeetMemento/
 - Swift 6
 
 ### Testing
-Run tests with ⌘U in Xcode, or:
+Online suite (matches merge CI — skips UITests and live FM generation):
 
 ```bash
-xcodebuild -scheme MeetMemento \
+CI_ONLINE=1 xcodebuild -scheme MeetMemento \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
   -skip-testing:MeetMementoUITests test
 ```
 
+Device/eval (optional): run without `CI_ONLINE`, or dispatch
+`.github/workflows/ios-device-eval.yml`. Live Foundation Models generation needs
+a physical Apple Intelligence device.
+
 ### Branching and CI/CD
 - Branch model: feature branches merge into `dev`, then `dev` is promoted into `main` by pull request.
-- Merge CI focuses on **online-testable** gates: SDK-free spec/store checks, security scanning, and an iOS job centered on **build specifications** plus mockable unit tests — not live on-device Foundation Models generation (that stays local / optional).
-- Plan: [specs/025-ci-online-ios-build-gates.md](specs/025-ci-online-ios-build-gates.md) · runners: [docs/CI_RUNNERS.md](docs/CI_RUNNERS.md)
+- Merge workflows: `ios-build-online.yml`, `security.yml`, `spec-gates.yml`.
+- Optional non-blocking: `ios-device-eval.yml` (on-device model / spikes / eval).
+- Spec: [specs/025-ci-online-ios-build-gates.md](specs/025-ci-online-ios-build-gates.md) · runners: [docs/CI_RUNNERS.md](docs/CI_RUNNERS.md)
 - Full policy: [docs/BRANCHING_AND_CI_POLICY.md](docs/BRANCHING_AND_CI_POLICY.md)
 - Branch protection setup: [docs/BRANCH_PROTECTION_SETUP.md](docs/BRANCH_PROTECTION_SETUP.md)
 - Quality gate rollout: [docs/QUALITY_GATE_ROLLOUT.md](docs/QUALITY_GATE_ROLLOUT.md)

@@ -42,7 +42,7 @@ Low risk (it gates a convenience logout, not data access). Move to Keychain or a
 and document. Effort: trivial; bundle with any future SecurityService work.
 
 ### 3. Re-enable UITests in CI
-`MeetMementoUITests` are `-skip-testing` in CI (`ios-tests.yml:71`) due to
+`MeetMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
 self-hosted-runner flakiness. Beta-period crash/regression coverage would benefit from
 at least the launch smoke test running. Investigate simulator stability on the runner.
 

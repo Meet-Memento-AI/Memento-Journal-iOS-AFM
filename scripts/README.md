@@ -7,9 +7,10 @@
 
 | Script | Workflow | Enforces | Mode |
 |--------|----------|----------|------|
-| `lint_changed_swift.sh` | `ios-tests.yml` | SwiftLint on changed files (incl. `no_print`) | blocking (PR) |
-| `check_coverage.sh` | `ios-tests.yml` | global line-coverage floor (`MIN_COVERAGE`, ratchet-only) | blocking |
-| `check_periphery_regression.sh` | `ios-tests.yml` | no new dead-code findings in changed files | blocking (PR) |
+| `assert_ios_build_specs.sh` | `ios-build-online.yml` | Xcode 26+, scheme, deployment target ≥ 26.0 (spec 025) | blocking |
+| `lint_changed_swift.sh` | `ios-build-online.yml` | SwiftLint on changed files (incl. `no_print`) | blocking (PR) |
+| `check_coverage.sh` | `ios-build-online.yml` | online-suite line-coverage floor (`MIN_COVERAGE`, ratchet-only) | blocking |
+| `check_periphery_regression.sh` | `ios-build-online.yml` | no new dead-code findings in changed files | blocking (PR) |
 | `check_single_intelligence_importer.sh` | `spec-gates.yml` | **exactly one** file imports `FoundationModels` | blocking |
 | `lint_forbidden_phrases.py` | `spec-gates.yml` | no absolute-privacy claims (comment-aware; `// REQ-POS-001-EXEMPT` opt-out) | blocking |
 | `speakability_lint.py` | `spec-gates.yml` | no markdown/bullets/emoji/URLs in spoken prose (`--selftest`) | blocking (selftest) |
@@ -28,7 +29,7 @@ user-script sandbox) — there is no standalone `ci/assert_release_endpoint.sh`.
 | Script | Purpose | Status |
 |--------|---------|--------|
 | `cleanup.sh` | Kill Xcode background services, deep-clean DerivedData | Dev convenience |
-| `deploy-migrations.sh` | Manual migration deploy | ⚠️ Superseded by `.github/workflows/deploy-*.yml`; keep only for local hacking |
+| `deploy-migrations.sh` | Manual migration deploy | ⚠️ Legacy (no backend deploy workflows remain); local hacking only |
 | `verify_preview_optimization.sh` | Check SwiftUI previews follow best practices | Dev convenience |
 
 Scripts tied to retired features (weekly-questions / server-side chat / insights

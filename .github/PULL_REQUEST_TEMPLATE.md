@@ -5,11 +5,12 @@
 ## Testing
 
 - [ ] I added or updated tests for behavior changes (unit / UI as applicable).
-- [ ] `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' test` (requires Xcode 26+ for the Foundation Models SDK; adjust name to a device you have via `xcodebuild -showdestinations -scheme MeetMemento`)
+- [ ] Online suite: `CI_ONLINE=1 xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' -skip-testing:MeetMementoUITests test` (requires Xcode 26+; adjust destination via `xcodebuild -showdestinations -scheme MeetMemento`)
+- [ ] Device/eval changes (if any) were validated locally or via `ios-device-eval.yml` — not required to merge.
 
 ## CI and Security
 
 - [ ] This PR targets `dev` unless it is a release promotion PR from `dev` to `main`.
-- [ ] SwiftLint passes in strict mode.
-- [ ] Coverage gate passes.
-- [ ] Security checks pass (CodeQL, dependency review, secret scanning).
+- [ ] Online checks pass: **iOS build (online)**, Spec gates (2.0), dependency review, secret scanning.
+- [ ] SwiftLint passes in strict mode on changed files.
+- [ ] Coverage gate passes (online suite).
