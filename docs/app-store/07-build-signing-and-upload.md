@@ -76,8 +76,8 @@ xcodebuild \
   archive
 ```
 
-Run under the pinned toolchain (`DEVELOPER_DIR=…`), as `ios-tests.yml` already
-does.
+Run under the pinned toolchain (`DEVELOPER_DIR=…`), as `ios-build-online.yml`
+already does.
 
 ### 3.2 Export
 
@@ -228,8 +228,8 @@ Two ways forward when the pipeline moves to CI:
    fastlane `match`. More reproducible, more moving parts.
 
 Either way the distribution certificate's private key must be importable on the
-runner. The self-hosted macOS runner already used by `ios-tests.yml` is the
-natural home.
+runner. The self-hosted macOS runner already used by `ios-build-online.yml` is
+the natural home.
 
 ---
 

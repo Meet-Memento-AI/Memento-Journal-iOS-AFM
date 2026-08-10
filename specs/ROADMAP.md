@@ -30,7 +30,7 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 | 3 — Surfaces | [018](018-capture-and-voice-output.md), [019](019-surfaces.md) | Weekly → Patterns → Ask shipped in that order | in-progress (spec-writing only) — 018 and 019 Requirements written; implementation gated on Phases 1–2 landing and the Xcode 27 toolchain |
 | 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | in-progress (spec-writing only) — 020 Requirements written; `DEC-005` (Watch) open, `REQ-SYS-002` gated on `DEC-002` |
 | 5 — Study | [021](021-monetization-and-store-compliance.md), [022](022-evaluation-and-quality-study.md) | Re-baselined 30-day quality study running | in-progress (spec-writing only) — 021 and 022 Requirements written; `DEC-001`/`DEC-004` and the LLM-as-judge decision open |
-| **S — Ship** | [`docs/app-store/`](../docs/app-store/) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below |
+| **S — Ship** | [`docs/app-store/`](../docs/app-store/), [025](025-ci-online-ios-build-gates.md) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence; merge CI proves online-testable iOS build specs (not on-device FM generation) | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below; **025 done (2026-08-10)** — `ios-tests.yml` replaced by `ios-build-online.yml` + optional `ios-device-eval.yml` (CI-live / branch-protection rename is a user action) |
 
 **Gate S — Ship (added 2026-08-07).** Store readiness is not a spec, because it
 is mostly *not* code: it is App Store Connect fields, Apple-side filings with
@@ -97,6 +97,13 @@ These are engine/CI halves; the Swift implementations they guard still depend on
 Gate α + the toolchain/device. Making them *required* checks is a branch-
 protection setting (`docs/BRANCH_PROTECTION_SETUP.md`). No `DEC-nnn` was resolved:
 015/020 explicitly hold DEC-006/007/005 open for a human decision.
+
+**Online-vs-device CI (spec [025](025-ci-online-ios-build-gates.md), done
+2026-08-10).** Merge workflows: `ios-build-online.yml` (check name
+**iOS build (online)**), `security.yml`, `spec-gates.yml`. Optional
+`ios-device-eval.yml` is never a required check. Operators must update branch
+protection to replace any stale `iOS quality gates` required check with
+`iOS build (online)`. Hosted-runner migration remains parked under spec 012 #8.
 
 Spec 013's re-audit of whether specs 002, 007, 008, 009, 011, 012 (below) still
 apply once 2.0 lands is **resolved** — see spec 013's "Legacy spec disposition"

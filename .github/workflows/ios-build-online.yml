@@ -1,4 +1,8 @@
-name: iOS quality and chat helper tests
+name: iOS build (online)
+
+# Spec 025 — merge CI for iOS build specifications + mockable unit tests.
+# Does NOT require a provisioned on-device Foundation Models runtime.
+# Device/eval work lives in ios-device-eval.yml (non-required).
 
 on:
   push:
@@ -11,34 +15,26 @@ permissions:
   contents: read
 
 jobs:
-  ios-unit-ui:
-    name: iOS quality gates
+  ios-build-online:
+    name: iOS build (online)
     runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     env:
-      # The on-device Intelligence layer requires the Foundation Models SDK
-      # (Xcode 26+/iOS 26+). Pin the toolchain for reproducibility; a runner
-      # with Xcode installed elsewhere can override IOS_DEVELOPER_DIR /
-      # IOS_SIM_DESTINATION as repo variables.
+      CI_ONLINE: "1"
+      # Compiles the Intelligence boundary (Xcode 26+ / Foundation Models SDK).
+      # Override IOS_DEVELOPER_DIR / IOS_SIM_DESTINATION as repo variables.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
-      # OS=latest resolves to whatever iOS runtime the runner has (26 or 27 both
-      # carry the Foundation Models SDK); override IOS_SIM_DESTINATION to pin an
-      # exact runtime on a runner that has several.
       IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Show pinned toolchain
-        run: |
-          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
-          xcodebuild -version
-          echo "Destination: $IOS_SIM_DESTINATION"
+      - name: Assert iOS build specifications
+        run: bash scripts/ci/assert_ios_build_specs.sh
 
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      # spec-006: SwiftLint is now BLOCKING for new violations on PRs (changed files
-      # only, so pre-existing debt elsewhere doesn't block). The no_print custom rule
-      # (spec-005) is enforced here.
+      # spec-006/025: SwiftLint blocking for new violations on PRs (changed files
+      # only). The no_print custom rule (spec-005) is enforced here.
       - name: SwiftLint changed files (strict, blocking)
         if: github.event_name == 'pull_request'
         run: bash scripts/ci/lint_changed_swift.sh "${{ github.base_ref }}"
@@ -48,10 +44,8 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --strict
 
-      # No secrets/config stubs needed: the app is on-device only (no backend),
-      # so it builds and tests with no API keys or xcconfig setup.
-
-      - name: Build and test (simulator)
+      # No secrets/config stubs needed: on-device only (no backend).
+      - name: Build and test (online suite)
         run: |
           set -euo pipefail
 
@@ -75,16 +69,12 @@ jobs:
             run_tests
           fi
 
-      - name: Coverage gate
+      - name: Coverage gate (online suite)
         env:
-          # spec-006/011: RATCHET-ONLY. This floor may only ever INCREASE.
-          # Baseline covers the spec-011 security paths (Encryption/Security/
-          # Auth/Journal) plus the on-device Intelligence suites (TurnClassifier,
-          # RetrievalPolicy, EntryRetriever confidence, conversation flow, prompt
-          # stance/personalization). Measured global line coverage after the
-          # Intelligence suites landed: 13.31% (Xcode 26, iPhone 17). Floor set a
-          # hair below so normal fluctuation doesn't flake CI; raise as coverage
-          # grows — never lower it.
+          # spec-006/011/025: RATCHET-ONLY. Floor may only ever INCREASE.
+          # Measured over the online suite (CI_ONLINE=1 skips live FM generation).
+          # Baseline 13% retained from the prior gate; re-measure upward after
+          # suite composition stabilizes — never lower it.
           MIN_COVERAGE: "13"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 

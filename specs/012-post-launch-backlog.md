@@ -42,7 +42,7 @@ Low risk (it gates a convenience logout, not data access). Move to Keychain or a
 and document. Effort: trivial; bundle with any future SecurityService work.
 
 ### 3. Re-enable UITests in CI
-`MeetMementoUITests` are `-skip-testing` in CI (`ios-tests.yml:71`) due to
+`MeetMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
 self-hosted-runner flakiness. Beta-period crash/regression coverage would benefit from
 at least the launch smoke test running. Investigate simulator stability on the runner.
 
@@ -75,6 +75,10 @@ but doesn't migrate). Decide long-term: GitHub-hosted (cost) vs hardening the
 self-hosted setup (bus factor). Revisit when CI minutes/budget are clearer.
 **2026-07-23:** CI workflow *content* (not the runner strategy) needs updating once
 `supabase/` is deleted in spec 015, since several jobs currently reference it.
+**2026-08-10:** the *online-testable iOS build contract* (what merge CI must prove
+without on-device FM generation) is harvested into spec
+[025](025-ci-online-ios-build-gates.md). Item 8 remains parked only for the
+cost/infra choice of GitHub-hosted vs self-hosted Macs once that contract exists.
 
 ### 9. Prompt-injection hardening, round 2 — promoted out of the parking lot, 2026-07-23
 Reviewed 2026-07-13 as LOW: journal content is self-authored (self-targeted injection

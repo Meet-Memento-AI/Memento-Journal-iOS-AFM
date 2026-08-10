@@ -2,10 +2,10 @@
 //  IntelligenceServiceTests.swift
 //  MeetMementoTests
 //
-//  Exercises the native Foundation Models intelligence layer end-to-end on the
-//  simulator. If the on-device model isn't provisioned in this environment the
-//  availability path is still verified and the generation assertions are skipped
-//  (they belong on a physical Apple-Intelligence device).
+//  Online-safe suites (retriever, embeddings availability, local chat store)
+//  always run. Live Foundation Models generation belongs on a physical
+//  Apple-Intelligence device (or the optional ios-device-eval workflow) and is
+//  skipped when CI_ONLINE=1 (spec 025).
 //
 //  Note: this test imports NO FoundationModels — it depends only on the
 //  `IntelligenceService` protocol boundary (P3), which is itself the injection
@@ -18,7 +18,17 @@ import XCTest
 
 final class IntelligenceServiceTests: XCTestCase {
 
+    /// Merge CI sets CI_ONLINE=1 so generation is skipped by policy, not after a
+    /// failed model call (spec 025 R2).
+    private var isOnlineCI: Bool {
+        ProcessInfo.processInfo.environment["CI_ONLINE"] == "1"
+    }
+
     func testAvailabilityAndOnDeviceAsk() async throws {
+        if isOnlineCI {
+            throw XCTSkip("CI_ONLINE=1: live FM generation is device-lane only (spec 025)")
+        }
+
         let service = FoundationModelsIntelligenceService.shared
 
         let availability = await service.availability()
@@ -26,7 +36,7 @@ final class IntelligenceServiceTests: XCTestCase {
 
         switch availability {
         case .unavailable(let reason):
-            // Expected on a simulator/CI without the provisioned on-device model —
+            // Expected on a simulator without the provisioned on-device model —
             // the availability path is correct; real generation is device-gated.
             throw XCTSkip("On-device model unavailable here: \(reason.userMessage)")
 
@@ -63,6 +73,10 @@ final class IntelligenceServiceTests: XCTestCase {
     }
 
     func testSummarizeConversation() async throws {
+        if isOnlineCI {
+            throw XCTSkip("CI_ONLINE=1: live FM generation is device-lane only (spec 025)")
+        }
+
         let service = FoundationModelsIntelligenceService.shared
         guard case .available = await service.availability() else {
             throw XCTSkip("On-device model unavailable here.")
