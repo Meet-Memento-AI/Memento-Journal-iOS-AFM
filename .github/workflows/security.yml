@@ -57,7 +57,7 @@ jobs:
 
       # spec-006/025: blocking on critical vulnerabilities (online merge lane).
       - name: Dependency review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: critical
 
