@@ -242,9 +242,9 @@ public struct AboutSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface (no shadow).
+        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions

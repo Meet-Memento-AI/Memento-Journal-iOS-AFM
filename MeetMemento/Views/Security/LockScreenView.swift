@@ -31,8 +31,11 @@ struct LockScreenView: View {
 
     var body: some View {
         ZStack {
-            // White background matching LaunchScreen
-            Color.white
+            // Theme background — was hardcoded white "matching LaunchScreen",
+            // which made the lock screen a blinding white panel in dark mode.
+            // The launch storyboard is still white; the brief transition
+            // mismatch in dark mode is preferable to a wrong steady state.
+            theme.background
                 .ignoresSafeArea()
 
             VStack {

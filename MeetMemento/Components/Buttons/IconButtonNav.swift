@@ -30,9 +30,9 @@ struct IconButtonNav: View {
             onTap?()
         }) {
             ZStack {
-                // Liquid Glass removed — flat #fafafa surface.
+                // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
                 Circle()
-                    .fill(Color(hex: "#FAFAFA"))
+                    .fill(theme.cardBackground)
 
                 // Icon
                 Image(systemName: icon)
