@@ -463,9 +463,9 @@ struct ChatInputField: View {
 
     @ViewBuilder
     private func glassBackground(cornerRadius: CGFloat) -> some View {
-        // Liquid Glass removed — flat #fafafa surface (no shadow).
+        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Speech Actions

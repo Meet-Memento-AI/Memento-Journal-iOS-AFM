@@ -190,7 +190,7 @@ public struct AboutSettingsView: View {
                     subtitle: nil,
                     showChevron: true,
                     action: {
-                        openURL("https://sebmendo1.github.io/MeetMemento/terms.html")
+                        openURL(Constants.Legal.termsOfServiceURL.absoluteString)
                     }
                 )
             }
@@ -242,9 +242,9 @@ public struct AboutSettingsView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface (no shadow).
+        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions
@@ -256,7 +256,7 @@ public struct AboutSettingsView: View {
     }
 
     private func openContactSupport() {
-        let email = "support@sebastianmendo.com"
+        let email = Constants.Legal.supportEmail
         let subject = "MeetMemento Support Request"
         let body = """
 

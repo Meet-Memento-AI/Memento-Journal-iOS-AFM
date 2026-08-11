@@ -75,9 +75,9 @@ final class ChatViewModelTests: XCTestCase {
         let mock = MockChatService()
         mock.fetchSessionsImpl = { [] }
         mock.streamEvents = [
-            .partial(heading1: nil, heading2: nil, body: "You've"),
-            .partial(heading1: nil, heading2: nil, body: "You've been writing about"),
-            .completed(ChatResponse(
+            .delta(body: "You've", heading1: nil, heading2: nil, sources: []),
+            .delta(body: "You've been writing about", heading1: nil, heading2: nil, sources: []),
+            .final(ChatResponse(
                 reply: "You've been writing about work stress lately.",
                 heading1: nil,
                 heading2: nil,
@@ -97,8 +97,10 @@ final class ChatViewModelTests: XCTestCase {
         let assistant = vm.messages[1]
         XCTAssertFalse(assistant.isFromUser)
         XCTAssertEqual(assistant.content, "You've been writing about work stress lately.")
-        // Streamed replies bypass the typewriter (real generation IS the animation).
-        XCTAssertFalse(assistant.isNew)
+        // The bubble stays `isNew` until the typewriter finishes draining
+        // (the UI's markMessageSeen flips it); the stream itself has settled.
+        XCTAssertTrue(assistant.isNew)
+        XCTAssertFalse(assistant.isStreaming, "final event must settle the streaming flag")
         // Citations attach at completion.
         XCTAssertEqual(assistant.citations?.count, 1)
         XCTAssertEqual(assistant.citations?.first?.entryId, entryId)
@@ -124,7 +126,7 @@ final class ChatViewModelTests: XCTestCase {
 
     func test_ChatViewModel_interruptedStream_removesPartialBubble() async throws {
         let mock = MockChatService()
-        mock.streamEvents = [.partial(heading1: nil, heading2: nil, body: "You've been")]
+        mock.streamEvents = [.delta(body: "You've been", heading1: nil, heading2: nil, sources: [])]
         mock.streamError = IntelligenceError.generationFailed("model stopped")
 
         let vm = ChatViewModel(chatService: mock)

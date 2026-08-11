@@ -176,19 +176,6 @@ public struct JournalView: View {
                         switch route {
                         case .main:
                             AIChatView(viewModel: chatViewModel)
-                                .environmentObject(NetworkMonitor.shared)
-                                .toolbar(.hidden, for: .tabBar)
-                                .environment(\.fabVisible, false)
-                        }
-                    }
-                    .navigationDestination(for: MonthInsightRoute.self) { route in
-                        switch route {
-                        case .detail(let monthLabel, _):
-                            InsightsView()
-                                .environmentObject(entryViewModel)
-                                .environmentObject(NetworkMonitor.shared)
-                                .navigationTitle(monthLabel)
-                                .navigationBarTitleDisplayMode(.large)
                                 .toolbar(.hidden, for: .tabBar)
                                 .environment(\.fabVisible, false)
                         }

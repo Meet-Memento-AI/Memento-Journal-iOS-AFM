@@ -89,6 +89,19 @@ struct AskResult: Sendable {
     let latency: Duration
 }
 
+/// An incremental event from a streaming ask (spec 017 R6). `delta` carries the
+/// reply **so far** (cumulative, not just the new chunk) so the UI can render it
+/// directly; `final` carries the completed result with reconciled citations.
+///
+/// `reviewedCitations` are the journals retrieval already surfaced for a grounded
+/// turn — known before the first token — so the "Reviewed your journals" link can
+/// appear right away instead of waiting for the model's final `citedRefs`. Empty
+/// for non-grounded turns. `final`'s reconciled citations supersede them.
+enum AskStreamEvent: Sendable {
+    case delta(bodySoFar: String, heading1: String?, heading2: String?, reviewedCitations: [AskCitation])
+    case final(AskResult)
+}
+
 /// Onboarding personalization estimate: closed-vocab theme ids + a bounded lens.
 struct ProfileEstimateResult: Sendable, Equatable {
     let themeIds: [String]
@@ -150,16 +163,6 @@ enum IntelligenceError: Error, LocalizedError {
     }
 }
 
-// MARK: - Streaming (spec 017 R6)
-
-/// One event in a streaming Ask turn. Partials carry the growing structured
-/// reply; `completed` carries the full reconciled result (citations included —
-/// citations only exist after reconciliation, so they never stream).
-enum AskStreamEvent: Sendable {
-    case partial(heading1: String?, heading2: String?, body: String)
-    case completed(AskResult)
-}
-
 // MARK: - The boundary
 
 /// The single seam between the app and Apple Foundation Models. Concrete
@@ -172,14 +175,10 @@ protocol IntelligenceService: Sendable {
     func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult
 
     /// Streaming variant of `ask` (spec 017 R6: chat streams; reflections and
-    /// summaries never do). Yields `.partial` snapshots as the reply grows and
-    /// exactly one `.completed` before finishing. Defaulted to a one-shot wrap
+    /// summaries never do). Yields cumulative `.delta` events as the reply grows
+    /// and exactly one `.final` before finishing. Defaulted to a one-shot wrap
     /// of `ask` so conforming fakes stay small.
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error>
-
-    /// Preload model resources so the first generation doesn't pay session
-    /// warm-up (perceived-latency work; safe no-op default).
-    func prewarm()
 
     /// Turn a conversation into a first-person journal-entry summary. Returns
     /// a full outcome envelope (spec 017 R1) — zoneUsed/modelIdentifier/
@@ -192,20 +191,29 @@ protocol IntelligenceService: Sendable {
 
     /// Whether generation can run right now, and in which zone.
     func availability() async -> IntelligenceAvailability
+
+    /// Warm the model ahead of the first request (e.g. when the chat view
+    /// appears). Fire-and-forget; no-op where unsupported.
+    func prewarm()
 }
 
-// MARK: - Defaults
-
 extension IntelligenceService {
-    /// One-shot fallback: a single `.completed` event. Conforming test doubles
-    /// and any implementation without native streaming get correct (if
-    /// unstreamed) behavior for free.
+    // Default no-op so non-model implementations (mocks/tests) opt in only if
+    // they want to.
+    func prewarm() {}
+
+    /// Default streaming implementation: run the one-shot `ask` and emit a
+    /// single delta + final. Mocks and any non-streaming implementation get
+    /// correct (if non-incremental) behavior for free; the real Foundation
+    /// Models service overrides this with true snapshot streaming.
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let result = try await ask(question, history: history, entries: entries)
-                    continuation.yield(.completed(result))
+                    continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1,
+                                              heading2: result.heading2, reviewedCitations: result.citations))
+                    continuation.yield(.final(result))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -214,6 +222,4 @@ extension IntelligenceService {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
-
-    func prewarm() {}
 }

@@ -19,10 +19,14 @@ class JournalService {
         self.encryptionService = encryptionService
     }
 
-    // MARK: - Local-First Helpers (spec-007)
+    // MARK: - Legacy-Migration Helpers
 
-    /// Queues an entry for later sync (offline write, or a transient sync
-    /// failure), encrypting the title under the same data key as content.
+    /// Enqueues a pending-sync record, encrypting the title under the same
+    /// data key as content. The server this queue fed is gone; the queue
+    /// format survives ONLY because the legacy-migration path below reads
+    /// `encryptedTitle` to recover titles of pre-envelope entries. Production
+    /// code no longer enqueues — this seam exists for the migration tests.
+    // periphery:ignore - test-only seam for legacy-migration tests (JournalServiceTests); retained deliberately
     func queuePendingSync(entryId: UUID, opType: PendingSyncOperation.OpType, title: String) {
         guard let encryptedTitle = encryptionService.encrypt(title) else {
             AppLogger.log("⚠️ [JournalService] Failed to encrypt title for pending sync: \(entryId)")
@@ -134,8 +138,7 @@ class JournalService {
                     title: envelope.title,
                     text: envelope.content,
                     createdAt: envelope.createdAt,
-                    updatedAt: envelope.updatedAt,
-                    syncStatus: .synced
+                    updatedAt: envelope.updatedAt
                 )
             }
 
@@ -159,7 +162,7 @@ class JournalService {
 
             return Entry(
                 id: id, title: title, text: decrypted,
-                createdAt: timestamp, updatedAt: timestamp, syncStatus: .synced
+                createdAt: timestamp, updatedAt: timestamp
             )
         }
 

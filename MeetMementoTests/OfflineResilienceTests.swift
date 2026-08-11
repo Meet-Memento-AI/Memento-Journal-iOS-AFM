@@ -71,28 +71,3 @@ final class PendingSyncQueueTests: XCTestCase {
     }
 }
 
-// MARK: - NetworkMonitoring mock
-
-/// Simple settable mock so any code depending on `NetworkMonitoring` (rather
-/// than the concrete `NetworkMonitor`) can be driven in tests without a real
-/// `NWPathMonitor`.
-@MainActor
-final class MockNetworkMonitor: NetworkMonitoring {
-    var isConnected: Bool
-
-    init(isConnected: Bool = true) {
-        self.isConnected = isConnected
-    }
-}
-
-@MainActor
-final class NetworkMonitoringProtocolTests: XCTestCase {
-    func test_mockNetworkMonitor_reflectsAssignedState() {
-        let mock = MockNetworkMonitor(isConnected: true)
-        let seam: NetworkMonitoring = mock
-        XCTAssertTrue(seam.isConnected)
-
-        mock.isConnected = false
-        XCTAssertFalse(seam.isConnected)
-    }
-}

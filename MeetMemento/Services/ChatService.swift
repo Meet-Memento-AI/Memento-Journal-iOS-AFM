@@ -76,34 +76,44 @@ struct ChatSummaryResponse: Codable {
 
 // MARK: - Streaming events (spec 017 R6)
 
-/// One event in a streaming chat send. `partial` carries the growing reply for
-/// live rendering; `completed` carries the final persisted response (citations
-/// only exist after reconciliation, so they never stream).
+/// Incremental chat output. `delta` is the reply body so far (cumulative);
+/// `final` carries the complete `ChatResponse` (sources, session id) once
+/// generation finishes and the turn is persisted.
 enum ChatStreamEvent: Sendable {
-    case partial(heading1: String?, heading2: String?, body: String)
-    case completed(ChatResponse)
+    /// `sources` are the journals reviewed for a grounded turn, forwarded from the
+    /// first delta so the "Reviewed your journals" link can show right away. Empty
+    /// for non-grounded turns; the `.final` sources supersede them.
+    case delta(body: String, heading1: String?, heading2: String?, sources: [ChatSource])
+    case final(ChatResponse)
 }
 
 // MARK: - Service protocol (enables unit tests with mocks)
 
 protocol ChatServiceProtocol: AnyObject {
     func sendMessage(_ text: String, sessionId: UUID?) async throws -> ChatResponse
-    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
     func fetchSessions() async throws -> [ChatSession]
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO]
     func deleteSession(sessionId: UUID) async throws
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse
+    /// Warm the on-device model ahead of the first send (chat view appears).
+    func prewarm()
+    /// Streaming send: emits the reply as it generates, then a final response.
+    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
-    /// One-shot fallback so conforming test doubles keep compiling: a single
-    /// `.completed` event wrapping `sendMessage`.
-    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func prewarm() {}
+
+    /// Default streaming: run the one-shot `sendMessage` and emit a single
+    /// delta + final. Mocks that only implement `sendMessage` still work.
+    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let response = try await sendMessage(text, sessionId: sessionId)
-                    continuation.yield(.completed(response))
+                    continuation.yield(.delta(body: response.reply, heading1: response.heading1,
+                                              heading2: response.heading2, sources: response.sources))
+                    continuation.yield(.final(response))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -124,6 +134,17 @@ class ChatService {
     /// The on-device intelligence boundary. ChatService itself never imports
     /// FoundationModels — it depends only on the protocol (P3 / REQ-INT-001).
     private let intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared
+
+    /// Warm the model AND precompute entry embeddings ahead of the first send,
+    /// off the main thread, so message #1 doesn't pay cold model load + cold
+    /// "embed every entry" costs.
+    func prewarm() {
+        intelligence.prewarm()
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            EntryRetriever.warmEmbeddings(self.loadLocalEntries())
+        }
+    }
 
     /// Reused across citation mapping (avoids a per-source allocation).
     private static let iso8601 = ISO8601DateFormatter()
@@ -153,35 +174,6 @@ class ChatService {
 
         let result = try await intelligence.ask(text, history: history, entries: entries)
         return persistAndBuildResponse(text: text, result: result, conversationId: conversationId)
-    }
-
-    /// Streaming send (spec 017 R6): partials for live rendering, then one
-    /// `.completed` carrying the persisted response. Persistence happens at
-    /// completion only — an interrupted stream leaves the store untouched.
-    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
-        let conversationId = sessionId ?? UUID()
-        return AsyncThrowingStream { continuation in
-            let task = Task {
-                        AppLogger.log("💬 [ChatService] Streaming on-device reply (conversation: \(conversationId.uuidString.prefix(8)))...")
-                let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
-                let entries = self.loadLocalEntries()
-                do {
-                    for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
-                        switch event {
-                        case .partial(let heading1, let heading2, let body):
-                            continuation.yield(.partial(heading1: heading1, heading2: heading2, body: body))
-                        case .completed(let result):
-                            let response = self.persistAndBuildResponse(text: text, result: result, conversationId: conversationId)
-                            continuation.yield(.completed(response))
-                        }
-                    }
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
     }
 
     /// Shared tail of both send paths: map citations, persist both turns,
@@ -227,10 +219,57 @@ class ChatService {
         )
     }
 
-    /// Preload on-device model resources ahead of the first turn (perceived
-    /// latency: the chat surface calls this on appear).
-    func prewarmIntelligence() {
-        intelligence.prewarm()
+    /// Maps intelligence-layer citations to the `ChatSource` shape used by both
+    /// the streamed `.delta`/`.final` events and local persistence.
+    private static func sources(from citations: [AskCitation]) -> [ChatSource] {
+        citations.map { citation in
+            ChatSource(
+                id: citation.entryId.uuidString,
+                createdAt: iso8601.string(from: citation.entryDate),
+                preview: citation.excerpt
+            )
+        }
+    }
+
+    /// Streaming send: forwards the model's incremental output as `.delta`
+    /// events (so the bubble fills as it generates), then persists the turn and
+    /// emits `.final`. Persistence and citation mapping run *after* the stream
+    /// so nothing blocks first-token; an interrupted stream leaves the store
+    /// untouched.
+    func sendMessageStream(_ text: String, sessionId: UUID? = nil) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                let conversationId = sessionId ?? UUID()
+                        AppLogger.log("💬 [ChatService] Streaming on-device reply (conversation: \(conversationId.uuidString.prefix(8)))...")
+                let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+                let entries = self.loadLocalEntries()
+                do {
+                    var finalResult: AskResult?
+                    for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
+                        switch event {
+                        case .delta(let bodySoFar, let h1, let h2, let reviewed):
+                            continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2,
+                                                      sources: Self.sources(from: reviewed)))
+                        case .final(let result):
+                            finalResult = result
+                        }
+                    }
+                    guard let result = finalResult else {
+                        // Stream ended without a final (e.g. cancelled) — no persist.
+                        continuation.finish()
+                        return
+                    }
+                    let response = self.persistAndBuildResponse(text: text, result: result, conversationId: conversationId)
+                    continuation.yield(.final(response))
+                    continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     // MARK: - History Management

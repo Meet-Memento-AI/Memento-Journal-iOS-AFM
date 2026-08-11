@@ -69,6 +69,12 @@ class ChatViewModel: ObservableObject {
         self.chatService = chatService
     }
 
+    /// Warm the on-device model so the first send doesn't pay cold model load.
+    /// Call when the chat view appears / the input gains focus.
+    func prewarm() {
+        chatService.prewarm()
+    }
+
     /// Reads the user's first name for personalized welcome messages. No
     /// accounts / no backend (the name is captured during onboarding and
     /// stored locally); this is a local UserDefaults read, kept `async` to
@@ -227,91 +233,73 @@ class ChatViewModel: ObservableObject {
         isLoading = true
         let generation = sendGeneration
 
+        // Empty assistant bubble appended immediately; it fills as the model
+        // streams so text appears the moment generation starts (no waiting for
+        // the whole reply, no artificial typewriter).
+        let assistantId = UUID()
+        appendMessage(ChatMessage.aiMessage(id: assistantId, body: "", isNew: true))
+
         track(Task { [weak self] in
             guard let self else { return }
-            var streamingMessageId: UUID?
+            // Whatever ends the stream — success, error, or cancel — settle the
+            // assistant bubble so the typewriter can complete instead of blinking
+            // its caret forever. On the success path `.final` already cleared this,
+            // so the flip is a no-op; on error/cancel `.final` never arrives, so
+            // this is the only thing that settles a partial reply.
+            defer {
+                if let idx = messages.firstIndex(where: { $0.id == assistantId }),
+                   messages[idx].isStreaming {
+                    messages[idx].isStreaming = false
+                }
+            }
+            var sawContent = false
             do {
-                let stream = chatService.sendMessageStreaming(text, sessionId: currentSessionId)
-                for try await event in stream {
-                    // Cancelled or superseded mid-flight (user left the view or
-                    // switched conversations): don't write into whatever
-                    // conversation is now on screen.
+                for try await event in chatService.sendMessageStream(text, sessionId: currentSessionId) {
+                    // Cancelled or superseded mid-flight (user left / switched
+                    // conversations): stop writing into whatever is on screen now.
                     guard generation == sendGeneration, !Task.isCancelled else { return }
 
                     switch event {
-                    case .partial(let heading1, let heading2, let body):
-                        if let id = streamingMessageId {
-                            replaceMessage(
-                                id: id,
-                                with: .aiMessage(id: id, heading1: heading1, heading2: heading2, body: body, isNew: false)
-                            )
-                        } else {
-                            let aiMessage = ChatMessage.aiMessage(
-                                heading1: heading1,
-                                heading2: heading2,
-                                body: body,
-                                isNew: false
-                            )
-                            streamingMessageId = aiMessage.id
-                            appendMessage(aiMessage)
-                            // First tokens are on screen — drop the shimmer.
-                            isLoading = false
-                        }
+                    case .delta(let body, let heading1, let heading2, let sources):
+                        // First visible token: drop the "thinking" indicator.
+                        if isLoading { isLoading = false }
+                        sawContent = sawContent || !body.isEmpty
+                        // Reviewed-journals citations arrive from the first delta on
+                        // grounded turns, so the "Reviewed your journals" link shows
+                        // right away rather than waiting for `.final`.
+                        let reviewed = mapSourcesToCitations(sources)
+                        updateStreamingMessage(id: assistantId, body: body,
+                                               heading1: heading1, heading2: heading2,
+                                               citations: reviewed.isEmpty ? nil : reviewed,
+                                               isStreaming: true)
 
-                    case .completed(let response):
-                        // Update current session ID from response (handles new session creation)
-                        if let newSessionId = UUID(uuidString: response.sessionId) {
-                            if currentSessionId == nil {
-                                currentSessionId = newSessionId
-                                // Refresh sessions list when a new session is created
-                                await fetchSessions()
-                            }
+                    case .final(let response):
+                        // Handle new-session creation (first message of a chat).
+                        if let newSessionId = UUID(uuidString: response.sessionId), currentSessionId == nil {
+                            currentSessionId = newSessionId
+                            await fetchSessions()
                         }
-
                         let citations = mapSourcesToCitations(response.sources)
-                        if let id = streamingMessageId {
-                            // Finalize the streamed bubble in place (adds citations).
-                            replaceMessage(
-                                id: id,
-                                with: .aiMessage(
-                                    id: id,
-                                    heading1: response.heading1,
-                                    heading2: response.heading2,
-                                    body: response.reply,
-                                    citations: citations.isEmpty ? nil : citations,
-                                    isNew: false
-                                )
-                            )
-                        } else {
-                            // Non-streamed path: whole reply at once, typewriter on.
-                            appendMessage(ChatMessage.aiMessage(
-                                heading1: response.heading1,
-                                heading2: response.heading2,
-                                body: response.reply,
-                                citations: citations.isEmpty ? nil : citations,
-                                isNew: true
-                            ))
-                        }
-
-                        // Update cache after successful send
-                        if let sessionId = currentSessionId {
-                            messageCache[sessionId] = messages
-                        }
+                        updateStreamingMessage(id: assistantId, body: response.reply,
+                                               heading1: response.heading1, heading2: response.heading2,
+                                               citations: citations.isEmpty ? nil : citations,
+                                               isStreaming: false)
+                        sawContent = sawContent || !response.reply.isEmpty
+                        if let sessionId = currentSessionId { messageCache[sessionId] = messages }
                     }
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
+                // A partial bubble from an interrupted stream is not a reply —
+                // remove it (and the empty placeholder) before rendering the
+                // designed outcome; the retry affordance lives on the user's message.
+                messages.removeAll { $0.id == assistantId }
                 guard generation == sendGeneration, !Task.isCancelled,
                       !(error is CancellationError) else {
                     // A cancelled/superseded send shouldn't pop the error alert
                     // over unrelated content — but keep the retry affordance.
                     setSendFailed(true, forMessageId: userMessageId)
                     return
-                }
-                // A partial bubble from an interrupted stream is not a reply —
-                // remove it before rendering the designed outcome.
-                if let id = streamingMessageId {
-                    messages.removeAll { $0.id == id }
                 }
 
                 switch error {
@@ -340,14 +328,28 @@ class ChatViewModel: ObservableObject {
                 }
             }
             guard generation == sendGeneration else { return }
+            // Nothing streamed at all (e.g. immediate cancel): clean the placeholder.
+            if !sawContent { messages.removeAll { $0.id == assistantId } }
             isLoading = false
         })
     }
 
-    /// Replaces a message in place (same id) — the streaming render path.
-    private func replaceMessage(id: UUID, with message: ChatMessage) {
+    /// Replaces the streaming assistant bubble (matched by id) with the
+    /// latest body/headings/citations. Called on every delta (`isStreaming:
+    /// true`) and once on final (`isStreaming: false`) so the typewriter knows
+    /// when the stream has genuinely ended.
+    private func updateStreamingMessage(id: UUID, body: String, heading1: String?, heading2: String?, citations: [JournalCitation]?, isStreaming: Bool) {
         guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
-        messages[index] = message
+        messages[index] = ChatMessage.aiMessage(
+            id: id,
+            heading1: heading1,
+            heading2: heading2,
+            body: body,
+            citations: citations,
+            timestamp: messages[index].timestamp,
+            isNew: true,
+            isStreaming: isStreaming
+        )
     }
 
     // MARK: - Clear Conversation

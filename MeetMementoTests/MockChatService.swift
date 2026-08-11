@@ -20,14 +20,17 @@ final class MockChatService: ChatServiceProtocol {
         return try await impl(text, sessionId)
     }
 
-    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
-        // Scripted stream when configured; else the default one-shot wrap.
+    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        // Scripted stream when configured; else the default one-shot wrap
+        // (a single cumulative delta, then the final — mirrors the protocol default).
         guard streamEvents != nil || streamError != nil else {
             return AsyncThrowingStream { continuation in
                 let task = Task {
                     do {
                         let response = try await self.sendMessage(text, sessionId: sessionId)
-                        continuation.yield(.completed(response))
+                        continuation.yield(.delta(body: response.reply, heading1: response.heading1,
+                                                  heading2: response.heading2, sources: response.sources))
+                        continuation.yield(.final(response))
                         continuation.finish()
                     } catch {
                         continuation.finish(throwing: error)

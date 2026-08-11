@@ -123,6 +123,12 @@ public struct ChatMessage: Identifiable, Hashable {
     /// in the transcript with a retry affordance instead of being dropped.
     public var sendFailed: Bool
 
+    /// True while this assistant message is still receiving streamed deltas.
+    /// Transient (never persisted) — mirrors `isNew`. The typewriter uses it to
+    /// know the stream has truly ended (vs. a mid-generation pause) so it only
+    /// completes once the full reply has been drained.
+    public var isStreaming: Bool
+
     public init(
         id: UUID = UUID(),
         content: String,
@@ -131,7 +137,8 @@ public struct ChatMessage: Identifiable, Hashable {
         citations: [JournalCitation]? = nil,
         aiOutputContent: AIOutputContent? = nil,
         isNew: Bool = false,
-        sendFailed: Bool = false
+        sendFailed: Bool = false,
+        isStreaming: Bool = false
     ) {
         self.id = id
         self.content = content
@@ -141,8 +148,9 @@ public struct ChatMessage: Identifiable, Hashable {
         self.aiOutputContent = aiOutputContent
         self.isNew = isNew
         self.sendFailed = sendFailed
+        self.isStreaming = isStreaming
     }
-    
+
     // Convenience initializer for AI messages with structured content
     public static func aiMessage(
         id: UUID = UUID(),
@@ -151,7 +159,8 @@ public struct ChatMessage: Identifiable, Hashable {
         body: String,
         citations: [JournalCitation]? = nil,
         timestamp: Date = Date(),
-        isNew: Bool = false
+        isNew: Bool = false,
+        isStreaming: Bool = false
     ) -> ChatMessage {
         let outputContent = AIOutputContent(
             heading1: heading1,
@@ -166,7 +175,8 @@ public struct ChatMessage: Identifiable, Hashable {
             timestamp: timestamp,
             citations: citations,
             aiOutputContent: outputContent,
-            isNew: isNew
+            isNew: isNew,
+            isStreaming: isStreaming
         )
     }
 }

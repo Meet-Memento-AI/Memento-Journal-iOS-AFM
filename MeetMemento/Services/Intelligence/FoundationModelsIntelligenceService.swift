@@ -46,10 +46,10 @@ struct AskAnswer {
     @Guide(description: "Optional rare subheading. Usually empty.")
     let heading2: String?
 
-    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji. Second person. Three to ten sentences.")
+    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. Three to ten sentences.")
     let body: String
 
-    @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none.")
+    @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
     let citedRefs: [Int]
 }
 
@@ -96,16 +96,71 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         self.pccProvider = pccProvider
     }
 
+    private let stateLock = NSLock()
+
+    /// Cached availability. Once the model reports `.available` it stays
+    /// available for the process, so we resolve it once instead of querying
+    /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
+    private var cachedAvailability: IntelligenceAvailability?
+
+    /// A prewarmed session held so the first send doesn't pay the cold model
+    /// load. Prewarming any session loads the shared on-device model weights,
+    /// which benefits the next `respond` regardless of which session runs it.
+    /// (Phase 3 extends this into a per-conversation persistent session.)
+    private var warmSession: LanguageModelSession?
+    private var warmInstructions: String?
+
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
+        stateLock.lock()
+        if case .available = cachedAvailability, let cached = cachedAvailability {
+            stateLock.unlock()
+            return cached
+        }
+        stateLock.unlock()
+
+        // Availability is device-model availability (Z0). Which zone a given
+        // request actually runs in is the router's decision (`resolveRoute`).
+        let resolved: IntelligenceAvailability
         switch SystemLanguageModel.default.availability {
         case .available:
-            return .available(.z0Device)
+            resolved = .available(.z0Device)
         case .unavailable(let reason):
-            return .unavailable(Self.map(reason))
+            resolved = .unavailable(Self.map(reason))
         @unknown default:
-            return .unavailable(.other("Intelligence is unavailable on this device."))
+            resolved = .unavailable(.other("Intelligence is unavailable on this device."))
+        }
+        // Only cache the positive result — an "unavailable" (still downloading)
+        // can flip to available later, so keep re-checking that case.
+        if case .available = resolved {
+            stateLock.lock(); cachedAvailability = resolved; stateLock.unlock()
+        }
+        return resolved
+    }
+
+    // MARK: Prewarm
+
+    /// Warms the on-device model ahead of the first send (call when the chat
+    /// view appears / the input gains focus). Cheap and idempotent; safe to
+    /// call when the model is unavailable (the session simply can't run).
+    func prewarm() {
+        let instructions = PromptRegistry.instructions(
+            for: .ask,
+            personalization: PromptPersonalization.fromLocalProfile()
+        ).text
+        stateLock.lock()
+        let needsNew = (warmSession == nil || warmInstructions != instructions)
+        if needsNew {
+            let session = LanguageModelSession(instructions: instructions)
+            warmSession = session
+            warmInstructions = instructions
+            stateLock.unlock()
+            session.prewarm()
+        } else {
+            let session = warmSession
+            stateLock.unlock()
+            session?.prewarm()
         }
     }
 
@@ -115,25 +170,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .appleIntelligenceNotEnabled: return .modelNotReady
         case .modelNotReady: return .modelNotReady
         @unknown default: return .other("On-device intelligence is unavailable right now.")
-        }
-    }
-
-    // MARK: Prewarm
-
-    /// Preload on-device model resources so the first turn doesn't pay session
-    /// warm-up. Fire-and-forget; failures are silent (it's an optimization).
-    func prewarm() {
-        Task.detached(priority: .utility) {
-            guard case .available = SystemLanguageModel.default.availability else { return }
-            let resolved = PromptRegistry.resolve(
-                intent: .ask,
-                zone: .z0Device,
-                degraded: false,
-                personalization: PromptPersonalization.fromLocalProfile()
-            )
-            let session = LanguageModelSession(instructions: resolved.text)
-            session.prewarm()
-            AppLogger.log("🔥 [Intelligence] prewarmed ask session (prompt: \(resolved.version))")
         }
     }
 
@@ -158,8 +194,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// The runtime context budget (spec 017 R9 / CONSTITUTION §4 rule 5:
     /// never hardcode the window — it differs by device, OS, and zone).
+    /// `SystemLanguageModel.contextSize` is an iOS-27-SDK API; until the
+    /// Xcode 27 pass, the single documented fallback in ContextBudget stands in.
     private static func currentBudget() -> ContextBudget {
-        ContextBudget(contextTokens: SystemLanguageModel.default.contextSize)
+        ContextBudget(contextTokens: ContextBudget.fallbackOnDeviceWindowTokens)
     }
 
     /// One content-free log line per generation (CONSTITUTION §4 rule 3;
@@ -219,9 +257,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .none:
             retrieval = .empty
         case .reusePrevious:
-            // Stateless re-derivation of the previous grounding: retrieval is
-            // deterministic and entry vectors are cached, so re-querying with
-            // the last substantive user turn reproduces it.
             if let anchor = RetrievalPolicy.followupAnchor(history: history) {
                 retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor), entries: entries, limits: limits)
             } else {
@@ -269,17 +304,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
+    /// Builds the final `AskResult` from either the whole-answer `respond` or
+    /// the last streamed snapshot: citations reconciled against retrieval,
+    /// reference markers stripped (so the live reply and the JSON ChatService
+    /// persists both carry the cleaned body), outcome logged with latency.
     private func finishAsk(
-        _ answer: AskAnswer,
+        heading1: String?, heading2: String?, body: String, citedRefs: [Int],
         preparation: AskPreparation,
         question: String,
         latency: Duration
     ) -> AskResult {
         let citations = Self.reconcileCitations(
-            answer.citedRefs,
-            retrieval: preparation.retrieval,
-            question: question,
-            grounded: preparation.stance.isGrounded
+            citedRefs, retrieval: preparation.retrieval, question: question
         )
         Self.logOutcome(
             intent: .ask,
@@ -290,9 +326,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             entriesInContext: preparation.retrieval.entries.count
         )
         return AskResult(
-            heading1: answer.heading1?.isEmpty == true ? nil : answer.heading1,
-            heading2: answer.heading2?.isEmpty == true ? nil : answer.heading2,
-            body: answer.body,
+            heading1: heading1?.isEmpty == true ? nil : heading1,
+            heading2: heading2?.isEmpty == true ? nil : heading2,
+            body: Self.strippingReferenceMarkers(body),
             citations: citations,
             zoneUsed: preparation.route.executionZone,
             wasDegraded: preparation.route.wasDegraded,
@@ -309,14 +345,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let session = LanguageModelSession(instructions: preparation.instructions.text)
         let clock = ContinuousClock()
         let start = clock.now
-
         do {
             let response = try await session.respond(
                 to: preparation.prompt,
                 generating: AskAnswer.self,
                 options: GenerationOptions(temperature: 0.7)
             )
-            return finishAsk(response.content, preparation: preparation, question: question, latency: clock.now - start)
+            let answer = response.content
+            return finishAsk(heading1: answer.heading1, heading2: answer.heading2,
+                             body: answer.body, citedRefs: answer.citedRefs,
+                             preparation: preparation, question: question,
+                             latency: clock.now - start)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -340,33 +379,48 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         generating: AskAnswer.self,
                         options: GenerationOptions(temperature: 0.7)
                     )
+                    // The journals retrieval surfaced for a grounded turn — known
+                    // now, before the first token. Emitting them on every delta
+                    // lets the "Reviewed your journals" link appear right away
+                    // instead of waiting for the model's final citedRefs. Empty on
+                    // non-grounded turns (reconcile returns [] when not grounded).
+                    // `.final` supersedes these with the model's cited subset.
+                    let reviewed = Self.reconcileCitations(
+                        [], retrieval: preparation.retrieval, question: question
+                    )
+                    var lastHeading1: String?
+                    var lastHeading2: String?
+                    var lastBody = ""
+                    var lastCitedRefs: [Int] = []
                     for try await snapshot in stream {
                         if Task.isCancelled { break }
-                        let partial = snapshot.content
-                        // Yield only once prose exists — headings alone render
-                        // as an empty bubble. PartiallyGenerated fields are
-                        // optional; `?? nil` flattens the double-optional the
+                        let content = snapshot.content
+                        lastBody = content.body ?? ""
+                        // `?? nil` flattens the double-optional the PartiallyGenerated
                         // macro produces for `String?` properties.
-                        let heading1 = (partial.heading1 ?? nil).flatMap { $0.isEmpty ? nil : $0 }
-                        let heading2 = (partial.heading2 ?? nil).flatMap { $0.isEmpty ? nil : $0 }
-                        if let body = partial.body, !body.isEmpty {
-                            continuation.yield(.partial(heading1: heading1, heading2: heading2, body: body))
-                        }
+                        lastHeading1 = content.heading1 ?? nil
+                        lastHeading2 = content.heading2 ?? nil
+                        if let refs = content.citedRefs { lastCitedRefs = refs }
+                        // Emit the cleaned body-so-far so the live reply matches
+                        // exactly what gets persisted at the end.
+                        continuation.yield(.delta(
+                            bodySoFar: Self.strippingReferenceMarkers(lastBody),
+                            heading1: lastHeading1?.isEmpty == true ? nil : lastHeading1,
+                            heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2,
+                            reviewedCitations: reviewed
+                        ))
                     }
                     try Task.checkCancellation()
-                    let response = try await stream.collect()
-                    let result = self.finishAsk(
-                        response.content,
-                        preparation: preparation,
-                        question: question,
-                        latency: clock.now - start
-                    )
-                    continuation.yield(.completed(result))
+                    let result = self.finishAsk(heading1: lastHeading1, heading2: lastHeading2,
+                                                body: lastBody, citedRefs: lastCitedRefs,
+                                                preparation: preparation, question: question,
+                                                latency: clock.now - start)
+                    continuation.yield(.final(result))
                     continuation.finish()
                 } catch let error as LanguageModelSession.GenerationError {
                     continuation.finish(throwing: Self.mapGenerationError(error))
                 } catch is CancellationError {
-                    continuation.finish(throwing: CancellationError())
+                    continuation.finish()
                 } catch let error as IntelligenceError {
                     continuation.finish(throwing: error)
                 } catch {
@@ -548,6 +602,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
+        // Budget-driven trim (spec 017 R9): keeps thread context while bounding
+        // the prompt the small on-device model ingests (time-to-first-token).
         let recent = history.suffix(budget.maxHistoryTurns)
         if !recent.isEmpty {
             let convo = recent
@@ -562,23 +618,82 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return parts.joined(separator: "\n\n")
     }
 
+    // MARK: - Reference-marker stripping
+
+    /// Removes `[ref 2]`, `(ref 2)`, `ref 2`, and bare `[2]` from a reply.
+    ///
+    /// The prompt and the `body` @Guide both ban these, but the `[ref N]` labels
+    /// are sitting right there in the model's context as the naming convention
+    /// for entries, and a small on-device model leaks them into prose. Nothing
+    /// downstream strips markers — `RichTextParser` only handles bold, italic,
+    /// and bullets — so anything the model writes reaches the screen verbatim.
+    /// This is the backstop.
+    ///
+    /// Inline citations return in a later release; this whole function goes
+    /// away then, along with the prompt bans.
+    static func strippingReferenceMarkers(_ body: String) -> String {
+        // Ordered: bracketed/parenthesised ref forms, then bare square-bracket
+        // numbers, then a bare "ref 2". Each tolerates lists ("ref 1 and 2").
+        let numberList = #"\d+(?:\s*(?:,|and|&)\s*\d+)*"#
+        let patterns = [
+            #"\s*[\[(]\s*refs?\.?\s*#?"# + numberList + #"\s*[\])]"#,
+            #"\s*\[\s*"# + numberList + #"\s*\]"#,
+            #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#
+        ]
+
+        var out = body
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+            out = regex.stringByReplacingMatches(
+                in: out,
+                range: NSRange(out.startIndex..., in: out),
+                withTemplate: ""
+            )
+        }
+
+        // Tidy what removal left behind: a space before punctuation, doubled
+        // spaces, and a space before a closing bracket.
+        let cleanups: [(String, String)] = [
+            (#"\s+([,.;:!?])"#, "$1"),
+            (#"[ \t]{2,}"#, " "),
+            (#"\(\s*\)"#, "")
+        ]
+        for (pattern, template) in cleanups {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            out = regex.stringByReplacingMatches(
+                in: out,
+                range: NSRange(out.startIndex..., in: out),
+                withTemplate: template
+            )
+        }
+
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - Citation reconciliation (the anti-fabrication guard)
 
     private static let maxCitations = 3
 
-    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult, question: String, grounded: Bool) -> [AskCitation] {
-        guard !retrieval.isEmpty else { return [] }
+    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult, question: String) -> [AskCitation] {
+        // Show "Reviewed your journals" whenever retrieval produced a real,
+        // non-ambient match — the exact condition the stance uses to decide
+        // `.journalGrounded`. This is known before generation, so the link can be
+        // emitted from the first delta (via reviewedCitations) and stays identical
+        // through the final reconcile: it appears right away and never vanishes.
+        // Ambient/empty retrieval (casual chat, or a "no matches" journal ask)
+        // still yields no citations.
+        guard !retrieval.isEmpty, !retrieval.isAmbient else { return [] }
         let byRef = Dictionary(uniqueKeysWithValues: retrieval.entries.map { ($0.ref, $0) })
-        // Intersect the model's refs with the ones actually provided. The
-        // cited-nothing → top-entries fallback only applies to grounded turns:
-        // on casual/sharing turns empty citations are correct, and forcing
-        // pills onto them was part of the "always grounded" feel.
+        // Prefer the entries the model actually cited; fall back to the top
+        // reviewed entries when it cited nothing (or nothing valid), so the set is
+        // always non-empty for a real match and the link stays stable.
         let chosenRefs: [Int]
         if refs.isEmpty {
-            chosenRefs = grounded ? retrieval.entries.prefix(maxCitations).map(\.ref) : []
+            chosenRefs = retrieval.entries.prefix(maxCitations).map(\.ref)
         } else {
             var seen = Set<Int>()
-            chosenRefs = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
+            let valid = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
+            chosenRefs = valid.isEmpty ? retrieval.entries.prefix(maxCitations).map(\.ref) : valid
         }
         return chosenRefs.prefix(maxCitations).compactMap { ref in
             guard let entry = byRef[ref] else { return nil }

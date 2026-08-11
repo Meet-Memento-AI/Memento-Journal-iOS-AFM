@@ -49,9 +49,9 @@ public struct ChatHistoryItem: View {
 
     @ViewBuilder
     private var cardBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface.
+        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Formatted Date

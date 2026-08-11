@@ -17,6 +17,8 @@ struct AvatarInitialButton: View {
     var accessibilityLabel: String = "Menu"
     var onTap: (() -> Void)?
 
+    @Environment(\.theme) private var theme
+
     private var resolvedFontSize: CGFloat {
         fontSize ?? size * 0.4
     }
@@ -51,9 +53,9 @@ struct AvatarInitialButton: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface.
+        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
         Circle()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

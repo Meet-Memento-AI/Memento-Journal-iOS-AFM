@@ -78,8 +78,8 @@ public struct DataUsageInfoView: View {
 
                 DataItem(
                     icon: "sparkles",
-                    title: "Insights",
-                    description: "AI-generated insights based on your journal entries to help you reflect on patterns and growth."
+                    title: "Conversations",
+                    description: "Your chats with the AI companion, which grounds its replies in your own entries and cites the ones it drew from."
                 )
 
                 Divider()
@@ -109,7 +109,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "iphone",
                     title: "Stored On Your Device",
-                    description: "Your journal lives on your iPhone, encrypted with your PIN. There's no account and nothing is uploaded to sync it across devices."
+                    description: "Your journal lives on your iPhone, encrypted at rest. There's no account, no server copy, and no cross-device sync."
                 )
 
                 Divider()
@@ -118,8 +118,8 @@ public struct DataUsageInfoView: View {
 
                 DataItem(
                     icon: "brain.head.profile",
-                    title: "Generate Insights",
-                    description: "We use AI to analyze your entries and provide personalized insights about your patterns and growth."
+                    title: "Ground the AI Companion",
+                    description: "When you chat, relevant entries are retrieved on your iPhone and used as context, so answers come from what you actually wrote."
                 )
 
                 Divider()
@@ -128,8 +128,8 @@ public struct DataUsageInfoView: View {
 
                 DataItem(
                     icon: "lock.shield.fill",
-                    title: "Your PIN Protects Everything",
-                    description: "Your PIN is the only key to your encrypted journal. It's never sent anywhere, and there's no account to reset it through — losing it means losing access unless you use device passcode fallback."
+                    title: "Your PIN Guards Access",
+                    description: "Entries are encrypted with a key stored in your device's Keychain; your PIN or Face ID unlocks the app. Neither is uploaded, and there's no account to reset through — this device is the only way in."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -148,18 +148,8 @@ public struct DataUsageInfoView: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 DataItem(
                     icon: "iphone.gen3",
-                    title: "On-Device First",
-                    description: "Transcription, tagging, mood, search, and single-entry reflections run entirely on your iPhone. These work in airplane mode."
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                DataItem(
-                    icon: "apple.logo",
-                    title: "Private Cloud Compute for Deeper Reflections",
-                    description: "Weekly and monthly reflections may use Apple's Private Cloud Compute, which stores nothing and is independently verifiable. No third-party AI is ever used, and nothing you write is used to train any model."
+                    title: "On-Device Processing",
+                    description: "Speech-to-text, search, retrieval, and the AI companion all run on your iPhone using Apple's on-device models. No third-party AI service is used, and nothing you write is used to train any model."
                 )
 
                 Divider()
@@ -169,7 +159,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "gearshape",
                     title: "Your Control",
-                    description: "You can pin everything to on-device processing anytime in Settings > Your Data."
+                    description: "You can turn the AI companion off entirely in Settings and use Memento as a plain journal. Speech recognition is set to on-device only."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -189,7 +179,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "lock.shield.fill",
                     title: "Encrypted at Rest",
-                    description: "Your journal is encrypted on your device using a key derived from your PIN. It's unreadable without it, even to us."
+                    description: "Your journal is encrypted on your device with a key held in the device Keychain. There is no server copy anywhere."
                 )
 
                 Divider()
@@ -198,8 +188,8 @@ public struct DataUsageInfoView: View {
 
                 DataItem(
                     icon: "eye.slash.fill",
-                    title: "Private by Default",
-                    description: "Your journal entries are completely private. We never share, sell, or use your personal data for advertising."
+                    title: "Nothing Collected",
+                    description: "We don't operate accounts, analytics, or servers for your journal — so there is nothing for us to share, sell, or use for advertising."
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -229,7 +219,7 @@ public struct DataUsageInfoView: View {
                 DataItem(
                     icon: "questionmark.circle.fill",
                     title: "Contact Us",
-                    description: "For any privacy questions or data requests, contact support@sebastianmendo.com"
+                    description: "For any privacy questions or data requests, contact \(Constants.Legal.supportEmail)"
                 )
             }
             .padding(.vertical, Spacing.sm)
@@ -242,9 +232,9 @@ public struct DataUsageInfoView: View {
 
     @ViewBuilder
     private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface (no shadow).
+        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

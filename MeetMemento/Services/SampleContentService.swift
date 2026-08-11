@@ -63,6 +63,13 @@ final class SampleContentService: ObservableObject {
 
     var isLoaded: Bool { loadedCount > 0 }
 
+    /// Whether an entry id belongs to the seeded sample set. Export uses this
+    /// to keep fictional demo entries out of the user's archive — "your words
+    /// are yours" must not come with an asterisk.
+    func isSampleEntry(_ id: UUID) -> Bool {
+        seededIds.contains(id)
+    }
+
     /// A stable UUID for a sample id, so loading twice overwrites rather than
     /// duplicates and removal can find every entry it created.
     private func entryId(for sampleId: String) -> UUID {

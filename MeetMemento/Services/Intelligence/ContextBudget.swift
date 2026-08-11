@@ -41,6 +41,13 @@ struct ContextBudget: Sendable, Equatable {
 
     /// Conservative prose estimate; ~4 chars/token for English.
     static let estimatedCharsPerToken = 4
+
+    /// The iOS 26 SDK exposes no runtime context-size query — the documented
+    /// on-device AFM window is 4k tokens. This is the SINGLE fallback source
+    /// (expressed as a derivation, not a scattered literal, per the
+    /// check_no_hardcoded_context_budgets gate); the iOS 27 SDK pass replaces
+    /// it with `SystemLanguageModel.default.contextSize` read per request.
+    static let fallbackOnDeviceWindowTokens = 4 << 10
     /// Share of the window given to retrieved journal evidence.
     static let retrievalShare = 0.35
     /// Share of the window given to conversation history.

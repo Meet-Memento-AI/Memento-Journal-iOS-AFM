@@ -73,9 +73,9 @@ public struct TopNavHeader: View {
     // MARK: - Icon Button Background
     @ViewBuilder
     private var iconButtonBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface.
+        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
         Circle()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Action Button Styling
@@ -164,4 +164,25 @@ public struct TopNavHeader: View {
     }
     .environment(\.theme, Theme.light)
     .environment(\.typography, Typography())
+}
+
+#Preview("TopNavHeader - Dark") {
+    ZStack {
+        GrayScale.gray900.ignoresSafeArea()
+
+        VStack {
+            TopNavHeader(
+                selection: .constant(.yourEntries),
+                userInitial: "S",
+                onMenuTapped: { AppLogger.log("Menu tapped") },
+                onActionTapped: { AppLogger.log("Search tapped") }
+            )
+            .padding(.top, 60)
+
+            Spacer()
+        }
+    }
+    .environment(\.theme, Theme.dark)
+    .environment(\.typography, Typography())
+    .preferredColorScheme(.dark)
 }

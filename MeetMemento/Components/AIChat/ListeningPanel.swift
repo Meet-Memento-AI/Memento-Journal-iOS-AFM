@@ -82,9 +82,9 @@ struct ListeningPanel: View {
                 .frame(width: buttonSize, height: buttonSize)
                 .background(
                     // Liquid Glass removed (was glass-on-glass — a glass button on
-                    // a glass panel). Flat #fafafa surface.
+                    // a glass panel). Flat themed surface — cardBackground adapts to dark mode.
                     Circle()
-                        .fill(Color(hex: "#FAFAFA"))
+                        .fill(theme.cardBackground)
                 )
         }
         .buttonStyle(.plain)
@@ -96,10 +96,10 @@ struct ListeningPanel: View {
 
     @ViewBuilder
     private var glassBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface (was the outer glass panel
-        // in the removed glass-on-glass pair).
+        // Liquid Glass removed — flat themed surface (was the outer glass panel
+        // in the removed glass-on-glass pair); cardBackground adapts to dark mode.
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

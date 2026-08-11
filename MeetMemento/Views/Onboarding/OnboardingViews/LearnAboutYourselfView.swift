@@ -283,9 +283,9 @@ public struct LearnAboutYourselfView: View {
 
     @ViewBuilder
     private var microphoneFABBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface.
+        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 

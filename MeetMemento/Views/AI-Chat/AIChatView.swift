@@ -14,8 +14,9 @@ public struct AIChatView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
-    // NOTE: no NetworkMonitor here — chat is on-device only and must never gate
-    // on connectivity. See the empty-state comment below (PRES-048 / REQ-INT-009).
+    // NOTE: no connectivity gating here — chat is on-device only and must never
+    // gate on network state (NetworkMonitor was deleted in the pre-1.0 cleanup).
+    // See the empty-state comment below (PRES-048 / REQ-INT-009).
 
     /// ViewModel passed from parent to persist across tab switches
     @ObservedObject var viewModel: ChatViewModel
@@ -232,13 +233,15 @@ public struct AIChatView: View {
             Text(summaryError ?? "Unable to generate summary. Please try again.")
         }
         .onAppear {
+            // Warm the on-device model now so the first send is fast.
+            viewModel.prewarm()
             // Initialize suggestions on first appear
             if currentSuggestions.isEmpty {
                 rotateSuggestions()
             }
-            // Preload on-device model resources so the first turn doesn't pay
-            // session warm-up (perceived latency; safe no-op if unavailable).
-            ChatService.shared.prewarmIntelligence()
+            // Preload on-device model resources + entry embeddings so the first
+            // turn doesn't pay warm-up (perceived latency; safe no-op if unavailable).
+            ChatService.shared.prewarm()
             Task {
                 await viewModel.fetchSessions()
                 if viewModel.userName == nil {
@@ -296,6 +299,7 @@ public struct AIChatView: View {
                                 ChatMessageBubble(
                                     message: message,
                                     animate: message.isNew,
+                                    isStreaming: message.isStreaming,
                                     feedbackType: viewModel.feedbackType(for: message.id),
                                     onCitationsTapped: {
                                         if let citations = message.citations, !citations.isEmpty {
@@ -361,6 +365,14 @@ public struct AIChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollContentBackground(.hidden)
             .background(theme.background)
+            // ⚠️ This gesture spans the whole message list, and it will SWALLOW
+            // taps from any descendant that is not a `Button`. A plain
+            // `.onTapGesture` on a child loses to it across the ScrollView
+            // boundary, and the child silently stops responding — that is
+            // exactly how the citations modal broke once (CitationLink was
+            // briefly reimplemented with `.onTapGesture` instead of `Button`).
+            // Make tappable children `Button`s, or attach
+            // `.highPriorityGesture` if a Button is genuinely unsuitable.
             .onTapGesture {
                 dismissKeyboard()
             }
@@ -557,7 +569,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()
@@ -567,7 +578,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
             .onAppear {
                 // Mock messages for preview
             }
@@ -594,7 +604,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()

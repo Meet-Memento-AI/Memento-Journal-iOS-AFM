@@ -11,8 +11,14 @@ final class PromptPersonalizationTests: XCTestCase {
 
     func test_emptyPersonalization_keepsBasePromptAndVersion() {
         let resolved = PromptRegistry.instructions(for: .ask, personalization: .none)
-        XCTAssertEqual(resolved.version, "ask@4")
-        XCTAssertFalse(resolved.text.contains("About this person"))
+        XCTAssertEqual(resolved.version, "ask@5")
+        // Assert on the section HEADER, not the bare phrase. ask@4 added
+        // `Never recite … the "About this person" section` to the Hard bans, so
+        // the base prompt legitimately contains that phrase and the old
+        // `contains("About this person")` assertion has been failing on main
+        // ever since. What this test actually means is "no personalization
+        // section was appended", and only the header proves that.
+        XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
     }
 
     func test_personalizedPrompt_appendsSectionAndVersionSuffix() {
@@ -23,7 +29,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: "Lean toward noticing stress patterns without prescribing fixes."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@4+p2")
+        XCTAssertEqual(resolved.version, "ask@5+p2")
         XCTAssertTrue(resolved.text.contains("About this person"))
         XCTAssertTrue(resolved.text.contains("Sebastian"))
         // Themes/lens present → raw reflection is not quoted (anti-loop).
@@ -49,7 +55,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@4+p2")
+        XCTAssertEqual(resolved.version, "ask-degraded@5+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
         XCTAssertTrue(resolved.text.contains("Honesty"))
     }

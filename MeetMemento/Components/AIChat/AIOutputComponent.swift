@@ -67,6 +67,10 @@ public struct AIOutputContent: Hashable, Codable {
 public struct AIOutputComponent: View {
     let content: AIOutputContent
     var animate: Bool
+    /// True while the reply is still streaming in. Nothing that implies "the
+    /// answer is finished" — the action bar above all — may show until this is
+    /// false, otherwise copy/redo appear over a half-written reply.
+    var isStreaming: Bool
     var feedbackType: FeedbackType?
     var onCitationsTapped: (() -> Void)?
     var onRedo: (() -> Void)?
@@ -80,16 +84,36 @@ public struct AIOutputComponent: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    @State private var displayedHeading1 = ""
-    @State private var displayedHeading2 = ""
-    @State private var displayedBody = ""
+    // Typewriter state. Rather than appending to per-field strings (which the old
+    // typewriter reset to "" on every delta, so it stuttered on a live stream), we
+    // keep ONE monotonic character index and derive each shown substring from it.
+    // The index rides the growing cumulative body — it never resets on a delta — so
+    // the reply flows in one smooth ChatGPT-style stream.
+    @State private var displayedCount = 0
+    // Latest targets, mirrored from `content`/`isStreaming` into @State so the
+    // long-lived drain Task reads live values (a captured view struct would be
+    // stale). The single index spans, in order, [tHeading1 | tHeading2 | tBody].
+    @State private var tHeading1 = ""
+    @State private var tHeading2 = ""
+    @State private var tBody = ""
+    @State private var streamingState = false
     @State private var showCitation = false
-    @State private var isAnimating = false
     @State private var hasAnimated = false
-    @State private var animationTask: Task<Void, Never>?
+    @State private var didComplete = false
+    @State private var drainTask: Task<Void, Never>?
 
-    // Fast typing speed like ChatGPT (characters per second)
-    private let charactersPerSecond: Double = 120
+    /// Baseline tick (~14ms ≈ 70/s). With the adaptive step this gives a calm
+    /// ~1-char trickle when caught up and a fast drain of any backlog, so the
+    /// reveal never lags the model yet still reads as typing.
+    private let baseTickNanos: UInt64 = 14_000_000
+
+    /// Soft leading-edge dissolve (ChatGPT-style): the newest `dissolveRamp`
+    /// characters ramp from `dissolveMinOpacity` up to full opacity, so streamed
+    /// text melts in instead of snapping on. Redrawn each tick as the index
+    /// advances, so the ramp glides forward and every character fades up over
+    /// roughly `dissolveRamp` ticks (~200ms) — the "incredibly smooth" feel.
+    private let dissolveRamp = 14
+    private let dissolveMinOpacity: Double = 0.1
 
     /// Stable value that changes when content changes; used with onChange to avoid relying on AIOutputContent Equatable synthesis.
     private var contentIdentity: String {
@@ -97,13 +121,19 @@ public struct AIOutputComponent: View {
             content.heading1 ?? "",
             content.heading2 ?? "",
             content.body,
-            String(content.citations?.count ?? 0)
+            String(content.citations?.count ?? 0),
+            // The final `.delta` and the `.final` event carry byte-identical body
+            // text for a citation-less reply, so without this the `isStreaming`
+            // flip alone wouldn't re-trigger `syncTargets` and the typewriter
+            // would idle forever (caret blinking, action bar never shown).
+            isStreaming ? "streaming" : "done"
         ].joined(separator: "\u{0}")
     }
 
     public init(
         content: AIOutputContent,
         animate: Bool = true,
+        isStreaming: Bool = false,
         feedbackType: FeedbackType? = nil,
         onCitationsTapped: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
@@ -113,6 +143,7 @@ public struct AIOutputComponent: View {
     ) {
         self.content = content
         self.animate = animate
+        self.isStreaming = isStreaming
         self.feedbackType = feedbackType
         self.onCitationsTapped = onCitationsTapped
         self.onRedo = onRedo
@@ -120,6 +151,24 @@ public struct AIOutputComponent: View {
         self.onThumbsDown = onThumbsDown
         self.onAnimationComplete = onAnimationComplete
     }
+
+    /// Whether there is anything worth showing chrome for.
+    ///
+    /// `ChatViewModel.performSend` appends an EMPTY assistant bubble the instant
+    /// a prompt is sent, so it can fill in as the model streams. That placeholder
+    /// still renders this component, so everything that implies "the reply is
+    /// here" — the action bar in particular — must check this first. Citations
+    /// are excluded deliberately: they only arrive with the finished reply.
+    private var hasRenderableContent: Bool {
+        !content.body.isEmpty
+            || !(content.heading1 ?? "").isEmpty
+            || !(content.heading2 ?? "").isEmpty
+    }
+
+    /// Copy / thumbs / redo only make sense against a finished reply. Gated on
+    /// both conditions: `hasRenderableContent` keeps it off the empty
+    /// pre-stream placeholder, `!isStreaming` keeps it off a half-written one.
+    private var showsActionBar: Bool { hasRenderableContent && !isStreaming }
 
     /// Full text for copy (heading1 + heading2 + body).
     private var fullTextForCopy: String {
@@ -129,20 +178,94 @@ public struct AIOutputComponent: View {
             .joined(separator: "\n\n")
     }
 
+    // MARK: - Typewriter-derived substrings
+
+    /// Total characters across the three fields; the index climbs toward this.
+    private var totalCount: Int { tHeading1.count + tHeading2.count + tBody.count }
+
+    /// The three fields sliced by the single `displayedCount`, in order. Because
+    /// the `@Generable` fields fill in declaration order (h1 → h2 → body), typing
+    /// only up to what's currently available means an early snapshot (heading
+    /// present, body empty) types the heading, then continues seamlessly into the
+    /// body as it arrives — no gap, no pop-in.
+    private var shownHeading1: String { String(tHeading1.prefix(displayedCount)) }
+    private var shownHeading2: String {
+        String(tHeading2.prefix(max(0, displayedCount - tHeading1.count)))
+    }
+    private var shownBody: String {
+        String(tBody.prefix(max(0, displayedCount - tHeading1.count - tHeading2.count)))
+    }
+
+    /// Still revealing characters (or the stream is live): show a trailing caret.
+    private var isTyping: Bool { animate && (displayedCount < totalCount || streamingState) }
+
+    /// Actively revealing backlog — apply the leading-edge dissolve. When caught
+    /// up (a pause, or the end) text sits solid, matching ChatGPT.
+    private var isDissolving: Bool { animate && displayedCount < totalCount }
+
+    /// Whether to show the subtle caret: only while caught up but still streaming
+    /// — a "still generating" hint during a pause. While text is actively
+    /// dissolving in, the fading leading edge is the cue, so no caret (a
+    /// full-opacity caret beside faded text looks disconnected).
+    private var showsCaret: Bool {
+        animate && streamingState && displayedCount >= totalCount && !shownBody.isEmpty
+    }
+
+    /// The body as a `Text` with the ChatGPT dissolve applied. Parses the shown
+    /// prefix (markdown / RAG styling preserved), fades the newest `dissolveRamp`
+    /// characters from faint to full so the leading edge melts in, and folds the
+    /// caret into the same `AttributedString` (no deprecated `Text` concatenation).
+    private var bodyText: Text {
+        var attr = RichTextParser.parse(
+            animate ? shownBody : content.body,
+            baseFont: type.body1,
+            boldFont: type.body1Bold,
+            textColor: theme.foreground
+        )
+        if isDissolving {
+            let ramp = min(dissolveRamp, attr.characters.count)
+            if ramp > 0 {
+                var upper = attr.characters.endIndex
+                for k in 0..<ramp {
+                    let lower = attr.characters.index(before: upper)
+                    // k = 0 is the newest (last) character → faintest; opacity
+                    // climbs toward 1.0 for characters further from the edge.
+                    let t = Double(k + 1) / Double(ramp)
+                    let alpha = dissolveMinOpacity + (1 - dissolveMinOpacity) * t
+                    attr[lower..<upper].foregroundColor = theme.foreground.opacity(alpha)
+                    upper = lower
+                }
+            }
+        }
+        if showsCaret {
+            var caret = AttributedString("\u{258F}") // ▏
+            caret.foregroundColor = theme.mutedForeground
+            attr.append(caret)
+        }
+        return Text(attr)
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
         
-            // Citation link: appears first with a quick, sudden appearance
+            // Citation link — first element, opens the full list in
+            // CitationsBottomSheet. Citations only arrive on the stream's
+            // `.final` event (deltas carry body + headings only), so this view
+            // is inserted *after* the reply has already laid out at full
+            // height. Without a transition that insert snaps in and shoves the
+            // answer down mid-read, so animate the insertion itself — opacity
+            // alone does nothing for layout.
             if let citations = content.citations, !citations.isEmpty {
                 CitationLink(count: citations.count, onTap: onCitationsTapped)
                     .opacity(showCitation ? 1 : 0)
-                    .animation(.easeOut(duration: 0.12), value: showCitation)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
             // Heading 1 (if provided)
             if let heading1 = content.heading1, !heading1.isEmpty {
-                if !displayedHeading1.isEmpty || !animate {
-                    Text(animate ? displayedHeading1 : heading1)
+                let shown = animate ? shownHeading1 : heading1
+                if !shown.isEmpty {
+                    Text(shown)
                         .font(type.h3)
                         .foregroundStyle(theme.foreground)
                         .modifier(type.headingLineSpacingModifier(for: type.size2XL))
@@ -151,8 +274,9 @@ public struct AIOutputComponent: View {
 
             // Heading 2 (if provided)
             if let heading2 = content.heading2, !heading2.isEmpty {
-                if !displayedHeading2.isEmpty || !animate {
-                    Text(animate ? displayedHeading2 : heading2)
+                let shown = animate ? shownHeading2 : heading2
+                if !shown.isEmpty {
+                    Text(shown)
                         .font(type.h4)
                         .foregroundStyle(theme.foreground)
                         .modifier(type.headingLineSpacingModifier(for: type.sizeXL))
@@ -160,20 +284,22 @@ public struct AIOutputComponent: View {
                 }
             }
 
-            // Body text with typewriter effect and rich text parsing
-            if !displayedBody.isEmpty || !animate {
-                // Keep local rich-text parsing (RAG citations/markdown); adopt
-                // upstream's semantic token for proper light/dark contrast.
-                Text(RichTextParser.parse(
-                    animate ? displayedBody : content.body,
-                    baseFont: type.body1,
-                    boldFont: type.body1Bold,
-                    textColor: theme.foreground
-                ))
-                .lineSpacing(type.bodyLineSpacing)
+            // Body text with the ChatGPT-style typewriter + leading-edge dissolve.
+            // `bodyText` parses the shown prefix and fades the newest characters
+            // in; the caret only appears during a mid-stream pause.
+            let bodyShown = animate ? shownBody : content.body
+            if !bodyShown.isEmpty || !animate {
+                bodyText
+                    .lineSpacing(type.bodyLineSpacing)
             }
 
-            // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently after message has finished loading
+            // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently
+            // once the reply has actually arrived.
+            //
+            // Conditional, not merely transparent: at opacity 0 this still
+            // reserved ~30pt of layout, which put a blank gap directly above the
+            // "Memento is thinking" shimmer for the whole generation.
+            if showsActionBar {
             HStack(spacing: 8) {
                 Button {
                     let text = fullTextForCopy
@@ -221,94 +347,93 @@ public struct AIOutputComponent: View {
             .padding(.top, 8)
             .opacity(hasAnimated || !animate ? 1 : 0)
             .animation(.easeOut(duration: 0.28), value: hasAnimated)
+            }
         }
         .padding(.top, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            if animate && !hasAnimated {
-                startTypewriterSequence()
-            } else if !animate {
-                showAllContent()
-            }
+        .onAppear { syncTargets() }
+        // Each delta grows `content.body`; mirror the new target into @State and
+        // let the persistent drain loop chase it. The loop — not this callback —
+        // paces the reveal, so text flows smoothly instead of jumping per snapshot.
+        .onChange(of: contentIdentity) { _, _ in syncTargets() }
+        .onDisappear {
+            drainTask?.cancel()
+            drainTask = nil
         }
-        .onChange(of: contentIdentity) { _, _ in
+    }
+
+    // MARK: - Typewriter
+
+    /// Copies the latest `content`/`isStreaming` into the @State the drain loop
+    /// reads, updates the citation reveal, and ensures the loop is running.
+    ///
+    /// The "Reviewed your journals" link eases in whenever its presence changes on
+    /// a new (animating) message — including the first appear, since grounded turns
+    /// now carry the reviewed journals from the first delta, so the link shows
+    /// right away with a gentle fade rather than waiting for the reply to finish.
+    /// Reloaded history (`!animate`) renders settled, with no fade on scroll.
+    private func syncTargets() {
+        tHeading1 = content.heading1 ?? ""
+        tHeading2 = content.heading2 ?? ""
+        tBody = content.body
+        streamingState = isStreaming
+
+        let shouldShowCitation = (content.citations?.isEmpty == false)
+        if shouldShowCitation != showCitation {
             if animate {
-                resetAnimation()
-                startTypewriterSequence()
+                withAnimation(.easeOut(duration: 0.3)) { showCitation = shouldShowCitation }
             } else {
-                showAllContent()
+                showCitation = shouldShowCitation
             }
         }
-    }
 
-    // MARK: - Animation Helpers
-
-    private func showAllContent() {
-        displayedHeading1 = content.heading1 ?? ""
-        displayedHeading2 = content.heading2 ?? ""
-        displayedBody = content.body
-        showCitation = true
-        hasAnimated = true
-    }
-
-    private func resetAnimation() {
-        animationTask?.cancel()
-        animationTask = nil
-        displayedHeading1 = ""
-        displayedHeading2 = ""
-        displayedBody = ""
-        showCitation = false
-        hasAnimated = false
-        isAnimating = false
-    }
-
-    // MARK: - Typewriter Animation Sequence
-
-    private func startTypewriterSequence() {
-        animationTask?.cancel()
-        guard !isAnimating else { return }
-        isAnimating = true
-
-        // Citation appears first, quick and sudden
-        if content.citations != nil, !(content.citations?.isEmpty ?? true) {
-            showCitation = true
+        guard animate else {
+            // Reloaded history / already-seen: no typewriter, show everything.
+            displayedCount = totalCount
+            hasAnimated = hasRenderableContent
+            if !didComplete && hasRenderableContent {
+                didComplete = true
+                onAnimationComplete?()
+            }
+            return
         }
 
-        animationTask = Task { @MainActor in
-            let interval: UInt64 = UInt64(1_000_000_000 / charactersPerSecond)
+        startDrainIfNeeded()
+    }
 
-            // Phase 1: Heading 1
-            if let heading1 = content.heading1, !heading1.isEmpty {
-                for character in heading1 {
-                    guard !Task.isCancelled else { return }
-                    displayedHeading1.append(character)
-                    try? await Task.sleep(nanoseconds: interval)
+    /// Persistent loop that eases `displayedCount` toward `totalCount`. It reads
+    /// only @State (never the captured, stale `content`), rides across deltas
+    /// without resetting, and completes only once the stream has ended AND the
+    /// buffer is fully drained — so a mid-generation pause can't cut it off.
+    private func startDrainIfNeeded() {
+        guard animate, drainTask == nil else { return }
+        drainTask = Task { @MainActor in
+            while !Task.isCancelled {
+                // Guard: `strippingReferenceMarkers` can shrink the cleaned body
+                // between snapshots, so the target may drop below the index.
+                if displayedCount > totalCount { displayedCount = totalCount }
+
+                let remaining = totalCount - displayedCount
+                if remaining > 0 {
+                    // Ease toward the target: a large backlog drains fast (never
+                    // lag the model), a trickle reveals ~1 char/tick (typing feel).
+                    let step = max(1, remaining / 8)
+                    displayedCount = min(totalCount, displayedCount + step)
+                    try? await Task.sleep(nanoseconds: baseTickNanos)
+                } else if streamingState {
+                    // Caught up but more tokens may still come: idle, don't finish.
+                    try? await Task.sleep(nanoseconds: baseTickNanos)
+                } else {
+                    // Stream ended and fully typed out.
+                    hasAnimated = hasRenderableContent
+                    if !didComplete && hasRenderableContent {
+                        didComplete = true
+                        onAnimationComplete?()
+                    }
+                    break
                 }
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms pause between sections
             }
-
-            // Phase 2: Heading 2
-            if let heading2 = content.heading2, !heading2.isEmpty {
-                for character in heading2 {
-                    guard !Task.isCancelled else { return }
-                    displayedHeading2.append(character)
-                    try? await Task.sleep(nanoseconds: interval)
-                }
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms pause between sections
-            }
-
-            // Phase 3: Body
-            for character in content.body {
-                guard !Task.isCancelled else { return }
-                displayedBody.append(character)
-                try? await Task.sleep(nanoseconds: interval)
-            }
-
-            guard !Task.isCancelled else { return }
-            isAnimating = false
-            hasAnimated = true
-            // Reply finished typing: tell the owner so it won't replay on recycle.
-            onAnimationComplete?()
+            drainTask = nil
         }
     }
 }

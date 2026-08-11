@@ -2,7 +2,14 @@
 //  CitationLink.swift
 //  MeetMemento
 //
-//  Citation link button styled as a tag for AI chat responses
+//  Citation link button styled as a tag for AI chat responses.
+//
+//  This MUST stay a `Button`. An ancestor keyboard-dismiss `.onTapGesture` wraps
+//  the whole chat scroll view (AIChatView), and a plain `.onTapGesture` here
+//  loses to it — the tap never arrives and the citations modal silently stops
+//  opening. A SwiftUI `Button` is backed by UIKit control machinery and wins.
+//  Replacing this with a tap gesture cost a full debugging cycle once already.
+//  It also carries the `.isButton` trait the accessibility hint below promises.
 //
 
 import SwiftUI

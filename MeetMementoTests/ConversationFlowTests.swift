@@ -11,7 +11,7 @@ final class ConversationFlowTests: XCTestCase {
     private func memento(_ text: String) -> ChatTurn { ChatTurn(role: .assistant, text: text) }
 
     private func entry(_ title: String, _ text: String) -> Entry {
-        Entry(id: UUID(), title: title, text: text, createdAt: Date(), updatedAt: Date(), syncStatus: .synced)
+        Entry(id: UUID(), title: title, text: text, createdAt: Date(), updatedAt: Date())
     }
 
     /// "hey" at conversation start → no retrieval, casual stance, no journal

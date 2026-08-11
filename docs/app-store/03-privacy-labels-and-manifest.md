@@ -45,7 +45,7 @@ Apple's definition of "collect", verbatim:
 | Data | Where it goes | Collected? |
 |---|---|---|
 | Journal entries, transcripts, reflections | SwiftData on device; mirrored to the **user's own CloudKit private database** | **No** — CloudKit private database is the user's iCloud account, not our infrastructure. We have no access to it |
-| Audio | Live buffers only. `SpeechService.swift` uses `AVAudioEngine` + `SFSpeechAudioBufferRecognitionRequest`; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — but see the `requiresOnDeviceRecognition` caveat below |
+| Audio | Live buffers only. `SpeechService.swift` uses `AVAudioEngine` + `SFSpeechAudioBufferRecognitionRequest` with `requiresOnDeviceRecognition = true`; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — on-device recognition is required, see below |
 | Display name | `LocalProfileStore`, `UserDefaults`, never transmitted | **No** |
 | Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
@@ -58,13 +58,13 @@ two `UIApplication.shared.open` links to the privacy policy and terms.
 ### The two things that can break "Data Not Collected"
 
 **1. `SFSpeechRecognizer` without `requiresOnDeviceRecognition = true`.**
-`MeetMemento/Services/SpeechService.swift` does not set it, so for some locales
-recognition may be performed on Apple's servers. Apple's speech-recognition
-service is Apple's, not a third party, and audio is not retained by us — but the
-honest reading is that **audio leaves the device on a path we did not design or
-disclose**. Resolve it (spec 018 R1's `SpeechAnalyzer` migration is the planned
-path) before declaring the label, or disclose it. Do not declare "Data Not
-Collected" while leaving this unexamined.
+**RESOLVED (2026-08-11, previously stale).** `MeetMemento/Services/SpeechService.swift`
+**does** set `request.requiresOnDeviceRecognition = true` (see the comment block
+at the call site: "Keep audio on the device"), so recognition cannot be routed
+to Apple's servers; unavailable locales surface an error rather than a silent
+off-device path. Spec 018 R1's `SpeechAnalyzer` migration remains the 2.0 plan,
+but the 1.x label is safe on this point. (This paragraph previously claimed the
+flag was unset — that was out of date, not a code change.)
 
 **2. RevenueCat, if spec 021 ships it.** `REQ-MON-004` / **V8** is an open
 verification item: does RevenueCat's SDK itself trigger a collection disclosure

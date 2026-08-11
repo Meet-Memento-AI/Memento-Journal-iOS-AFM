@@ -10,38 +10,27 @@
 
 import Foundation
 
-/// Journal entry model for UI rendering and local persistence.
+/// Journal entry model for UI rendering and local persistence. Entries live
+/// only on this device — there is no server and therefore no sync state.
 public struct Entry: Identifiable, Hashable {
-    /// Whether this entry has reached the server yet (spec-007: local-first writes).
-    public enum SyncStatus: Hashable {
-        /// Confirmed on the server.
-        case synced
-        /// Saved locally; still queued to reach the server (offline, or a
-        /// transient failure being retried on reconnect).
-        case pending
-    }
-
     public let id: UUID
     public var title: String
     public var text: String
     public var createdAt: Date
     public var updatedAt: Date
-    public var syncStatus: SyncStatus
 
     public init(
         id: UUID = UUID(),
         title: String = "",
         text: String = "",
         createdAt: Date = Date(),
-        updatedAt: Date? = nil,
-        syncStatus: SyncStatus = .synced
+        updatedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
         self.text = text
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
-        self.syncStatus = syncStatus
     }
 }
 

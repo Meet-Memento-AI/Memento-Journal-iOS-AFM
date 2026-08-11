@@ -157,15 +157,14 @@ class EntryViewModel: ObservableObject {
         await loadEntries()
     }
 
-    /// Creates an entry local-first (spec-007): the entry is encrypted and
-    /// written to disk before any network call, so it's durable even if the
-    /// device is offline or the request fails. A sync failure queues the
-    /// entry for retry on reconnect instead of rolling back the optimistic
-    /// UI insert — losing a journal entry to a network error is the one
-    /// failure mode this app cannot have.
+    /// Creates an entry with an optimistic UI insert, then encrypts and writes
+    /// it to disk. The local save IS the entire operation — there is no server
+    /// and no network involved. Losing a journal entry is the one failure mode
+    /// this app cannot have, so a failed disk save rolls back the insert and
+    /// surfaces an error rather than pretending it worked.
     func createEntry(title: String, text: String) {
-        // One ID from the start, shared by the UI entry, the local encrypted
-        // file, and the eventual server row — no ID swap needed later.
+        // One ID from the start, shared by the UI entry and the local
+        // encrypted file.
         let entryId = UUID()
         let resolvedTitle = title.isEmpty ? "Untitled" : title
         let now = Date()
@@ -176,7 +175,7 @@ class EntryViewModel: ObservableObject {
         }
         pendingOperations.insert(entryId)
 
-        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, syncStatus: .pending)
+        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now)
 
         // Optimistic insert - UI updates instantly
         entries.insert(newEntry, at: 0)
@@ -194,7 +193,6 @@ class EntryViewModel: ObservableObject {
             #if USE_MOCK_DATA
             // UI Testing Mode - Add to mock data
             MockDataProvider.shared.addMockEntry(newEntry)
-            await MainActor.run { self.markSynced(entryId) }
             AppLogger.log("📱 UI Mode: Created mock entry")
             #else
             // Production Mode — local-only (no accounts, spec 023). There is
@@ -206,11 +204,9 @@ class EntryViewModel: ObservableObject {
                 entryId: entryId, title: resolvedTitle, content: text,
                 createdAt: now, updatedAt: now
             )
-            if saved {
-                await MainActor.run { self.markSynced(entryId) }
-            } else {
-                // Local save itself failed (e.g. disk/Keychain issue) — this is
-                // a real failure, not a network hiccup to retry later.
+            if !saved {
+                // Local save failed (e.g. disk/Keychain issue) — this is a
+                // real failure: roll back the optimistic insert and say so.
                 await MainActor.run {
                     self.entries.removeAll { $0.id == entryId }
                     self.updateEntriesByMonth()
@@ -218,13 +214,6 @@ class EntryViewModel: ObservableObject {
                 }
             }
             #endif
-        }
-    }
-
-    /// Marks an entry as synced in the in-memory list, if still present.
-    private func markSynced(_ entryId: UUID) {
-        if let index = entries.firstIndex(where: { $0.id == entryId }) {
-            entries[index].syncStatus = .synced
         }
     }
 
@@ -267,9 +256,7 @@ class EntryViewModel: ObservableObject {
             )
             await MainActor.run {
                 if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                    var updated = entry
-                    updated.syncStatus = saved ? .synced : entry.syncStatus
-                    self.entries[i] = updated
+                    self.entries[i] = entry
                     self.updateEntriesByMonth()
                 }
                 if !saved {

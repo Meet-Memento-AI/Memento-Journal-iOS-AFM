@@ -148,9 +148,9 @@ public struct DrawerMenuView: View {
 
     @ViewBuilder
     private var settingsButtonBackground: some View {
-        // Liquid Glass removed — flat #fafafa surface.
+        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 
     // MARK: - Safe Area Helpers
