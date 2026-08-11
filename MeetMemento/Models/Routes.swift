@@ -42,11 +42,6 @@ public enum AIChatRoute: Hashable {
     case main
 }
 
-// MARK: - Navigation route for Monthly Insights
-public enum MonthInsightRoute: Hashable {
-    case detail(monthLabel: String, entryCount: Int)
-}
-
 // MARK: - Navigation route for Drawer Menu
 public enum DrawerRoute: Hashable {
     case aboutYourself
