@@ -1,15 +1,13 @@
 First release.
 
-Memento is a journal that reads what you wrote and reflects it back — weekly reflections, long-run Patterns, and Ask, which answers questions from your own entries and cites them.
+Memento is a journal that remembers what you wrote — with a companion that answers questions from your own entries and cites them.
 
 This version:
 
 - Voice and text capture, with live on-device transcription
 - Searchable timeline of every entry
-- Weekly reflections with citations back to source entries
-- Patterns across months
-- Ask, answering from your archive
-- Read-aloud playback for any reflection
+- Ask, answering from your archive with citations back to source entries
+- Turn a conversation into a first-person journal entry
 - Markdown and JSON export, free and unrestricted
 - Face ID or passcode lock, optional and skippable
 - No account, no analytics, no third-party AI
