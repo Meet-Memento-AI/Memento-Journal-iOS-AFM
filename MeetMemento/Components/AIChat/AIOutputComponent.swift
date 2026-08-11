@@ -107,6 +107,14 @@ public struct AIOutputComponent: View {
     /// reveal never lags the model yet still reads as typing.
     private let baseTickNanos: UInt64 = 14_000_000
 
+    /// Soft leading-edge dissolve (ChatGPT-style): the newest `dissolveRamp`
+    /// characters ramp from `dissolveMinOpacity` up to full opacity, so streamed
+    /// text melts in instead of snapping on. Redrawn each tick as the index
+    /// advances, so the ramp glides forward and every character fades up over
+    /// roughly `dissolveRamp` ticks (~200ms) — the "incredibly smooth" feel.
+    private let dissolveRamp = 14
+    private let dissolveMinOpacity: Double = 0.1
+
     /// Stable value that changes when content changes; used with onChange to avoid relying on AIOutputContent Equatable synthesis.
     private var contentIdentity: String {
         [
@@ -191,11 +199,50 @@ public struct AIOutputComponent: View {
     /// Still revealing characters (or the stream is live): show a trailing caret.
     private var isTyping: Bool { animate && (displayedCount < totalCount || streamingState) }
 
-    /// Thin caret concatenated onto the body while typing, so it wraps with the
-    /// text and vanishes cleanly at completion. Empty `Text` when not typing.
-    private var caretText: Text {
-        guard isTyping, !shownBody.isEmpty else { return Text("") }
-        return Text("\u{258F}").foregroundStyle(theme.mutedForeground) // ▏
+    /// Actively revealing backlog — apply the leading-edge dissolve. When caught
+    /// up (a pause, or the end) text sits solid, matching ChatGPT.
+    private var isDissolving: Bool { animate && displayedCount < totalCount }
+
+    /// Whether to show the subtle caret: only while caught up but still streaming
+    /// — a "still generating" hint during a pause. While text is actively
+    /// dissolving in, the fading leading edge is the cue, so no caret (a
+    /// full-opacity caret beside faded text looks disconnected).
+    private var showsCaret: Bool {
+        animate && streamingState && displayedCount >= totalCount && !shownBody.isEmpty
+    }
+
+    /// The body as a `Text` with the ChatGPT dissolve applied. Parses the shown
+    /// prefix (markdown / RAG styling preserved), fades the newest `dissolveRamp`
+    /// characters from faint to full so the leading edge melts in, and folds the
+    /// caret into the same `AttributedString` (no deprecated `Text` concatenation).
+    private var bodyText: Text {
+        var attr = RichTextParser.parse(
+            animate ? shownBody : content.body,
+            baseFont: type.body1,
+            boldFont: type.body1Bold,
+            textColor: theme.foreground
+        )
+        if isDissolving {
+            let ramp = min(dissolveRamp, attr.characters.count)
+            if ramp > 0 {
+                var upper = attr.characters.endIndex
+                for k in 0..<ramp {
+                    let lower = attr.characters.index(before: upper)
+                    // k = 0 is the newest (last) character → faintest; opacity
+                    // climbs toward 1.0 for characters further from the edge.
+                    let t = Double(k + 1) / Double(ramp)
+                    let alpha = dissolveMinOpacity + (1 - dissolveMinOpacity) * t
+                    attr[lower..<upper].foregroundColor = theme.foreground.opacity(alpha)
+                    upper = lower
+                }
+            }
+        }
+        if showsCaret {
+            var caret = AttributedString("\u{258F}") // ▏
+            caret.foregroundColor = theme.mutedForeground
+            attr.append(caret)
+        }
+        return Text(attr)
     }
 
     public var body: some View {
@@ -237,21 +284,13 @@ public struct AIOutputComponent: View {
                 }
             }
 
-            // Body text with typewriter effect and rich text parsing. The trailing
-            // caret rides the last revealed character while typing (ChatGPT feel)
-            // and disappears the instant the reply is complete.
+            // Body text with the ChatGPT-style typewriter + leading-edge dissolve.
+            // `bodyText` parses the shown prefix and fades the newest characters
+            // in; the caret only appears during a mid-stream pause.
             let bodyShown = animate ? shownBody : content.body
             if !bodyShown.isEmpty || !animate {
-                // Keep local rich-text parsing (RAG citations/markdown); adopt
-                // upstream's semantic token for proper light/dark contrast.
-                (Text(RichTextParser.parse(
-                    bodyShown,
-                    baseFont: type.body1,
-                    boldFont: type.body1Bold,
-                    textColor: theme.foreground
-                ))
-                + caretText)
-                .lineSpacing(type.bodyLineSpacing)
+                bodyText
+                    .lineSpacing(type.bodyLineSpacing)
             }
 
             // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently
