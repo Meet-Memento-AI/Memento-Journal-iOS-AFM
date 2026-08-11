@@ -60,10 +60,10 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
   Supabase project (CloudKit uses the device's iCloud account transparently —
   that is Apple's infrastructure, not an app account). Exact
   xcconfig/entitlement changes are execution work tracked in specs 023/015.
-- **CI**: GitHub Actions on self-hosted runners — `ios-tests.yml`, `security.yml`,
-  `deploy-dev-staging.yml`, `deploy-prod.yml` unchanged in shape; content needs
-  updating once `supabase/` is deleted (Phase 1, spec 015) since several jobs
-  currently reference it. Not re-verified as part of this specs-only pass.
+- **CI**: GitHub Actions on self-hosted runners — merge lanes are
+  `ios-build-online.yml`, `security.yml`, and `spec-gates.yml` (spec 025).
+  Optional non-blocking `ios-device-eval.yml` covers live FM generation /
+  spikes. No backend deploy workflows for the on-device product.
 
 **Pre-2.0 snapshot (historical, superseded):** see §2 *Backend* subsection below —
 SwiftUI/iOS 17.0, Supabase auth + Postgres/pgvector RAG (768-dim Gemini embeddings),

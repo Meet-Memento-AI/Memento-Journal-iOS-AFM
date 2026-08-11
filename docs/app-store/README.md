@@ -61,6 +61,7 @@ the same status board as the engineering phases. Gate S sits after Phase 5.
 | [`09-testflight.md`](09-testflight.md) | Internal vs external testing, Beta App Review, limits, expiry | [TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/) |
 | [`10-release-and-availability.md`](10-release-and-availability.md) | Pricing, territories, release option, phased release, post-launch operations | [Overview of publishing](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/overview-of-publishing-your-app-on-the-app-store/) |
 | [`11-rejection-playbook.md`](11-rejection-playbook.md) | Our rejection history, metadata vs binary rejection, Resolution Center, expedited review, appeals | [App Review](https://developer.apple.com/distribute/app-review/) |
+| [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md) | Prioritized product enhancement plan (data-layer honesty, dark mode, accessibility) sequenced for Gate S | — (aggregates repo scan + specs) |
 
 Plus two data files:
 

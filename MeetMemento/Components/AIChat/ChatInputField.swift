@@ -45,9 +45,11 @@ struct ChatInputField: View {
     @State private var showPermissionDenied = false
     @State private var showSTTError = false
     @State private var showListeningContent = false
-    /// Ensures one voice utterance sends exactly once (both speech observers can
+    /// Ensures one voice utterance is consumed exactly once (both speech observers can
     /// fire for the same utterance). Reset when a new recording starts.
     @State private var didConsumeTranscript = false
+    /// When true, cancel has been requested — ignore any late transcript delivery.
+    @State private var didCancelListening = false
     @Namespace private var animationNamespace
 
     /// Unique identifier for this view's speech session ownership
@@ -114,20 +116,30 @@ struct ChatInputField: View {
         .allowsHitTesting(isInteractive)
         // A single utterance can satisfy BOTH observers below (recording stops
         // with text present, then a final transcript lands). `consumeTranscriptOnce`
-        // guards so exactly one send fires per recording session — the previous
-        // code relied on the `!isLoading` guard racing, which was fragile.
+        // guards so exactly one review handoff fires per recording session.
+        // Transcripts open the chat composer for edit — they never auto-send.
         .onChange(of: speechService.isRecording) { oldValue, newValue in
-            guard speechService.isOwner(speechOwnerId) else { return }
+            guard speechService.isOwner(speechOwnerId), !didCancelListening else { return }
             if newValue == true {
                 didConsumeTranscript = false            // new recording — arm one consume
             } else if oldValue == true {
-                consumeTranscriptOnce(speechService.transcribedText)
+                // Prefer waiting for finalization; if a final is already present, hand off now.
+                if !speechService.isProcessing {
+                    consumeTranscriptOnce(speechService.bestAvailableTranscript)
+                }
             }
         }
         .onChange(of: speechService.transcribedText) { _, newText in
-            guard speechService.isOwner(speechOwnerId) else { return }
+            guard speechService.isOwner(speechOwnerId), !didCancelListening else { return }
             if !speechService.isRecording {              // final transcript after stop
                 consumeTranscriptOnce(newText)
+            }
+        }
+        .onChange(of: speechService.isProcessing) { _, processing in
+            guard speechService.isOwner(speechOwnerId), !didCancelListening else { return }
+            // Finalization timeout / final callback cleared processing — hand off what we have.
+            if !processing && !speechService.isRecording {
+                consumeTranscriptOnce(speechService.bestAvailableTranscript)
             }
         }
         .onChange(of: isFocused) { _, newValue in
@@ -146,7 +158,7 @@ struct ChatInputField: View {
             showPermissionDenied: $showPermissionDenied,
             showSTTError: $showSTTError,
             speechService: speechService,
-            ownerId: speechOwnerId
+            onRetry: { startListening() }
         ))
     }
 
@@ -367,7 +379,7 @@ struct ChatInputField: View {
                 .buttonStyle(.plain)
                 .contentShape(Circle())
                 .accessibilityLabel("Confirm recording")
-                .accessibilityHint("Double-tap to stop recording and send")
+                .accessibilityHint("Double-tap to stop recording and review the transcript before sending")
             }
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -376,15 +388,20 @@ struct ChatInputField: View {
 
             Spacer()
 
-            // Center: Animated wave bars
-            ListeningDotsView(audioLevel: speechService.audioLevel)
-                .opacity(showListeningContent ? 1 : 0)
-                .scaleEffect(showListeningContent ? 1 : 0.5)
+            // Center: Animated wave bars + live transcript so mishearing is visible
+            // before the user confirms (REQ-CAP-003 / honesty signal).
+            VStack(spacing: 16) {
+                ListeningDotsView(audioLevel: speechService.audioLevel)
+                    .scaleEffect(showListeningContent ? 1 : 0.5)
+
+                liveTranscriptLabel
+            }
+            .opacity(showListeningContent ? 1 : 0)
 
             Spacer()
 
             // Label
-            Text("Narrate")
+            Text(speechService.isRecording ? "Narrate" : "Finishing…")
                 .font(type.body1)
                 .foregroundStyle(theme.primary)
                 .padding(.bottom, 24)
@@ -405,6 +422,23 @@ struct ChatInputField: View {
         .onDisappear {
             showListeningContent = false
         }
+    }
+
+    // MARK: - Live Transcript
+
+    @ViewBuilder
+    private var liveTranscriptLabel: some View {
+        let live = speechService.partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let final = speechService.transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let display = final.isEmpty ? live : final
+
+        Text(display.isEmpty ? "Listening…" : display)
+            .font(type.body2)
+            .foregroundStyle(final.isEmpty ? theme.mutedForeground : theme.foreground)
+            .multilineTextAlignment(.center)
+            .lineLimit(3)
+            .padding(.horizontal, 20)
+            .accessibilityLabel(display.isEmpty ? "Listening" : "Transcription: \(display)")
     }
 
     // MARK: - Voice Wave Icon
@@ -438,6 +472,8 @@ struct ChatInputField: View {
 
     private func startListening() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        didCancelListening = false
+        didConsumeTranscript = false
 
         // Transition to listening panel
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -450,31 +486,14 @@ struct ChatInputField: View {
             do {
                 try await speechService.startRecording(ownerId: speechOwnerId)
             } catch let error as SpeechService.SpeechError {
-                // Fade out and return to default on error
-                onNarrateStateChange?(false)
-                withAnimation(.easeOut(duration: 0.15)) {
-                    showListeningContent = false
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        inputState = .defaultState
-                    }
-                }
+                collapseNarrateToDefault()
                 if case .permissionDenied = error {
                     showPermissionDenied = true
                 } else {
                     showSTTError = true
                 }
             } catch {
-                onNarrateStateChange?(false)
-                withAnimation(.easeOut(duration: 0.15)) {
-                    showListeningContent = false
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        inputState = .defaultState
-                    }
-                }
+                collapseNarrateToDefault()
                 showSTTError = true
             }
         }
@@ -482,6 +501,8 @@ struct ChatInputField: View {
 
     private func cancelListening() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        didCancelListening = true
+        didConsumeTranscript = true
         onNarrateStateChange?(false)
 
         // Fade out content first
@@ -489,10 +510,9 @@ struct ChatInputField: View {
             showListeningContent = false
         }
 
-        // Then transition panel after content fades
+        // Hard-cancel so a late final cannot race into the composer.
         Task {
-            await speechService.stopRecording()
-            speechService.clearTranscription()
+            await speechService.cancelRecording()
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -504,27 +524,33 @@ struct ChatInputField: View {
 
     private func confirmListening() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onNarrateStateChange?(false)
-
-        // Fade out content first
-        withAnimation(.easeOut(duration: 0.15)) {
-            showListeningContent = false
-        }
 
         Task {
             await speechService.stopRecording()
-            // Text will be inserted via onChange handler
-            // But if transcription is empty after processing, we need to return to default
-            // Wait a moment for transcription to be processed
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            // Observers hand off when finalization completes. Safety net if nothing arrives.
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
 
-            // If still in narrateActive and no transcription was processed, return to default
             await MainActor.run {
-                if inputState == .narrateActive {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        inputState = .defaultState
-                    }
+                guard !didCancelListening, !didConsumeTranscript else { return }
+                let fallback = speechService.bestAvailableTranscript
+                if fallback.isEmpty {
+                    collapseNarrateToDefault()
+                    speechService.clearTranscription()
+                } else {
+                    consumeTranscriptOnce(fallback)
                 }
+            }
+        }
+    }
+
+    private func collapseNarrateToDefault() {
+        onNarrateStateChange?(false)
+        withAnimation(.easeOut(duration: 0.15)) {
+            showListeningContent = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                inputState = .defaultState
             }
         }
     }
@@ -539,49 +565,39 @@ struct ChatInputField: View {
         isFocused = false
     }
 
-    /// Consume the transcript at most once per recording session, so the two
-    /// speech observers can't both send it.
+    /// Consume the transcript at most once per recording session, so multiple
+    /// speech observers can't all hand it off. Opens the composer for review —
+    /// never auto-sends, so a misheard phrase cannot strand the conversation.
     private func consumeTranscriptOnce(_ transcribedText: String) {
-        guard !didConsumeTranscript, !transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !didCancelListening else { return }
+        guard !didConsumeTranscript else { return }
+        let trimmed = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
         didConsumeTranscript = true
-        insertTranscribedText(transcribedText)
+        presentTranscriptForReview(trimmed)
     }
 
-    private func insertTranscribedText(_ transcribedText: String) {
-        let trimmed = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            // Fade out content first, then transition
-            onNarrateStateChange?(false)
-            withAnimation(.easeOut(duration: 0.15)) {
-                showListeningContent = false
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                inputState = .defaultState
-            }
-            return
-        }
-
+    private func presentTranscriptForReview(_ transcribedText: String) {
         if text.isEmpty {
-            text = trimmed
+            text = transcribedText
         } else {
-            text += "\n\n" + trimmed
+            text += (text.hasSuffix("\n") ? "" : "\n") + transcribedText
         }
 
         // Clear transcription buffer and release ownership
         speechService.clearTranscription()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
-        // Send the message
-        onSend()
-        text = ""
-
-        // Smooth transition back to default
+        // Hand control back to the user: edit or send from the chat composer.
         onNarrateStateChange?(false)
         withAnimation(.easeOut(duration: 0.15)) {
             showListeningContent = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            inputState = .defaultState
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                inputState = .chatActive
+            }
+            isFocused = true
         }
     }
 }
@@ -592,7 +608,7 @@ private struct SpeechAlertsModifier: ViewModifier {
     @Binding var showPermissionDenied: Bool
     @Binding var showSTTError: Bool
     let speechService: SpeechService
-    let ownerId: String
+    var onRetry: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -604,17 +620,14 @@ private struct SpeechAlertsModifier: ViewModifier {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("MeetMemento needs microphone access to transcribe your voice. Enable it in Settings > Privacy > Microphone.")
+                Text(
+                    "MeetMemento needs microphone access to transcribe your voice. "
+                    + "Enable it in Settings > Privacy > Microphone."
+                )
             }
             .alert("Recording Failed", isPresented: $showSTTError) {
                 Button("Try Again") {
-                    Task {
-                        do {
-                            try await speechService.startRecording(ownerId: ownerId)
-                        } catch {
-                            showSTTError = true
-                        }
-                    }
+                    onRetry()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {

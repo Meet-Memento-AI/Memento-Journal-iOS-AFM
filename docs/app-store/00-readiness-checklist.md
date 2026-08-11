@@ -4,6 +4,10 @@
 **Submit for Review**. Every row is either closed with evidence or names the
 owner and what is blocking it.
 
+For a sequenced **product enhancement plan** (backend/data honesty, dark mode,
+accessibility) that closes many of the agent-owned rows below, see
+[`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md).
+
 - **Owner `agent`** — closeable from the repo by an implementation session.
 - **Owner `☐ user`** — requires the **Account Holder** signed in to App Store
   Connect or developer.apple.com. An agent can prepare it and say exactly what to

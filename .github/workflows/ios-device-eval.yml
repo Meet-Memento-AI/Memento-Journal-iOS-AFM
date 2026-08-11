@@ -1,0 +1,70 @@
+name: iOS device / eval (optional)
+
+# Spec 025 R3 — non-required lane for on-device Foundation Models generation,
+# Spotlight spikes, and (later) spec 022 Evaluations harness work.
+# Never add this workflow's checks to branch protection.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_spikes:
+        description: "Set TEST_RUNNER_SPIKE_A/C=1 for Spotlight spikes"
+        type: boolean
+        default: false
+  schedule:
+    # Weekly advisory; failures do not block merges.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  ios-device-eval:
+    name: iOS device / eval
+    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    # Advisory: capable hardware / model provisioning is not guaranteed.
+    continue-on-error: true
+    env:
+      # Intentionally unset CI_ONLINE so generation tests may run when the
+      # model is available; they still XCTSkip if the runtime cannot generate.
+      DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
+      IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
+      # Spikes only when manually dispatched with the input enabled (schedule = off).
+      TEST_RUNNER_SPIKE_A: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
+      TEST_RUNNER_SPIKE_C: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
+      TEST_RUNNER_SPIKE_A_FIXTURES: ${{ github.workspace }}/Fixtures
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: |
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+          xcodebuild -version
+          echo "Destination: $IOS_SIM_DESTINATION"
+          echo "CI_ONLINE is unset (device/eval lane)."
+          echo "Spikes: A=$TEST_RUNNER_SPIKE_A C=$TEST_RUNNER_SPIKE_C"
+
+      - name: Device / eval test pass
+        run: |
+          set -euo pipefail
+          rm -rf TestResults TestResults.xcresult
+          xcodebuild \
+            -scheme MeetMemento \
+            -destination "$IOS_SIM_DESTINATION" \
+            -resultBundlePath TestResults \
+            -parallel-testing-enabled NO \
+            -skip-testing:MeetMementoUITests \
+            test
+
+      - name: Document local eval commands
+        if: always()
+        run: |
+          cat <<'EOF'
+          Spec 022 Evaluations harness (when implemented) runs locally:
+            # Z0-only with network disabled — see specs/022-evaluation-and-quality-study.md
+            xcodebuild -scheme MeetMemento \
+              -destination "$IOS_SIM_DESTINATION" test
+
+          Live FM generation is proven on a physical Apple Intelligence device.
+          Merge CI must not require this job (spec 025).
+          EOF

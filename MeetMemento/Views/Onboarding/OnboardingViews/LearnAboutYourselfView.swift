@@ -24,6 +24,8 @@ public struct LearnAboutYourselfView: View {
     @State private var entryText: String = ""
     @State private var showSTTError = false
     @State private var showPermissionDenied = false
+    /// Guards against double-insert when both stop and final-transcript observers fire.
+    @State private var didConsumeTranscript = false
     @FocusState private var isFocused: Bool
 
     // Callback for when user completes this step
@@ -79,15 +81,23 @@ public struct LearnAboutYourselfView: View {
         .onChange(of: speechService.isRecording) { oldValue, newValue in
             // Only process if this view owns the session
             guard speechService.isOwner(speechOwnerId) else { return }
-            if oldValue == true && newValue == false && !speechService.transcribedText.isEmpty {
-                insertTranscribedText(speechService.transcribedText)
+            if newValue == true {
+                didConsumeTranscript = false
+            } else if oldValue == true && !speechService.isProcessing {
+                consumeTranscriptOnce(speechService.bestAvailableTranscript)
             }
         }
         .onChange(of: speechService.transcribedText) { _, newText in
             // Only process if this view owns the session
             guard speechService.isOwner(speechOwnerId) else { return }
             if !newText.isEmpty && !speechService.isRecording {
-                insertTranscribedText(newText)
+                consumeTranscriptOnce(newText)
+            }
+        }
+        .onChange(of: speechService.isProcessing) { _, processing in
+            guard speechService.isOwner(speechOwnerId) else { return }
+            if !processing && !speechService.isRecording {
+                consumeTranscriptOnce(speechService.bestAvailableTranscript)
             }
         }
         .alert("Microphone Access Required", isPresented: $showPermissionDenied) {
@@ -196,13 +206,19 @@ public struct LearnAboutYourselfView: View {
         onComplete?(trimmedText)
     }
     
-    private func insertTranscribedText(_ transcribedText: String) {
+    private func consumeTranscriptOnce(_ transcribedText: String) {
+        guard !didConsumeTranscript else { return }
         let trimmed = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        didConsumeTranscript = true
+        insertTranscribedText(trimmed)
+    }
+
+    private func insertTranscribedText(_ transcribedText: String) {
         if entryText.isEmpty {
-            entryText = trimmed
+            entryText = transcribedText
         } else {
-            entryText += "\n\n" + trimmed
+            entryText += "\n\n" + transcribedText
         }
         // Clear transcription buffer and release ownership
         speechService.clearTranscription()

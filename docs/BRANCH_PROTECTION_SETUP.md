@@ -1,20 +1,22 @@
 # GitHub Branch Protection Setup
 
-Use this checklist to enforce the main + dev model and required CI/CD security gates.
+Use this checklist to enforce the main + dev model and required online CI gates
+([spec 025](../specs/025-ci-online-ios-build-gates.md)).
 
 ## Prerequisites
 
-- Push the dev branch to origin.
-- Ensure workflows exist in default branch:
-  - .github/workflows/ios-tests.yml
-  - .github/workflows/security.yml
-  - .github/workflows/spec-gates.yml
+- Push the `dev` branch to origin.
+- Ensure merge workflows exist on the default branch:
+  - `.github/workflows/ios-build-online.yml`
+  - `.github/workflows/security.yml`
+  - `.github/workflows/spec-gates.yml`
+- Optional (never required): `.github/workflows/ios-device-eval.yml`
 
 ## Required branch rules: dev
 
 Navigate to GitHub repository settings:
 - Settings -> Branches -> Add branch protection rule
-- Branch name pattern: dev
+- Branch name pattern: `dev`
 
 Enable these options:
 - Require a pull request before merging
@@ -25,60 +27,44 @@ Enable these options:
 - Do not allow bypassing the above settings
 - Restrict who can push to matching branches (optional, recommended)
 
-Add required status checks:
-- iOS quality gates
-- CodeQL analysis
-- Dependency review
-- Secret scanning
+Add required status checks (names must match `jobs.*.name`):
+
+- `iOS build (online)`
+- Spec-gates job names you choose to require from `spec-gates.yml` (e.g. privacy
+  manifest, store metadata, corpus validation, single importer)
+- `Dependency review`
+- `Secret scanning`
+
+Remove any stale required check named `iOS quality gates` (replaced by
+`iOS build (online)`). Do not require `iOS device / eval`.
 
 ## Required branch rules: main
 
-Navigate to GitHub repository settings:
-- Settings -> Branches -> Add branch protection rule
-- Branch name pattern: main
+Same options as `dev`, plus:
 
-Enable these options:
-- Require a pull request before merging
-- Require approvals: 1 (or 2 for stricter policy)
-- Dismiss stale pull request approvals when new commits are pushed
-- Require status checks to pass before merging
-- Require conversation resolution before merging
 - Require branches to be up to date before merging
-- Do not allow bypassing the above settings
 - Restrict who can push to matching branches
 
-Add required status checks:
-- iOS quality gates
-- CodeQL analysis
-- Dependency review
-- Secret scanning
+Required status checks: same online set as `dev`.
 
 ## Merge policy
 
-- Feature branches target dev.
-- Only release promotion PRs should target main (dev -> main).
-- Direct commits to dev/main should be blocked.
+- Feature branches target `dev`.
+- Only release promotion PRs should target `main` (`dev` -> `main`).
+- Direct commits to `dev`/`main` should be blocked.
 
-## Environments and deployment secrets
+## Environments and secrets
 
-If using repository environments, create:
-- dev
-- staging
-
-Set secrets for each target (or repository secrets if not using environments):
-- DEV_SUPABASE_ACCESS_TOKEN
-- DEV_SUPABASE_PROJECT_REF
-- STAGING_SUPABASE_ACCESS_TOKEN
-- STAGING_SUPABASE_PROJECT_REF
-
-Recommendation:
-- Require reviewers for staging environment deployments.
-- Keep production deployment manual in this phase.
+No Supabase/deploy environments are required for the on-device product. For
+`security.yml` Sonar analysis, configure `SONAR_TOKEN` plus
+`SONAR_PROJECT_KEY` / `SONAR_HOST_URL` as documented in `docs/CI_RUNNERS.md`.
 
 ## Verification script
 
 Run these checks after configuration:
-1. Open a PR from feature branch to dev and verify merge is blocked until all checks pass.
-2. Open a PR from dev to main and verify required checks and approval gates are enforced.
-3. Attempt direct push to dev and main and confirm it is rejected.
-4. Merge a PR to dev and verify ios-tests, security, and spec-gates workflows run.
+1. Open a PR from a feature branch to `dev` and verify merge is blocked until
+   online checks pass.
+2. Open a PR from `dev` to `main` and verify required checks and approval gates.
+3. Attempt a direct push to `dev` and `main` and confirm it is rejected.
+4. Merge a PR to `dev` and verify `ios-build-online`, `security`, and
+   `spec-gates` run; confirm `ios-device-eval` is not required.

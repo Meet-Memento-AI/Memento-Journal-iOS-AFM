@@ -55,15 +55,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # spec-006: blocking on critical vulnerabilities (was advisory).
+      # spec-006/025: blocking on critical vulnerabilities (online merge lane).
       - name: Dependency review
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
-
-      - name: Dependency review note
-        if: always()
-        run: echo "Dependency review is currently advisory. Enable dependency graph + branch protection required checks to enforce blocking."
 
   secret-scan:
     name: Secret scanning
