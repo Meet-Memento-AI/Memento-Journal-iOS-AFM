@@ -22,6 +22,11 @@ struct SettingsView: View {
     @ObservedObject private var sampleContent = SampleContentService.shared
     @State private var isSampleWorking = false
 
+    @State private var exportURLs: [URL] = []
+    @State private var showExportSheet = false
+    @State private var showNothingToExportAlert = false
+    @State private var exportError = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
@@ -54,6 +59,23 @@ struct SettingsView: View {
                     .useTheme()
                     .useTypography()
             }
+        }
+        .sheet(isPresented: $showExportSheet, onDismiss: {
+            // The plaintext export exists only for the handoff.
+            JournalExporter.cleanUp()
+            exportURLs = []
+        }) {
+            ShareSheet(items: exportURLs)
+        }
+        .alert("Nothing to export yet", isPresented: $showNothingToExportAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Write an entry first — sample entries aren't included in exports.")
+        }
+        .alert("Export failed", isPresented: $exportError) {
+            Button("OK") { }
+        } message: {
+            Text("Your export couldn't be written. Free up some space and try again.")
         }
         .confirmationDialog(
             "Delete everything?",
@@ -260,6 +282,22 @@ struct SettingsView: View {
                     .background(theme.border)
                     .padding(.horizontal, Spacing.md)
 
+                // Export. The archive is the user's — hand it over in portable
+                // formats, whole, on demand. Sample entries are excluded so
+                // the export is what they wrote, not the bundled fiction.
+                SettingsRow(
+                    icon: "square.and.arrow.up",
+                    title: "Export Your Journal",
+                    subtitle: "Markdown and JSON files of everything you've written",
+                    showChevron: false,
+                    accessibilityIdentifier: "settings.exportJournal",
+                    action: { exportJournal() }
+                )
+
+                Divider()
+                    .background(theme.border)
+                    .padding(.horizontal, Spacing.md)
+
                 SettingsRow(
                     icon: "hand.raised",
                     title: "Privacy Policy",
@@ -334,6 +372,23 @@ struct SettingsView: View {
             }
             await entryViewModel.loadEntries()
             isSampleWorking = false
+        }
+    }
+
+    /// Writes the user's entries (sample entries excluded) as Markdown + JSON
+    /// and hands them to the share sheet. Files are cleaned up on dismiss.
+    private func exportJournal() {
+        let ownEntries = entryViewModel.entries.filter { !sampleContent.isSampleEntry($0.id) }
+        guard !ownEntries.isEmpty else {
+            showNothingToExportAlert = true
+            return
+        }
+        do {
+            exportURLs = try JournalExporter.writeExportFiles(entries: ownEntries)
+            showExportSheet = true
+        } catch {
+            AppLogger.log("⚠️ [Settings] Journal export failed: \(error.localizedDescription)")
+            exportError = true
         }
     }
 
