@@ -74,14 +74,44 @@ struct ChatSummaryResponse: Codable {
     let content: String
 }
 
+// MARK: - Streaming events (spec 017 R6)
+
+/// One event in a streaming chat send. `partial` carries the growing reply for
+/// live rendering; `completed` carries the final persisted response (citations
+/// only exist after reconciliation, so they never stream).
+enum ChatStreamEvent: Sendable {
+    case partial(heading1: String?, heading2: String?, body: String)
+    case completed(ChatResponse)
+}
+
 // MARK: - Service protocol (enables unit tests with mocks)
 
 protocol ChatServiceProtocol: AnyObject {
     func sendMessage(_ text: String, sessionId: UUID?) async throws -> ChatResponse
+    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
     func fetchSessions() async throws -> [ChatSession]
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO]
     func deleteSession(sessionId: UUID) async throws
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse
+}
+
+extension ChatServiceProtocol {
+    /// One-shot fallback so conforming test doubles keep compiling: a single
+    /// `.completed` event wrapping `sendMessage`.
+    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let response = try await sendMessage(text, sessionId: sessionId)
+                    continuation.yield(.completed(response))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 }
 
 // MARK: - Service
@@ -122,7 +152,41 @@ class ChatService {
         let entries = loadLocalEntries()
 
         let result = try await intelligence.ask(text, history: history, entries: entries)
+        return persistAndBuildResponse(text: text, result: result, conversationId: conversationId)
+    }
 
+    /// Streaming send (spec 017 R6): partials for live rendering, then one
+    /// `.completed` carrying the persisted response. Persistence happens at
+    /// completion only — an interrupted stream leaves the store untouched.
+    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        let conversationId = sessionId ?? UUID()
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                        AppLogger.log("💬 [ChatService] Streaming on-device reply (conversation: \(conversationId.uuidString.prefix(8)))...")
+                let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+                let entries = self.loadLocalEntries()
+                do {
+                    for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
+                        switch event {
+                        case .partial(let heading1, let heading2, let body):
+                            continuation.yield(.partial(heading1: heading1, heading2: heading2, body: body))
+                        case .completed(let result):
+                            let response = self.persistAndBuildResponse(text: text, result: result, conversationId: conversationId)
+                            continuation.yield(.completed(response))
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Shared tail of both send paths: map citations, persist both turns,
+    /// build the response the UI consumes.
+    private func persistAndBuildResponse(text: String, result: AskResult, conversationId: UUID) -> ChatResponse {
         let sources = result.citations.map { citation in
             ChatSource(
                 id: citation.entryId.uuidString,
@@ -131,16 +195,25 @@ class ChatService {
             )
         }
 
-                AppLogger.log("✅ [ChatService] Reply (\(result.body.count) chars), \(sources.count) citations, zone: \(String(describing: result.zoneUsed)), prompt: \(result.promptVersion)")
+                AppLogger.log("✅ [ChatService] Reply (\(result.body.count) chars), \(sources.count) citations, zone: \(result.zoneUsed.identifier), prompt: \(result.promptVersion)")
 
         // Persist locally so the conversation survives relaunch and shows in the
         // history list (multiple chat windows). The assistant turn is stored in
-        // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
+        // the {heading1,heading2,body,sources} JSON shape the chat UI parses on
+        // load, plus promptVersion/modelIdentifier for artifact traceability
+        // (REQ-PRM-004) — additive keys the parser ignores on old builds.
         LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
         LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
         LocalChatStore.shared.appendMessage(
             role: "assistant",
-            content: Self.assistantContentJSON(body: result.body, heading1: result.heading1, heading2: result.heading2, sources: sources),
+            content: Self.assistantContentJSON(
+                body: result.body,
+                heading1: result.heading1,
+                heading2: result.heading2,
+                sources: sources,
+                promptVersion: result.promptVersion,
+                modelIdentifier: result.modelIdentifier
+            ),
             to: conversationId
         )
 
@@ -152,6 +225,12 @@ class ChatService {
             sources: sources,
             sessionId: conversationId.uuidString
         )
+    }
+
+    /// Preload on-device model resources ahead of the first turn (perceived
+    /// latency: the chat surface calls this on appear).
+    func prewarmIntelligence() {
+        intelligence.prewarm()
     }
 
     // MARK: - History Management
@@ -204,12 +283,24 @@ class ChatService {
 
     /// Builds the assistant message content in the JSON shape the chat UI parses
     /// on load (`ChatViewModel.extractBodyContent`): body + optional headings +
-    /// sources so citations re-render for reloaded conversations.
-    static func assistantContentJSON(body: String, heading1: String?, heading2: String?, sources: [ChatSource]) -> String {
+    /// sources so citations re-render for reloaded conversations, plus
+    /// promptVersion/modelIdentifier (REQ-PRM-004: every persisted artifact is
+    /// attributable to the prompt and model that produced it). The extra keys
+    /// are additive — the parser reads only what it knows.
+    static func assistantContentJSON(
+        body: String,
+        heading1: String?,
+        heading2: String?,
+        sources: [ChatSource],
+        promptVersion: String? = nil,
+        modelIdentifier: String? = nil
+    ) -> String {
         var object: [String: Any] = ["body": body]
         if let heading1 { object["heading1"] = heading1 }
         if let heading2 { object["heading2"] = heading2 }
         object["sources"] = sources.map { ["id": $0.id, "created_at": $0.createdAt, "preview": $0.preview] }
+        if let promptVersion { object["prompt_version"] = promptVersion }
+        if let modelIdentifier { object["model_identifier"] = modelIdentifier }
         guard let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else {
             return body
@@ -224,11 +315,11 @@ class ChatService {
                 AppLogger.log("📝 [ChatService] Summarizing chat on-device (\(messages.count) messages)...")
 
         let turns = messages.map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
-        let content = try await intelligence.summarizeConversation(turns)
+        let outcome = try await intelligence.summarizeConversation(turns)
 
-                AppLogger.log("✅ [ChatService] Summary generated (\(content.count) chars)")
+                AppLogger.log("✅ [ChatService] Summary generated (\(outcome.value.count) chars, zone: \(outcome.zoneUsed.identifier))")
 
-        return ChatSummaryResponse(title: nil, content: content)
+        return ChatSummaryResponse(title: nil, content: outcome.value)
     }
 
     // MARK: - Chat Feedback (local-only stub)

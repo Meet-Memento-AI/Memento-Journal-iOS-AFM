@@ -70,9 +70,16 @@ final class EmbeddingService: @unchecked Sendable {
         return vector
     }
 
-    /// Drop cached vectors (e.g. on sign-out / delete-everything).
+    /// Drop cached vectors (e.g. on sign-out / delete-everything —
+    /// AppStateStore.deleteEverything calls this; vectors are content-derived).
     func clearCache() {
         lock.lock(); entryCache.removeAll(); lock.unlock()
+    }
+
+    /// Test-inspectable cache size (delete-everything coverage).
+    var cachedEntryCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return entryCache.count
     }
 
     // MARK: - Similarity

@@ -41,7 +41,7 @@ final class IntelligenceServiceTests: XCTestCase {
             throw XCTSkip("On-device model unavailable here: \(reason.userMessage)")
 
         case .available(let zone):
-            XCTAssertEqual(zone, .onDevice)
+            XCTAssertEqual(zone, .z0Device)
 
             let entries = Entry.sampleEntries
             let result: AskResult
@@ -62,8 +62,9 @@ final class IntelligenceServiceTests: XCTestCase {
             print("[IntelligenceTest] citations: \(result.citations.map { $0.entryDate })")
 
             XCTAssertFalse(result.body.isEmpty, "on-device reply should not be empty")
-            XCTAssertEqual(result.zoneUsed, .onDevice)
+            XCTAssertEqual(result.zoneUsed, .z0Device)
             XCTAssertFalse(result.wasDegraded)
+            XCTAssertGreaterThan(result.latency, .zero, "outcome latency must be populated (017 R1)")
             // Citations must trace to a real provided entry (anti-fabrication).
             let providedIds = Set(entries.map { $0.id })
             for citation in result.citations {
@@ -86,14 +87,18 @@ final class IntelligenceServiceTests: XCTestCase {
             ChatTurn(role: .assistant, text: "You mentioned wanting to build it for months. What makes starting hard?"),
             ChatTurn(role: .user, text: "I think I'm afraid it won't be good enough, so I avoid it.")
         ]
-        let summary: String
+        let outcome: GenerationOutcome<String>
         do {
-            summary = try await service.summarizeConversation(turns)
+            outcome = try await service.summarizeConversation(turns)
         } catch {
             throw XCTSkip("On-device generation not runnable in this environment (needs a physical device): \(error)")
         }
-        print("[IntelligenceTest] summary: \(summary)")
-        XCTAssertFalse(summary.isEmpty)
+        print("[IntelligenceTest] summary: \(outcome.value)")
+        XCTAssertFalse(outcome.value.isEmpty)
+        // Spec 017 R1: every outcome fully populated.
+        XCTAssertEqual(outcome.zoneUsed, .z0Device)
+        XCTAssertFalse(outcome.modelIdentifier.isEmpty)
+        XCTAssertGreaterThan(outcome.latency, .zero)
     }
 
     /// The retriever is pure Swift and always runs (no model needed).

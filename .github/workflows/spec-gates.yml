@@ -28,6 +28,14 @@ jobs:
       - name: Enforce exactly-one FoundationModels importer
         run: scripts/ci/check_single_intelligence_importer.sh
 
+  no-hardcoded-context-budgets:
+    name: No hardcoded context budgets (spec 017 R9 / CONSTITUTION §4 rule 5)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Forbid context-window literals in the intelligence module
+        run: scripts/ci/check_no_hardcoded_context_budgets.sh
+
   forbidden-phrases:
     name: Positioning-claim lint (spec 014 R3 / REQ-POS-001)
     runs-on: [self-hosted, Linux, x64]

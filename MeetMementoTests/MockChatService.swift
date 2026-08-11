@@ -3,6 +3,11 @@ import Foundation
 
 final class MockChatService: ChatServiceProtocol {
     var sendMessageImpl: ((String, UUID?) async throws -> ChatResponse)?
+    /// When set, overrides the protocol's default one-shot streaming wrap —
+    /// yields these events in order, then finishes (throwing `streamError` at
+    /// the end if set).
+    var streamEvents: [ChatStreamEvent]?
+    var streamError: Error?
     var fetchSessionsImpl: (() async throws -> [ChatSession])?
     var loadSessionMessagesImpl: ((UUID) async throws -> [ChatMessageDTO])?
     var deleteSessionImpl: ((UUID) async throws -> Void)?
@@ -13,6 +18,30 @@ final class MockChatService: ChatServiceProtocol {
             throw NSError(domain: "MockChatService", code: -1, userInfo: [NSLocalizedDescriptionKey: "sendMessage not configured"])
         }
         return try await impl(text, sessionId)
+    }
+
+    func sendMessageStreaming(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        // Scripted stream when configured; else the default one-shot wrap.
+        guard streamEvents != nil || streamError != nil else {
+            return AsyncThrowingStream { continuation in
+                let task = Task {
+                    do {
+                        let response = try await self.sendMessage(text, sessionId: sessionId)
+                        continuation.yield(.completed(response))
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
+        }
+        let events = streamEvents ?? []
+        let error = streamError
+        return AsyncThrowingStream { continuation in
+            for event in events { continuation.yield(event) }
+            if let error { continuation.finish(throwing: error) } else { continuation.finish() }
+        }
     }
 
     func fetchSessions() async throws -> [ChatSession] {

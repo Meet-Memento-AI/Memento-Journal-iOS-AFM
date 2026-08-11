@@ -12,6 +12,21 @@ enum LocalProfileStore {
     private static let personalizationTextKey = "memento_personalization_text"
     private static let selectedGoalsKey = "memento_selected_goals"
     private static let experienceProfileKey = "memento_experience_profile"
+    private static let firstNameKey = "memento_first_name"
+    private static let lastNameKey = "memento_last_name"
+
+    // MARK: - Name (owned here so `clearAll()` covers everything profile-shaped;
+    // AppStateStore.deleteEverything keeps its own removals as belt-and-braces)
+
+    static var firstName: String? {
+        get { UserDefaults.standard.string(forKey: firstNameKey) }
+        set { UserDefaults.standard.set(newValue, forKey: firstNameKey) }
+    }
+
+    static var lastName: String? {
+        get { UserDefaults.standard.string(forKey: lastNameKey) }
+        set { UserDefaults.standard.set(newValue, forKey: lastNameKey) }
+    }
 
     // MARK: - Compatibility accessors (reflection + display names)
 
@@ -111,5 +126,7 @@ enum LocalProfileStore {
         UserDefaults.standard.removeObject(forKey: personalizationTextKey)
         UserDefaults.standard.removeObject(forKey: selectedGoalsKey)
         UserDefaults.standard.removeObject(forKey: experienceProfileKey)
+        UserDefaults.standard.removeObject(forKey: firstNameKey)
+        UserDefaults.standard.removeObject(forKey: lastNameKey)
     }
 }

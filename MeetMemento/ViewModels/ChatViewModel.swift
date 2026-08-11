@@ -215,53 +215,126 @@ class ChatViewModel: ObservableObject {
     /// one. On failure, the user's message stays in the transcript marked
     /// `sendFailed` — never rolled back — so retrying doesn't require
     /// retyping.
+    ///
+    /// Streaming (spec 017 R6): the assistant bubble appears on the first
+    /// partial with `isNew: false` — the real generation IS the animation, so
+    /// the fake typewriter never runs on a streamed reply — and grows in
+    /// place. Citations attach at completion (they only exist after
+    /// reconciliation). The non-streamed fallback (a mock or a default
+    /// implementation) still delivers a single `.completed` and keeps the
+    /// typewriter.
     private func performSend(text: String, userMessageId: UUID) {
         isLoading = true
         let generation = sendGeneration
 
         track(Task { [weak self] in
             guard let self else { return }
+            var streamingMessageId: UUID?
             do {
-                let response = try await chatService.sendMessage(text, sessionId: currentSessionId)
+                let stream = chatService.sendMessageStreaming(text, sessionId: currentSessionId)
+                for try await event in stream {
+                    // Cancelled or superseded mid-flight (user left the view or
+                    // switched conversations): don't write into whatever
+                    // conversation is now on screen.
+                    guard generation == sendGeneration, !Task.isCancelled else { return }
 
-                // Cancelled or superseded mid-flight (user left the view or
-                // switched conversations): don't append the reply into
-                // whatever conversation is now on screen.
-                guard generation == sendGeneration, !Task.isCancelled else { return }
+                    switch event {
+                    case .partial(let heading1, let heading2, let body):
+                        if let id = streamingMessageId {
+                            replaceMessage(
+                                id: id,
+                                with: .aiMessage(id: id, heading1: heading1, heading2: heading2, body: body, isNew: false)
+                            )
+                        } else {
+                            let aiMessage = ChatMessage.aiMessage(
+                                heading1: heading1,
+                                heading2: heading2,
+                                body: body,
+                                isNew: false
+                            )
+                            streamingMessageId = aiMessage.id
+                            appendMessage(aiMessage)
+                            // First tokens are on screen — drop the shimmer.
+                            isLoading = false
+                        }
 
-                // Update current session ID from response (handles new session creation)
-                if let newSessionId = UUID(uuidString: response.sessionId) {
-                    if currentSessionId == nil {
-                        currentSessionId = newSessionId
-                        // Refresh sessions list when a new session is created
-                        await fetchSessions()
+                    case .completed(let response):
+                        // Update current session ID from response (handles new session creation)
+                        if let newSessionId = UUID(uuidString: response.sessionId) {
+                            if currentSessionId == nil {
+                                currentSessionId = newSessionId
+                                // Refresh sessions list when a new session is created
+                                await fetchSessions()
+                            }
+                        }
+
+                        let citations = mapSourcesToCitations(response.sources)
+                        if let id = streamingMessageId {
+                            // Finalize the streamed bubble in place (adds citations).
+                            replaceMessage(
+                                id: id,
+                                with: .aiMessage(
+                                    id: id,
+                                    heading1: response.heading1,
+                                    heading2: response.heading2,
+                                    body: response.reply,
+                                    citations: citations.isEmpty ? nil : citations,
+                                    isNew: false
+                                )
+                            )
+                        } else {
+                            // Non-streamed path: whole reply at once, typewriter on.
+                            appendMessage(ChatMessage.aiMessage(
+                                heading1: response.heading1,
+                                heading2: response.heading2,
+                                body: response.reply,
+                                citations: citations.isEmpty ? nil : citations,
+                                isNew: true
+                            ))
+                        }
+
+                        // Update cache after successful send
+                        if let sessionId = currentSessionId {
+                            messageCache[sessionId] = messages
+                        }
                     }
-                }
-
-                let citations = mapSourcesToCitations(response.sources)
-
-                let aiMessage = ChatMessage.aiMessage(
-                    heading1: response.heading1,
-                    heading2: response.heading2,
-                    body: response.reply,
-                    citations: citations.isEmpty ? nil : citations,
-                    isNew: true
-                )
-                appendMessage(aiMessage)
-
-                // Update cache after successful send
-                if let sessionId = currentSessionId {
-                    messageCache[sessionId] = messages
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
-                // Keep the retry affordance on the bubble even when the send
-                // was cancelled (no-op if the conversation was cleared).
-                setSendFailed(true, forMessageId: userMessageId)
-                // A cancelled/superseded send shouldn't pop the error alert
-                // over unrelated content.
-                if generation == sendGeneration, !Task.isCancelled,
-                   !(error is CancellationError) {
+                guard generation == sendGeneration, !Task.isCancelled,
+                      !(error is CancellationError) else {
+                    // A cancelled/superseded send shouldn't pop the error alert
+                    // over unrelated content — but keep the retry affordance.
+                    setSendFailed(true, forMessageId: userMessageId)
+                    return
+                }
+                // A partial bubble from an interrupted stream is not a reply —
+                // remove it before rendering the designed outcome.
+                if let id = streamingMessageId {
+                    messages.removeAll { $0.id == id }
+                }
+
+                switch error {
+                case IntelligenceError.guardrailRefusal:
+                    // A designed empty state (spec 017 R4 / technology/01 §11),
+                    // NOT a failure: journaling content trips guardrails
+                    // disproportionately and must never read as judgment. The
+                    // designed copy renders as a normal assistant bubble — no
+                    // alert, no retry spinner, no failure mark on the user's
+                    // message.
+                    appendMessage(ChatMessage.aiMessage(
+                        body: IntelligenceError.guardrailRefusal.errorDescription
+                            ?? "I don't have an observation for this one.",
+                        isNew: true
+                    ))
+                case IntelligenceError.unavailable(let reason):
+                    // Availability is a designed state with its own copy —
+                    // rendered inline, not as a connection error.
+                    setSendFailed(true, forMessageId: userMessageId)
+                    errorMessage = reason.userMessage
+                    showingError = true
+                default:
+                    setSendFailed(true, forMessageId: userMessageId)
                     errorMessage = chatErrorMessage(for: error)
                     showingError = true
                 }
@@ -269,6 +342,12 @@ class ChatViewModel: ObservableObject {
             guard generation == sendGeneration else { return }
             isLoading = false
         })
+    }
+
+    /// Replaces a message in place (same id) — the streaming render path.
+    private func replaceMessage(id: UUID, with message: ChatMessage) {
+        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[index] = message
     }
 
     // MARK: - Clear Conversation
@@ -541,6 +620,15 @@ class ChatViewModel: ObservableObject {
 
     private func chatErrorMessage(for error: Error) -> String {
         AppLogger.log("[ChatViewModel] Error details: \(String(describing: error))", type: .error)
+
+        // On-device generation errors carry designed copy (spec 017 R4) —
+        // never collapse them into a "check your connection" guess. Guardrail
+        // refusals and unavailability are handled upstream as designed states;
+        // this arm covers `.generationFailed` reaching the alert path.
+        if let intelligenceError = error as? IntelligenceError {
+            return intelligenceError.errorDescription
+                ?? "I couldn't put a reflection together just now. Please try again."
+        }
 
         // spec-010: the chat function's structured error body already has a
         // user-facing message written for exactly this case — prefer it

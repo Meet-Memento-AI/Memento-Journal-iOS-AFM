@@ -53,6 +53,30 @@ final class ChatContinuityTests: XCTestCase {
         XCTAssertFalse(turns[1].text.contains("{"), "assistant history must not carry raw JSON")
     }
 
+    // MARK: REQ-PRM-004 — stored artifacts carry prompt/model traceability
+
+    func testAssistantJSONCarriesTraceability_andStaysBackwardCompatible() throws {
+        // New writes include prompt_version/model_identifier.
+        let json = ChatService.assistantContentJSON(
+            body: "A grounded reply.",
+            heading1: "Heading",
+            heading2: nil,
+            sources: [],
+            promptVersion: "ask@4+p2",
+            modelIdentifier: "apple.system.on-device"
+        )
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(object["prompt_version"] as? String, "ask@4+p2")
+        XCTAssertEqual(object["model_identifier"] as? String, "apple.system.on-device")
+
+        // The unwrap path ignores the extra keys (old and new stores co-exist).
+        XCTAssertEqual(ChatService.unwrapAssistantBody(json), "A grounded reply.")
+        let legacy = ChatService.assistantContentJSON(body: "Old reply.", heading1: nil, heading2: nil, sources: [])
+        XCTAssertEqual(ChatService.unwrapAssistantBody(legacy), "Old reply.")
+    }
+
     // MARK: Repeat bug — a message stops animating once seen
 
     @MainActor

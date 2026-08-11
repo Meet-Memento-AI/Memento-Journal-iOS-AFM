@@ -42,6 +42,7 @@ enum ExperienceProfileBuilder {
             }
             profile.promptLens = lens.isEmpty ? nil : lens
             profile.modelIdentifier = result.modelIdentifier
+            profile.promptVersion = result.promptVersion
             if replaceConfirmedWithSuggestions, !suggested.isEmpty {
                 profile.confirmedThemeIds = ThemeCatalog.validate(
                     Array(suggested.prefix(ThemeCatalog.defaultSuggestionCount))
@@ -55,6 +56,7 @@ enum ExperienceProfileBuilder {
                 themes: replaceConfirmedWithSuggestions ? suggested : profile.confirmedThemeIds
             )
             profile.modelIdentifier = "keyword-fallback"
+            profile.promptVersion = nil
             if replaceConfirmedWithSuggestions, !suggested.isEmpty {
                 profile.confirmedThemeIds = ThemeCatalog.validate(suggested)
             }

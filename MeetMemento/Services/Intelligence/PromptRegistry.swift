@@ -54,7 +54,7 @@ struct PromptPersonalization: Sendable, Equatable {
     /// Reads the locally stored refinement data (spec 023 — all on-device).
     static func fromLocalProfile() -> PromptPersonalization {
         let profile = LocalProfileStore.ensureMigratedProfile()
-        let name = UserDefaults.standard.string(forKey: "memento_first_name")?
+        let name = LocalProfileStore.firstName?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let reflection = profile.reflection?.trimmingCharacters(in: .whitespacesAndNewlines)
         let lens = profile.promptLens?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -76,6 +76,26 @@ enum PromptRegistry {
 
     /// Cap for the AFM-authored prompt lens.
     static let maxPromptLensChars = 400
+
+    /// REQ-PRM-001 resolution: `(intent, zone, degraded?) → (text, version)`.
+    /// Degraded variants are registry entries, not string mutations — this is
+    /// the router's `useDegradedPrompt` target (REQ-INT-010), and the returned
+    /// `version` is what artifacts persist as the proof of which variant ran.
+    ///
+    /// Zone does not currently change the text: the shipped prompts are
+    /// authored for the on-device model, and a PCC-tuned variant per Z1 row is
+    /// authored with the iOS 27 SDK pass. The parameter exists so resolution
+    /// is exhaustive over every router-producible combination NOW
+    /// (PromptRegistryResolutionTests) — a missing combination is a test
+    /// failure, never a runtime fallback to a "closest" prompt.
+    static func resolve(
+        intent: GenerationIntent,
+        zone: TrustZone,
+        degraded: Bool,
+        personalization: PromptPersonalization = .none
+    ) -> ResolvedPrompt {
+        instructions(for: intent, degraded: degraded, personalization: personalization)
+    }
 
     /// Resolve the instructions (system prompt) for an intent. `degraded` selects
     /// the shorter variant tuned for the smaller on-device model (spec 017 R10) —

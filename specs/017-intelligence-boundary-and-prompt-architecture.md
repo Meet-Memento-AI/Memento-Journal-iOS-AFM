@@ -456,6 +456,18 @@ against the manual `transcript.dropFirstInstructions()` rebuild pattern
 (also ✅ verified), and record in this spec which one `IntelligenceService`
 uses and why. Until recorded, no code commits to either.
 
+> **DECIDED (2026-08-11): stateless per-request session assembly.** Each
+> generation constructs a fresh `LanguageModelSession` from registry
+> instructions + the assembled prompt; the caller owns the transcript
+> (`LocalChatStore`), retrieval is deterministic, and followup grounding is
+> re-derived statelessly (`RetrievalPolicy.followupAnchor`). Rationale: it is
+> the only option available on the iOS 26 SDK, it survives relaunches with
+> zero session state, and it keeps the boundary trivially testable. Dynamic
+> Profiles remain a possible iOS-27 optimization, not a dependency — revisit
+> only if per-turn instruction re-tokenization shows up in the spec 022
+> latency numbers. Recorded from
+> `FoundationModelsIntelligenceService.swift` (header comment mirrors this).
+
 **Acceptance:**
 - `grep -rn '4096\|8192\|32768' ` over the intelligence module returns no
   matches outside comments/tests — the "no hardcoded budgets" rule as a
@@ -533,7 +545,7 @@ still-open with findings) before this spec's status moves to done; no other
       Foundation Models instrument **on the minimum supported Apple Intelligence
       device, not a current phone** — the p50 < 2s entry-reflection target
       (source doc §9.2) depends on it.
-- [ ] 11. Decide the session architecture: Dynamic Profiles vs manual
+- [x] 11. Decide the session architecture: Dynamic Profiles vs manual
       transcript-preserving rebuild; record the decision and rationale here.
 - [ ] 12. Implement runtime context budgeting (read `contextSize`, rank by
       `salience`, instrument with `response.usage`); no hardcoded token numbers

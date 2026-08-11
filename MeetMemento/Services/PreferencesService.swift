@@ -18,12 +18,24 @@ class PreferencesService: ObservableObject {
     private enum Keys {
         static let themePreference = "themePreference"
         static let aiEnabled = "aiEnabled"
+        static let processOnDeviceOnly = "processOnDeviceOnly"
     }
 
     // MARK: - Published Properties
     @Published var aiEnabled: Bool {
         didSet {
             defaults.set(aiEnabled, forKey: Keys.aiEnabled)
+        }
+    }
+
+    /// The user's Z0 pin (spec 017 R2 / REQ-INT-004): when true, `ModelRouter`
+    /// resolves EVERY intent to `.z0Device` before any PCC seam is consulted —
+    /// a router-level override, never a per-surface setting. Default false
+    /// (routing follows the table). Inert until the Private Cloud Compute
+    /// path activates (iOS 27 SDK), but wired now so no surface can escape it.
+    @Published var processOnDeviceOnly: Bool {
+        didSet {
+            defaults.set(processOnDeviceOnly, forKey: Keys.processOnDeviceOnly)
         }
     }
 
@@ -43,12 +55,15 @@ class PreferencesService: ObservableObject {
         // Initialize aiEnabled from stored value, default to true
         let storedEnabled = defaults.object(forKey: Keys.aiEnabled) as? Bool
         self.aiEnabled = storedEnabled ?? true
+        self.processOnDeviceOnly = defaults.object(forKey: Keys.processOnDeviceOnly) as? Bool ?? false
     }
 
     /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
     func resetToDefaults() {
         defaults.removeObject(forKey: Keys.themePreference)
         defaults.removeObject(forKey: Keys.aiEnabled)
+        defaults.removeObject(forKey: Keys.processOnDeviceOnly)
         aiEnabled = true
+        processOnDeviceOnly = false
     }
 }

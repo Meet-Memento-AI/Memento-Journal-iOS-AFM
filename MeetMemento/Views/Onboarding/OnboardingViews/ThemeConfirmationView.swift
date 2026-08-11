@@ -13,7 +13,7 @@ public struct ThemeConfirmationView: View {
     @Environment(\.typography) private var type
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
 
-    public var onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String]) -> Void)?
+    public var onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String], _ modelIdentifier: String?, _ promptVersion: String?) -> Void)?
     public var onBack: (() -> Void)?
     // Internal: `IntelligenceService` / `FoundationModelsIntelligenceService`
     // are app-internal types, so this can't be part of the public API.
@@ -22,13 +22,17 @@ public struct ThemeConfirmationView: View {
     @State private var selectedIds: Set<String> = []
     @State private var suggestedIds: [String] = []
     @State private var promptLens: String?
+    // Estimate provenance (REQ-PRM-004): which model/prompt produced the
+    // suggestions, persisted into the ExperienceProfile on confirm.
+    @State private var estimateModelIdentifier: String?
+    @State private var estimatePromptVersion: String?
     @State private var isEstimating = true
     @State private var usedFallback = false
     @State private var showAllThemes = false
 
     init(
         intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared,
-        onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String]) -> Void)? = nil,
+        onComplete: ((_ themeIds: [String], _ promptLens: String?, _ suggestedIds: [String], _ modelIdentifier: String?, _ promptVersion: String?) -> Void)? = nil,
         onBack: (() -> Void)? = nil
     ) {
         self.intelligence = intelligence
@@ -202,7 +206,7 @@ public struct ThemeConfirmationView: View {
         let ordered = ThemeCatalog.validate(
             suggestedIds.filter { selectedIds.contains($0) } + selectedIds.filter { !suggestedIds.contains($0) }
         )
-        onComplete?(ordered, promptLens, suggestedIds)
+        onComplete?(ordered, promptLens, suggestedIds, estimateModelIdentifier, estimatePromptVersion)
     }
 
     @MainActor
@@ -226,6 +230,8 @@ public struct ThemeConfirmationView: View {
                 max: ThemeCatalog.defaultSuggestionCount + 2
             )
             promptLens = result.promptLens.isEmpty ? nil : result.promptLens
+            estimateModelIdentifier = result.modelIdentifier
+            estimatePromptVersion = result.promptVersion
             selectedIds = Set(Array(suggestedIds.prefix(ThemeCatalog.defaultSuggestionCount)))
             usedFallback = false
         } catch {
@@ -233,6 +239,8 @@ public struct ThemeConfirmationView: View {
             suggestedIds = ThemeCatalog.suggestFromKeywords(reflection)
             selectedIds = Set(suggestedIds)
             promptLens = nil
+            estimateModelIdentifier = "keyword-fallback"
+            estimatePromptVersion = nil
             usedFallback = true
             if suggestedIds.isEmpty {
                 showAllThemes = true

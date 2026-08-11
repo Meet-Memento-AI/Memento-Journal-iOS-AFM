@@ -8,10 +8,26 @@
 //  imports FoundationModels, the CI gate
 //  (scripts/ci/check_single_intelligence_importer.sh) fails.
 //
-//  This pass: on-device (`SystemLanguageModel`, Z0) generation for Ask + Chat
-//  summary, replacing the former server-side `chat` / `summarize-chat` functions.
-//  The Private Cloud Compute (Z1) path is wired behind `if #available(iOS 27)`
-//  + availability so it auto-upgrades once the app is approved (spec 017 R2).
+//  Per-request orchestration pipeline (spec 017 R2/R3/R9):
+//    availability → QuotaGovernor.capability → ModelRouter.resolve →
+//    GenerationRequest (zone set BEFORE the call) → PromptRegistry.resolve →
+//    ContextBudget(runtime contextSize) → generate → GenerationOutcome
+//    (zoneUsed / modelIdentifier / wasDegraded / latency).
+//
+//  Session architecture (spec 017 R9 Task 11 — DECIDED): stateless
+//  per-request session assembly. Each generation constructs a fresh
+//  `LanguageModelSession` from registry instructions + assembled prompt; the
+//  caller owns the transcript (LocalChatStore), retrieval is deterministic,
+//  and followup grounding is re-derived (RetrievalPolicy.followupAnchor).
+//  iOS 27 Dynamic Profiles are a possible future optimization, not a
+//  dependency.
+//
+//  The Private Cloud Compute (Z1) path: `PrivateCloudComputeLanguageModel`
+//  does not exist in the iOS 26 SDK, so the PCC seam (`PCCSessionProviding`)
+//  has exactly one implementation — `UnavailablePCCProvider`. The router
+//  therefore resolves Z1 rows to the Z0 baseline (honestly undegrated; see
+//  ModelRouter). The iOS 27 SDK pass fills the seam and Z1 activates with no
+//  call-site changes.
 //
 
 import Foundation
@@ -50,23 +66,42 @@ struct ProfileEstimateAnswer {
     let promptLens: String
 }
 
+// MARK: - PCC seam (spec 017 R2/R7)
+
+/// The slot the iOS 27 SDK pass fills with a PCC-backed session factory.
+/// Pure protocol — conforming to it requires no FoundationModels import.
+protocol PCCSessionProviding: Sendable {
+    /// Whether a Z1 session can be constructed at all on this build.
+    var isSupported: Bool { get }
+}
+
+/// The only implementation that can exist on the iOS 26 SDK.
+struct UnavailablePCCProvider: PCCSessionProviding {
+    var isSupported: Bool { false }
+}
+
 // MARK: - Service
 
 final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked Sendable {
     static let shared = FoundationModelsIntelligenceService()
 
-    init() {}
+    private let quotaGovernor: QuotaGovernor
+    private let pccProvider: PCCSessionProviding
+
+    init(
+        quotaGovernor: QuotaGovernor = .shared,
+        pccProvider: PCCSessionProviding = UnavailablePCCProvider()
+    ) {
+        self.quotaGovernor = quotaGovernor
+        self.pccProvider = pccProvider
+    }
 
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
-        // On-device (Z0) only against the iOS 26 SDK. The Private Cloud Compute
-        // (Z1) path — `PrivateCloudComputeLanguageModel`, reasoning levels, quota
-        // governance (spec 017 R2/R3) — is an iOS-27-SDK type; it re-enables when
-        // the app builds against Xcode 27 and is approved for PCC. On-device-first.
         switch SystemLanguageModel.default.availability {
         case .available:
-            return .available(.onDevice)
+            return .available(.z0Device)
         case .unavailable(let reason):
             return .unavailable(Self.map(reason))
         @unknown default:
@@ -83,14 +118,97 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
-    // MARK: Ask
+    // MARK: Prewarm
 
-    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+    /// Preload on-device model resources so the first turn doesn't pay session
+    /// warm-up. Fire-and-forget; failures are silent (it's an optimization).
+    func prewarm() {
+        Task.detached(priority: .utility) {
+            guard case .available = SystemLanguageModel.default.availability else { return }
+            let resolved = PromptRegistry.resolve(
+                intent: .ask,
+                zone: .z0Device,
+                degraded: false,
+                personalization: PromptPersonalization.fromLocalProfile()
+            )
+            let session = LanguageModelSession(instructions: resolved.text)
+            session.prewarm()
+            AppLogger.log("🔥 [Intelligence] prewarmed ask session (prompt: \(resolved.version))")
+        }
+    }
+
+    // MARK: Routing
+
+    /// Resolve the route for one request: pin → quota capability → table.
+    /// The pin is read at the router boundary (REQ-INT-004: router-level
+    /// override, no surface can bypass it).
+    private func resolveRoute(for intent: GenerationIntent) async -> ResolvedRoute {
+        let capability: PCCCapability
+        if pccProvider.isSupported {
+            capability = await quotaGovernor.capability(for: intent)
+        } else {
+            capability = .sdkUnsupported
+        }
+        return ModelRouter.resolve(
+            intent: intent,
+            pinnedToDevice: PreferencesService.shared.processOnDeviceOnly,
+            pccCapability: capability
+        )
+    }
+
+    /// The runtime context budget (spec 017 R9 / CONSTITUTION §4 rule 5:
+    /// never hardcode the window — it differs by device, OS, and zone).
+    private static func currentBudget() -> ContextBudget {
+        ContextBudget(contextTokens: SystemLanguageModel.default.contextSize)
+    }
+
+    /// One content-free log line per generation (CONSTITUTION §4 rule 3;
+    /// instrumentation for spec 022 — never journal content).
+    private static func logOutcome(
+        intent: GenerationIntent,
+        route: ResolvedRoute,
+        promptVersion: String,
+        latency: Duration,
+        budget: ContextBudget,
+        entriesInContext: Int
+    ) {
+        let ms = latency.components.seconds * 1000 + latency.components.attoseconds / 1_000_000_000_000_000
+        AppLogger.log(
+            "🧠 [Intelligence] \(intent) zone=\(route.executionZone.identifier)"
+            + " (requested=\(route.requestedZone.identifier), \(route.reason.rawValue))"
+            + " degraded=\(route.wasDegraded) prompt=\(promptVersion)"
+            + " latency=\(ms)ms window=\(budget.contextTokens)tok entries=\(entriesInContext)"
+        )
+    }
+
+    // MARK: Ask — shared preparation
+
+    /// Everything decided before the model runs. Deterministic given
+    /// (question, history, entries, preferences) — logic decides the stance,
+    /// the prompt obeys it.
+    private struct AskPreparation {
+        let route: ResolvedRoute
+        let request: GenerationRequest
+        let instructions: ResolvedPrompt
+        let prompt: String
+        let retrieval: RetrievalResult
+        let stance: TurnStance
+        let budget: ContextBudget
+    }
+
+    private func prepareAsk(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskPreparation {
         let availability = await availability()
-        guard case .available(let zone) = availability else {
+        guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
             throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
         }
+
+        let route = await resolveRoute(for: .ask)
+        let budget = Self.currentBudget()
+        // Degraded routes narrow retrieval (spec 017 R2's degradation column).
+        let limits = route.useDegradedPrompt
+            ? RetrievalLimits(budget: budget).narrowed()
+            : RetrievalLimits(budget: budget)
 
         // Conversational turn architecture: classify the current message,
         // decide retrieval by policy, then hand the model an explicit stance —
@@ -105,57 +223,100 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // deterministic and entry vectors are cached, so re-querying with
             // the last substantive user turn reproduces it.
             if let anchor = RetrievalPolicy.followupAnchor(history: history) {
-                retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor), entries: entries)
+                retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor), entries: entries, limits: limits)
             } else {
                 retrieval = EntryRetriever.retrieve(
-                    RetrievalQuery(currentMessage: question, historyContext: Self.historyContext(history)),
-                    entries: entries
+                    RetrievalQuery(currentMessage: question, historyContext: Self.historyContext(history, budget: budget)),
+                    entries: entries,
+                    limits: limits
                 )
             }
         case .currentOnly(let highBar):
-            retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar), entries: entries)
+            retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar), entries: entries, limits: limits)
         case .currentWeighted:
             retrieval = EntryRetriever.retrieve(
-                RetrievalQuery(currentMessage: question, historyContext: Self.historyContext(history)),
-                entries: entries
+                RetrievalQuery(currentMessage: question, historyContext: Self.historyContext(history, budget: budget)),
+                entries: entries,
+                limits: limits
             )
         }
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
-        let prompt = Self.buildAskPrompt(question: question, history: history, retrieval: retrieval, stance: stance)
+        let prompt = Self.buildAskPrompt(question: question, history: history, retrieval: retrieval, stance: stance, budget: budget)
 
-        // On-device (Z0). PCC (Z1) uses the same call site with a different model;
-        // for this pass we run on-device — a degraded prompt variant would be used
-        // for the smaller model if we were falling back from a PCC prompt.
-        let resolved = PromptRegistry.instructions(
-            for: .ask,
-            degraded: false,
+        let instructions = PromptRegistry.resolve(
+            intent: .ask,
+            zone: route.executionZone,
+            degraded: route.useDegradedPrompt,
             personalization: PromptPersonalization.fromLocalProfile()
         )
-        let session = LanguageModelSession(instructions: resolved.text)
+        // Zone set BEFORE the call (spec 014 R1) — the request records what
+        // the router decided, and the outcome records what actually ran.
+        let request = GenerationRequest(
+            intent: .ask,
+            zone: route.executionZone,
+            allowsDegradation: ModelRouter.row(for: .ask).degradedZone != nil,
+            promptVersion: instructions.version,
+            toolsEnabled: false
+        )
+        return AskPreparation(
+            route: route,
+            request: request,
+            instructions: instructions,
+            prompt: prompt,
+            retrieval: retrieval,
+            stance: stance,
+            budget: budget
+        )
+    }
+
+    private func finishAsk(
+        _ answer: AskAnswer,
+        preparation: AskPreparation,
+        question: String,
+        latency: Duration
+    ) -> AskResult {
+        let citations = Self.reconcileCitations(
+            answer.citedRefs,
+            retrieval: preparation.retrieval,
+            question: question,
+            grounded: preparation.stance.isGrounded
+        )
+        Self.logOutcome(
+            intent: .ask,
+            route: preparation.route,
+            promptVersion: preparation.instructions.version,
+            latency: latency,
+            budget: preparation.budget,
+            entriesInContext: preparation.retrieval.entries.count
+        )
+        return AskResult(
+            heading1: answer.heading1?.isEmpty == true ? nil : answer.heading1,
+            heading2: answer.heading2?.isEmpty == true ? nil : answer.heading2,
+            body: answer.body,
+            citations: citations,
+            zoneUsed: preparation.route.executionZone,
+            wasDegraded: preparation.route.wasDegraded,
+            promptVersion: preparation.instructions.version,
+            modelIdentifier: Self.modelIdentifier(for: preparation.route.executionZone),
+            latency: latency
+        )
+    }
+
+    // MARK: Ask — one-shot
+
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+        let preparation = try await prepareAsk(question, history: history, entries: entries)
+        let session = LanguageModelSession(instructions: preparation.instructions.text)
+        let clock = ContinuousClock()
+        let start = clock.now
 
         do {
             let response = try await session.respond(
-                to: prompt,
+                to: preparation.prompt,
                 generating: AskAnswer.self,
                 options: GenerationOptions(temperature: 0.7)
             )
-            let answer = response.content
-            let citations = Self.reconcileCitations(
-                answer.citedRefs,
-                retrieval: retrieval,
-                question: question,
-                grounded: stance.isGrounded
-            )
-            return AskResult(
-                heading1: answer.heading1?.isEmpty == true ? nil : answer.heading1,
-                heading2: answer.heading2?.isEmpty == true ? nil : answer.heading2,
-                body: answer.body,
-                citations: citations,
-                zoneUsed: zone,
-                wasDegraded: false,
-                promptVersion: resolved.version,
-                modelIdentifier: Self.modelIdentifier(for: zone)
-            )
+            return finishAsk(response.content, preparation: preparation, question: question, latency: clock.now - start)
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -163,11 +324,64 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
+    // MARK: Ask — streaming (spec 017 R6: chat streams; reflections don't)
+
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let preparation = try await self.prepareAsk(question, history: history, entries: entries)
+                    let session = LanguageModelSession(instructions: preparation.instructions.text)
+                    let clock = ContinuousClock()
+                    let start = clock.now
+
+                    let stream = session.streamResponse(
+                        to: preparation.prompt,
+                        generating: AskAnswer.self,
+                        options: GenerationOptions(temperature: 0.7)
+                    )
+                    for try await snapshot in stream {
+                        if Task.isCancelled { break }
+                        let partial = snapshot.content
+                        // Yield only once prose exists — headings alone render
+                        // as an empty bubble. PartiallyGenerated fields are
+                        // optional; `?? nil` flattens the double-optional the
+                        // macro produces for `String?` properties.
+                        let heading1 = (partial.heading1 ?? nil).flatMap { $0.isEmpty ? nil : $0 }
+                        let heading2 = (partial.heading2 ?? nil).flatMap { $0.isEmpty ? nil : $0 }
+                        if let body = partial.body, !body.isEmpty {
+                            continuation.yield(.partial(heading1: heading1, heading2: heading2, body: body))
+                        }
+                    }
+                    try Task.checkCancellation()
+                    let response = try await stream.collect()
+                    let result = self.finishAsk(
+                        response.content,
+                        preparation: preparation,
+                        question: question,
+                        latency: clock.now - start
+                    )
+                    continuation.yield(.completed(result))
+                    continuation.finish()
+                } catch let error as LanguageModelSession.GenerationError {
+                    continuation.finish(throwing: Self.mapGenerationError(error))
+                } catch is CancellationError {
+                    continuation.finish(throwing: CancellationError())
+                } catch let error as IntelligenceError {
+                    continuation.finish(throwing: error)
+                } catch {
+                    continuation.finish(throwing: IntelligenceError.generationFailed(error.localizedDescription))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     // MARK: Profile estimate (onboarding)
 
     func estimateProfile(reflection: String) async throws -> ProfileEstimateResult {
         let availability = await availability()
-        guard case .available(let zone) = availability else {
+        guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
             throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
         }
@@ -177,9 +391,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             throw IntelligenceError.generationFailed("Reflection text is empty.")
         }
 
-        let resolved = PromptRegistry.instructions(for: .profileEstimate, degraded: false)
+        let route = await resolveRoute(for: .profileEstimate)
+        let budget = Self.currentBudget()
+        let resolved = PromptRegistry.resolve(
+            intent: .profileEstimate,
+            zone: route.executionZone,
+            degraded: route.useDegradedPrompt
+        )
         let session = LanguageModelSession(instructions: resolved.text)
         let prompt = Self.buildProfileEstimatePrompt(reflection: trimmed)
+        let clock = ContinuousClock()
+        let start = clock.now
 
         do {
             let response = try await session.respond(
@@ -187,6 +409,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 generating: ProfileEstimateAnswer.self,
                 options: GenerationOptions(temperature: 0.4)
             )
+            let latency = clock.now - start
             let answer = response.content
             let primary = ThemeCatalog.validate(answer.themeIds, max: ThemeCatalog.defaultSuggestionCount)
             let secondary = ThemeCatalog.validate(answer.secondaryThemeIds, max: 2)
@@ -199,14 +422,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let themes = primary.isEmpty
                 ? ThemeCatalog.suggestFromKeywords(trimmed)
                 : primary
+            Self.logOutcome(
+                intent: .profileEstimate,
+                route: route,
+                promptVersion: resolved.version,
+                latency: latency,
+                budget: budget,
+                entriesInContext: 0
+            )
             return ProfileEstimateResult(
                 themeIds: themes,
                 secondaryThemeIds: secondary,
                 promptLens: lens,
-                zoneUsed: zone,
-                wasDegraded: false,
+                zoneUsed: route.executionZone,
+                wasDegraded: route.wasDegraded,
                 promptVersion: resolved.version,
-                modelIdentifier: Self.modelIdentifier(for: zone)
+                modelIdentifier: Self.modelIdentifier(for: route.executionZone),
+                latency: latency
             )
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
@@ -234,23 +466,46 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     // MARK: Summarize
 
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> String {
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String> {
         let availability = await availability()
         guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
             throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
         }
 
-        let resolved = PromptRegistry.instructions(for: .summary)
+        let route = await resolveRoute(for: .summary)
+        let budget = Self.currentBudget()
+        let resolved = PromptRegistry.resolve(
+            intent: .summary,
+            zone: route.executionZone,
+            degraded: route.useDegradedPrompt
+        )
         let session = LanguageModelSession(instructions: resolved.text)
         let conversation = turns.map { turn in
             (turn.role == .user ? "User: " : "Assistant: ") + turn.text
         }.joined(separator: "\n")
         let prompt = "Here is the conversation to summarize:\n\n\(conversation)"
+        let clock = ContinuousClock()
+        let start = clock.now
 
         do {
             let response = try await session.respond(to: prompt, options: GenerationOptions(temperature: 0.7))
-            return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let latency = clock.now - start
+            Self.logOutcome(
+                intent: .summary,
+                route: route,
+                promptVersion: resolved.version,
+                latency: latency,
+                budget: budget,
+                entriesInContext: 0
+            )
+            return GenerationOutcome(
+                value: response.content.trimmingCharacters(in: .whitespacesAndNewlines),
+                zoneUsed: route.executionZone,
+                modelIdentifier: Self.modelIdentifier(for: route.executionZone),
+                wasDegraded: route.wasDegraded,
+                latency: latency
+            )
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -261,13 +516,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     // MARK: - Prompt assembly
 
     /// Recent history condensed for the retrieval assist vector (not the prompt).
-    private static func historyContext(_ history: [ChatTurn]) -> String? {
+    private static func historyContext(_ history: [ChatTurn], budget: ContextBudget) -> String? {
         guard !history.isEmpty else { return nil }
-        let condensed = history.suffix(4).map { String($0.text.prefix(300)) }.joined(separator: " ")
+        let turns = max(2, budget.maxHistoryTurns / 2)
+        let condensed = history.suffix(turns)
+            .map { String($0.text.prefix(budget.maxHistoryCharsPerTurn)) }
+            .joined(separator: " ")
         return condensed.isEmpty ? nil : condensed
     }
 
-    private static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult, stance: TurnStance) -> String {
+    private static func buildAskPrompt(
+        question: String,
+        history: [ChatTurn],
+        retrieval: RetrievalResult,
+        stance: TurnStance,
+        budget: ContextBudget
+    ) -> String {
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
         // conversation in journal entries.
@@ -284,10 +548,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
-        let recent = history.suffix(8)
+        let recent = history.suffix(budget.maxHistoryTurns)
         if !recent.isEmpty {
             let convo = recent
-                .map { ($0.role == .user ? "You: " : "Memento: ") + String($0.text.prefix(400)) }
+                .map { ($0.role == .user ? "You: " : "Memento: ") + String($0.text.prefix(budget.maxHistoryCharsPerTurn)) }
                 .joined(separator: "\n")
             parts.append("Conversation so far (most recent last):\n\(convo)")
             parts.append(
@@ -359,10 +623,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
-    private static func modelIdentifier(for zone: IntelligenceZone) -> String {
+    private static func modelIdentifier(for zone: TrustZone) -> String {
         switch zone {
-        case .onDevice: return "apple.system.on-device"
-        case .privateCloud: return "apple.pcc"
+        case .z0Device: return "apple.system.on-device"
+        case .z1AppleContent: return "apple.pcc"
+        case .z1AppleContentFree: return "apple.cloud.content-free"
         }
     }
 }

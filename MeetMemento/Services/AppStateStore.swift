@@ -194,6 +194,8 @@ class AppStateStore: ObservableObject {
         // means to read anything restored from a backup.
         EncryptionService.shared.clearAll()
         LocalProfileStore.clearAll()
+        // Cached entry embedding vectors are content-derived — they go too.
+        EmbeddingService.shared.clearCache()
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)
         UserDefaults.standard.removeObject(forKey: Self.onboardingCompleteKey)

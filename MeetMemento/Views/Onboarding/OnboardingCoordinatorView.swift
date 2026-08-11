@@ -80,7 +80,9 @@ public struct OnboardingCoordinatorView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(saveErrorMessage ?? "Please check your connection and try again.")
+            // No accounts, no network (spec 023) — a save failure here is a
+            // local storage hiccup, never a connectivity problem.
+            Text(saveErrorMessage ?? "Something didn't save. Please try again.")
         }
     }
 
@@ -100,8 +102,14 @@ public struct OnboardingCoordinatorView: View {
 
         case .themeConfirmation:
             ThemeConfirmationView(
-                onComplete: { themeIds, lens, suggested in
-                    handleThemeConfirmationComplete(themeIds: themeIds, promptLens: lens, suggestedIds: suggested)
+                onComplete: { themeIds, lens, suggested, modelIdentifier, promptVersion in
+                    handleThemeConfirmationComplete(
+                        themeIds: themeIds,
+                        promptLens: lens,
+                        suggestedIds: suggested,
+                        modelIdentifier: modelIdentifier,
+                        promptVersion: promptVersion
+                    )
                 },
                 onBack: { handleBack() }
             )
@@ -181,13 +189,21 @@ public struct OnboardingCoordinatorView: View {
         }
     }
 
-    private func handleThemeConfirmationComplete(themeIds: [String], promptLens: String?, suggestedIds: [String]) {
+    private func handleThemeConfirmationComplete(
+        themeIds: [String],
+        promptLens: String?,
+        suggestedIds: [String],
+        modelIdentifier: String?,
+        promptVersion: String?
+    ) {
         Task {
             do {
                 try await onboardingViewModel.saveExperienceProfile(
                     themeIds: themeIds,
                     promptLens: promptLens,
-                    suggestedIds: suggestedIds
+                    suggestedIds: suggestedIds,
+                    modelIdentifier: modelIdentifier,
+                    promptVersion: promptVersion
                 )
                 navigationPath.append(OnboardingRoute.faceID)
             } catch {

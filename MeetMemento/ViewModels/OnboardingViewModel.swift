@@ -45,8 +45,8 @@ class OnboardingViewModel: ObservableObject {
     /// coordinator can resume at the correct step (e.g. if onboarding was
     /// interrupted and the app relaunched).
     func loadCurrentState() async {
-        let cachedFirstName = UserDefaults.standard.string(forKey: "memento_first_name")
-        let cachedLastName = UserDefaults.standard.string(forKey: "memento_last_name")
+        let cachedFirstName = LocalProfileStore.firstName
+        let cachedLastName = LocalProfileStore.lastName
         if let cachedFirstName, !cachedFirstName.isEmpty {
             hasProfile = true
             firstName = cachedFirstName
@@ -79,8 +79,8 @@ class OnboardingViewModel: ObservableObject {
         isProcessing = true
         defer { isProcessing = false }
 
-        UserDefaults.standard.set(firstName, forKey: "memento_first_name")
-        UserDefaults.standard.set(lastName, forKey: "memento_last_name")
+        LocalProfileStore.firstName = firstName
+        LocalProfileStore.lastName = lastName
         hasProfile = true
 
                 AppLogger.log("✅ [OnboardingViewModel] Profile saved locally: \(firstName) \(lastName)")
@@ -95,11 +95,15 @@ class OnboardingViewModel: ObservableObject {
                 AppLogger.log("✅ [OnboardingViewModel] Personalization text saved locally")
     }
 
-    /// Persists the ExperienceProfile (confirmed ThemeCatalog ids + optional lens).
+    /// Persists the ExperienceProfile (confirmed ThemeCatalog ids + optional
+    /// lens). `modelIdentifier`/`promptVersion` record which model and prompt
+    /// produced the estimate (REQ-PRM-004 traceability).
     func saveExperienceProfile(
         themeIds: [String],
         promptLens: String?,
-        suggestedIds: [String]
+        suggestedIds: [String],
+        modelIdentifier: String? = nil,
+        promptVersion: String? = nil
     ) async throws {
         isProcessing = true
         defer { isProcessing = false }
@@ -132,6 +136,8 @@ class OnboardingViewModel: ObservableObject {
         profile.promptLens = resolvedLens
         profile.catalogVersion = ThemeCatalog.catalogVersion
         profile.builtAt = Date()
+        profile.modelIdentifier = modelIdentifier
+        profile.promptVersion = promptVersion
         LocalProfileStore.experienceProfile = profile
         hasGoals = true
 

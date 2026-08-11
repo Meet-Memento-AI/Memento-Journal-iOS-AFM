@@ -236,6 +236,9 @@ public struct AIChatView: View {
             if currentSuggestions.isEmpty {
                 rotateSuggestions()
             }
+            // Preload on-device model resources so the first turn doesn't pay
+            // session warm-up (perceived latency; safe no-op if unavailable).
+            ChatService.shared.prewarmIntelligence()
             Task {
                 await viewModel.fetchSessions()
                 if viewModel.userName == nil {

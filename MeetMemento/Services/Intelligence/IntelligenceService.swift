@@ -13,17 +13,43 @@ import Foundation
 // MARK: - Intent & zones
 
 /// What kind of generation is being requested (spec 017 R2 routing).
-enum GenerationIntent: Sendable {
+/// `CaseIterable` so ModelRouterTests can assert the routing table is
+/// exhaustive — adding an intent without a row breaks the build's tests.
+enum GenerationIntent: Sendable, Equatable, CaseIterable {
     case ask              // journal chat / Ask surface
     case summary          // turn a conversation into a journal entry
     case profileEstimate  // map LearnAboutYourself text → ThemeCatalog ids + prompt lens
 }
 
-/// The trust zone a generation actually ran in (spec 014 R1 / REQ-INT-002).
-/// `onDevice` = Z0 (`SystemLanguageModel`, offline); `privateCloud` = Z1 (PCC).
-enum IntelligenceZone: Sendable, Equatable {
-    case onDevice
-    case privateCloud
+// The trust-zone contract lives in `TrustZone.swift` (spec 014 R1) — the
+// canonical `.z0Device` / `.z1AppleContent(reasoningLevel:)` /
+// `.z1AppleContentFree` enum. Routing decisions live in `ModelRouter.swift`
+// (spec 017 R2); quota governance in `QuotaGovernor.swift` (spec 017 R3);
+// context budgeting in `ContextBudget.swift` (spec 017 R9).
+
+// MARK: - Request / outcome envelopes (spec 017 R1)
+
+/// The declared shape of one generation call. `zone` is set BEFORE the call —
+/// by `ModelRouter.resolve`, never inferred after (spec 014 R1 rule; any
+/// analogous type lacking `zone` fails review).
+struct GenerationRequest: Sendable, Equatable {
+    let intent: GenerationIntent
+    let zone: TrustZone
+    let allowsDegradation: Bool
+    let promptVersion: String
+    let toolsEnabled: Bool
+}
+
+/// What every generation returns alongside its value (REQ-INT-002 /
+/// REQ-PRM-004): the zone it ACTUALLY ran in, the model, whether it was a
+/// disclosed degradation, and wall-clock latency. There is no API shape in
+/// which a caller can be unaware of where generation happened.
+struct GenerationOutcome<T: Sendable>: Sendable {
+    let value: T
+    let zoneUsed: TrustZone
+    let modelIdentifier: String
+    let wasDegraded: Bool
+    let latency: Duration
 }
 
 // MARK: - Conversation input
@@ -47,17 +73,20 @@ struct AskCitation: Sendable, Equatable {
     let excerpt: String
 }
 
-/// The complete result of an Ask turn. One-shot for now; a streaming variant
-/// (spec 017 R6) is a follow-up — the current UI already animates the reply in.
+/// The complete result of an Ask turn — what `ask` returns and what
+/// `askStream` delivers in its final `.completed` event (spec 017 R6).
 struct AskResult: Sendable {
     let heading1: String?
     let heading2: String?
     let body: String
     let citations: [AskCitation]
-    let zoneUsed: IntelligenceZone
+    let zoneUsed: TrustZone
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
+    /// Wall-clock generation latency (spec 017 R1; instrumentation for the
+    /// spec 022 quality study — never a custom timing subsystem).
+    let latency: Duration
 }
 
 /// Onboarding personalization estimate: closed-vocab theme ids + a bounded lens.
@@ -65,10 +94,12 @@ struct ProfileEstimateResult: Sendable, Equatable {
     let themeIds: [String]
     let secondaryThemeIds: [String]
     let promptLens: String
-    let zoneUsed: IntelligenceZone
+    let zoneUsed: TrustZone
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
+    /// Wall-clock generation latency (spec 017 R1).
+    let latency: Duration
 }
 
 // MARK: - Availability
@@ -96,7 +127,7 @@ enum IntelligenceUnavailableReason: Sendable, Equatable {
 }
 
 enum IntelligenceAvailability: Sendable, Equatable {
-    case available(IntelligenceZone)
+    case available(TrustZone)
     case unavailable(IntelligenceUnavailableReason)
 }
 
@@ -119,6 +150,16 @@ enum IntelligenceError: Error, LocalizedError {
     }
 }
 
+// MARK: - Streaming (spec 017 R6)
+
+/// One event in a streaming Ask turn. Partials carry the growing structured
+/// reply; `completed` carries the full reconciled result (citations included —
+/// citations only exist after reconciliation, so they never stream).
+enum AskStreamEvent: Sendable {
+    case partial(heading1: String?, heading2: String?, body: String)
+    case completed(AskResult)
+}
+
 // MARK: - The boundary
 
 /// The single seam between the app and Apple Foundation Models. Concrete
@@ -130,8 +171,20 @@ protocol IntelligenceService: Sendable {
     /// caller owns the transcript.
     func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult
 
-    /// Turn a conversation into a first-person journal-entry summary.
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> String
+    /// Streaming variant of `ask` (spec 017 R6: chat streams; reflections and
+    /// summaries never do). Yields `.partial` snapshots as the reply grows and
+    /// exactly one `.completed` before finishing. Defaulted to a one-shot wrap
+    /// of `ask` so conforming fakes stay small.
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error>
+
+    /// Preload model resources so the first generation doesn't pay session
+    /// warm-up (perceived-latency work; safe no-op default).
+    func prewarm()
+
+    /// Turn a conversation into a first-person journal-entry summary. Returns
+    /// a full outcome envelope (spec 017 R1) — zoneUsed/modelIdentifier/
+    /// wasDegraded/latency are always populated.
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String>
 
     /// Map a user's onboarding reflection onto ThemeCatalog ids and a short
     /// prompt lens. Callers must validate ids through `ThemeCatalog.validate`.
@@ -139,4 +192,28 @@ protocol IntelligenceService: Sendable {
 
     /// Whether generation can run right now, and in which zone.
     func availability() async -> IntelligenceAvailability
+}
+
+// MARK: - Defaults
+
+extension IntelligenceService {
+    /// One-shot fallback: a single `.completed` event. Conforming test doubles
+    /// and any implementation without native streaming get correct (if
+    /// unstreamed) behavior for free.
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let result = try await ask(question, history: history, entries: entries)
+                    continuation.yield(.completed(result))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func prewarm() {}
 }

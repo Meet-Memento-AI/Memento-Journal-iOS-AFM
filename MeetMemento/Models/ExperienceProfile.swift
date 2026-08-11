@@ -19,6 +19,10 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
     var catalogVersion: String
     var builtAt: Date
     var modelIdentifier: String?
+    /// The prompt version that produced the estimate (REQ-PRM-004: every
+    /// generated artifact is attributable to prompt + model). Optional with a
+    /// default so stored profiles from older builds decode unchanged.
+    var promptVersion: String? = nil
 
     static let empty = ExperienceProfile(
         reflection: nil,
@@ -27,7 +31,8 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
         promptLens: nil,
         catalogVersion: ThemeCatalog.catalogVersion,
         builtAt: .distantPast,
-        modelIdentifier: nil
+        modelIdentifier: nil,
+        promptVersion: nil
     )
 
     var isEmpty: Bool {

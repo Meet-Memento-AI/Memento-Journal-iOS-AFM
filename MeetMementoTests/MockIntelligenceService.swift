@@ -3,7 +3,7 @@ import Foundation
 
 /// Deterministic IntelligenceService double for onboarding / profile tests.
 final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
-    var availabilityResult: IntelligenceAvailability = .available(.onDevice)
+    var availabilityResult: IntelligenceAvailability = .available(.z0Device)
     var estimateResult: ProfileEstimateResult?
     var estimateError: Error?
     var estimateCallCount = 0
@@ -15,15 +15,22 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
             heading2: nil,
             body: "mock reply",
             citations: [],
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "ask@4",
-            modelIdentifier: "mock"
+            modelIdentifier: "mock",
+            latency: .milliseconds(1)
         )
     }
 
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> String {
-        "mock summary"
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String> {
+        GenerationOutcome(
+            value: "mock summary",
+            zoneUsed: .z0Device,
+            modelIdentifier: "mock",
+            wasDegraded: false,
+            latency: .milliseconds(1)
+        )
     }
 
     func estimateProfile(reflection: String) async throws -> ProfileEstimateResult {
@@ -35,10 +42,11 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
             themeIds: ["awareness", "stress", "not_a_real_theme", "clarity"],
             secondaryThemeIds: ["hope", "fake_secondary"],
             promptLens: "Lean toward noticing stress and clarity without prescribing fixes.",
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
-            modelIdentifier: "mock"
+            modelIdentifier: "mock",
+            latency: .milliseconds(1)
         )
     }
 

@@ -236,6 +236,44 @@ struct SettingsView: View {
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
 
+                // On-device-only pin (spec 017 R2 / REQ-INT-004): a router-level
+                // override — every generation resolves to the on-device model,
+                // and no Private Cloud Compute request is ever constructed.
+                if preferences.aiEnabled {
+                    HStack {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "iphone.gen3")
+                                .font(.system(size: 20)) // icon-size: not user text
+                                .foregroundStyle(theme.primary)
+                                .frame(width: 28, height: 28)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("On-Device Only")
+                                    .font(type.body1Medium)
+                                    .foregroundStyle(theme.foreground)
+
+                                Text(preferences.processOnDeviceOnly
+                                    ? "All reflections run on your iPhone — nothing is sent to Apple's servers"
+                                    : "Deeper reflections may use Apple Private Cloud Compute when available")
+                                    .font(type.body2)
+                                    .foregroundStyle(theme.mutedForeground)
+                            }
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: $preferences.processOnDeviceOnly)
+                            .labelsHidden()
+                            .tint(theme.primary)
+                            .accessibilityLabel("On-Device Only")
+                            .accessibilityHint(preferences.processOnDeviceOnly
+                                ? "All AI runs on this iPhone. Double-tap to allow Apple Private Cloud Compute."
+                                : "Allows Apple Private Cloud Compute for deeper reflections. Double-tap to keep everything on-device.")
+                    }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                }
+
                 Divider()
                     .background(theme.border)
                     .padding(.horizontal, Spacing.md)
