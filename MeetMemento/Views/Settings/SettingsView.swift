@@ -216,7 +216,7 @@ struct SettingsView: View {
                                 .foregroundStyle(theme.foreground)
 
                             Text(preferences.aiEnabled
-                                ? "On-device, or Apple Private Cloud Compute for deeper reflections"
+                                ? "Generated on-device with Apple Intelligence"
                                 : "AI disabled – data stays on device")
                                 .font(type.body2)
                                 .foregroundStyle(theme.mutedForeground)
@@ -230,7 +230,7 @@ struct SettingsView: View {
                         .tint(theme.primary)
                         .accessibilityLabel("AI Features")
                         .accessibilityHint(preferences.aiEnabled
-                            ? "Uses on-device or Apple Private Cloud Compute AI. Double-tap to disable."
+                            ? "Uses Apple's on-device AI. Double-tap to disable."
                             : "AI disabled, your data stays on device. Double-tap to enable.")
                 }
                 .padding(.horizontal, Spacing.md)
@@ -266,9 +266,7 @@ struct SettingsView: View {
                     subtitle: "How we protect your data",
                     showChevron: true,
                     action: {
-                        if let url = URL(string: "https://sebmendo1.github.io/MeetMemento/privacy.html") {
-                            UIApplication.shared.open(url)
-                        }
+                        UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
                     }
                 )
 

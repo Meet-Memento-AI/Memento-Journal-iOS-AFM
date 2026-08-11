@@ -190,7 +190,7 @@ public struct AboutSettingsView: View {
                     subtitle: nil,
                     showChevron: true,
                     action: {
-                        openURL("https://sebmendo1.github.io/MeetMemento/terms.html")
+                        openURL(Constants.Legal.termsOfServiceURL.absoluteString)
                     }
                 )
             }
@@ -256,7 +256,7 @@ public struct AboutSettingsView: View {
     }
 
     private func openContactSupport() {
-        let email = "support@sebastianmendo.com"
+        let email = Constants.Legal.supportEmail
         let subject = "MeetMemento Support Request"
         let body = """
 
