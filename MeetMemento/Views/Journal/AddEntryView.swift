@@ -258,18 +258,6 @@ public struct AddEntryView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-
-            if editingEntry?.syncStatus == .pending {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 10, weight: .bold)) // icon-size: not user text
-                    Text("Waiting to sync — will retry automatically")
-                        .font(type.captionBold)
-                }
-                .foregroundStyle(theme.mutedForeground)
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-            }
         }
         .padding(.bottom, 8)
     }
