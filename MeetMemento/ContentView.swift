@@ -136,7 +136,6 @@ public struct ContentView: View {
 
     @StateObject private var defaultEntryViewModel = EntryViewModel()
     @StateObject private var chatViewModel = ChatViewModel()
-    @StateObject private var networkMonitor = NetworkMonitor.shared
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
     @Environment(\.previewInitialTab) private var previewInitialTab: JournalTopTab?
 
@@ -267,15 +266,13 @@ public struct ContentView: View {
                         )
                         .padding(.top, safeAreaTop + 8)
 
-                        // NOTE: the global OfflineBannerContainer was removed 2026-08-08.
-                        // Nothing in this app needs a network — there are zero URLSession
-                        // call sites — and the banner's own copy ("entries save locally
-                        // and sync when you're back") promised a sync that no longer
-                        // exists after the Supabase decommission. Shown in theme.destructive
-                        // red, it presented the app's normal state as an error on every
-                        // screen. PRES-010 already scopes it to Z1-only features; no Z1
-                        // feature has shipped, so it applies to nothing. The component and
-                        // NetworkMonitor are retained for when Z1 lands.
+                        // NOTE: the global OfflineBannerContainer was removed 2026-08-08,
+                        // and OfflineBanner + NetworkMonitor were deleted outright in the
+                        // pre-1.0 cleanup. Nothing in this app needs a network — there are
+                        // zero URLSession call sites — and the banner's copy promised a
+                        // sync that no longer exists after the Supabase decommission.
+                        // PRES-010 scopes offline UI to Z1-only features; when Z1 lands,
+                        // recreate both from git history rather than reviving stale copy.
 
                         Spacer()
                     }
@@ -396,7 +393,6 @@ public struct ContentView: View {
                 }
             }
         }
-        .environmentObject(networkMonitor)
         .sheet(isPresented: $showSummarySheet) {
             ChatSummarySheet(
                 onSummarize: {

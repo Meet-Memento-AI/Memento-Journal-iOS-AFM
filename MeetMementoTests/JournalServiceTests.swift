@@ -131,7 +131,6 @@ final class JournalServiceTests: XCTestCase {
         XCTAssertEqual(entry.text, "Some journal content")
         XCTAssertEqual(entry.createdAt, created)
         XCTAssertEqual(entry.updatedAt, updated)
-        XCTAssertEqual(entry.syncStatus, .synced)
     }
 
     // MARK: - Data-key decoupling

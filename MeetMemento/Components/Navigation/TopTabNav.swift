@@ -149,13 +149,13 @@ public struct TopNav: View {
     }
 
     // MARK: - Pill Background
-    // Liquid Glass removed — flat #fafafa surface. The selected-tab pill still
+    // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode. The selected-tab pill still
     // slides between tabs via `matchedGeometryEffect` (PRES-004); only the fill
     // changed.
     @ViewBuilder
     private var pillBackground: some View {
         Capsule()
-            .fill(Color(hex: "#FAFAFA"))
+            .fill(theme.cardBackground)
     }
 }
 
@@ -174,7 +174,7 @@ public struct TopNav: View {
 ///     case .yourEntries:
 ///         JournalEntriesView()
 ///     case .digDeeper:
-///         InsightsView()
+///         AIChatView(viewModel: chatViewModel)
 ///     }
 /// }
 /// ```

@@ -14,8 +14,9 @@ public struct AIChatView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
-    // NOTE: no NetworkMonitor here — chat is on-device only and must never gate
-    // on connectivity. See the empty-state comment below (PRES-048 / REQ-INT-009).
+    // NOTE: no connectivity gating here — chat is on-device only and must never
+    // gate on network state (NetworkMonitor was deleted in the pre-1.0 cleanup).
+    // See the empty-state comment below (PRES-048 / REQ-INT-009).
 
     /// ViewModel passed from parent to persist across tab switches
     @ObservedObject var viewModel: ChatViewModel
@@ -565,7 +566,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()
@@ -575,7 +575,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
             .onAppear {
                 // Mock messages for preview
             }
@@ -602,7 +601,6 @@ public struct AIChatView: View {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
         AIChatView(viewModel: viewModel)
-            .environmentObject(NetworkMonitor.shared)
     }
     .useTheme()
     .useTypography()

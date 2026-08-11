@@ -7,9 +7,6 @@ struct JournalCard: View {
     let title: String
     let excerpt: String
     let date: Date
-    /// True while this entry is written locally but hasn't reached the
-    /// server yet (offline write, or a sync retry in progress).
-    var isPendingSync: Bool = false
 
     /// Optional actions (no-op by default so previews never depend on app state)
     var onTap: (() -> Void)? = nil
@@ -116,29 +113,10 @@ struct JournalCard: View {
                 .typographyCaptionBold()
                 .foregroundStyle(theme.mutedForeground)
 
-            if isPendingSync {
-                pendingSyncBadge
-            }
-
             Spacer()
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Journal entry date \(formattedDate)\(isPendingSync ? ", waiting to sync" : "")")
-    }
-
-    private var pendingSyncBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 10, weight: .bold)) // icon-size: not user text
-            Text("Pending sync")
-                .typographyCaptionBold()
-        }
-        .foregroundStyle(theme.mutedForeground)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(
-            Capsule().fill(theme.muted)
-        )
+        .accessibilityLabel("Journal entry date \(formattedDate)")
     }
 
     // MARK: - Date Formatting

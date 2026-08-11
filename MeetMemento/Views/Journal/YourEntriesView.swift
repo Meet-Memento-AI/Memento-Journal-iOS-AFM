@@ -155,7 +155,7 @@ struct YourEntriesView: View {
                         Image(systemName: "exclamationmark.circle.fill")
                             .foregroundStyle(theme.destructive)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Sync Error")
+                            Text("Couldn't Save Entry")
                                 .font(type.body1)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(theme.foreground)
@@ -187,7 +187,6 @@ struct YourEntriesView: View {
                                     title: entry.displayTitle,
                                     excerpt: entry.excerpt,
                                     date: entry.createdAt,
-                                    isPendingSync: entry.syncStatus == .pending,
                                     onTap: {
                                         onNavigateToEntry(.edit(entry))
                                     },

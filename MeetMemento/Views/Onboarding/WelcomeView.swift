@@ -218,9 +218,10 @@ public struct WelcomeView: View {
                 .opacity(showHeadline ? 1 : 0)
 
             // Positioning line (REQ-POS-001) — the first UI expression of the
-            // trust boundary. Must not overstate it: this app also uses Apple's
-            // Private Cloud Compute, so it never claims "nothing leaves your phone."
-            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is independently verifiable. Nothing else.")
+            // trust boundary. 1.x is on-device (Z0) only: no Private Cloud
+            // Compute path has shipped, so the copy must not mention it.
+            // Re-introduce the PCC clause only when Z1 routing actually lands.
+            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone with Apple's on-device models. Nothing else.")
                 .font(type.body2)
                 .foregroundStyle(.white.opacity(0.85))
                 .multilineTextAlignment(.center)
