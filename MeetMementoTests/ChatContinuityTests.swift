@@ -65,4 +65,52 @@ final class ChatContinuityTests: XCTestCase {
         vm.markMessageSeen(ai.id)
         XCTAssertFalse(vm.messages[0].isNew, "after typing finishes it's seen → won't replay on recycle")
     }
+
+    /// REQ-PRM-004: a stored reply carries the prompt and model that produced
+    /// it. The reader must ignore the new keys (it looks up `body` explicitly),
+    /// so old clients reading new JSON and new clients reading old JSON both
+    /// keep working.
+    func testStoredAssistantJSONCarriesProvenanceAndStillParses() throws {
+        let json = ChatService.assistantContentJSON(
+            body: "You wrote about the move twice this week.",
+            heading1: nil,
+            heading2: nil,
+            sources: [],
+            promptVersion: "ask@5+p2",
+            modelIdentifier: "apple.system.on-device",
+            zone: "z0.device",
+            wasDegraded: false
+        )
+
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(object["prompt_version"] as? String, "ask@5+p2")
+        XCTAssertEqual(object["model_identifier"] as? String, "apple.system.on-device")
+        XCTAssertEqual(object["zone"] as? String, "z0.device")
+        XCTAssertEqual(object["was_degraded"] as? Bool, false)
+
+        // The turn still unwraps to plain prose for model context — provenance
+        // keys must not leak into what the model reads back.
+        let turns = ChatService.historyTurns(from: [
+            ChatMessageDTO(id: UUID(), role: "assistant", content: json, createdAt: "2026-08-01T00:00:00Z")
+        ])
+        XCTAssertEqual(turns.first?.text, "You wrote about the move twice this week.")
+    }
+
+    /// Replies stored before provenance existed must still parse unchanged.
+    func testLegacyStoredAssistantJSONWithoutProvenanceStillParses() throws {
+        let legacy = ChatService.assistantContentJSON(
+            body: "An older reply.", heading1: nil, heading2: nil, sources: []
+        )
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(legacy.utf8)) as? [String: Any]
+        )
+        XCTAssertNil(object["prompt_version"])
+
+        let turns = ChatService.historyTurns(from: [
+            ChatMessageDTO(id: UUID(), role: "assistant", content: legacy, createdAt: "2026-08-01T00:00:00Z")
+        ])
+        XCTAssertEqual(turns.first?.text, "An older reply.")
+    }
 }

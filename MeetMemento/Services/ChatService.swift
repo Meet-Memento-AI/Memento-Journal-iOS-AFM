@@ -154,7 +154,12 @@ class ChatService {
         LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
         LocalChatStore.shared.appendMessage(
             role: "assistant",
-            content: Self.assistantContentJSON(body: result.body, heading1: result.heading1, heading2: result.heading2, sources: sources),
+            content: Self.assistantContentJSON(
+                body: result.body, heading1: result.heading1, heading2: result.heading2,
+                sources: sources, promptVersion: result.promptVersion,
+                modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
+                wasDegraded: result.wasDegraded
+            ),
             to: conversationId
         )
 
@@ -211,7 +216,12 @@ class ChatService {
                     LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
                     LocalChatStore.shared.appendMessage(
                         role: "assistant",
-                        content: Self.assistantContentJSON(body: result.body, heading1: result.heading1, heading2: result.heading2, sources: sources),
+                        content: Self.assistantContentJSON(
+                body: result.body, heading1: result.heading1, heading2: result.heading2,
+                sources: sources, promptVersion: result.promptVersion,
+                modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
+                wasDegraded: result.wasDegraded
+            ),
                         to: conversationId
                     )
                     continuation.yield(.final(ChatResponse(
@@ -284,10 +294,24 @@ class ChatService {
     /// Builds the assistant message content in the JSON shape the chat UI parses
     /// on load (`ChatViewModel.extractBodyContent`): body + optional headings +
     /// sources so citations re-render for reloaded conversations.
-    static func assistantContentJSON(body: String, heading1: String?, heading2: String?, sources: [ChatSource]) -> String {
+    /// `promptVersion`/`modelIdentifier` are persisted per artifact (REQ-PRM-004)
+    /// — without them a stored reply cannot be attributed to what produced it,
+    /// and spec 022's quality study cannot explain a regression. Both are
+    /// optional so replies stored before this shipped still parse; the reader
+    /// ignores unknown keys, so this is backward-compatible in both directions.
+    static func assistantContentJSON(body: String, heading1: String?, heading2: String?,
+                                     sources: [ChatSource],
+                                     promptVersion: String? = nil,
+                                     modelIdentifier: String? = nil,
+                                     zone: String? = nil,
+                                     wasDegraded: Bool? = nil) -> String {
         var object: [String: Any] = ["body": body]
         if let heading1 { object["heading1"] = heading1 }
         if let heading2 { object["heading2"] = heading2 }
+        if let promptVersion { object["prompt_version"] = promptVersion }
+        if let modelIdentifier { object["model_identifier"] = modelIdentifier }
+        if let zone { object["zone"] = zone }
+        if let wasDegraded { object["was_degraded"] = wasDegraded }
         object["sources"] = sources.map { ["id": $0.id, "created_at": $0.createdAt, "preview": $0.preview] }
         guard let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else {

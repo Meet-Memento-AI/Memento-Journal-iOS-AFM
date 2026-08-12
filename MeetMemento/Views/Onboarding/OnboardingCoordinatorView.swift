@@ -100,8 +100,8 @@ public struct OnboardingCoordinatorView: View {
 
         case .themeConfirmation:
             ThemeConfirmationView(
-                onComplete: { themeIds, lens, suggested in
-                    handleThemeConfirmationComplete(themeIds: themeIds, promptLens: lens, suggestedIds: suggested)
+                onComplete: { outcome in
+                    handleThemeConfirmationComplete(outcome)
                 },
                 onBack: { handleBack() }
             )
@@ -181,13 +181,15 @@ public struct OnboardingCoordinatorView: View {
         }
     }
 
-    private func handleThemeConfirmationComplete(themeIds: [String], promptLens: String?, suggestedIds: [String]) {
+    private func handleThemeConfirmationComplete(_ outcome: ThemeSelectionOutcome) {
         Task {
             do {
                 try await onboardingViewModel.saveExperienceProfile(
-                    themeIds: themeIds,
-                    promptLens: promptLens,
-                    suggestedIds: suggestedIds
+                    themeIds: outcome.themeIds,
+                    promptLens: outcome.promptLens,
+                    suggestedIds: outcome.suggestedIds,
+                    modelIdentifier: outcome.modelIdentifier,
+                    promptVersion: outcome.promptVersion
                 )
                 navigationPath.append(OnboardingRoute.faceID)
             } catch {

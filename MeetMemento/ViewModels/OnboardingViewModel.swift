@@ -99,7 +99,9 @@ class OnboardingViewModel: ObservableObject {
     func saveExperienceProfile(
         themeIds: [String],
         promptLens: String?,
-        suggestedIds: [String]
+        suggestedIds: [String],
+        modelIdentifier: String? = nil,
+        promptVersion: String? = nil
     ) async throws {
         isProcessing = true
         defer { isProcessing = false }
@@ -132,6 +134,19 @@ class OnboardingViewModel: ObservableObject {
         profile.promptLens = resolvedLens
         profile.catalogVersion = ThemeCatalog.catalogVersion
         profile.builtAt = Date()
+        // REQ-PRM-004: stamp what produced the lens. Onboarding previously left
+        // these nil, so a profile built here had no provenance at all and only a
+        // later ExperienceProfileBuilder rebuild ever recorded any. When the
+        // estimate fell back to keyword overlap the caller passes nil, and the
+        // deterministic lens below is likewise not model output — so nil is the
+        // honest value, not a gap to fill.
+        if resolvedLens == trimmedLens {
+            profile.modelIdentifier = modelIdentifier
+            profile.promptVersion = promptVersion
+        } else {
+            profile.modelIdentifier = nil
+            profile.promptVersion = nil
+        }
         LocalProfileStore.experienceProfile = profile
         hasGoals = true
 

@@ -18,7 +18,12 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
     var promptLens: String?
     var catalogVersion: String
     var builtAt: Date
+    /// `REQ-PRM-004` provenance: which model and which prompt produced
+    /// `promptLens`. Without both, a stored lens cannot be attributed and spec
+    /// 022's quality study cannot explain a regression in it. Optional so
+    /// profiles written before this existed still decode.
     var modelIdentifier: String?
+    var promptVersion: String?
 
     static let empty = ExperienceProfile(
         reflection: nil,
@@ -27,7 +32,8 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
         promptLens: nil,
         catalogVersion: ThemeCatalog.catalogVersion,
         builtAt: .distantPast,
-        modelIdentifier: nil
+        modelIdentifier: nil,
+        promptVersion: nil
     )
 
     var isEmpty: Bool {
