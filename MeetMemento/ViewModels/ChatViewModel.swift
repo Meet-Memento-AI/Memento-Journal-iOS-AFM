@@ -282,16 +282,31 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
-                // Drop the empty placeholder so a failed send doesn't leave a
-                // blank bubble; keep the retry affordance on the user's message.
-                if !sawContent { messages.removeAll { $0.id == assistantId } }
-                setSendFailed(true, forMessageId: userMessageId)
-                // A cancelled/superseded send shouldn't pop the error alert
-                // over unrelated content.
-                if generation == sendGeneration, !Task.isCancelled,
-                   !(error is CancellationError) {
-                    errorMessage = chatErrorMessage(for: error)
-                    showingError = true
+
+                // A guardrail refusal is a designed state, not a failure: it
+                // fills the assistant bubble with its own copy and leaves the
+                // user's message untouched — no alert, no retry, no failure
+                // mark. Treating it as an error would tell someone writing
+                // about grief or illness that they had done something wrong.
+                if isDesignedEmptyState(error), generation == sendGeneration, !Task.isCancelled {
+                    updateStreamingMessage(
+                        id: assistantId,
+                        body: IntelligenceError.guardrailRefusal.errorDescription ?? "",
+                        heading1: nil, heading2: nil, citations: nil, isStreaming: false
+                    )
+                    sawContent = true
+                } else {
+                    // Drop the empty placeholder so a failed send doesn't leave a
+                    // blank bubble; keep the retry affordance on the user's message.
+                    if !sawContent { messages.removeAll { $0.id == assistantId } }
+                    setSendFailed(true, forMessageId: userMessageId)
+                    // A cancelled/superseded send shouldn't pop the error alert
+                    // over unrelated content.
+                    if generation == sendGeneration, !Task.isCancelled,
+                       !(error is CancellationError) {
+                        errorMessage = chatErrorMessage(for: error)
+                        showingError = true
+                    }
                 }
             }
             guard generation == sendGeneration else { return }
@@ -587,44 +602,35 @@ class ChatViewModel: ObservableObject {
         }
     }
 
+    /// A guardrail refusal is a *designed empty state*, not a failure
+    /// (spec 017 R4 / REQ-INT-011). Journaling content — grief, illness,
+    /// conflict, self-critical language — trips safety guardrails
+    /// disproportionately, so a refusal on what someone wrote must never read as
+    /// an error, and never as judgment of what they wrote. It renders as an
+    /// ordinary assistant bubble with its own copy: no alert, no retry
+    /// affordance, no failure mark on their message.
+    private func isDesignedEmptyState(_ error: Error) -> Bool {
+        if case IntelligenceError.guardrailRefusal = error { return true }
+        return false
+    }
+
     private func chatErrorMessage(for error: Error) -> String {
         AppLogger.log("[ChatViewModel] Error details: \(String(describing: error))", type: .error)
 
-        // spec-010: the chat function's structured error body already has a
-        // user-facing message written for exactly this case — prefer it
-        // over the generic per-status-code guesses below.
-        if let chatError = error as? ChatServiceError {
-            return chatError.errorDescription ?? "Unable to get a response. Please check your connection and try again."
+        // IntelligenceError already carries copy written for each case — the
+        // unavailability reasons in particular ("Apple Intelligence is still
+        // getting ready") tell the user something true and actionable.
+        if let intelligenceError = error as? IntelligenceError {
+            return intelligenceError.errorDescription ?? Self.genericFailureMessage
         }
 
-        let code = extractHTTPStatusCode(from: error)
-        AppLogger.log("[ChatViewModel] Extracted HTTP code: \(code ?? -1)", type: .error)
-
-        switch code {
-        case 404:
-            return "Chat service is not set up yet. Please ensure Edge Functions are deployed."
-        case 401:
-            return "Please sign in again."
-        case 429:
-            return "You've sent a lot of messages recently. Please wait a bit and try again."
-        default:
-            return "Unable to get a response. Please check your connection and try again."
-        }
+        return Self.genericFailureMessage
     }
 
-    private func extractHTTPStatusCode(from error: Error) -> Int? {
-        let mirror = Mirror(reflecting: error)
-        for child in mirror.children where child.label == "httpError" {
-            let tupleMirror = Mirror(reflecting: child.value)
-            for tupleChild in tupleMirror.children {
-                if let code = tupleChild.value as? Int {
-                    return code
-                }
-            }
-            return nil
-        }
-        return nil
-    }
+    /// Deliberately says nothing about connectivity. Generation is on-device;
+    /// the app has no network path, so "check your connection" was advice the
+    /// user could not act on and that misdescribed every real failure.
+    private static let genericFailureMessage = "I couldn't put a reply together just now. Please try again."
 
     private func mapSourcesToCitations(_ sources: [ChatSource]) -> [JournalCitation] {
         sources.compactMap { source in

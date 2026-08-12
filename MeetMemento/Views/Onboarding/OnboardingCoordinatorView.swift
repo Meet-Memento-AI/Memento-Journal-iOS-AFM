@@ -80,7 +80,7 @@ public struct OnboardingCoordinatorView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(saveErrorMessage ?? "Please check your connection and try again.")
+            Text(saveErrorMessage ?? "Something went wrong saving that. Please try again.")
         }
     }
 

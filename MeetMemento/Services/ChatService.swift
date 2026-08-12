@@ -31,41 +31,6 @@ struct ChatSource: Codable, Equatable {
     }
 }
 
-/// Structured error body the `chat` edge function returns on failure
-/// (spec-010): `{error, code, retryable}` instead of masquerading as a 200.
-struct ChatServerError: Codable {
-    let error: String
-    let code: String
-    let retryable: Bool
-}
-
-/// Structured chat error type. Retained for the error-message mapping in
-/// `ChatViewModel`; the on-device generation path throws `IntelligenceError`
-/// rather than this, so `.server` is currently unused (kept for shape).
-enum ChatServiceError: Error, LocalizedError {
-    case server(ChatServerError, httpStatus: Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .server(let body, _):
-            return body.error
-        }
-    }
-
-    var isRetryable: Bool {
-        switch self {
-        case .server(let body, _):
-            return body.retryable
-        }
-    }
-
-    var code: String {
-        switch self {
-        case .server(let body, _):
-            return body.code
-        }
-    }
-}
 
 // MARK: - Summary Types
 
