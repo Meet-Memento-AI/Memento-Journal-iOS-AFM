@@ -293,6 +293,7 @@ enum EntryRetriever {
     }
 
     private static func fingerprint(_ text: String) -> String {
+        // budget-exempt: dedup fingerprint length; never enters a prompt.
         String(text.lowercased().filter { !$0.isWhitespace }.prefix(200))
     }
 

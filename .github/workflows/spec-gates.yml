@@ -28,6 +28,20 @@ jobs:
       - name: Enforce exactly-one FoundationModels importer
         run: scripts/ci/check_single_intelligence_importer.sh
 
+  context-budget-derivation:
+    name: No hardcoded context budgets (spec 017 R9 / CONSTITUTION §4 rule 5)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enforce runtime-derived context budgets
+        # Rule 5's corollary: the window is a runtime value. R9 states the
+        # acceptance as a grep for 4096/8192/32768, but that alone is worthless
+        # here — it passed on a tree with no budgeting at all, and would wave
+        # through `4 << 10`. This also requires every prefix/suffix payload cap
+        # to be derived or carry a budget-exempt rationale, and requires a real
+        # contextSize read to exist.
+        run: scripts/ci/check_no_hardcoded_context_budgets.sh
+
   forbidden-phrases:
     name: Positioning-claim lint (spec 014 R3 / REQ-POS-001)
     runs-on: [self-hosted, Linux, x64]

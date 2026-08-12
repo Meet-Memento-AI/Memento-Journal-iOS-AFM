@@ -456,10 +456,36 @@ against the manual `transcript.dropFirstInstructions()` rebuild pattern
 (also ✅ verified), and record in this spec which one `IntelligenceService`
 uses and why. Until recorded, no code commits to either.
 
+> **DECIDED (2026-08-11) — stateless per-request session assembly.** Each
+> generation constructs a fresh `LanguageModelSession` from registry
+> instructions plus the assembled prompt; the caller owns the transcript
+> (`LocalChatStore`), retrieval is deterministic, and follow-up grounding is
+> re-derived statelessly via `RetrievalPolicy.followupAnchor`.
+>
+> Rationale: Dynamic Profiles are an iOS-27 API and this target builds against
+> the iOS 26 SDK, so they are not available to commit to; a
+> transcript-preserving rebuild would duplicate state the chat store already
+> owns and would have to be restored after relaunch. Stateless assembly
+> survives relaunch with no session state at all and keeps the boundary
+> testable without a live session. Revisit only if per-turn instruction
+> re-tokenization shows up in spec 022's latency numbers — Dynamic Profiles
+> remain an optimization, not a dependency. Recorded in
+> `FoundationModelsIntelligenceService.swift`'s header.
+
 **Acceptance:**
 - `grep -rn '4096\|8192\|32768' ` over the intelligence module returns no
   matches outside comments/tests — the "no hardcoded budgets" rule as a
   checkable criterion.
+  > **Amended (2026-08-11): that grep alone is not sufficient and was never a
+  > real gate.** It passed on the pre-budgeting tree, because the module
+  > hardcoded *derived* values (7 entries, 500 chars) rather than window sizes —
+  > so it was green on a codebase that did no budgeting at all, and it would
+  > also wave through `4 << 10`. `scripts/ci/check_no_hardcoded_context_budgets.sh`
+  > (wired into `spec-gates.yml`) additionally requires: obfuscated window
+  > literals to fail; every `prefix`/`suffix` payload cap to be budget-derived or
+  > carry a `budget-exempt:` rationale; and a real `contextSize` read to exist,
+  > without which the first two checks are trivially satisfied. Verified to FAIL
+  > against `main` and pass on the implementing branch.
 - Given a weekly reflection over a corpus larger than the runtime context
   allows, when entries are selected, then selection is by `salience` rank
   and the prompt fits the measured budget — unit test with the spec 013 R4
@@ -505,11 +531,15 @@ still-open with findings) before this spec's status moves to done; no other
 - Monetization gating of which intents are free vs. paid — spec 021.
 
 ## Tasks
-- [ ] 1. Define `IntelligenceService` protocol + `GenerationRequest`/
+- [x] 1. Define `IntelligenceService` protocol + `GenerationRequest`/
       `GenerationOutcome` (`REQ-INT-001`, `REQ-INT-002`).
-- [ ] 2. Implement the table-driven router (`REQ-INT-003`, `REQ-INT-004`),
+      > Landed 2026-08-11 with spec 014 R1's `TrustZone` (replacing the
+      > two-case `IntelligenceZone`). `summarizeConversation` returns
+      > `GenerationOutcome<String>`; `AskResult`/`ProfileEstimateResult` carry
+      > zone, degradation, provenance, and latency inline because chat streams.
+- [x] 2. Implement the table-driven router (`REQ-INT-003`, `REQ-INT-004`),
       including the reasoning-level column seeded from Spike B's recommendation.
-- [ ] 3. Implement `QuotaGovernor` reactive-first (`REQ-INT-005`–`008`) against
+- [x] 3. Implement `QuotaGovernor` reactive-first (`REQ-INT-005`–`008`) against
       the verified `quotaUsage` surface; ⚠️ V4 (per-app vs per-user) and V13
       (full `status` case list) remain open — plan for per-user.
 - [ ] 4. Implement degradation contract with design-copy error taxonomy
@@ -533,11 +563,26 @@ still-open with findings) before this spec's status moves to done; no other
       Foundation Models instrument **on the minimum supported Apple Intelligence
       device, not a current phone** — the p50 < 2s entry-reflection target
       (source doc §9.2) depends on it.
-- [ ] 11. Decide the session architecture: Dynamic Profiles vs manual
+- [x] 11. Decide the session architecture: Dynamic Profiles vs manual
       transcript-preserving rebuild; record the decision and rationale here.
 - [ ] 12. Implement runtime context budgeting (read `contextSize`, rank by
       `salience`, instrument with `response.usage`); no hardcoded token numbers
       anywhere in the module.
+      > **Partial (2026-08-11).** Landed: `ContextBudget` derives every payload
+      > cap from the runtime window, no hardcoded token numbers remain, and
+      > `check_no_hardcoded_context_budgets.sh` enforces it. **Not landed, and
+      > blocked rather than skipped:** (a) `salience` ranking — `Entry` has no
+      > `salience` field; it arrives with spec 015's SwiftData model and R5's
+      > `@Generable EntryReflection`, so retrieval continues to rank by the
+      > existing hybrid semantic + keyword + recency score; (b) `response.usage`
+      > instrumentation — iOS 26.4+ API, not in the iOS 26.0 SDK this target
+      > builds against. Both activate without call-site changes.
+      >
+      > Also note `contextSize` itself is **absent from the iOS 26 SDK**
+      > (verified: zero occurrences in its `FoundationModels.swiftinterface`),
+      > so the read is behind `#if compiler(>=6.3)` and the unread case is
+      > modelled as `ContextWindow.unavailable` rather than defaulted to a
+      > literal.
 
 ## Verification
 - [ ] Single-importer lint (R1's exact grep) wired into CI and passing:

@@ -94,6 +94,9 @@ final class EmbeddingService: @unchecked Sendable {
 
     /// Average of the per-sentence vectors for `text` (first ~800 chars).
     private static func pooledSentenceVector(for text: String, using embedder: NLEmbedding) -> [Double]? {
+        // NLEmbedding is a different model with its own limits and no share of
+        // the language model's context window.
+        // budget-exempt: embedding input cap, not an LLM payload.
         let trimmed = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(800))
         guard !trimmed.isEmpty else { return nil }
 
@@ -118,7 +121,7 @@ final class EmbeddingService: @unchecked Sendable {
             .split { !$0.isLetter && !$0.isNumber }
             .map(String.init)
             .filter { $0.count > 2 }
-            .prefix(60)
+            .prefix(60) // budget-exempt: word-pooling width for NLEmbedding, not a model payload
         guard !words.isEmpty else { return nil }
         var vectors: [[Double]] = []
         for word in words {
