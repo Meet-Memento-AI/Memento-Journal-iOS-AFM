@@ -88,6 +88,38 @@ final class AppStateStoreTests: XCTestCase {
         XCTAssertFalse(UserDefaults.standard.bool(forKey: "memento_onboarding_completed"))
     }
 
+    /// Regression: chat transcripts used to survive "Delete Everything". They
+    /// live under Application Support, outside both LocalJournalStorage and
+    /// UserDefaults, and every stored assistant message carries verbatim entry
+    /// excerpts in its `sources[].preview` — so leaving them behind contradicted
+    /// the confirmation copy and left journal content on disk.
+    func test_deleteEverything_removesChatTranscripts() throws {
+        let sessionId = UUID()
+        let store = LocalChatStore.shared
+        store.upsertSession(id: sessionId, title: "How was my week?")
+        store.appendMessage(role: "user", content: "How was my week?", to: sessionId)
+        store.appendMessage(
+            role: "assistant",
+            content: ChatService.assistantContentJSON(
+                body: "You wrote about the move.",
+                heading1: nil,
+                heading2: nil,
+                sources: [ChatSource(id: UUID().uuidString,
+                                     createdAt: "2026-08-01T00:00:00Z",
+                                     preview: "verbatim journal excerpt")]
+            ),
+            to: sessionId
+        )
+
+        XCTAssertFalse(store.sessions().isEmpty, "precondition: a transcript exists")
+        XCTAssertFalse(store.messages(for: sessionId).isEmpty)
+
+        AppStateStore().deleteEverything()
+
+        XCTAssertTrue(store.sessions().isEmpty, "transcripts must not survive Delete Everything")
+        XCTAssertTrue(store.messages(for: sessionId).isEmpty, "message bodies carry journal excerpts")
+    }
+
     func test_bypassToMainApp_setsOnboardedWithoutNetwork() {
         let store = AppStateStore()
         store.bypassToMainApp()

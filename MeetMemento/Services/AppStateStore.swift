@@ -182,9 +182,10 @@ class AppStateStore: ObservableObject {
     }
 
     /// "Delete everything" (spec 023 R4). Interim scope: local entry storage +
-    /// security/encryption Keychain entries + UserDefaults + caches. Spec 015
-    /// extends this to the full five-store deletion (SwiftData, Spotlight index,
-    /// TTS cache, CloudKit) per REQ-DATA-013.
+    /// security/encryption Keychain entries + chat transcripts + UserDefaults +
+    /// content-derived caches. Spec 015 extends this to the full five-store
+    /// deletion (SwiftData, Spotlight index, TTS cache, CloudKit) per
+    /// `REQ-DATA-013`.
     func deleteEverything() {
         SecurityService.shared.clearAll()
         LocalJournalStorage.shared.clearAll()
@@ -194,6 +195,19 @@ class AppStateStore: ObservableObject {
         // means to read anything restored from a backup.
         EncryptionService.shared.clearAll()
         LocalProfileStore.clearAll()
+        // Chat transcripts are journal content: every stored assistant message
+        // carries verbatim entry excerpts in its `sources[].preview`. They live
+        // under Application Support, outside LocalJournalStorage and outside
+        // UserDefaults, so nothing above reaches them — leaving them behind
+        // contradicted the confirmation copy ("permanently delete every journal
+        // entry") outright. Called synchronously rather than through
+        // `ChatService.clearHistory()` so deletion stays deterministic: a
+        // fire-and-forget Task in an erasure path can outlive the call.
+        LocalChatStore.shared.clear()
+        // Cached entry embedding vectors are content-derived (CONSTITUTION §4
+        // rule 8), so they go too. In-memory only, but "delete everything"
+        // should not leave the process holding vectors of deleted entries.
+        EmbeddingService.shared.clearCache()
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)
         UserDefaults.standard.removeObject(forKey: Self.onboardingCompleteKey)
