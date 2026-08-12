@@ -43,18 +43,20 @@ public struct WelcomeView: View {
 
     public init() {}
 
-    /// Calculate blur amount based on video playback progress
-    /// Delayed start with quadratic ease-in for a more delicate feel
+    /// Calculate blur amount based on video playback progress.
+    /// First forward pass eases blur to max; once that pass completes (boomerang
+    /// starts) blur stays locked at 40 for the entire reverse/forward phase.
     private var blurAmount: CGFloat {
         // No blur during exit (dissolving to white)
         if isExiting { return 0 }
 
-        // Don't blur until content has loaded
-        guard blurCanStart else { return 0 }
-
+        // First pass finished → full blur for the boomerang phase
         if hasCompletedFirstLoop {
-            return 40  // Stay at max blur after first loop
+            return 40
         }
+
+        // Don't ramp blur until content has loaded
+        guard blurCanStart else { return 0 }
 
         // Let video play clear for first 40%, then ease blur in
         let blurStartThreshold: Double = 0.4
@@ -77,22 +79,20 @@ public struct WelcomeView: View {
                 Color.white
                     .ignoresSafeArea()
 
-                // Layer 2: Video background (dissolves in/out)
+                // Layer 2: Video background (dissolves in/out).
+                // First forward pass ramps blur to max; then perpetual boomerang.
                 VideoBackground(
                     videoName: "welcome-bg",
                     videoExtension: "mp4",
+                    loopMode: .boomerangAfterFirstPass,
                     isVideoReady: $isVideoReady,
-                    playbackProgress: $playbackProgress
+                    playbackProgress: $playbackProgress,
+                    hasCompletedFirstPass: $hasCompletedFirstLoop,
+                    startInBoomerang: skipIntroAnimations
                 )
                 .opacity(videoOpacity)
                 .blur(radius: blurAmount)
                 .ignoresSafeArea()
-                .onChange(of: playbackProgress) { oldValue, newValue in
-                    // Detect loop completion (progress resets from ~1 to ~0)
-                    if oldValue > 0.9 && newValue < 0.1 {
-                        hasCompletedFirstLoop = true
-                    }
-                }
 
                 // Layer 3: Gradient overlay (follows video opacity)
                 LinearGradient(
@@ -207,7 +207,7 @@ public struct WelcomeView: View {
             Spacer()
 
             // Headline - centered
-            Text("Journal with your voice, reflect privately with AI")
+            Text("Journal with your voice, reflect privately on your device")
                 .font(.custom("Lora-SemiBold", size: 32))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
@@ -221,16 +221,7 @@ public struct WelcomeView: View {
             // trust boundary. 1.x is on-device (Z0) only: no Private Cloud
             // Compute path has shipped, so the copy must not mention it.
             // Re-introduce the PCC clause only when Z1 routing actually lands.
-            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone with Apple's on-device models. Nothing else.")
-                .font(type.body2)
-                .foregroundStyle(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 32)
-                .padding(.top, 12)
-                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                .accessibilityIdentifier("welcome.positioning")
-                .opacity(showHeadline ? 1 : 0)
+            
 
             Spacer()
 
