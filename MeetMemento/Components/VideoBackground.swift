@@ -72,6 +72,15 @@ class PlayerUIView: UIView {
         }
     }
 
+    // NOTE on console noise: the bundled background videos are deliberately
+    // VIDEO-ONLY (no audio track — the player is muted anyway). At setup,
+    // CoreMedia logs one benign probe line for the absent audio track
+    // (`FigFilePlayer … -12843 kFigTrackError_TrackNotFound`, plus two generic
+    // `Fig -12900` lines). Do NOT "fix" this by muxing in a silent audio track:
+    // that flips the probe to `-12864 kFigPlayerError_NoVideoTrack` on the audio
+    // track AND wakes the simulator's audio stack (EnhanceDialogueProcessor /
+    // LoudnessManager / AddInstanceForFactory spam, repeating every loop).
+    // Video-only is the minimal-noise state; the one-time lines are accepted.
     private func setupPlayer() {
         guard let url = Bundle.main.url(forResource: videoName, withExtension: videoExtension) else {
                         AppLogger.log("⚠️ VideoBackground: Could not find \(videoName).\(videoExtension) in bundle")
