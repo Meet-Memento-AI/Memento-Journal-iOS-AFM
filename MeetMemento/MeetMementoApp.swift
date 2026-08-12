@@ -30,13 +30,10 @@ struct MeetMementoApp: App {
         // Let RootBackground handle the theme-aware background color
         // Using clear allows SwiftUI to manage the background dynamically
         UIWindow.appearance().backgroundColor = .clear
-
-                AppLogger.log("🔴 MeetMementoApp init() called")
     }
 
     var body: some Scene {
-        let _ = { AppLogger.log("🔴 MeetMementoApp body evaluated") }()
-        return WindowGroup {
+        WindowGroup {
             ZStack {
                 // Full-screen background that extends under status bar/dynamic island
                 RootBackground()
@@ -63,9 +60,6 @@ struct MeetMementoApp: App {
                                 .useTypography()
                                 .environmentObject(appState)
                                 .transition(.opacity)
-                                .onAppear {
-                                                                        AppLogger.log("🔴 ContentView appeared")
-                                }
                         }
                     } else if appState.hasStartedOnboarding {
                         // Mid-onboarding
@@ -81,10 +75,6 @@ struct MeetMementoApp: App {
                             .useTypography()
                             .environmentObject(appState)
                             .transition(.opacity.animation(.easeInOut(duration: 0.4)))
-                            .onAppear {
-                                                                AppLogger.log("🔴 WelcomeView appeared")
-                                AppLogger.log("🔴 App state: hasCompletedOnboarding=\(appState.hasCompletedOnboarding)")
-                            }
                     }
                 }
                 .animation(.easeInOut(duration: 0.4), value: appState.hasCompletedOnboarding)
@@ -92,10 +82,8 @@ struct MeetMementoApp: App {
             }
             .ignoresSafeArea()
             .task {
-                                AppLogger.log("🔴 .task block started")
                 appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()
-                                AppLogger.log("🔴 .task block completed")
             }
             .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
@@ -103,8 +91,7 @@ struct MeetMementoApp: App {
                     lockScreenViewModel.consumeSkipNextLockScreen()
                 }
             }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                                AppLogger.log("🔴 Scene phase changed: \(oldPhase) -> \(newPhase)")
+            .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .background || newPhase == .inactive {
                     lockScreenViewModel.lock()
                 }
