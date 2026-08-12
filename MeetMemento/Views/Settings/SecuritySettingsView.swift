@@ -103,69 +103,51 @@ struct SecuritySettingsView: View {
     // MARK: - Sections
 
     private var lockSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("App Lock")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
+        SettingsSection(title: "App Lock") {
+            SettingsToggleRow(
+                icon: "lock.fill",
+                title: "Require unlock",
+                subtitle: isLockOn
+                    ? "Memento asks for \(mode == .faceID ? biometricName : "your PIN") when you open it"
+                    : "Memento opens without asking for anything",
+                isOn: Binding(
+                    get: { isLockOn },
+                    set: { wantsOn in
+                        if wantsOn { beginEnable() } else { showDisableConfirmation = true }
+                    }
+                ),
+                accessibilityIdentifier: "security.lockToggle"
+            )
 
-            VStack(spacing: 0) {
-                toggleRow(
-                    icon: "lock.fill",
-                    title: "Require unlock",
-                    subtitle: isLockOn
-                        ? "Memento asks for \(mode == .faceID ? biometricName : "your PIN") when you open it"
-                        : "Memento opens without asking for anything",
+            if isLockOn && SecurityService.shared.isBiometricAvailable {
+                SettingsRowDivider()
+                SettingsToggleRow(
+                    icon: "faceid",
+                    title: "Use \(biometricName)",
+                    subtitle: "Unlock with \(biometricName), with your PIN as a fallback",
                     isOn: Binding(
-                        get: { isLockOn },
-                        set: { wantsOn in
-                            if wantsOn { beginEnable() } else { showDisableConfirmation = true }
-                        }
+                        get: { mode == .faceID },
+                        set: { setBiometrics(enabled: $0) }
                     ),
-                    identifier: "security.lockToggle"
+                    accessibilityIdentifier: "security.biometricToggle"
                 )
-
-                if isLockOn && SecurityService.shared.isBiometricAvailable {
-                    rowDivider
-                    toggleRow(
-                        icon: "faceid",
-                        title: "Use \(biometricName)",
-                        subtitle: "Unlock with \(biometricName), with your PIN as a fallback",
-                        isOn: Binding(
-                            get: { mode == .faceID },
-                            set: { setBiometrics(enabled: $0) }
-                        ),
-                        identifier: "security.biometricToggle"
-                    )
-                }
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
         }
     }
 
     private var pinSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("PIN")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            VStack(spacing: 0) {
-                SettingsRow(
-                    icon: "number",
-                    title: "Change PIN",
-                    subtitle: "Pick a new 4-digit PIN",
-                    showChevron: true,
-                    showProgress: isWorking,
-                    accessibilityIdentifier: "security.changePIN"
-                ) {
-                    guard ensureNoLegacyContent() else { return }
-                    pinFlow = .change
-                }
+        SettingsSection(title: "PIN") {
+            SettingsRow(
+                icon: "number",
+                title: "Change PIN",
+                subtitle: "Pick a new 4-digit PIN",
+                showChevron: true,
+                showProgress: isWorking,
+                accessibilityIdentifier: "security.changePIN"
+            ) {
+                guard ensureNoLegacyContent() else { return }
+                pinFlow = .change
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
         }
     }
 
@@ -236,55 +218,5 @@ struct SecuritySettingsView: View {
             return false
         }
         return true
-    }
-
-    // MARK: - Building blocks
-
-    private var rowDivider: some View {
-        Divider()
-            .background(theme.border)
-            .padding(.horizontal, Spacing.md)
-    }
-
-    private var sectionCardBackground: some View {
-        RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(theme.card)
-    }
-
-    private func toggleRow(
-        icon: String,
-        title: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        identifier: String
-    ) -> some View {
-        HStack {
-            HStack(spacing: Spacing.sm) {
-                Image(systemName: icon)
-                    .font(.system(size: 20)) // icon-size: not user text
-                    .foregroundStyle(theme.primary)
-                    .frame(width: 28, height: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(type.body1Medium)
-                        .foregroundStyle(theme.foreground)
-                    Text(subtitle)
-                        .font(type.body2)
-                        .foregroundStyle(theme.mutedForeground)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            Spacer()
-
-            Toggle("", isOn: isOn)
-                .labelsHidden()
-                .tint(theme.primary)
-                .accessibilityLabel(title)
-                .accessibilityIdentifier(identifier)
-        }
-        .padding(.horizontal, Spacing.md)
-        .padding(.vertical, Spacing.sm)
     }
 }

@@ -10,9 +10,7 @@ import SwiftUI
 import StoreKit
 
 public struct AboutSettingsView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var showShareSheet = false
     @State private var showCopiedAlert = false
@@ -35,16 +33,9 @@ public struct AboutSettingsView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // App Info Section
                 appInfoSection
-
-                // Support Section
                 supportSection
-
-                // Legal Section
                 legalSection
-
-                // Social Section
                 socialSection
 
                 Spacer(minLength: Spacing.xxxl)
@@ -55,19 +46,6 @@ public struct AboutSettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 18,
-                    buttonSize: 40,
-                    enableHaptic: true,
-                    onTap: { dismiss() }
-                )
-                .accessibilityLabel("Back")
-            }
-        }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(items: [shareMessage])
         }
@@ -81,170 +59,91 @@ public struct AboutSettingsView: View {
     // MARK: - Sections
 
     private var appInfoSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("App Information")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
+        SettingsSection(title: "App Information") {
+            SettingsRow(
+                icon: "info.circle.fill",
+                title: "Version",
+                subtitle: appVersion,
+                showChevron: false,
+                action: { copyVersionToClipboard() }
+            )
 
-            VStack(spacing: 0) {
-                // Version info (tappable to copy)
-                Button {
-                    copyVersionToClipboard()
-                } label: {
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 20)) // icon-size: not user text
-                            .foregroundStyle(theme.primary)
-                            .frame(width: 28, height: 28)
+            SettingsRowDivider()
 
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Version")
-                                .font(type.body1)
-                                .foregroundStyle(theme.foreground)
-
-                            Text(appVersion)
-                                .font(type.body2)
-                                .foregroundStyle(theme.mutedForeground)
-                        }
-
-                        Spacer()
-
-                        Text("Tap to copy")
-                            .font(type.caption)
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.vertical, Spacing.sm)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                // Device info (read-only)
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "iphone")
-                        .font(.system(size: 20)) // icon-size: not user text
-                        .foregroundStyle(theme.primary)
-                        .frame(width: 28, height: 28)
-
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text("Device")
-                            .font(type.body1)
-                            .foregroundStyle(theme.foreground)
-
-                        Text(deviceInfo)
-                            .font(type.body2)
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-            }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            SettingsRow(
+                icon: "iphone",
+                title: "Device",
+                subtitle: deviceInfo,
+                showChevron: false,
+                action: nil
+            )
         }
     }
 
     private var supportSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Support")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            VStack(spacing: 0) {
-                // Contact Support
-                SettingsRow(
-                    icon: "envelope.fill",
-                    title: "Contact Support",
-                    subtitle: "Get help with MeetMemento",
-                    showChevron: false,
-                    action: {
-                        openContactSupport()
-                    }
-                )
-            }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+        SettingsSection(title: "Support") {
+            SettingsRow(
+                icon: "envelope.fill",
+                title: "Contact Support",
+                subtitle: "Get help with MeetMemento",
+                showChevron: false,
+                action: {
+                    openContactSupport()
+                }
+            )
         }
     }
 
     private var legalSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Legal")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
+        SettingsSection(title: "Legal") {
+            SettingsRow(
+                icon: "doc.text.fill",
+                title: "Terms of Service",
+                subtitle: nil,
+                showChevron: true,
+                action: {
+                    openURL(Constants.Legal.termsOfServiceURL.absoluteString)
+                }
+            )
 
-            VStack(spacing: 0) {
-                // Terms of Service
-                SettingsRow(
-                    icon: "doc.text.fill",
-                    title: "Terms of Service",
-                    subtitle: nil,
-                    showChevron: true,
-                    action: {
-                        openURL(Constants.Legal.termsOfServiceURL.absoluteString)
-                    }
-                )
-            }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            SettingsRowDivider()
+
+            SettingsRow(
+                icon: "hand.raised.fill",
+                title: "Privacy Policy",
+                subtitle: nil,
+                showChevron: true,
+                action: {
+                    UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
+                }
+            )
         }
     }
 
     private var socialSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Share MeetMemento")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
+        SettingsSection(title: "Share MeetMemento") {
+            SettingsRow(
+                icon: "star.fill",
+                title: "Rate on App Store",
+                subtitle: "Share your experience",
+                showChevron: false,
+                action: {
+                    requestReview()
+                }
+            )
 
-            VStack(spacing: 0) {
-                // Rate on App Store
-                SettingsRow(
-                    icon: "star.fill",
-                    title: "Rate on App Store",
-                    subtitle: "Share your experience",
-                    showChevron: false,
-                    action: {
-                        requestReview()
-                    }
-                )
+            SettingsRowDivider()
 
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                // Share App
-                SettingsRow(
-                    icon: "square.and.arrow.up.fill",
-                    title: "Share App",
-                    subtitle: "Tell your friends",
-                    showChevron: false,
-                    action: {
-                        showShareSheet = true
-                    }
-                )
-            }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            SettingsRow(
+                icon: "square.and.arrow.up.fill",
+                title: "Share App",
+                subtitle: "Tell your friends",
+                showChevron: false,
+                action: {
+                    showShareSheet = true
+                }
+            )
         }
-    }
-
-    // MARK: - Glass Card Background
-
-    @ViewBuilder
-    private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
-        RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions

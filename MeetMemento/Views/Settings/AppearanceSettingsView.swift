@@ -8,9 +8,7 @@
 import SwiftUI
 
 public struct AppearanceSettingsView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var selectedTheme: AppThemePreference = .system
 
@@ -19,78 +17,21 @@ public struct AppearanceSettingsView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // Theme selector section
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        Text("Theme")
-                            .font(type.h5)
-                            .foregroundStyle(theme.foreground)
+                // Same SettingsSection + row chrome as Security / About / hub cards.
+                SettingsSection(title: "Theme") {
+                    ForEach(Array(AppThemePreference.allCases.enumerated()), id: \.element) { index, themeOption in
+                        SettingsSelectableRow(
+                            icon: iconForTheme(themeOption),
+                            title: themeOption.displayName,
+                            subtitle: descriptionForTheme(themeOption),
+                            isSelected: selectedTheme == themeOption,
+                            action: { selectTheme(themeOption) }
+                        )
 
-                        Text("Choose your preferred color scheme")
-                            .font(type.body2)
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-
-                    // Theme options card
-                    VStack(spacing: 0) {
-                        ForEach(AppThemePreference.allCases, id: \.self) { themeOption in
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    selectTheme(themeOption)
-                                }
-                            } label: {
-                                HStack(spacing: Spacing.md) {
-                                    // Icon
-                                    Image(systemName: iconForTheme(themeOption))
-                                        .font(.system(size: 20)) // icon-size: not user text
-                                        .foregroundStyle(theme.primary)
-                                        .frame(width: 28, height: 28)
-                                        .accessibilityHidden(true)
-
-                                    // Title and description
-                                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                        Text(themeOption.displayName)
-                                            .font(type.body1)
-                                            .foregroundStyle(theme.foreground)
-
-                                        Text(descriptionForTheme(themeOption))
-                                            .font(type.body2)
-                                            .foregroundStyle(theme.mutedForeground)
-                                    }
-
-                                    Spacer()
-
-                                    // Checkmark for selected
-                                    if selectedTheme == themeOption {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 20)) // icon-size: not user text
-                                            .foregroundStyle(theme.primary)
-                                            .accessibilityHidden(true)
-                                    } else {
-                                        Image(systemName: "circle")
-                                            .font(.system(size: 20)) // icon-size: not user text
-                                            .foregroundStyle(theme.mutedForeground.opacity(0.3))
-                                            .accessibilityHidden(true)
-                                    }
-                                }
-                                .padding(.horizontal, Spacing.md)
-                                .padding(.vertical, Spacing.md)
-                                .background(selectedTheme == themeOption ? theme.primary.opacity(0.08) : Color.clear)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityAddTraits(selectedTheme == themeOption ? [.isSelected] : [])
-
-                            // Divider between options (not after last one)
-                            if themeOption != AppThemePreference.allCases.last {
-                                Divider()
-                                    .background(theme.border)
-                                    .padding(.horizontal, Spacing.md)
-                            }
+                        if index < AppThemePreference.allCases.count - 1 {
+                            SettingsRowDivider()
                         }
                     }
-                    .background(sectionCardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
                 }
 
                 Spacer(minLength: Spacing.xxxl)
@@ -101,31 +42,9 @@ public struct AppearanceSettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 18,
-                    buttonSize: 40,
-                    enableHaptic: true,
-                    onTap: { dismiss() }
-                )
-                .accessibilityLabel("Back")
-            }
-        }
         .onAppear {
             loadCurrentTheme()
         }
-    }
-
-    // MARK: - Glass Card Background
-
-    @ViewBuilder
-    private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
-        RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions
@@ -137,12 +56,7 @@ public struct AppearanceSettingsView: View {
     private func selectTheme(_ themeOption: AppThemePreference) {
         selectedTheme = themeOption
         PreferencesService.shared.themePreference = themeOption
-
-        // Notify theme observers
         NotificationCenter.default.post(name: .themePreferenceChanged, object: nil)
-
-        // Haptic feedback
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: - Helper Methods

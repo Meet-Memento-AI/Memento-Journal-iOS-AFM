@@ -7,8 +7,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var entryViewModel: EntryViewModel
     @EnvironmentObject var appState: AppStateStore
 
@@ -30,19 +28,9 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // Appearance Section
                 appearanceSection
-
-                // Security Section — the app lock, changeable after onboarding.
-                // Onboarding's skip dialog promises "you can turn this on later
-                // in Settings"; before this section existed, it could not.
                 securitySection
-
-                // About Section
                 aboutSection
-
-                // Your Data Section (spec 023 R4 — merges the old Data & Privacy
-                // and Account sections into one local-only story)
                 yourDataSection
 
                 Spacer(minLength: Spacing.xxxl)
@@ -109,28 +97,17 @@ struct SettingsView: View {
     // MARK: - Sections
 
     private var appearanceSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Section header
-            Text("Appearance")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            // Section content card
-            VStack(spacing: 0) {
-                NavigationLink(value: SettingsRoute.appearance) {
-                    SettingsRow(
-                        icon: "paintbrush.fill",
-                        title: "Theme & Display",
-                        subtitle: "Customize colors and text size",
-                        showChevron: true,
-                        action: nil
-                    )
-                }
-                .buttonStyle(.plain)
+        SettingsSection(title: "Appearance") {
+            NavigationLink(value: SettingsRoute.appearance) {
+                SettingsRow(
+                    icon: "paintbrush.fill",
+                    title: "Theme & Display",
+                    subtitle: "Choose light, dark, or system appearance",
+                    showChevron: true,
+                    action: nil
+                )
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            .buttonStyle(.plain)
         }
     }
 
@@ -138,27 +115,18 @@ struct SettingsView: View {
     /// explains why this was structurally impossible until the encryption key
     /// was decoupled from the PIN.
     private var securitySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Security")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            VStack(spacing: 0) {
-                NavigationLink(value: SettingsRoute.security) {
-                    SettingsRow(
-                        icon: "lock.fill",
-                        title: "App Lock",
-                        subtitle: securitySubtitle,
-                        showChevron: true,
-                        accessibilityIdentifier: "settings.security",
-                        action: nil
-                    )
-                }
-                .buttonStyle(.plain)
+        SettingsSection(title: "Security") {
+            NavigationLink(value: SettingsRoute.security) {
+                SettingsRow(
+                    icon: "lock.fill",
+                    title: "App Lock",
+                    subtitle: securitySubtitle,
+                    showChevron: true,
+                    accessibilityIdentifier: "settings.security",
+                    action: nil
+                )
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            .buttonStyle(.plain)
         }
     }
 
@@ -171,185 +139,120 @@ struct SettingsView: View {
     }
 
     private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Section header
-            Text("About")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            // Section content card
-            VStack(spacing: 0) {
-                NavigationLink(value: SettingsRoute.about) {
-                    SettingsRow(
-                        icon: "info.circle.fill",
-                        title: "About MeetMemento",
-                        subtitle: "Version, legal, and support",
-                        showChevron: true,
-                        action: nil
-                    )
-                }
-                .buttonStyle(.plain)
+        SettingsSection(title: "About") {
+            NavigationLink(value: SettingsRoute.about) {
+                SettingsRow(
+                    icon: "info.circle.fill",
+                    title: "About MeetMemento",
+                    subtitle: "Version, legal, and support",
+                    showChevron: true,
+                    action: nil
+                )
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            .buttonStyle(.plain)
         }
     }
 
     /// "Your Data" (spec 023 R4): one section for the whole local-only story —
-    /// profile, AI on-device/PCC toggle, privacy policy, data-usage explainer,
+    /// profile, AI on-device toggle, privacy policy, data-usage explainer,
     /// and Delete Everything. No accounts, so no Sign Out.
     private var yourDataSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            // Section header
-            Text("Your Data")
-                .font(type.h5)
-                .foregroundStyle(theme.foreground)
-                .padding(.bottom, Spacing.xxs)
-
-            // Section content card
-            VStack(spacing: 0) {
-                NavigationLink(value: SettingsRoute.profile) {
-                    SettingsRow(
-                        icon: "person.circle.fill",
-                        title: "Profile",
-                        subtitle: "Edit your name",
-                        showChevron: true,
-                        action: nil
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                // AI Features Toggle
-                HStack {
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: "brain")
-                            .font(.system(size: 20)) // icon-size: not user text
-                            .foregroundStyle(theme.primary)
-                            .frame(width: 28, height: 28)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("AI Features")
-                                .font(type.body1Medium)
-                                .foregroundStyle(theme.foreground)
-
-                            Text(preferences.aiEnabled
-                                ? "Generated on-device with Apple Intelligence"
-                                : "AI disabled – data stays on device")
-                                .font(type.body2)
-                                .foregroundStyle(theme.mutedForeground)
-                        }
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: $preferences.aiEnabled)
-                        .labelsHidden()
-                        .tint(theme.primary)
-                        .accessibilityLabel("AI Features")
-                        .accessibilityHint(preferences.aiEnabled
-                            ? "Uses Apple's on-device AI. Double-tap to disable."
-                            : "AI disabled, your data stays on device. Double-tap to enable.")
-                }
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                // Sample entries. Memento reflects on what you've written, so a
-                // fresh install has nothing for Weekly, Patterns or Ask to work
-                // with — a weak first impression, and a Guideline 2.1 risk since
-                // a reviewer opens the app cold with an empty journal.
+        SettingsSection(title: "Your Data") {
+            NavigationLink(value: SettingsRoute.profile) {
                 SettingsRow(
-                    icon: sampleContent.isLoaded ? "trash" : "text.book.closed",
-                    title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
-                    subtitle: sampleContent.isLoaded
-                        ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
-                        : "Adds a fictional 9-month journal so you can try reflections right away",
-                    showChevron: false,
-                    showProgress: isSampleWorking,
-                    accessibilityIdentifier: "settings.sampleEntries",
-                    action: { toggleSampleEntries() }
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                // Export. The archive is the user's — hand it over in portable
-                // formats, whole, on demand. Sample entries are excluded so
-                // the export is what they wrote, not the bundled fiction.
-                SettingsRow(
-                    icon: "square.and.arrow.up",
-                    title: "Export Your Journal",
-                    subtitle: "Markdown and JSON files of everything you've written",
-                    showChevron: false,
-                    accessibilityIdentifier: "settings.exportJournal",
-                    action: { exportJournal() }
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                SettingsRow(
-                    icon: "hand.raised",
-                    title: "Privacy Policy",
-                    subtitle: "How we protect your data",
+                    icon: "person.circle.fill",
+                    title: "Profile",
+                    subtitle: "Edit your name",
                     showChevron: true,
-                    action: {
-                        UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
-                    }
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                SettingsRow(
-                    icon: "info.circle",
-                    title: "What Data We Collect",
-                    subtitle: "Learn about data usage",
-                    showChevron: true,
-                    action: {
-                        showDataUsageInfo = true
-                    }
-                )
-
-                Divider()
-                    .background(theme.border)
-                    .padding(.horizontal, Spacing.md)
-
-                SettingsRow(
-                    icon: "trash.fill",
-                    title: "Delete Everything",
-                    subtitle: "Permanently delete all your data from this device",
-                    isDestructive: true,
-                    showProgress: isDeletingEverything,
-                    accessibilityIdentifier: "settings.deleteEverything",
-                    action: {
-                        showDeleteEverythingConfirmation = true
-                    }
+                    action: nil
                 )
             }
-            .background(sectionCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+            .buttonStyle(.plain)
+
+            SettingsRowDivider()
+
+            SettingsToggleRow(
+                icon: "brain",
+                title: "AI Features",
+                subtitle: preferences.aiEnabled
+                    ? "Generated on-device with Apple Intelligence"
+                    : "AI disabled – data stays on device",
+                isOn: $preferences.aiEnabled,
+                accessibilityHint: preferences.aiEnabled
+                    ? "Uses Apple's on-device AI. Double-tap to disable."
+                    : "AI disabled, your data stays on device. Double-tap to enable."
+            )
+
+            SettingsRowDivider()
+
+            // Sample entries. Memento reflects on what you've written, so a
+            // fresh install has nothing for Ask to work with — a weak first
+            // impression, and a Guideline 2.1 risk since a reviewer opens the
+            // app cold with an empty journal.
+            SettingsRow(
+                icon: sampleContent.isLoaded ? "trash" : "text.book.closed",
+                title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
+                subtitle: sampleContent.isLoaded
+                    ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
+                    : "Adds a fictional 9-month journal so you can try reflections right away",
+                showChevron: false,
+                showProgress: isSampleWorking,
+                accessibilityIdentifier: "settings.sampleEntries",
+                action: { toggleSampleEntries() }
+            )
+
+            SettingsRowDivider()
+
+            // Export. The archive is the user's — hand it over in portable
+            // formats, whole, on demand. Sample entries are excluded so
+            // the export is what they wrote, not the bundled fiction.
+            SettingsRow(
+                icon: "square.and.arrow.up",
+                title: "Export Your Journal",
+                subtitle: "Markdown and JSON files of everything you've written",
+                showChevron: false,
+                accessibilityIdentifier: "settings.exportJournal",
+                action: { exportJournal() }
+            )
+
+            SettingsRowDivider()
+
+            SettingsRow(
+                icon: "hand.raised",
+                title: "Privacy Policy",
+                subtitle: "How we protect your data",
+                showChevron: true,
+                action: {
+                    UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
+                }
+            )
+
+            SettingsRowDivider()
+
+            SettingsRow(
+                icon: "info.circle",
+                title: "What Data We Collect",
+                subtitle: "Learn about data usage",
+                showChevron: true,
+                action: {
+                    showDataUsageInfo = true
+                }
+            )
+
+            SettingsRowDivider()
+
+            SettingsRow(
+                icon: "trash.fill",
+                title: "Delete Everything",
+                subtitle: "Permanently delete all your data from this device",
+                isDestructive: true,
+                showProgress: isDeletingEverything,
+                accessibilityIdentifier: "settings.deleteEverything",
+                action: {
+                    showDeleteEverythingConfirmation = true
+                }
+            )
         }
-    }
-
-    // MARK: - Glass Card Background
-
-    @ViewBuilder
-    private var sectionCardBackground: some View {
-        // Liquid Glass removed — flat themed surface (no shadow) — cardBackground adapts to dark mode.
-        RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous)
-            .fill(theme.cardBackground)
     }
 
     // MARK: - Actions

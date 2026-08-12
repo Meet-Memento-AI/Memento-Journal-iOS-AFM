@@ -60,9 +60,9 @@ struct SettingsRow: View {
 
     private var rowContent: some View {
         HStack(spacing: Spacing.sm) {
-            // Icon
+            // Icon — fixed 20pt to match toggle/selectable/info rows
             Image(systemName: icon)
-                .font(type.h4)
+                .font(.system(size: 20)) // icon-size: not user text
                 .foregroundStyle(isDestructive ? theme.destructive : theme.primary)
                 .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
@@ -89,8 +89,7 @@ struct SettingsRow: View {
                     .tint(theme.primary)
             } else if showChevron {
                 Image(systemName: "chevron.right")
-                    .font(type.body2)
-                    .fontWeight(.semibold)
+                    .font(type.body2Bold)
                     .foregroundStyle(theme.foreground.opacity(0.3))
                     .accessibilityHidden(true)
             }

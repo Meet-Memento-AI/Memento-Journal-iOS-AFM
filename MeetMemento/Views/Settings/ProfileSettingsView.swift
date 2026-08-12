@@ -11,7 +11,6 @@ public struct ProfileSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject var appState: AppStateStore
 
     @State private var firstName: String = ""
@@ -25,89 +24,84 @@ public struct ProfileSettingsView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                // Form section
-                VStack(alignment: .leading, spacing: Spacing.lg) {
-                    // First name
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text("First name")
-                            .font(type.body1)
-                            .foregroundStyle(theme.foreground)
-                            .fontWeight(.medium)
+                SettingsSection(title: "Name") {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text("First name")
+                                .font(type.body1Bold)
+                                .foregroundStyle(theme.foreground)
 
-                        AppTextField(
-                            placeholder: "Enter your first name",
-                            text: $firstName,
-                            textInputAutocapitalization: .words
-                        )
-                    }
+                            AppTextField(
+                                placeholder: "Enter your first name",
+                                text: $firstName,
+                                textInputAutocapitalization: .words
+                            )
+                        }
 
-                    // Last name
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text("Last name")
-                            .font(type.body1)
-                            .foregroundStyle(theme.foreground)
-                            .fontWeight(.medium)
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text("Last name")
+                                .font(type.body1Bold)
+                                .foregroundStyle(theme.foreground)
 
-                        AppTextField(
-                            placeholder: "Enter your last name",
-                            text: $lastName,
-                            textInputAutocapitalization: .words
-                        )
-                    }
+                            AppTextField(
+                                placeholder: "Enter your last name",
+                                text: $lastName,
+                                textInputAutocapitalization: .words
+                            )
+                        }
 
-                    // Save button
-                    Button {
-                        saveProfile()
-                    } label: {
-                        HStack {
-                            if isSaving {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Text("Save Changes")
-                                    .font(type.body1Bold)
+                        Button {
+                            saveProfile()
+                        } label: {
+                            HStack {
+                                if isSaving {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Text("Save Changes")
+                                        .font(type.body1Bold)
+                                }
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Spacing.md)
+                            .background(canSave ? theme.primary : theme.mutedForeground.opacity(0.3))
+                            .foregroundStyle(.white)
+                            .cornerRadius(theme.radius.md)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Spacing.md)
-                        .background(canSave ? theme.primary : theme.mutedForeground.opacity(0.3))
-                        .foregroundStyle(.white)
-                        .cornerRadius(theme.radius.md)
-                    }
-                    .disabled(!canSave || isSaving)
-                    .padding(.top, Spacing.xs)
+                        .disabled(!canSave || isSaving)
+                        .padding(.top, Spacing.xs)
 
-                    // Success message
-                    if showSuccessMessage {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.system(size: 14)) // icon-size: not user text
-                                .accessibilityHidden(true)
-                            Text("Profile updated successfully")
-                                .font(type.body2)
-                                .foregroundStyle(.green)
+                        if showSuccessMessage {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.system(size: 14)) // icon-size: not user text
+                                    .accessibilityHidden(true)
+                                Text("Profile updated successfully")
+                                    .font(type.body2)
+                                    .foregroundStyle(.green)
+                            }
+                            .padding(Spacing.sm)
+                            .background(Color.green.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: theme.radius.md))
                         }
-                        .padding(Spacing.sm)
-                        .background(Color.green.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: theme.radius.md))
-                    }
 
-                    // Error message
-                    if !errorMessage.isEmpty {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(theme.destructive)
-                                .font(.system(size: 14)) // icon-size: not user text
-                                .accessibilityHidden(true)
-                            Text(errorMessage)
-                                .font(type.body2)
-                                .foregroundStyle(theme.destructive)
+                        if !errorMessage.isEmpty {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(theme.destructive)
+                                    .font(.system(size: 14)) // icon-size: not user text
+                                    .accessibilityHidden(true)
+                                Text(errorMessage)
+                                    .font(type.body2)
+                                    .foregroundStyle(theme.destructive)
+                            }
+                            .padding(Spacing.sm)
+                            .background(theme.destructive.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: theme.radius.md))
                         }
-                        .padding(Spacing.sm)
-                        .background(theme.destructive.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: theme.radius.md))
                     }
+                    .padding(Spacing.md)
                 }
 
                 Spacer(minLength: Spacing.xxxl)
@@ -118,19 +112,6 @@ public struct ProfileSettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 18,
-                    buttonSize: 40,
-                    enableHaptic: true,
-                    onTap: { dismiss() }
-                )
-                .accessibilityLabel("Back")
-            }
-        }
         .onAppear {
             loadCurrentProfile()
         }
