@@ -88,7 +88,7 @@ final class IntelligenceServiceTests: XCTestCase {
         ]
         let summary: String
         do {
-            summary = try await service.summarizeConversation(turns)
+            summary = try await service.summarizeConversation(turns).value
         } catch {
             throw XCTSkip("On-device generation not runnable in this environment (needs a physical device): \(error)")
         }

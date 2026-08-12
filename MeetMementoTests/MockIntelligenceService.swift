@@ -22,8 +22,9 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
         )
     }
 
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> String {
-        "mock summary"
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String> {
+        GenerationOutcome(value: "mock summary", zoneUsed: .z0Device,
+                          modelIdentifier: "mock", wasDegraded: false, latency: .zero)
     }
 
     func estimateProfile(reflection: String) async throws -> ProfileEstimateResult {

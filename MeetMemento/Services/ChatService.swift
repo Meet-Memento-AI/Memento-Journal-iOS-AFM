@@ -338,11 +338,12 @@ class ChatService {
                 AppLogger.log("📝 [ChatService] Summarizing chat on-device (\(messages.count) messages)...")
 
         let turns = messages.map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
-        let content = try await intelligence.summarizeConversation(turns)
+        let outcome = try await intelligence.summarizeConversation(turns)
 
-                AppLogger.log("✅ [ChatService] Summary generated (\(content.count) chars)")
+                AppLogger.log("✅ [ChatService] Summary generated (\(outcome.value.count) chars), "
+                              + "zone: \(outcome.zoneUsed.identifier), degraded: \(outcome.wasDegraded)")
 
-        return ChatSummaryResponse(title: nil, content: content)
+        return ChatSummaryResponse(title: nil, content: outcome.value)
     }
 
     // MARK: - Chat Feedback (local-only stub)

@@ -29,6 +29,34 @@ enum GenerationIntent: Sendable, Equatable, CaseIterable {
 // 014 R1 rejects: no reasoning level, no `Codable` for persistence, and no way
 // to express Apple infrastructure carrying no journal content.
 
+// MARK: - Request / outcome envelopes (spec 017 R1)
+
+/// What is being asked of the model, with the zone decided **before** the call.
+///
+/// Spec 014 R1: the zone is "set before the call, never inferred after" — a zone
+/// inferred afterwards would let a misrouted call go undetected, which is the
+/// whole failure mode the type exists to catch.
+struct GenerationRequest: Sendable, Equatable {
+    let intent: GenerationIntent
+    let zone: TrustZone
+    let allowsDegradation: Bool
+    let promptVersion: String
+    let toolsEnabled: Bool
+}
+
+/// The result of a generation, carrying where it *actually* ran.
+///
+/// `zoneUsed` may differ from the requested zone after a Z1→Z0 degradation
+/// (REQ-INT-002), and callers must surface it — there is deliberately no shape
+/// of this API in which a caller can be unaware of where generation happened.
+struct GenerationOutcome<T: Sendable>: Sendable {
+    let value: T
+    let zoneUsed: TrustZone
+    let modelIdentifier: String
+    let wasDegraded: Bool
+    let latency: Duration
+}
+
 // MARK: - Conversation input
 
 /// One turn of a conversation, in the intelligence layer's own vocabulary
@@ -61,6 +89,24 @@ struct AskResult: Sendable {
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
+    /// Wall-clock time the generation took (spec 017 R1's `GenerationOutcome`
+    /// field, carried inline here because the chat path streams). Defaulted so
+    /// mocks and fixtures that don't measure anything stay unchanged.
+    let latency: Duration
+
+    init(heading1: String?, heading2: String?, body: String, citations: [AskCitation],
+         zoneUsed: TrustZone, wasDegraded: Bool, promptVersion: String,
+         modelIdentifier: String, latency: Duration = .zero) {
+        self.heading1 = heading1
+        self.heading2 = heading2
+        self.body = body
+        self.citations = citations
+        self.zoneUsed = zoneUsed
+        self.wasDegraded = wasDegraded
+        self.promptVersion = promptVersion
+        self.modelIdentifier = modelIdentifier
+        self.latency = latency
+    }
 }
 
 /// An incremental event from a streaming ask (spec 017 R6). `delta` carries the
@@ -85,6 +131,20 @@ struct ProfileEstimateResult: Sendable, Equatable {
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
+    let latency: Duration
+
+    init(themeIds: [String], secondaryThemeIds: [String], promptLens: String,
+         zoneUsed: TrustZone, wasDegraded: Bool, promptVersion: String,
+         modelIdentifier: String, latency: Duration = .zero) {
+        self.themeIds = themeIds
+        self.secondaryThemeIds = secondaryThemeIds
+        self.promptLens = promptLens
+        self.zoneUsed = zoneUsed
+        self.wasDegraded = wasDegraded
+        self.promptVersion = promptVersion
+        self.modelIdentifier = modelIdentifier
+        self.latency = latency
+    }
 }
 
 // MARK: - Availability
@@ -151,7 +211,10 @@ protocol IntelligenceService: Sendable {
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error>
 
     /// Turn a conversation into a first-person journal-entry summary.
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> String
+    ///
+    /// Returns a `GenerationOutcome` rather than a bare `String` so the summary
+    /// carries the zone it ran in like every other generation (REQ-INT-002).
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String>
 
     /// Map a user's onboarding reflection onto ThemeCatalog ids and a short
     /// prompt lens. Callers must validate ids through `ThemeCatalog.validate`.
