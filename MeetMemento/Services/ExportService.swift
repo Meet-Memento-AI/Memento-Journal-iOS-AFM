@@ -67,6 +67,11 @@ enum JournalExporter {
     /// entry first (same order as the Markdown).
     static func makeJSON(entries: [Entry]) throws -> Data {
         let ordered = entries.sorted { $0.createdAt < $1.createdAt }
+        // JSONEncoder + .prettyPrinted emits "[\n\n]\n" for an empty array on
+        // current Foundation; the export contract (and ExportTests) wants [].
+        if ordered.isEmpty {
+            return Data("[]".utf8)
+        }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
