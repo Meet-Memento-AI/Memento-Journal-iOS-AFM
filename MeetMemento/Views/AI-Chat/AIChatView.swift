@@ -34,6 +34,14 @@ public struct AIChatView: View {
     @State private var scrollTask: Task<Void, Never>?
     @State private var scrollProxy: ScrollViewProxy?
     @State private var isNarrateActive = false
+
+    /// Measured height of the composer, so the scroll view reserves exactly what
+    /// the input actually occupies as it grows to five lines / larger Dynamic
+    /// Type. Seeded with the resting height (48pt pill + AIChatFooter's 16pt
+    /// vertical padding) so the very first layout pass is already correct.
+    @State private var composerHeight: CGFloat = 80
+    /// Breathing room between the last message and the composer.
+    private let composerGap: CGFloat = 8
     @StateObject private var keyboardObserver = KeyboardObserver()
 
     // Summary flow state
@@ -134,16 +142,46 @@ public struct AIChatView: View {
                     // Messages list - fills available space with bottom inset for input
                     messagesScrollView
                         .safeAreaInset(edge: .bottom, spacing: 0) {
-                            // Reserve space for input field (input height + padding + keyboard offset)
-                            Color.clear.frame(height: 88 + keyboardBottomPadding(geometry: geometry))
+                            // Reserve the composer's MEASURED height, not a constant.
+                            // This was hardcoded to 88 — correct only for a
+                            // single-line composer at default type size. The field
+                            // grows to five lines and scales with Dynamic Type, so
+                            // a long draft slid underneath the last message.
+                            Color.clear.frame(
+                                height: composerHeight + composerGap + keyboardBottomPadding(geometry: geometry)
+                            )
                         }
 
-                    // Blur overlay when keyboard is visible or narrate mode is active
-                    if keyboardObserver.isKeyboardVisible || isNarrateActive {
+                    // Blur overlay for narrate only. Typing deliberately does NOT
+                    // blur: the composer rising to meet the keyboard is enough of
+                    // a mode change on its own, and frosting the conversation the
+                    // moment someone starts typing hides the very messages they
+                    // are replying to. Narrate keeps it because its 280pt panel
+                    // takes over the bottom of the screen, and the scrim is what
+                    // separates that panel from the conversation behind it.
+                    //
+                    // This also drops a full-screen material composited over a
+                    // live ScrollView — with `.scrollDismissesKeyboard(.interactively)`
+                    // below, its backdrop was re-sampled every frame of the drag.
+                    if isNarrateActive {
                         Rectangle()
                             .fill(.ultraThinMaterial)
                             .ignoresSafeArea()
                             .allowsHitTesting(false)
+                    }
+
+                    // Outside-tap target, present ONLY while the keyboard is up.
+                    // Being conditional is what makes it safe: it cannot shadow
+                    // message content at rest, and when it is up the first tap
+                    // dismisses the keyboard while a second reaches whatever was
+                    // tapped — the standard iOS convention. Sits above the list
+                    // and below the composer so the send button stays live.
+                    if keyboardObserver.isKeyboardVisible {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .ignoresSafeArea()
+                            .onTapGesture { dismissKeyboard() }
+                            .accessibilityHidden(true)
                     }
 
                     // Bottom gradient fade for scroll content
@@ -158,7 +196,19 @@ public struct AIChatView: View {
                     VStack {
                         Spacer()
                         floatingInputArea
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: ComposerHeightKey.self,
+                                        value: proxy.size.height
+                                    )
+                                }
+                            )
                             .padding(.bottom, keyboardBottomPadding(geometry: geometry))
+                    }
+                    .onPreferenceChange(ComposerHeightKey.self) { height in
+                        guard height > 0 else { return }
+                        composerHeight = height
                     }
 
                 } else {
@@ -557,6 +607,18 @@ public struct AIChatView: View {
         withAnimation {
             viewModel.startNewChat()
         }
+    }
+}
+
+// MARK: - Composer height
+
+/// Reports the composer's rendered height up to `AIChatView`, so the message
+/// list can reserve exactly the space the input occupies rather than a constant
+/// that only held for a single line at default type size.
+private struct ComposerHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

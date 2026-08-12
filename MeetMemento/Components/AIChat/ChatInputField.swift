@@ -39,6 +39,7 @@ struct ChatInputField: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var inputState: InputState
     @FocusState private var isFocused: Bool
     @ObservedObject private var speechService = SpeechService.shared
@@ -63,6 +64,18 @@ struct ChatInputField: View {
     private let sendButtonSize: CGFloat = 36
     private let backButtonSize: CGFloat = 48
     private let listeningButtonSize: CGFloat = 48
+
+    /// Timing for the pill ⇄ composer morph.
+    ///
+    /// `.easeOut` rather than a spring, deliberately: this transition happens
+    /// alongside the system keyboard, which animates on its own ease curve at a
+    /// duration we don't control. `KeyboardObserver` republishes the height with
+    /// that exact duration, so matching the shape here makes the composer, the
+    /// conversation, and the keyboard travel together. A spring's overshoot read
+    /// as a separate, later movement — invisible while the backdrop was blurred,
+    /// obvious once it isn't. 0.25s matches the system keyboard's typical
+    /// duration closely enough to read as one motion.
+    private static let stateChange: Animation = .easeOut(duration: 0.25)
 
     // Note: Colors now use theme tokens for consistency
 
@@ -112,7 +125,7 @@ struct ChatInputField: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: inputState)
+        .accessibleAnimation(Self.stateChange, value: inputState)
         .allowsHitTesting(isInteractive)
         // A single utterance can satisfy BOTH observers below (recording stops
         // with text present, then a final transcript lands). `consumeTranscriptOnce`
@@ -148,7 +161,7 @@ struct ChatInputField: View {
             // tapping or scrolling the conversation must not erase what the
             // user has typed — reopening the input restores it.
             if !newValue && inputState == .chatActive {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
                     inputState = .defaultState
                 }
                 onDismiss?()
@@ -162,17 +175,12 @@ struct ChatInputField: View {
         ))
     }
 
-    // MARK: - Dismiss Method (Public)
-
-    /// Call this method to dismiss the input field and return to default state
-    func dismiss() {
-        if inputState == .chatActive {
-            text = ""
-            isFocused = false
-        }
-        inputState = .defaultState
-        onDismiss?()
-    }
+    // Removed: a `dismiss()` helper that cleared `text` on the way out. It had
+    // no callers, and it contradicted the rule stated in `onChange(of: isFocused)`
+    // above — dismissing must never erase what the user typed. Dismissal is
+    // driven by focus loss (tap outside, interactive scroll, or send), which
+    // already collapses to `.defaultState` and preserves the draft. Had anything
+    // ever called this, it would have silently deleted in-progress messages.
 
     // MARK: - State 1: Default View
 
@@ -198,9 +206,17 @@ struct ChatInputField: View {
     private func leftPill() -> some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
                 inputState = .chatActive
             }
+            // Request focus HERE rather than in chatActiveView.onAppear. Focusing
+            // on appear meant the sequence was: spring starts → view appears →
+            // focus → keyboard notification → content shifts. The composer and
+            // the conversation therefore moved on two different curves, one
+            // beat apart. The backdrop blur used to hide that; without it the
+            // lurch is plainly visible. Asking for focus in the same turn as the
+            // state change lets the keyboard begin rising with the morph.
+            isFocused = true
         } label: {
             HStack(spacing: 12) {
                 Image("LaunchLogo")
@@ -325,6 +341,12 @@ struct ChatInputField: View {
                 .matchedGeometryEffect(id: "chatBackground", in: animationNamespace)
         )
         .onAppear {
+            // Belt-and-braces. The pill and the transcript hand-back both request
+            // focus at the moment they switch state, which is what keeps the
+            // keyboard in step with the morph. This covers the remaining entry
+            // path — a view constructed directly in `.chatActive` (previews, and
+            // `initialState:`) — without re-introducing the late-focus lag,
+            // since it is a no-op when focus was already requested.
             isFocused = true
         }
     }
@@ -594,7 +616,7 @@ struct ChatInputField: View {
             showListeningContent = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
                 inputState = .chatActive
             }
             isFocused = true
