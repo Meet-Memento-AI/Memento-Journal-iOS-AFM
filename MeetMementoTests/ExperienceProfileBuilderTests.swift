@@ -25,7 +25,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             themeIds: ["stress", "clarity", "invented_theme"],
             secondaryThemeIds: ["burnout", "also_fake"],
             promptLens: "Lean toward stress and clarity.",
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
             modelIdentifier: "mock"
@@ -92,7 +92,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             themeIds: ["calm", "sleep"],
             secondaryThemeIds: [],
             promptLens: "Lean toward calm and sleep.",
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
             modelIdentifier: "mock"

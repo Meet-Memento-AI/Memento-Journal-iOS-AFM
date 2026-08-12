@@ -13,18 +13,21 @@ import Foundation
 // MARK: - Intent & zones
 
 /// What kind of generation is being requested (spec 017 R2 routing).
-enum GenerationIntent: Sendable {
+///
+/// `CaseIterable` is load-bearing: `ModelRouterTests` walks every case to prove
+/// the routing table has exactly one row per intent, so adding a case here
+/// without adding a row breaks the build's tests rather than silently falling
+/// back at runtime.
+enum GenerationIntent: Sendable, Equatable, CaseIterable {
     case ask              // journal chat / Ask surface
     case summary          // turn a conversation into a journal entry
     case profileEstimate  // map LearnAboutYourself text → ThemeCatalog ids + prompt lens
 }
 
-/// The trust zone a generation actually ran in (spec 014 R1 / REQ-INT-002).
-/// `onDevice` = Z0 (`SystemLanguageModel`, offline); `privateCloud` = Z1 (PCC).
-enum IntelligenceZone: Sendable, Equatable {
-    case onDevice
-    case privateCloud
-}
+// The zone a generation ran in is `TrustZone` (spec 014 R1), defined in
+// TrustZone.swift. It replaced a local two-case `IntelligenceZone`, which spec
+// 014 R1 rejects: no reasoning level, no `Codable` for persistence, and no way
+// to express Apple infrastructure carrying no journal content.
 
 // MARK: - Conversation input
 
@@ -54,7 +57,7 @@ struct AskResult: Sendable {
     let heading2: String?
     let body: String
     let citations: [AskCitation]
-    let zoneUsed: IntelligenceZone
+    let zoneUsed: TrustZone
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
@@ -78,7 +81,7 @@ struct ProfileEstimateResult: Sendable, Equatable {
     let themeIds: [String]
     let secondaryThemeIds: [String]
     let promptLens: String
-    let zoneUsed: IntelligenceZone
+    let zoneUsed: TrustZone
     let wasDegraded: Bool
     let promptVersion: String
     let modelIdentifier: String
@@ -109,7 +112,7 @@ enum IntelligenceUnavailableReason: Sendable, Equatable {
 }
 
 enum IntelligenceAvailability: Sendable, Equatable {
-    case available(IntelligenceZone)
+    case available(TrustZone)
     case unavailable(IntelligenceUnavailableReason)
 }
 

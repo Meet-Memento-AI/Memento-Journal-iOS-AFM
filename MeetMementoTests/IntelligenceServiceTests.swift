@@ -41,7 +41,7 @@ final class IntelligenceServiceTests: XCTestCase {
             throw XCTSkip("On-device model unavailable here: \(reason.userMessage)")
 
         case .available(let zone):
-            XCTAssertEqual(zone, .onDevice)
+            XCTAssertEqual(zone, .z0Device)
 
             let entries = Entry.sampleEntries
             let result: AskResult
@@ -62,7 +62,7 @@ final class IntelligenceServiceTests: XCTestCase {
             print("[IntelligenceTest] citations: \(result.citations.map { $0.entryDate })")
 
             XCTAssertFalse(result.body.isEmpty, "on-device reply should not be empty")
-            XCTAssertEqual(result.zoneUsed, .onDevice)
+            XCTAssertEqual(result.zoneUsed, .z0Device)
             XCTAssertFalse(result.wasDegraded)
             // Citations must trace to a real provided entry (anti-fabrication).
             let providedIds = Set(entries.map { $0.id })

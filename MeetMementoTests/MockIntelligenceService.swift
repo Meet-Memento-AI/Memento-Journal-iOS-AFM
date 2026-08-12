@@ -3,7 +3,7 @@ import Foundation
 
 /// Deterministic IntelligenceService double for onboarding / profile tests.
 final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
-    var availabilityResult: IntelligenceAvailability = .available(.onDevice)
+    var availabilityResult: IntelligenceAvailability = .available(.z0Device)
     var estimateResult: ProfileEstimateResult?
     var estimateError: Error?
     var estimateCallCount = 0
@@ -15,7 +15,7 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
             heading2: nil,
             body: "mock reply",
             citations: [],
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "ask@5",
             modelIdentifier: "mock"
@@ -35,7 +35,7 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
             themeIds: ["awareness", "stress", "not_a_real_theme", "clarity"],
             secondaryThemeIds: ["hope", "fake_secondary"],
             promptLens: "Lean toward noticing stress and clarity without prescribing fixes.",
-            zoneUsed: .onDevice,
+            zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
             modelIdentifier: "mock"

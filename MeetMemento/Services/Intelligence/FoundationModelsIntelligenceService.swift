@@ -88,7 +88,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let resolved: IntelligenceAvailability
         switch SystemLanguageModel.default.availability {
         case .available:
-            resolved = .available(.onDevice)
+            resolved = .available(.z0Device)
         case .unavailable(let reason):
             resolved = .unavailable(Self.map(reason))
         @unknown default:
@@ -141,7 +141,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Everything the model call needs, computed once and shared by the
     /// one-shot `ask` and the streaming `askStream`.
     private struct AskPreparation {
-        let zone: IntelligenceZone
+        let zone: TrustZone
         let retrieval: RetrievalResult
         let stance: TurnStance
         let prompt: String
@@ -546,10 +546,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
-    private static func modelIdentifier(for zone: IntelligenceZone) -> String {
+    /// Persisted provenance (`REQ-PRM-004`). Stable strings — the quality study
+    /// joins on them, so treat these as a wire format rather than log prose.
+    private static func modelIdentifier(for zone: TrustZone) -> String {
         switch zone {
-        case .onDevice: return "apple.system.on-device"
-        case .privateCloud: return "apple.pcc"
+        case .z0Device: return "apple.system.on-device"
+        case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
+        case .z1AppleContentFree: return "apple.cloud.content-free"
         }
     }
 }
