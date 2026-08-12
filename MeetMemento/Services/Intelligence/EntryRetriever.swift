@@ -86,6 +86,39 @@ struct RetrievalQuery: Sendable, Equatable {
     }
 }
 
+/// How much journal evidence one retrieval may return.
+///
+/// Exists so the caps can come from the runtime context window (spec 017 R9)
+/// instead of being fixed at compile time, without every call site having to
+/// care. `.legacyDefault` is the pre-budget behaviour and stays the parameter
+/// default, so existing callers and tests are unaffected.
+struct RetrievalLimits: Equatable, Sendable {
+    let maxEntries: Int
+    let maxContentChars: Int
+
+    /// The module's own tuned caps — the single source, not a copy.
+    static let legacyDefault = RetrievalLimits(
+        maxEntries: EntryRetriever.maxEntries,
+        maxContentChars: EntryRetriever.maxContentChars
+    )
+
+    init(maxEntries: Int, maxContentChars: Int) {
+        self.maxEntries = maxEntries
+        self.maxContentChars = maxContentChars
+    }
+
+    init(budget: ContextBudget) {
+        self.init(maxEntries: budget.maxRetrievedEntries, maxContentChars: budget.maxEntryChars)
+    }
+
+    /// Half the evidence, for a degraded route: the smaller model handles a
+    /// narrower context better than a full one (technology/02 §8). Floored so a
+    /// degraded reply is still grounded in something.
+    func narrowed() -> RetrievalLimits {
+        RetrievalLimits(maxEntries: max(2, maxEntries / 2), maxContentChars: maxContentChars)
+    }
+}
+
 enum EntryRetriever {
     static let maxEntries = 7
     // Trimmed from 600 → 500: still enough of each entry to ground a reply,
@@ -124,7 +157,12 @@ enum EntryRetriever {
     /// Select entries relevant to the query. Whether retrieval runs at all is
     /// decided upstream by TurnClassifier/RetrievalPolicy — this function only
     /// answers "which entries, and is the match real?".
-    static func retrieve(_ query: RetrievalQuery, entries: [Entry], tuning: RetrieverTuning = .default) -> RetrievalResult {
+    static func retrieve(
+        _ query: RetrievalQuery,
+        entries: [Entry],
+        tuning: RetrieverTuning = .default,
+        limits: RetrievalLimits = .legacyDefault
+    ) -> RetrievalResult {
         let trimmed = query.currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         if entries.isEmpty || trimmed.isEmpty { return .empty }
 
@@ -175,11 +213,11 @@ enum EntryRetriever {
             // General / open message — hand the model recent life as background.
             ordered = entries.sorted { $0.createdAt > $1.createdAt }
             ambient = true
-            cap = query.highBar ? tuning.ambientCapHighBar : maxEntries
+            cap = query.highBar ? min(tuning.ambientCapHighBar, limits.maxEntries) : limits.maxEntries
         } else {
             ordered = strong
             ambient = false
-            cap = maxEntries
+            cap = limits.maxEntries
         }
 
         // Diversify (drop near-duplicate bodies) and cap.
@@ -199,7 +237,7 @@ enum EntryRetriever {
                 ref: index + 1,
                 id: entry.id,
                 date: entry.createdAt,
-                text: String(entry.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxContentChars))
+                text: String(entry.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(limits.maxContentChars))
             )
         }
         return RetrievalResult(entries: retrieved, contextBlock: buildContextBlock(retrieved, ambient: ambient), isAmbient: ambient)
