@@ -110,7 +110,8 @@ before relying on a row.
 |---|---|---|
 | PRES-080 | Appearance: System/Light/Dark theme picker with icons, descriptions, checkmark; persisted; live theme change | `AppearanceSettingsView.swift`, `PreferencesService` |
 | PRES-081 | About: version (tap-to-copy) + device info, Contact Support (mailto), Terms link, Rate on App Store, Share App sheet | `AboutSettingsView.swift` |
-| PRES-082 | AI Features toggle with reactive subtitle — 2.0: this *is* the Z0-pin/generative-off control surface (`REQ-INT-004`, spec 017) | `SettingsView.swift`, `PreferencesService.aiEnabled` |
+| PRES-082 | AI Features toggle with reactive subtitle — 2.0: the generative **off** switch. Turns generation off entirely; it is *not* the Z0 pin (see PRES-087) | `SettingsView.swift`, `PreferencesService.aiEnabled` |
+| PRES-087 | "On-Device Only" toggle with reactive subtitle — `REQ-INT-004`'s Z0 pin, shown only when AI Features is on. Read by `ModelRouter` at the intelligence boundary, never per-surface, so no surface can escape it | `SettingsView.swift`, `PreferencesService.processOnDeviceOnly` |
 | PRES-083 | Data-usage transparency sheet — content rewritten for 2.0 (no Gemini/Supabase; zone language per spec 014) but the *surface* persists | `DataUsageInfoView.swift` |
 | PRES-084 | Profile name edit (≤50 chars, save feedback) against the local cache | `ProfileSettingsView.swift` |
 | PRES-085 | Sections merged into one "Your Data" section: profile, AI toggle, privacy policy, data-usage sheet, export (new, spec 015), Delete Everything (spec 023 R4). Sign Out removed | `SettingsView.swift` |

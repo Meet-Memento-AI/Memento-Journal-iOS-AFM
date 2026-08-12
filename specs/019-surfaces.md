@@ -323,7 +323,12 @@ edge functions.
   limit rendering designed copy through 014 R2's component — never an opaque
   system error. PRES-048's gating semantics update accordingly: offline gates
   only the Z1 leg (Z0 degradation per `REQ-INT-009`), and the AI-disabled
-  state keys off the Z0-pin/`aiEnabled` control (PRES-082, 017 R2).
+  state keys off the `aiEnabled` control (PRES-082). The Z0 pin is a
+  **separate** control (`processOnDeviceOnly`, PRES-087, 017 R2): `aiEnabled`
+  off means nothing generates at all, while the pin keeps generation on and
+  constrains where it runs. Collapsing them would remove the "AI on, device
+  only" state that `REQ-INT-004` requires and that spec 022's
+  forced-degradation cohort engages from the shipped app.
 
 **Turn state machine** (§17):
 

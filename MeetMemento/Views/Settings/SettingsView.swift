@@ -183,6 +183,31 @@ struct SettingsView: View {
                     : "AI disabled, your data stays on device. Double-tap to enable."
             )
 
+            // REQ-INT-004's Z0 pin. Shown only when AI is on: pinning where
+            // generation runs is meaningless when nothing generates.
+            //
+            // Copy is deliberately about permission, not behaviour — "allows"
+            // rather than "uses". Today there is no Private Cloud Compute leg on
+            // this SDK, so wording that promised the toggle changed something
+            // observable would be a claim the app can't currently honour. This
+            // phrasing stays true both now and when the Z1 leg lands.
+            if preferences.aiEnabled {
+                SettingsRowDivider()
+
+                SettingsToggleRow(
+                    icon: "iphone.gen3",
+                    title: "On-Device Only",
+                    subtitle: preferences.processOnDeviceOnly
+                        ? "Reflections and chat stay on this device"
+                        : "Allows Apple's Private Cloud Compute for heavier requests",
+                    isOn: $preferences.processOnDeviceOnly,
+                    accessibilityHint: preferences.processOnDeviceOnly
+                        ? "Generation stays on this device. Double-tap to allow Private Cloud Compute."
+                        : "Private Cloud Compute is allowed for heavier requests. "
+                            + "Double-tap to keep everything on this device."
+                )
+            }
+
             SettingsRowDivider()
 
             // Sample entries. Memento reflects on what you've written, so a
