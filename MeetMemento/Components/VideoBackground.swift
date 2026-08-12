@@ -78,7 +78,8 @@ class PlayerUIView: UIView {
             return
         }
 
-        let asset = AVAsset(url: url)
+        // AVAsset(url:) is deprecated since iOS 18 — AVURLAsset is the drop-in.
+        let asset = AVURLAsset(url: url)
         let item = AVPlayerItem(asset: asset)
         let queuePlayer = AVQueuePlayer(playerItem: item)
         self.queuePlayer = queuePlayer

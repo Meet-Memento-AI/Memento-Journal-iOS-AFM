@@ -32,6 +32,7 @@
 
 import Foundation
 import FoundationModels
+import Synchronization
 
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
@@ -96,29 +97,31 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         self.pccProvider = pccProvider
     }
 
-    private let stateLock = NSLock()
+    /// Warm-path state, guarded by a `Synchronization.Mutex` — async-safe scoped
+    /// locking (`NSLock.lock()` is unavailable from async contexts and an error
+    /// in Swift 6 mode). All access is synchronous `withLock`, so the lock can
+    /// never be held across a suspension point.
+    private struct WarmState {
+        /// Cached availability. Once the model reports `.available` it stays
+        /// available for the process, so we resolve it once instead of querying
+        /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
+        var cachedAvailability: IntelligenceAvailability?
 
-    /// Cached availability. Once the model reports `.available` it stays
-    /// available for the process, so we resolve it once instead of querying
-    /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
-    private var cachedAvailability: IntelligenceAvailability?
+        /// A prewarmed session held so the first send doesn't pay the cold model
+        /// load. Prewarming any session loads the shared on-device model weights,
+        /// which benefits the next `respond` regardless of which session runs it.
+        var warmSession: LanguageModelSession?
+        var warmInstructions: String?
+    }
 
-    /// A prewarmed session held so the first send doesn't pay the cold model
-    /// load. Prewarming any session loads the shared on-device model weights,
-    /// which benefits the next `respond` regardless of which session runs it.
-    /// (Phase 3 extends this into a per-conversation persistent session.)
-    private var warmSession: LanguageModelSession?
-    private var warmInstructions: String?
+    private let state = Mutex(WarmState())
 
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
-        stateLock.lock()
-        if case .available = cachedAvailability, let cached = cachedAvailability {
-            stateLock.unlock()
+        if let cached = state.withLock({ $0.cachedAvailability }), case .available = cached {
             return cached
         }
-        stateLock.unlock()
 
         // Availability is device-model availability (Z0). Which zone a given
         // request actually runs in is the router's decision (`resolveRoute`).
@@ -134,7 +137,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Only cache the positive result — an "unavailable" (still downloading)
         // can flip to available later, so keep re-checking that case.
         if case .available = resolved {
-            stateLock.lock(); cachedAvailability = resolved; stateLock.unlock()
+            state.withLock { $0.cachedAvailability = resolved }
         }
         return resolved
     }
@@ -149,19 +152,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             for: .ask,
             personalization: PromptPersonalization.fromLocalProfile()
         ).text
-        stateLock.lock()
-        let needsNew = (warmSession == nil || warmInstructions != instructions)
-        if needsNew {
-            let session = LanguageModelSession(instructions: instructions)
-            warmSession = session
-            warmInstructions = instructions
-            stateLock.unlock()
-            session.prewarm()
-        } else {
-            let session = warmSession
-            stateLock.unlock()
-            session?.prewarm()
+        // Reuse the warm session while instructions are unchanged; build (and
+        // cache) a fresh one when personalization shifts. `prewarm()` runs
+        // outside the lock — it's the slow part.
+        let session: LanguageModelSession = state.withLock { warm in
+            if let existing = warm.warmSession, warm.warmInstructions == instructions {
+                return existing
+            }
+            let created = LanguageModelSession(instructions: instructions)
+            warm.warmSession = created
+            warm.warmInstructions = instructions
+            return created
         }
+        session.prewarm()
     }
 
     private static func map(_ reason: SystemLanguageModel.Availability.UnavailableReason) -> IntelligenceUnavailableReason {

@@ -443,7 +443,7 @@ public struct AIChatView: View {
                     // corpus that does not exist, so offering them guarantees a
                     // poor first answer. Point at the actual first step instead.
                     Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
-                        .font(type.body)
+                        .font(type.body1)
                         .foregroundStyle(theme.mutedForeground)
                         .multilineTextAlignment(.leading)
                         .padding(.horizontal, 20)

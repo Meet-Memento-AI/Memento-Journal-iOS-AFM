@@ -14,14 +14,14 @@ final class SecurityServiceTests: XCTestCase {
 
     func test_savePIN_overwritesPreviousPIN() {
         let service = makeService()
-        service.savePIN("1234")
-        service.savePIN("5678")
+        XCTAssertTrue(service.savePIN("1234"))
+        XCTAssertTrue(service.savePIN("5678"))
         XCTAssertEqual(service.getPIN(), "5678")
     }
 
     func test_validatePIN_trueForCorrect_falseForWrong() {
         let service = makeService()
-        service.savePIN("1234")
+        XCTAssertTrue(service.savePIN("1234"))
 
         XCTAssertTrue(service.validatePIN("1234"))
         XCTAssertFalse(service.validatePIN("0000"))
@@ -35,7 +35,7 @@ final class SecurityServiceTests: XCTestCase {
 
     func test_deletePIN_removesStoredPIN() {
         let service = makeService()
-        service.savePIN("1234")
+        XCTAssertTrue(service.savePIN("1234"))
         service.deletePIN()
         XCTAssertNil(service.getPIN())
         XCTAssertFalse(service.validatePIN("1234"))

@@ -283,8 +283,10 @@ public struct AboutSettingsView: View {
     }
 
     private func requestReview() {
+        // SKStoreReviewController is deprecated since iOS 18; AppStore.requestReview
+        // is its StoreKit replacement.
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: scene)
+            AppStore.requestReview(in: scene)
         }
     }
 
