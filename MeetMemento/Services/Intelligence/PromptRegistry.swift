@@ -82,6 +82,31 @@ enum PromptRegistry {
     /// Cap for the AFM-authored prompt lens.
     static let maxPromptLensChars = 400
 
+    /// `REQ-PRM-001`: resolve `(intent, zone, degraded) → (prompt text,
+    /// promptVersion)`. This is the entry point the boundary calls; the degraded
+    /// variants R4 requires are registry entries selected here, never string
+    /// mutations applied afterwards.
+    ///
+    /// `zone` does not change the text today — both zones run the same authored
+    /// prompts, and the Z1 leg does not exist on this SDK. It is a parameter
+    /// anyway so that resolution is exhaustive over every combination the router
+    /// can emit *now*, which is what `PromptRegistryResolutionTests` proves. When
+    /// a PCC-specific prompt is authored, it becomes a case here rather than a
+    /// new call path, and the exhaustiveness test already covers it.
+    ///
+    /// Deliberately delegates to `instructions(for:degraded:personalization:)`
+    /// rather than duplicating the switch: the version strings are claims about
+    /// prompt content that the contract tests pin, and two sources for them would
+    /// let the claim drift from the text.
+    static func resolve(
+        intent: GenerationIntent,
+        zone: TrustZone,
+        degraded: Bool,
+        personalization: PromptPersonalization = .none
+    ) -> ResolvedPrompt {
+        instructions(for: intent, degraded: degraded, personalization: personalization)
+    }
+
     /// Resolve the instructions (system prompt) for an intent. `degraded` selects
     /// the shorter variant tuned for the smaller on-device model (spec 017 R10) —
     /// never the heavy prompt behind a smaller model. `personalization` appends
