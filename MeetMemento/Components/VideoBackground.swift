@@ -19,6 +19,15 @@ enum VideoPlaybackLoopMode {
     case boomerangAfterFirstPass
 }
 
+/// Shared welcome-video styling so Welcome and the onboarding completion
+/// screen settle on the same look (same asset + settled layer blur).
+enum WelcomeVideoBackgroundStyle {
+    static let videoName = "welcome-bg"
+    static let videoExtension = "mp4"
+    /// Figma-equivalent layer blur once the intro ramp (or skip-intro) settles.
+    static let settledBlurRadius: CGFloat = 50
+}
+
 struct VideoBackground: UIViewRepresentable {
     let videoName: String
     let videoExtension: String

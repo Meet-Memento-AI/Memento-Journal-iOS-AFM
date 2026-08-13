@@ -45,14 +45,16 @@ public struct WelcomeView: View {
 
     /// Calculate blur amount based on video playback progress.
     /// First forward pass eases blur to max; once that pass completes (boomerang
-    /// starts) blur stays locked at 40 for the entire reverse/forward phase.
+    /// starts) blur stays locked at settled radius for the reverse/forward phase.
     private var blurAmount: CGFloat {
+        let maxBlur = WelcomeVideoBackgroundStyle.settledBlurRadius
+
         // No blur during exit (dissolving to white)
         if isExiting { return 0 }
 
         // First pass finished → full blur for the boomerang phase
         if hasCompletedFirstLoop {
-            return 40
+            return maxBlur
         }
 
         // Don't ramp blur until content has loaded
@@ -69,7 +71,7 @@ public struct WelcomeView: View {
         let normalizedProgress = (playbackProgress - blurStartThreshold) / (1.0 - blurStartThreshold)
         let easedProgress = normalizedProgress * normalizedProgress  // Quadratic ease-in
 
-        return CGFloat(easedProgress) * 40
+        return CGFloat(easedProgress) * maxBlur
     }
 
     public var body: some View {
@@ -82,8 +84,8 @@ public struct WelcomeView: View {
                 // Layer 2: Video background (dissolves in/out).
                 // First forward pass ramps blur to max; then perpetual boomerang.
                 VideoBackground(
-                    videoName: "welcome-bg",
-                    videoExtension: "mp4",
+                    videoName: WelcomeVideoBackgroundStyle.videoName,
+                    videoExtension: WelcomeVideoBackgroundStyle.videoExtension,
                     loopMode: .boomerangAfterFirstPass,
                     isVideoReady: $isVideoReady,
                     playbackProgress: $playbackProgress,

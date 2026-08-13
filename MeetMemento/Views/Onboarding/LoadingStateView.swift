@@ -2,7 +2,9 @@
 //  LoadingStateView.swift
 //  MeetMemento
 //
-//  Onboarding completion loading screen with animation
+//  Onboarding completion loading screen with animation.
+//  Background matches WelcomeView's settled look (same video, blur already at
+//  max) without the intro blur ramp.
 //
 
 import SwiftUI
@@ -22,6 +24,9 @@ public struct LoadingStateView: View {
     @State private var tipRotationTimer: Timer?
     @State private var loadingTasks: [Task<Void, Never>] = []
 
+    /// Video ready flag for `VideoBackground` (playback still runs; blur does not animate).
+    @State private var isVideoReady = false
+
     public var onComplete: (() -> Void)?
 
     public init(onComplete: (() -> Void)? = nil) {
@@ -30,8 +35,29 @@ public struct LoadingStateView: View {
 
     public var body: some View {
         ZStack {
-            // Modern gradient background
-            theme.background.ignoresSafeArea()
+            // Same stack as WelcomeView's settled state: white base + welcome
+            // video at full blur (no ramp) + light top gradient.
+            Color.white
+                .ignoresSafeArea()
+
+            VideoBackground(
+                videoName: WelcomeVideoBackgroundStyle.videoName,
+                videoExtension: WelcomeVideoBackgroundStyle.videoExtension,
+                loopMode: .boomerangAfterFirstPass,
+                isVideoReady: $isVideoReady,
+                playbackProgress: .constant(0),
+                hasCompletedFirstPass: .constant(true),
+                startInBoomerang: true
+            )
+            .blur(radius: WelcomeVideoBackgroundStyle.settledBlurRadius)
+            .ignoresSafeArea()
+
+            LinearGradient(
+                colors: [Color.white.opacity(0.4), Color.white.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer()
@@ -44,10 +70,11 @@ public struct LoadingStateView: View {
                             .frame(width: 48, height: 48)
                             .padding(.top, 40)
 
-                        // Status message with modern styling
+                        // Status message — white for contrast over the video
                         Text(loadingPhase.message)
                             .font(type.body1)
-                            .foregroundStyle(theme.foreground)
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                             .transition(.opacity.combined(with: .scale(scale: 0.95)))
                             .id(loadingPhase)
                     }
