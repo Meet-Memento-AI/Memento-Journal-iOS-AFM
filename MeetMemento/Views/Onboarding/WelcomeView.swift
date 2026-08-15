@@ -43,20 +43,18 @@ public struct WelcomeView: View {
 
     public init() {}
 
-    /// Calculate blur amount based on video playback progress.
-    /// First forward pass eases blur to max; once that pass completes (boomerang
-    /// starts) blur stays locked at 40 for the entire reverse/forward phase.
+    /// Calculate blur amount based on video playback progress
+    /// Delayed start with quadratic ease-in for a more delicate feel
     private var blurAmount: CGFloat {
         // No blur during exit (dissolving to white)
         if isExiting { return 0 }
 
-        // First pass finished → full blur for the boomerang phase
-        if hasCompletedFirstLoop {
-            return 40
-        }
-
-        // Don't ramp blur until content has loaded
+        // Don't blur until content has loaded
         guard blurCanStart else { return 0 }
+
+        if hasCompletedFirstLoop {
+            return 40  // Stay at max blur after first loop
+        }
 
         // Let video play clear for first 40%, then ease blur in
         let blurStartThreshold: Double = 0.4
@@ -79,20 +77,22 @@ public struct WelcomeView: View {
                 Color.white
                     .ignoresSafeArea()
 
-                // Layer 2: Video background (dissolves in/out).
-                // First forward pass ramps blur to max; then perpetual boomerang.
+                // Layer 2: Video background (dissolves in/out)
                 VideoBackground(
                     videoName: "welcome-bg",
                     videoExtension: "mp4",
-                    loopMode: .boomerangAfterFirstPass,
                     isVideoReady: $isVideoReady,
-                    playbackProgress: $playbackProgress,
-                    hasCompletedFirstPass: $hasCompletedFirstLoop,
-                    startInBoomerang: skipIntroAnimations
+                    playbackProgress: $playbackProgress
                 )
                 .opacity(videoOpacity)
                 .blur(radius: blurAmount)
                 .ignoresSafeArea()
+                .onChange(of: playbackProgress) { oldValue, newValue in
+                    // Detect loop completion (progress resets from ~1 to ~0)
+                    if oldValue > 0.9 && newValue < 0.1 {
+                        hasCompletedFirstLoop = true
+                    }
+                }
 
                 // Layer 3: Gradient overlay (follows video opacity)
                 LinearGradient(
@@ -247,18 +247,19 @@ public struct WelcomeView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
         }
+        .disabled(isExiting)
         .accessibilityIdentifier("welcome.getStarted")
     }
 
     // MARK: - Actions
 
-    /// Phase 4: Exit animation - dissolve video and content to white
-    /// SwiftUI transition in MeetMementoApp handles the 0.5s fade-out
+    private static let exitDissolveDuration: TimeInterval = 0.5
+
+    /// Phase 4: Exit animation — dissolve video and content to white.
     private func handleExit() {
         isExiting = true
 
-        // Quick internal fade (0.5s) synced with SwiftUI transition
-        withAnimation(.easeInOut(duration: 0.5)) {
+        withAnimation(.easeInOut(duration: Self.exitDissolveDuration)) {
             videoOpacity = 0
             showLogo = false
             showHeadline = false
@@ -266,9 +267,17 @@ public struct WelcomeView: View {
         }
     }
 
+    /// Dissolve Welcome to white, then hand off to onboarding so YourName can
+    /// fade in on the white bridge (no mid-fade root swap / LoadingView flash).
     private func getStarted() {
+        guard !isExiting else { return }
         handleExit()
-        appState.hasStartedOnboarding = true
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(Self.exitDissolveDuration * 1_000_000_000))
+            appState.isEnteringOnboardingFromWelcome = true
+            appState.hasStartedOnboarding = true
+        }
     }
 }
 
