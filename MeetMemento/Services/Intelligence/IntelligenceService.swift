@@ -178,18 +178,24 @@ enum IntelligenceAvailability: Sendable, Equatable {
 
 // MARK: - Errors
 
-/// Errors the intelligence layer surfaces. `guardrailRefusal` is a *designed*
-/// empty state (technology/01 §11), not a failure — journaling content trips
-/// safety guardrails disproportionately and must never read as judgment.
+/// Errors the intelligence layer surfaces. `guardrailRefusal`, `crisisResource`,
+/// and `safetyRefusal` are *designed* states (technology/01 §11 / spec 026), not
+/// transport failures — they must never read as judgment of what the user wrote.
 enum IntelligenceError: Error, LocalizedError {
     case unavailable(IntelligenceUnavailableReason)
     case guardrailRefusal
+    /// Acute self-harm / crisis — show static resource card; no model reply.
+    case crisisResource
+    /// Hard policy refuse (violence, terrorism, CSAM, jailbreak, etc.).
+    case safetyRefusal(SafetyCategory)
     case generationFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .unavailable(let reason): return reason.userMessage
         case .guardrailRefusal: return "I don't have an observation for this one."
+        case .crisisResource: return SafetyRouter.crisisAcknowledgment
+        case .safetyRefusal(let category): return SafetyRouter.refuseMessage(for: category)
         case .generationFailed: return "I couldn't put a reflection together just now. Please try again."
         }
     }

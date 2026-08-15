@@ -5,14 +5,14 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask@5")
+        XCTAssertEqual(resolved.version, "ask@6")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
         XCTAssertFalse(resolved.text.contains("three beats"))
     }
 
-    /// ask@5: ref numbers are internal to `citedRefs`. The model must be told,
+    /// ask@6: ref numbers are internal to `citedRefs`. The model must be told,
     /// in both the full and degraded prompts, never to write them into the
     /// reply — the labels sit in its context as the naming convention for
     /// entries, so without an explicit ban it reproduces them in prose.
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@5+p2")
+        XCTAssertEqual(resolved.version, "ask@6+p2")
         XCTAssertTrue(resolved.text.contains("Themes they chose: Stress, Clarity"))
         XCTAssertTrue(resolved.text.contains("Personalization lens:"))
         // With themes/lens present, raw reflection must not be quoted into L1.
@@ -59,7 +59,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@5+p2")
+        XCTAssertEqual(resolved.version, "ask@6+p2")
         XCTAssertTrue(resolved.text.contains("I want to understand my stress patterns more deeply"))
     }
 
@@ -71,7 +71,21 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@5+p2")
+        XCTAssertEqual(resolved.version, "ask-degraded@6+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
+    }
+
+    func test_ask6_safetyHardBans_onFullAndDegraded() {
+        for degraded in [false, true] {
+            let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
+            XCTAssertTrue(text.contains("Safety hard bans"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("violence"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("terrorism"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("crisis counseling"), "degraded=\(degraded)")
+            XCTAssertFalse(
+                text.contains("988 Suicide & Crisis Lifeline"),
+                "degraded=\(degraded): generative crisis counseling must be gone"
+            )
+        }
     }
 }

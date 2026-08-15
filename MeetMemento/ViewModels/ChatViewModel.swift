@@ -283,16 +283,20 @@ class ChatViewModel: ObservableObject {
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
 
-                // A guardrail refusal is a designed state, not a failure: it
-                // fills the assistant bubble with its own copy and leaves the
-                // user's message untouched — no alert, no retry, no failure
-                // mark. Treating it as an error would tell someone writing
-                // about grief or illness that they had done something wrong.
+                // A guardrail / safety route is a designed state, not a failure:
+                // it fills the assistant bubble with authored copy (and for
+                // crisis, the static resource card) — no alert, no retry.
                 if isDesignedEmptyState(error), generation == sendGeneration, !Task.isCancelled {
+                    let presentation = safetyPresentation(for: error)
+                    let body = (error as? IntelligenceError)?.errorDescription
+                        ?? IntelligenceError.guardrailRefusal.errorDescription
+                        ?? ""
                     updateStreamingMessage(
                         id: assistantId,
-                        body: IntelligenceError.guardrailRefusal.errorDescription ?? "",
-                        heading1: nil, heading2: nil, citations: nil, isStreaming: false
+                        body: body,
+                        heading1: nil, heading2: nil, citations: nil,
+                        safetyPresentation: presentation,
+                        isStreaming: false
                     )
                     sawContent = true
                 } else {
@@ -320,7 +324,15 @@ class ChatViewModel: ObservableObject {
     /// latest body/headings/citations. Called on every delta (`isStreaming:
     /// true`) and once on final (`isStreaming: false`) so the typewriter knows
     /// when the stream has genuinely ended.
-    private func updateStreamingMessage(id: UUID, body: String, heading1: String?, heading2: String?, citations: [JournalCitation]?, isStreaming: Bool) {
+    private func updateStreamingMessage(
+        id: UUID,
+        body: String,
+        heading1: String?,
+        heading2: String?,
+        citations: [JournalCitation]?,
+        safetyPresentation: ChatSafetyPresentation = .none,
+        isStreaming: Bool
+    ) {
         guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
         messages[index] = ChatMessage.aiMessage(
             id: id,
@@ -328,6 +340,7 @@ class ChatViewModel: ObservableObject {
             heading2: heading2,
             body: body,
             citations: citations,
+            safetyPresentation: safetyPresentation,
             timestamp: messages[index].timestamp,
             isNew: true,
             isStreaming: isStreaming
@@ -602,16 +615,24 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    /// A guardrail refusal is a *designed empty state*, not a failure
-    /// (spec 017 R4 / REQ-INT-011). Journaling content — grief, illness,
-    /// conflict, self-critical language — trips safety guardrails
-    /// disproportionately, so a refusal on what someone wrote must never read as
-    /// an error, and never as judgment of what they wrote. It renders as an
-    /// ordinary assistant bubble with its own copy: no alert, no retry
-    /// affordance, no failure mark on their message.
+    /// Designed empty / safety states (spec 017 R4 / spec 026) — never alerts.
     private func isDesignedEmptyState(_ error: Error) -> Bool {
-        if case IntelligenceError.guardrailRefusal = error { return true }
-        return false
+        guard let intelligenceError = error as? IntelligenceError else { return false }
+        switch intelligenceError {
+        case .guardrailRefusal, .crisisResource, .safetyRefusal:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func safetyPresentation(for error: Error) -> ChatSafetyPresentation {
+        guard let intelligenceError = error as? IntelligenceError else { return .none }
+        switch intelligenceError {
+        case .crisisResource: return .crisisResource
+        case .safetyRefusal: return .hardRefuse
+        default: return .none
+        }
     }
 
     private func chatErrorMessage(for error: Error) -> String {

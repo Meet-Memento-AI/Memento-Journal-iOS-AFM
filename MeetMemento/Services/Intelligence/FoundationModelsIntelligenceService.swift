@@ -251,13 +251,26 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         var zone: TrustZone { request.zone }
     }
 
-    /// Availability → turn classification → retrieval → stance → prompt +
-    /// instructions. Pure aside from the availability await.
+    /// Availability → safety gate → turn classification → retrieval → stance → prompt.
+    /// Pure aside from the availability await.
     private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskPreparation {
         let availability = await availability()
         guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
             throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
+        }
+
+        // Spec 026: deterministic Safety layer BEFORE retrieval so crisis /
+        // violence / CSAM turns never pull journal evidence into the model.
+        let safety = SafetyRouter.decide(question)
+        SafetyMetrics.record(safety)
+        switch safety.action {
+        case .showCrisisCard:
+            throw IntelligenceError.crisisResource
+        case .hardRefuse:
+            throw IntelligenceError.safetyRefusal(safety.category)
+        case .continueConstrained, .continue:
+            break
         }
 
         let route = await resolveRoute(for: .ask)
@@ -298,8 +311,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             )
         }
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
-        let prompt = Self.buildAskPrompt(question: question, history: history,
-                                         retrieval: retrieval, stance: stance, budget: budget)
+        let prompt = Self.buildAskPrompt(
+            question: question,
+            history: history,
+            retrieval: retrieval,
+            stance: stance,
+            budget: budget,
+            safetyConstrained: safety.action == .continueConstrained
+        )
         // The degraded variant is a registry entry, never the heavy prompt
         // behind a lighter model (REQ-INT-010).
         let resolved = PromptRegistry.resolve(
@@ -320,11 +339,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     /// Builds the final `AskResult` (citations reconciled, reference markers
-    /// stripped) from either the whole-answer `respond` or the last streamed
-    /// snapshot. Reference stripping happens here so the live reply and the
-    /// JSON ChatService persists both carry the cleaned body.
+    /// stripped, output safety scanned) from either the whole-answer `respond`
+    /// or the last streamed snapshot.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
-                            prep: AskPreparation, question: String, latency: Duration) -> AskResult {
+                            prep: AskPreparation, question: String, latency: Duration) throws -> AskResult {
+        let cleanedBody = Self.strippingReferenceMarkers(body)
+        if let hit = OutputSafetyScanner.scan(cleanedBody) {
+            SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
+            switch hit.action {
+            case .showCrisisCard:
+                throw IntelligenceError.crisisResource
+            case .hardRefuse, .continueConstrained, .continue:
+                throw IntelligenceError.safetyRefusal(hit.category)
+            }
+        }
         let citations = Self.reconcileCitations(
             citedRefs, retrieval: prep.retrieval, question: question
         )
@@ -335,7 +363,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
-            body: Self.strippingReferenceMarkers(body),
+            body: cleanedBody,
             citations: citations,
             zoneUsed: prep.zone,
             wasDegraded: prep.route.wasDegraded,
@@ -357,9 +385,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: GenerationOptions(temperature: 0.7)
             )
             let answer = response.content
-            return makeResult(heading1: answer.heading1, heading2: answer.heading2,
+            return try makeResult(heading1: answer.heading1, heading2: answer.heading2,
                               body: answer.body, citedRefs: answer.citedRefs,
                               prep: prep, question: question, latency: clock.now - started)
+        } catch let error as IntelligenceError {
+            throw error
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -408,12 +438,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                             reviewedCitations: reviewed
                         ))
                     }
-                    let result = makeResult(heading1: lastHeading1, heading2: lastHeading2,
+                    let result = try makeResult(heading1: lastHeading1, heading2: lastHeading2,
                                             body: lastBody, citedRefs: lastCitedRefs,
                                             prep: prep, question: question,
                                             latency: clock.now - started)
                     continuation.yield(.final(result))
                     continuation.finish()
+                } catch let error as IntelligenceError {
+                    continuation.finish(throwing: error)
                 } catch let error as LanguageModelSession.GenerationError {
                     continuation.finish(throwing: Self.mapGenerationError(error))
                 } catch is CancellationError {
@@ -440,6 +472,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let trimmed = reflection.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             throw IntelligenceError.generationFailed("Reflection text is empty.")
+        }
+
+        let safety = SafetyRouter.decide(trimmed)
+        SafetyMetrics.record(safety)
+        switch safety.action {
+        case .showCrisisCard:
+            throw IntelligenceError.crisisResource
+        case .hardRefuse:
+            throw IntelligenceError.safetyRefusal(safety.category)
+        case .continueConstrained, .continue:
+            break
         }
 
         let route = await resolveRoute(for: .profileEstimate)
@@ -523,6 +566,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let budget = ContextBudget(window: Self.currentWindow())
         let resolved = PromptRegistry.resolve(intent: .summary, zone: route.executionZone,
                                               degraded: route.useDegradedPrompt)
+
+        // Spec 026: refuse summarizing conversations that are crisis/violence/
+        // CSAM assistance (e.g. "write my goodbye note" → journal entry).
+        let userBlob = turns.filter { $0.role == .user }.map(\.text).joined(separator: "\n")
+        let safety = SafetyRouter.decide(userBlob)
+        SafetyMetrics.record(safety)
+        switch safety.action {
+        case .showCrisisCard:
+            throw IntelligenceError.crisisResource
+        case .hardRefuse:
+            throw IntelligenceError.safetyRefusal(safety.category)
+        case .continueConstrained, .continue:
+            break
+        }
+
         let session = LanguageModelSession(instructions: resolved.text)
         // The conversation is bounded by the same history allocation the ask
         // prompt uses, so a long chat can't crowd out the summary itself.
@@ -534,16 +592,26 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         do {
             let response = try await session.respond(to: prompt, options: GenerationOptions(temperature: 0.7))
+            let trimmedOut = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let hit = OutputSafetyScanner.scan(trimmedOut) {
+                SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
+                switch hit.action {
+                case .showCrisisCard: throw IntelligenceError.crisisResource
+                default: throw IntelligenceError.safetyRefusal(hit.category)
+                }
+            }
             let latency = clock.now - started
             Self.logOutcome(intent: .summary, route: route, promptVersion: resolved.version,
                             latency: latency, window: budget.window, entryCount: 0)
             return GenerationOutcome(
-                value: response.content.trimmingCharacters(in: .whitespacesAndNewlines),
+                value: trimmedOut,
                 zoneUsed: route.executionZone,
                 modelIdentifier: Self.modelIdentifier(for: route.executionZone),
                 wasDegraded: route.wasDegraded,
                 latency: latency
             )
+        } catch let error as IntelligenceError {
+            throw error
         } catch let error as LanguageModelSession.GenerationError {
             throw Self.mapGenerationError(error)
         } catch {
@@ -567,11 +635,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
-                                       stance: TurnStance, budget: ContextBudget) -> String {
+                                       stance: TurnStance, budget: ContextBudget,
+                                       safetyConstrained: Bool = false) -> String {
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
         // conversation in journal entries.
         var parts: [String] = [stance.promptLine]
+        if safetyConstrained {
+            parts.insert(SafetyRouter.constrainedStanceLine, at: 0)
+        }
         if !retrieval.contextBlock.isEmpty {
             // Frame as optional evidence so the model does not treat the block
             // as a script to paraphrase ("you wrote this, this, and this").
@@ -716,6 +788,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Guardrail refusals are a *designed* empty state, not a failure.
         switch error {
         case .guardrailViolation:
+            SafetyMetrics.recordAFMGuardrailRefusal()
             return .guardrailRefusal
         default:
             return .generationFailed(error.localizedDescription)

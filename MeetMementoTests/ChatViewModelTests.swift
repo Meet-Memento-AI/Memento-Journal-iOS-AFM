@@ -77,6 +77,34 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(userMessage.sendFailed, "the person did nothing wrong — no failure mark")
     }
 
+    func test_ChatViewModel_crisisResource_showsCardPresentation() async throws {
+        let mock = MockChatService()
+        mock.sendMessageImpl = { _, _ in throw IntelligenceError.crisisResource }
+
+        let vm = ChatViewModel(chatService: mock)
+        vm.sendMessage(prompt: "I want to hurt myself tonight.")
+        await waitForLoadingFalse(vm)
+
+        XCTAssertFalse(vm.showingError)
+        let assistant = try XCTUnwrap(vm.messages.last)
+        XCTAssertEqual(assistant.safetyPresentation, .crisisResource)
+        XCTAssertEqual(assistant.content, SafetyRouter.crisisAcknowledgment)
+    }
+
+    func test_ChatViewModel_safetyRefusal_showsHardRefuse() async throws {
+        let mock = MockChatService()
+        mock.sendMessageImpl = { _, _ in throw IntelligenceError.safetyRefusal(.violenceOthers) }
+
+        let vm = ChatViewModel(chatService: mock)
+        vm.sendMessage(prompt: "How do I hurt my boss?")
+        await waitForLoadingFalse(vm)
+
+        XCTAssertFalse(vm.showingError)
+        let assistant = try XCTUnwrap(vm.messages.last)
+        XCTAssertEqual(assistant.safetyPresentation, .hardRefuse)
+        XCTAssertTrue(assistant.content.contains("I can’t help with that"))
+    }
+
     /// Unavailability copy is written for the situation and is actionable
     /// ("Apple Intelligence is still getting ready"). It used to be swallowed
     /// into a generic connectivity message.

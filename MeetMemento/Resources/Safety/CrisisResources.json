@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "defaultLocale": "en-US",
+  "locales": {
+    "en-US": {
+      "title": "You’re not alone",
+      "body": "If you’re in crisis or thinking about harming yourself, please talk to someone who can help right now. Memento is a journaling companion — not a crisis service.",
+      "resources": [
+        {
+          "name": "988 Suicide & Crisis Lifeline",
+          "detail": "Call or text 988 (United States)",
+          "url": "tel:988"
+        },
+        {
+          "name": "International Association for Suicide Prevention",
+          "detail": "Find local resources worldwide",
+          "url": "https://www.iasp.info/suicidalthoughts/"
+        }
+      ]
+    }
+  }
+}

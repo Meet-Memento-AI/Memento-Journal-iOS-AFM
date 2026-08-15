@@ -76,7 +76,7 @@ final class ChatContinuityTests: XCTestCase {
             heading1: nil,
             heading2: nil,
             sources: [],
-            promptVersion: "ask@5+p2",
+            promptVersion: "ask@6+p2",
             modelIdentifier: "apple.system.on-device",
             zone: "z0.device",
             wasDegraded: false
@@ -85,7 +85,7 @@ final class ChatContinuityTests: XCTestCase {
         let object = try XCTUnwrap(
             try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
         )
-        XCTAssertEqual(object["prompt_version"] as? String, "ask@5+p2")
+        XCTAssertEqual(object["prompt_version"] as? String, "ask@6+p2")
         XCTAssertEqual(object["model_identifier"] as? String, "apple.system.on-device")
         XCTAssertEqual(object["zone"] as? String, "z0.device")
         XCTAssertEqual(object["was_degraded"] as? Bool, false)

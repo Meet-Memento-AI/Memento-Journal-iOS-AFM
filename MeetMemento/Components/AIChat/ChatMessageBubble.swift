@@ -84,6 +84,23 @@ public struct ChatMessageBubble: View {
                 .font(type.body1.weight(.medium))
                 .foregroundStyle(theme.foreground) // Use semantic token for proper contrast
                 .lineSpacing(type.bodyLineSpacing)
+        } else if message.safetyPresentation == .crisisResource {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                if !message.content.isEmpty {
+                    Text(message.content)
+                        .font(type.body1)
+                        .foregroundStyle(theme.foreground)
+                        .lineSpacing(type.bodyLineSpacing)
+                }
+                CrisisResourceCard()
+            }
+        } else if message.safetyPresentation == .hardRefuse {
+            // Authored refusal copy only — no typewriter, citations, or feedback
+            // actions (regenerating a hard refuse is not a meaningful affordance).
+            Text(message.content)
+                .font(type.body1)
+                .foregroundStyle(theme.foreground)
+                .lineSpacing(type.bodyLineSpacing)
         } else if let aiContent = message.aiOutputContent, !isEmptyStreamingPlaceholder(aiContent) {
             // AI messages with structured content (headings, body, citations)
             AIOutputComponent(

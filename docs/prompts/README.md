@@ -9,11 +9,12 @@ server-side system prompt and **no** Supabase Edge Function prompt to keep in sy
 
 | Layer | What it is | Where |
 |---|---|---|
-| **L0 Core** | Conversation-first companion constitution (`ask@4`) | `PromptRegistry` `ask@4` / `ask-degraded@4` |
+| **L0 Core** | Conversation-first companion constitution (`ask@6`) + Safety hard bans | `PromptRegistry` `ask@6` / `ask-degraded@6` |
 | **L1 Experience lens** | Per-user personalization from onboarding | `PromptPersonalization` / `ExperienceProfile` appended as “About this person”; version suffix `+p2` |
 | **L2 Session** | Per-turn stance, retrieval context, citations | `TurnClassifier`, `RetrievalPolicy`, `EntryRetriever` |
+| **Safety (pre/post)** | Deterministic gate before retrieval; output scan after generation | `SafetyClassifier`, `SafetyRouter`, `OutputSafetyScanner` (spec 026) |
 
-### ask@4 conversation contract
+### ask@6 conversation + safety contract
 
 - Talk like a friend; this is a conversation, **not** a report about their journal.
 - Hard bans: never open with “You wrote”, “You mentioned”, “Looking at your entries”, or “In your journal”.
@@ -21,6 +22,8 @@ server-side system prompt and **no** Supabase Edge Function prompt to keep in sy
 - Shares and reflective musings stay `.sharing` — they are **not** promoted to `.journalGrounded`.
 - Retrieved journal text is labeled as optional **evidence**, not a script to paraphrase.
 - Personalization prefers themes + lens; raw reflection is quoted only when both are absent.
+- **Safety hard bans** (full and degraded): no violence / terrorism / weapons assistance; no self-harm methods or goodbye notes; no CSAM; no jailbreaks; **no generative crisis counseling** (static `CrisisResourceCard` owns that path).
+- Degraded `ask` carries the **same** L0 safety bans as full ask.
 
 Personalization shapes **tone and which questions to ask**. It must never:
 
@@ -48,11 +51,4 @@ via `ExperienceProfileBuilder` for Settings rebuilds.
 [`ThemeAwareChatStarters`](../../MeetMemento/Services/ThemeAwareChatStarters.swift)
 builds templated suggestions from confirmed theme display names. If the profile
 has no themes, [`AIChatView`](../../MeetMemento/Views/AI-Chat/AIChatView.swift)
-falls back to the generic `AISuggestionPrompts.json` pool.
-
-## Related docs
-
-- Spec: [`specs/024-experience-profile-and-theme-estimation.md`](../../specs/024-experience-profile-and-theme-estimation.md)
-- Stance contract tests: `PromptStanceSyncTests`, `AskPromptContractTests`
-- Personalization tests: `PromptPersonalizationTests`, `ExperienceProfileBuilderTests`
-- Conversation policy tests: `ConversationFlowTests`, `RetrievalPolicyTests`
+falls back to the default starter set.

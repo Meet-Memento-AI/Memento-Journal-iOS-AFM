@@ -112,6 +112,9 @@ public struct ChatMessage: Identifiable, Hashable {
     // Structured content for AI messages (optional)
     public let aiOutputContent: AIOutputContent?
 
+    /// Spec 026: how this assistant turn was safety-routed (crisis card / hard refuse).
+    public var safetyPresentation: ChatSafetyPresentation
+
     /// True for messages created in the current session (should animate).
     /// False for messages loaded from database (should display instantly).
     /// Mutable so the view model can mark a message as "seen" once its
@@ -119,7 +122,7 @@ public struct ChatMessage: Identifiable, Hashable {
     /// tab switches replay the typewriter effect on the whole transcript.
     public var isNew: Bool
 
-    /// True when this user message failed to send (spec-010): kept visible
+    /// True for this user message failed to send (spec-010): kept visible
     /// in the transcript with a retry affordance instead of being dropped.
     public var sendFailed: Bool
 
@@ -136,6 +139,7 @@ public struct ChatMessage: Identifiable, Hashable {
         timestamp: Date = Date(),
         citations: [JournalCitation]? = nil,
         aiOutputContent: AIOutputContent? = nil,
+        safetyPresentation: ChatSafetyPresentation = .none,
         isNew: Bool = false,
         sendFailed: Bool = false,
         isStreaming: Bool = false
@@ -146,6 +150,7 @@ public struct ChatMessage: Identifiable, Hashable {
         self.timestamp = timestamp
         self.citations = citations
         self.aiOutputContent = aiOutputContent
+        self.safetyPresentation = safetyPresentation
         self.isNew = isNew
         self.sendFailed = sendFailed
         self.isStreaming = isStreaming
@@ -158,6 +163,7 @@ public struct ChatMessage: Identifiable, Hashable {
         heading2: String? = nil,
         body: String,
         citations: [JournalCitation]? = nil,
+        safetyPresentation: ChatSafetyPresentation = .none,
         timestamp: Date = Date(),
         isNew: Bool = false,
         isStreaming: Bool = false
@@ -175,6 +181,7 @@ public struct ChatMessage: Identifiable, Hashable {
             timestamp: timestamp,
             citations: citations,
             aiOutputContent: outputContent,
+            safetyPresentation: safetyPresentation,
             isNew: isNew,
             isStreaming: isStreaming
         )

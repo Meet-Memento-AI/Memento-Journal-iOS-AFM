@@ -12,10 +12,56 @@ struct ChatResponse: Codable {
     let citedEntryIds: [String]?
     let sources: [ChatSource]
     let sessionId: String
+    /// Spec 026: how the assistant bubble should present a safety route.
+    /// Defaults to `.none` for normal model replies (and for older persisted JSON).
+    let safetyPresentation: ChatSafetyPresentation
 
     enum CodingKeys: String, CodingKey {
         case reply, heading1, heading2, sources, sessionId
         case citedEntryIds = "cited_entry_ids"
+        case safetyPresentation = "safety_presentation"
+    }
+
+    init(
+        reply: String,
+        heading1: String? = nil,
+        heading2: String? = nil,
+        citedEntryIds: [String]? = nil,
+        sources: [ChatSource],
+        sessionId: String,
+        safetyPresentation: ChatSafetyPresentation = .none
+    ) {
+        self.reply = reply
+        self.heading1 = heading1
+        self.heading2 = heading2
+        self.citedEntryIds = citedEntryIds
+        self.sources = sources
+        self.sessionId = sessionId
+        self.safetyPresentation = safetyPresentation
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        reply = try container.decode(String.self, forKey: .reply)
+        heading1 = try container.decodeIfPresent(String.self, forKey: .heading1)
+        heading2 = try container.decodeIfPresent(String.self, forKey: .heading2)
+        citedEntryIds = try container.decodeIfPresent([String].self, forKey: .citedEntryIds)
+        sources = try container.decodeIfPresent([ChatSource].self, forKey: .sources) ?? []
+        sessionId = try container.decode(String.self, forKey: .sessionId)
+        safetyPresentation = try container.decodeIfPresent(ChatSafetyPresentation.self, forKey: .safetyPresentation) ?? .none
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(reply, forKey: .reply)
+        try container.encodeIfPresent(heading1, forKey: .heading1)
+        try container.encodeIfPresent(heading2, forKey: .heading2)
+        try container.encodeIfPresent(citedEntryIds, forKey: .citedEntryIds)
+        try container.encode(sources, forKey: .sources)
+        try container.encode(sessionId, forKey: .sessionId)
+        if safetyPresentation != .none {
+            try container.encode(safetyPresentation, forKey: .safetyPresentation)
+        }
     }
 }
 
@@ -135,41 +181,87 @@ class ChatService {
         let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
         let entries = loadLocalEntries()
 
-        let result = try await intelligence.ask(text, history: history, entries: entries)
+        do {
+            let result = try await intelligence.ask(text, history: history, entries: entries)
 
-        let sources = result.citations.map { citation in
-            ChatSource(
-                id: citation.entryId.uuidString,
-                createdAt: Self.iso8601.string(from: citation.entryDate),
-                preview: citation.excerpt
+            let sources = result.citations.map { citation in
+                ChatSource(
+                    id: citation.entryId.uuidString,
+                    createdAt: Self.iso8601.string(from: citation.entryDate),
+                    preview: citation.excerpt
+                )
+            }
+
+                    AppLogger.log("✅ [ChatService] Reply (\(result.body.count) chars), \(sources.count) citations, zone: \(String(describing: result.zoneUsed)), prompt: \(result.promptVersion)")
+
+            // Persist locally so the conversation survives relaunch and shows in the
+            // history list (multiple chat windows). The assistant turn is stored in
+            // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
+            LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
+            LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
+            LocalChatStore.shared.appendMessage(
+                role: "assistant",
+                content: Self.assistantContentJSON(
+                    body: result.body, heading1: result.heading1, heading2: result.heading2,
+                    sources: sources, promptVersion: result.promptVersion,
+                    modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
+                    wasDegraded: result.wasDegraded
+                ),
+                to: conversationId
             )
+
+            return ChatResponse(
+                reply: result.body,
+                heading1: result.heading1,
+                heading2: result.heading2,
+                citedEntryIds: result.citations.map { $0.entryId.uuidString },
+                sources: sources,
+                sessionId: conversationId.uuidString
+            )
+        } catch let error as IntelligenceError {
+            if let designed = Self.persistDesignedSafetyReply(
+                error, userText: text, conversationId: conversationId
+            ) {
+                return designed
+            }
+            throw error
+        }
+    }
+
+    /// Spec 026: for a designed Safety route (crisis card / hard refuse), persist
+    /// the turn locally — same shape as a normal reply — and return the
+    /// `ChatResponse` the caller should hand back instead of throwing. Returns
+    /// `nil` for errors that aren't a Safety route (`.unavailable`,
+    /// `.guardrailRefusal`, `.generationFailed`), so those still `throw` and hit
+    /// ChatViewModel's existing handling.
+    private static func persistDesignedSafetyReply(
+        _ error: IntelligenceError, userText: String, conversationId: UUID
+    ) -> ChatResponse? {
+        let presentation: ChatSafetyPresentation
+        switch error {
+        case .crisisResource:
+            presentation = .crisisResource
+        case .safetyRefusal:
+            presentation = .hardRefuse
+        default:
+            return nil
         }
 
-                AppLogger.log("✅ [ChatService] Reply (\(result.body.count) chars), \(sources.count) citations, zone: \(String(describing: result.zoneUsed)), prompt: \(result.promptVersion)")
+        let body = error.errorDescription ?? ""
 
-        // Persist locally so the conversation survives relaunch and shows in the
-        // history list (multiple chat windows). The assistant turn is stored in
-        // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
-        LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
-        LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
+        LocalChatStore.shared.upsertSession(id: conversationId, title: String(userText.prefix(100)))
+        LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
         LocalChatStore.shared.appendMessage(
             role: "assistant",
-            content: Self.assistantContentJSON(
-                body: result.body, heading1: result.heading1, heading2: result.heading2,
-                sources: sources, promptVersion: result.promptVersion,
-                modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
-                wasDegraded: result.wasDegraded
-            ),
+            content: assistantContentJSON(body: body, heading1: nil, heading2: nil, sources: []),
             to: conversationId
         )
 
         return ChatResponse(
-            reply: result.body,
-            heading1: result.heading1,
-            heading2: result.heading2,
-            citedEntryIds: result.citations.map { $0.entryId.uuidString },
-            sources: sources,
-            sessionId: conversationId.uuidString
+            reply: body,
+            sources: [],
+            sessionId: conversationId.uuidString,
+            safetyPresentation: presentation
         )
     }
 
