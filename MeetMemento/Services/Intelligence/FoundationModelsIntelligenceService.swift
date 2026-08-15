@@ -431,8 +431,28 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         if let refs = content.citedRefs { lastCitedRefs = refs }
                         // Emit the cleaned body-so-far so the live reply matches
                         // exactly what gets persisted at the end.
+                        let cleaned = Self.strippingReferenceMarkers(lastBody)
+
+                        // Spec 026 R7: scan the partial body BEFORE showing it.
+                        // The end-of-stream scan in makeResult is too late for the
+                        // UI — every token has already been yielded and rendered,
+                        // so an unsafe reply would be read before being replaced.
+                        // Scanning each snapshot means offending text never reaches
+                        // the bubble at all.
+                        if let hit = OutputSafetyScanner.scan(cleaned) {
+                            SafetyMetrics.record(
+                                SafetyDecision(category: hit.category, action: hit.action, confidence: 1)
+                            )
+                            switch hit.action {
+                            case .showCrisisCard:
+                                throw IntelligenceError.crisisResource
+                            case .hardRefuse, .continueConstrained, .continue:
+                                throw IntelligenceError.safetyRefusal(hit.category)
+                            }
+                        }
+
                         continuation.yield(.delta(
-                            bodySoFar: Self.strippingReferenceMarkers(lastBody),
+                            bodySoFar: cleaned,
                             heading1: lastHeading1?.isEmpty == true ? nil : lastHeading1,
                             heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2,
                             reviewedCitations: reviewed

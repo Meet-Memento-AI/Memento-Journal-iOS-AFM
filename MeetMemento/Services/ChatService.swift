@@ -253,7 +253,8 @@ class ChatService {
         LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
         LocalChatStore.shared.appendMessage(
             role: "assistant",
-            content: assistantContentJSON(body: body, heading1: nil, heading2: nil, sources: []),
+            content: assistantContentJSON(body: body, heading1: nil, heading2: nil, sources: [],
+                                          safetyPresentation: presentation),
             to: conversationId
         )
 
@@ -327,6 +328,20 @@ class ChatService {
                     continuation.finish()
                 } catch is CancellationError {
                     continuation.finish()
+                } catch let error as IntelligenceError {
+                    // Spec 026: a Safety route is a designed reply, not a failure.
+                    // This is the path the UI actually uses, so without persisting
+                    // here the user's crisis message and the resource card were
+                    // dropped entirely — never written to LocalChatStore, and gone
+                    // from the session list on relaunch.
+                    if let designed = Self.persistDesignedSafetyReply(
+                        error, userText: text, conversationId: conversationId
+                    ) {
+                        continuation.yield(.final(designed))
+                        continuation.finish()
+                    } else {
+                        continuation.finish(throwing: error)
+                    }
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -396,7 +411,8 @@ class ChatService {
                                      promptVersion: String? = nil,
                                      modelIdentifier: String? = nil,
                                      zone: String? = nil,
-                                     wasDegraded: Bool? = nil) -> String {
+                                     wasDegraded: Bool? = nil,
+                                     safetyPresentation: ChatSafetyPresentation = .none) -> String {
         var object: [String: Any] = ["body": body]
         if let heading1 { object["heading1"] = heading1 }
         if let heading2 { object["heading2"] = heading2 }
@@ -404,6 +420,10 @@ class ChatService {
         if let modelIdentifier { object["model_identifier"] = modelIdentifier }
         if let zone { object["zone"] = zone }
         if let wasDegraded { object["was_degraded"] = wasDegraded }
+        // Spec 026: without this, reopening a saved conversation renders a past
+        // crisis turn as ordinary prose — the resource card silently disappears.
+        // Omitted when .none so existing stored messages stay byte-identical.
+        if safetyPresentation != .none { object["safety_presentation"] = safetyPresentation.rawValue }
         object["sources"] = sources.map { ["id": $0.id, "created_at": $0.createdAt, "preview": $0.preview] }
         guard let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else {

@@ -92,6 +92,19 @@ class ChatViewModel: ObservableObject {
     /// Extracts clean body text from potentially JSON-formatted content
     /// Handles: raw JSON strings, legacy plain text, nested JSON
     /// Also extracts sources/citations for display
+    /// Reads the persisted `safety_presentation` key written by
+    /// `ChatService.assistantContentJSON`. Absent on every message stored before
+    /// spec 026 (and on all ordinary replies), which correctly yields `.none`.
+    private static func storedSafetyPresentation(from content: String) -> ChatSafetyPresentation {
+        guard let data = content.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let raw = json["safety_presentation"] as? String,
+              let presentation = ChatSafetyPresentation(rawValue: raw) else {
+            return .none
+        }
+        return presentation
+    }
+
     private func extractBodyContent(from content: String, role: String) -> (body: String, aiContent: AIOutputContent?, citations: [JournalCitation]?) {
         guard role == "assistant" else {
             return (content, nil, nil)
@@ -272,9 +285,14 @@ class ChatViewModel: ObservableObject {
                             await fetchSessions()
                         }
                         let citations = mapSourcesToCitations(response.sources)
+                        // Carry the Safety route through: ChatService now returns a
+                        // designed crisis/refusal reply as `.final` rather than
+                        // throwing, so dropping this would render the crisis card
+                        // as plain prose.
                         updateStreamingMessage(id: assistantId, body: response.reply,
                                                heading1: response.heading1, heading2: response.heading2,
                                                citations: citations.isEmpty ? nil : citations,
+                                               safetyPresentation: response.safetyPresentation,
                                                isStreaming: false)
                         sawContent = sawContent || !response.reply.isEmpty
                         if let sessionId = currentSessionId { messageCache[sessionId] = messages }
@@ -398,7 +416,11 @@ class ChatViewModel: ObservableObject {
                         heading1: aiContent.heading1,
                         heading2: aiContent.heading2,
                         body: body,
-                        citations: citations
+                        citations: citations,
+                        // Spec 026: restore the Safety route so reopening a saved
+                        // conversation re-renders the crisis card rather than
+                        // silently downgrading it to prose.
+                        safetyPresentation: Self.storedSafetyPresentation(from: dto.content)
                     )
                 }
 
