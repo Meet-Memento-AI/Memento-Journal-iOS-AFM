@@ -49,6 +49,28 @@ class JournalService {
         let content: String
         let createdAt: Date
         let updatedAt: Date
+        /// Whether this entry has a photo in `PhotoStorage`. Added after the
+        /// envelope shipped, so every already-on-disk envelope lacks this key —
+        /// a synthesized `Decodable` throws on a missing key even with a
+        /// default value, so decoding is implemented explicitly below.
+        let hasPhoto: Bool
+
+        init(title: String, content: String, createdAt: Date, updatedAt: Date, hasPhoto: Bool) {
+            self.title = title
+            self.content = content
+            self.createdAt = createdAt
+            self.updatedAt = updatedAt
+            self.hasPhoto = hasPhoto
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            title = try container.decode(String.self, forKey: .title)
+            content = try container.decode(String.self, forKey: .content)
+            createdAt = try container.decode(Date.self, forKey: .createdAt)
+            updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+            hasPhoto = try container.decodeIfPresent(Bool.self, forKey: .hasPhoto) ?? false
+        }
     }
 
     /// Saves an entry's complete data (title, content, dates) to local
@@ -60,9 +82,10 @@ class JournalService {
         title: String,
         content: String,
         createdAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        hasPhoto: Bool = false
     ) -> Bool {
-        let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt)
+        let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt, hasPhoto: hasPhoto)
         guard let json = try? JSONEncoder().encode(envelope),
               let jsonString = String(data: json, encoding: .utf8),
               let encrypted = encryptionService.encrypt(jsonString) else {
@@ -130,7 +153,8 @@ class JournalService {
                 if read.needsRewrite {
                     // Correct envelope, legacy key — rewrite under the data key.
                     saveEntryLocally(entryId: id, title: envelope.title, content: envelope.content,
-                                     createdAt: envelope.createdAt, updatedAt: envelope.updatedAt)
+                                     createdAt: envelope.createdAt, updatedAt: envelope.updatedAt,
+                                     hasPhoto: envelope.hasPhoto)
                     AppLogger.log("🔐 [JournalService] Re-encrypted entry under the data key: \(id)")
                 }
                 return Entry(
@@ -138,7 +162,8 @@ class JournalService {
                     title: envelope.title,
                     text: envelope.content,
                     createdAt: envelope.createdAt,
-                    updatedAt: envelope.updatedAt
+                    updatedAt: envelope.updatedAt,
+                    hasPhoto: envelope.hasPhoto
                 )
             }
 
@@ -155,14 +180,15 @@ class JournalService {
             // Migrate to envelope format (and, implicitly, to the data key) so
             // neither fallback runs again for this entry, then drop the queue
             // file — it existed only to retry a server sync that no longer exists.
+            // hasPhoto is always false here: pre-envelope entries predate this feature.
             saveEntryLocally(entryId: id, title: title, content: decrypted,
-                             createdAt: timestamp, updatedAt: timestamp)
+                             createdAt: timestamp, updatedAt: timestamp, hasPhoto: false)
             LocalJournalStorage.shared.dequeuePendingSync(entryId: id)
             AppLogger.log("📁 [JournalService] Migrated legacy-format entry to envelope: \(id)")
 
             return Entry(
                 id: id, title: title, text: decrypted,
-                createdAt: timestamp, updatedAt: timestamp
+                createdAt: timestamp, updatedAt: timestamp, hasPhoto: false
             )
         }
 

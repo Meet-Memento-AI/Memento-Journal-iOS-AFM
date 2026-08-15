@@ -140,16 +140,14 @@ public struct AIChatView: View {
 
                 if preferences.aiEnabled {
                     // Messages list - fills available space with bottom inset for input
-                    messagesScrollView
+                    messagesScrollView(bottomReserve: bottomReserve(geometry: geometry))
                         .safeAreaInset(edge: .bottom, spacing: 0) {
                             // Reserve the composer's MEASURED height, not a constant.
                             // This was hardcoded to 88 — correct only for a
                             // single-line composer at default type size. The field
                             // grows to five lines and scales with Dynamic Type, so
                             // a long draft slid underneath the last message.
-                            Color.clear.frame(
-                                height: composerHeight + composerGap + keyboardBottomPadding(geometry: geometry)
-                            )
+                            Color.clear.frame(height: bottomReserve(geometry: geometry))
                         }
 
                     // Blur overlay for narrate only. Typing deliberately does NOT
@@ -264,7 +262,10 @@ public struct AIChatView: View {
         .sheet(item: $summaryItem) { item in
             AddEntryView(
                 state: .createWithContent(title: item.title, content: item.content),
-                onSave: { title, content in
+                // NOTE: pre-existing gap, not introduced/fixed here — this closure
+                // never calls entryViewModel.createEntry, so chat-summary entries
+                // may not persist today. Widened to compile; worth a separate look.
+                onSave: { title, content, photoAction in
                     summaryItem = nil
                 }
             )
@@ -312,13 +313,19 @@ public struct AIChatView: View {
     
     // MARK: - Messages Scroll View
 
-    private var messagesScrollView: some View {
+    /// Space reserved under the transcript for the floating composer (and keyboard).
+    /// Shared by the scroll inset and the empty-state vertical centering so the
+    /// welcome block doesn't drift when the field grows or the keyboard rises.
+    private func bottomReserve(geometry: GeometryProxy) -> CGFloat {
+        composerHeight + composerGap + keyboardBottomPadding(geometry: geometry)
+    }
+
+    private func messagesScrollView(bottomReserve: CGFloat) -> some View {
         ScrollViewReader { proxy in
             GeometryReader { geo in
                 if viewModel.messages.isEmpty && !viewModel.isLoading {
                     // Empty state: vertically centered in visible area (between header and input)
-                    let inputAreaHeight: CGFloat = 120 // input field + bottom padding
-                    let visibleHeight = geo.size.height - topContentInset - inputAreaHeight
+                    let visibleHeight = max(geo.size.height - topContentInset - bottomReserve, 0)
 
                     VStack {
                         // Chat runs entirely on-device via SystemLanguageModel and makes
@@ -490,7 +497,7 @@ public struct AIChatView: View {
                     // corpus that does not exist, so offering them guarantees a
                     // poor first answer. Point at the actual first step instead.
                     Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
-                        .font(type.body)
+                        .font(type.body1)
                         .foregroundStyle(theme.mutedForeground)
                         .multilineTextAlignment(.leading)
                         .padding(.horizontal, 20)
@@ -543,13 +550,15 @@ public struct AIChatView: View {
     // MARK: - Keyboard Padding Calculation
 
     private func keyboardBottomPadding(geometry: GeometryProxy) -> CGFloat {
+        let homeIndicator = geometry.safeAreaInsets.bottom
         if keyboardObserver.isKeyboardVisible {
-            // Keyboard is visible - position input above keyboard with 16px extra spacing
-            let safeArea = geometry.safeAreaInsets.bottom
-            return max(keyboardObserver.keyboardHeight - safeArea, 0) + 16
+            // Keyboard is visible - position input above keyboard with 16px extra spacing.
+            // Subtract the home-indicator inset because keyboardHeight is measured from
+            // the screen bottom while this view ignores the safe area.
+            return max(keyboardObserver.keyboardHeight - homeIndicator, 0) + 16
         } else {
-            // Keyboard hidden - fixed 32px from bottom of screen
-            return 32
+            // Keyboard hidden — clear the home indicator, with at least 32pt of air.
+            return max(32, homeIndicator + 8)
         }
     }
 

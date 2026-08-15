@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import PhotosUI
+import AVFoundation
 
 // MARK: - Entry State
 
@@ -37,6 +39,18 @@ public struct AddEntryView: View {
     /// Guards against double-insert when both stop and final-transcript observers fire.
     @State private var didConsumeTranscript = false
 
+    // MARK: Photo state
+    @State private var photoData: Data?
+    @State private var photoPreviewImage: UIImage?
+    /// False until the user actually touches the photo this session — lets
+    /// `.edit(entry)` preselect an existing photo without `save()` treating
+    /// that preselection itself as a change.
+    @State private var photoDidChange = false
+    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var showCameraCapture = false
+    @State private var showCameraUnavailable = false
+    @State private var showCameraPermissionDenied = false
+
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
@@ -45,11 +59,11 @@ public struct AddEntryView: View {
     }
 
     let state: EntryState
-    let onSave: (_ title: String, _ text: String) -> Void
+    let onSave: (_ title: String, _ text: String, _ photoAction: PhotoAction) -> Void
 
     public init(
         state: EntryState,
-        onSave: @escaping (_ title: String, _ text: String) -> Void
+        onSave: @escaping (_ title: String, _ text: String, _ photoAction: PhotoAction) -> Void
     ) {
         self.state = state
         self.onSave = onSave
@@ -78,8 +92,19 @@ public struct AddEntryView: View {
         return nil
     }
 
+    /// What to report to `onSave` — computed from the session's photo state,
+    /// not diffed against `Data`, since the explicit `photoDidChange` flag is
+    /// cheap and unambiguous (see `PhotoAction`'s doc comment).
+    private var photoAction: PhotoAction {
+        guard photoDidChange else { return .unchanged }
+        if let photoData { return .set(photoData) }
+        return .removed
+    }
+
+    /// 56pt idle matches Figma's trailing FAB (and the attachment pill's
+    /// height); it expands to fit the duration timer while recording.
     private var fabWidth: CGFloat {
-        speechService.isRecording ? 96 : 48
+        speechService.isRecording ? 112 : 56
     }
 
     private func keyboardBottomPadding(geometry: GeometryProxy) -> CGFloat {
@@ -122,6 +147,21 @@ public struct AddEntryView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        // Live WYSIWYG preview of the cover photo — mirrors
+                        // exactly what the saved JournalCard will show.
+                        if let photoPreviewImage {
+                            JournalPhotoThumbnail(
+                                image: Image(uiImage: photoPreviewImage),
+                                removable: true,
+                                onRemove: {
+                                    self.photoData = nil
+                                    self.photoPreviewImage = nil
+                                    self.photoDidChange = true
+                                }
+                            )
+                            .padding(.top, 8)
+                        }
+
                         // Notion-style title field
                         titleField
                             .padding(.top, 16)
@@ -130,21 +170,67 @@ public struct AddEntryView: View {
                         bodyField
                             .padding(.top, 16)
 
-                        Spacer(minLength: 100) // Space for FAB when keyboard hidden
+                        // Reserves the full bottom band (Figma Bottom-Nav, 120pt:
+                        // 32 clearance + 56 FAB row + 32 to the edge) so body
+                        // text can never crowd or slide under the buttons.
+                        Spacer(minLength: 120)
                     }
                     .padding(.horizontal, 20)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
             .overlay(alignment: .bottom) {
-                microphoneFAB
-                    .padding(.bottom, keyboardBottomPadding(geometry: geometry))
+                HStack {
+                    attachmentFAB
+                    Spacer()
+                    microphoneFAB
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, keyboardBottomPadding(geometry: geometry))
             }
         }
         .ignoresSafeArea(.keyboard)
         .background(theme.background.ignoresSafeArea())
         .onAppear {
             setupInitialFocus()
+        }
+        .task {
+            await preloadExistingPhotoIfNeeded()
+        }
+        .onChange(of: photoPickerItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                if let data = try? await newItem.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    handleNewPhoto(uiImage)
+                }
+                photoPickerItem = nil
+            }
+        }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCapturePicker(
+                onCapture: { image in
+                    showCameraCapture = false
+                    handleNewPhoto(image)
+                },
+                onCancel: { showCameraCapture = false }
+            )
+            .ignoresSafeArea()
+        }
+        .alert("Camera Unavailable", isPresented: $showCameraUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This device doesn't have a camera available.")
+        }
+        .alert("Camera Access Required", isPresented: $showCameraPermissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("MeetMemento needs camera access to add a photo. Enable it in Settings > Privacy > Camera.")
         }
         .onChange(of: speechService.isRecording) { oldValue, newValue in
             // When recording stops, insert if we already have final text
@@ -252,7 +338,7 @@ public struct AddEntryView: View {
                             .background(submitButtonBackground)
                     }
                 }
-                .disabled(isSaving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(isSaving || !hasSaveableContent)
                 .accessibilityLabel(isSaving ? "Saving entry" : "Save entry")
                 .accessibilityHint("Double-tap to save your journal entry")
             }
@@ -280,8 +366,9 @@ public struct AddEntryView: View {
 
     @ViewBuilder
     private var submitButtonBackground: some View {
-        let isEmpty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let baseColor = isEmpty ? theme.primary.opacity(0.4) : theme.primary
+        // Dimmed state must track the same condition as `.disabled`, or a
+        // photo-only entry would look unsavable while actually being savable.
+        let baseColor = hasSaveableContent ? theme.primary : theme.primary.opacity(0.4)
 
         // Liquid Glass removed — brand color intentionally kept (prominent submit
         // action); flat purple fill, no glass or shadow.
@@ -352,7 +439,7 @@ public struct AddEntryView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 18, weight: .bold)) // icon-size: not user text
+                    .font(.system(size: 22, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
 
                 // Duration timer appears inside button when recording
@@ -365,7 +452,7 @@ public struct AddEntryView: View {
             }
             // AX5: minHeight lets the pill grow instead of clipping the duration
             // timer text, which scales with Dynamic Type, when recording.
-            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 48)
+            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 56)
             .background(microphoneFABBackground)
             .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
@@ -381,6 +468,55 @@ public struct AddEntryView: View {
             .fill(theme.cardBackground)
     }
 
+    /// Leading attachment FAB (Figma node 393:4851): camera + photo-library
+    /// icons, functional, plus a location pin shown for visual parity with
+    /// Figma but non-interactive — location capture is a future feature.
+    /// Reuses the same `theme.cardBackground` capsule chrome as `microphoneFAB`.
+    /// Sizing: each icon gets a 44x44 frame — Apple's HIG minimum tap target —
+    /// and the capsule's 6pt padding falls out of that. The arithmetic lands on
+    /// Figma's FAB exactly: 6+44+4+44+4+44+6 = 152 wide, 6+44+6 = 56 tall.
+    private static let optionButtonSize: CGFloat = 44
+    private static let optionIconSize: CGFloat = 26
+
+    private var attachmentFAB: some View {
+        HStack(spacing: 4) {
+            Button {
+                presentCameraOrHandleUnavailable()
+            } label: {
+                Image(systemName: "camera")
+                    .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                    .foregroundStyle(theme.foreground)
+                    .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
+                    .contentShape(Rectangle()) // whole 44x44 is tappable, not just the glyph
+            }
+            .accessibilityLabel("Take photo")
+            .accessibilityHint(photoData == nil ? "Double-tap to capture a photo with the camera" : "Double-tap to replace the current photo with a new one")
+
+            PhotosPicker(selection: $photoPickerItem, matching: .images) {
+                Image(systemName: "photo.on.rectangle")
+                    .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                    .foregroundStyle(theme.foreground)
+                    .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Choose photo from library")
+            .accessibilityHint(photoData == nil ? "Double-tap to choose a photo from your library" : "Double-tap to replace the current photo with one from your library")
+
+            // Visible-but-disabled placeholder for Figma parity (boxicons:location).
+            // A plain Image, not a disabled Button — that's what makes "disabled"
+            // structurally true for VoiceOver instead of announcing an inert control.
+            // Same 44x44 frame purely so the three icons keep an even rhythm.
+            Image(systemName: "location")
+                .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                .foregroundStyle(theme.foreground.opacity(0.3))
+                .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
+                .accessibilityHidden(true)
+        }
+        .padding(6)
+        .background(Capsule().fill(theme.cardBackground))
+        .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 8)
+    }
+
     // MARK: - Actions
 
     private func setupInitialFocus() {
@@ -393,14 +529,98 @@ public struct AddEntryView: View {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !trimmedText.isEmpty else { return }
+        // An attached photo is content in its own right — a photo with just a
+        // title (or nothing else at all) is a valid entry, so don't gate purely
+        // on body text or the photo becomes silently unsavable.
+        guard hasSaveableContent else { return }
 
         isSaving = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        onSave(trimmedTitle, trimmedText)
+        onSave(trimmedTitle, trimmedText, photoAction)
 
         isSaving = false
+    }
+
+    /// Whether there's anything worth saving: body text or an attached photo.
+    private var hasSaveableContent: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || photoData != nil
+    }
+
+    /// Downscales/compresses the new photo and installs it as the current
+    /// selection — used by both the camera and library paths. Replaces
+    /// whatever photo was selected before (single photo per entry).
+    ///
+    /// The downscale + JPEG encode runs off the main thread: a 12MP camera
+    /// photo through `UIGraphicsImageRenderer` is tens-to-hundreds of ms, which
+    /// visibly stutters the capture-confirm transition if done inline.
+    private func handleNewPhoto(_ image: UIImage) {
+        Task {
+            let prepared: (data: Data, image: UIImage)? = await Task.detached(priority: .userInitiated) {
+                guard let data = ImageProcessor.prepareForStorage(image) else { return nil }
+                return (data, UIImage(data: data) ?? image)
+            }.value
+
+            guard let prepared else { return }
+            photoData = prepared.data
+            photoPreviewImage = prepared.image
+            photoDidChange = true
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    /// On `.edit(entry)` where the entry already has a photo, decrypts and
+    /// preselects it so the composer previews what's already saved.
+    /// `photoDidChange` stays false — this is a preload, not a user edit.
+    ///
+    /// Also guards on `!photoDidChange`, not just `photoPreviewImage == nil`:
+    /// if the user has already removed the photo this session, a re-run of the
+    /// enclosing `.task` must not silently resurrect it from disk.
+    private func preloadExistingPhotoIfNeeded() async {
+        guard let entry = editingEntry, entry.hasPhoto,
+              photoPreviewImage == nil, !photoDidChange else { return }
+
+        // Disk read + AES decrypt + JPEG decode off the main thread so opening
+        // an entry with a photo doesn't hitch.
+        let entryId = entry.id
+        let loaded: (data: Data, image: UIImage)? = await Task.detached(priority: .userInitiated) {
+            guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
+                  let data = JournalService.shared.encryptionService.decryptData(encrypted),
+                  let uiImage = UIImage(data: data) else { return nil }
+            return (data, uiImage)
+        }.value
+
+        // Re-check after the hop — the user may have acted while we loaded.
+        guard let loaded, !photoDidChange else { return }
+        photoData = loaded.data
+        photoPreviewImage = loaded.image
+    }
+
+    /// Guards camera availability (always false on Simulator) and permission
+    /// before presenting, mirroring the microphone's `showPermissionDenied` pattern.
+    private func presentCameraOrHandleUnavailable() {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            showCameraUnavailable = true
+            return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            showCameraCapture = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        showCameraCapture = true
+                    } else {
+                        showCameraPermissionDenied = true
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showCameraPermissionDenied = true
+        @unknown default:
+            showCameraPermissionDenied = true
+        }
     }
 
     private func consumeTranscriptOnce(_ transcribedText: String) {
@@ -439,19 +659,19 @@ public struct AddEntryView: View {
 // MARK: - Previews
 
 #Preview("Create Entry") {
-    AddEntryView(state: .create) { _, _ in }
+    AddEntryView(state: .create) { _, _, _ in }
         .useTheme()
         .useTypography()
 }
 
 #Preview("Edit Entry") {
-    AddEntryView(state: .edit(Entry.sampleEntries[0])) { _, _ in }
+    AddEntryView(state: .edit(Entry.sampleEntries[0])) { _, _, _ in }
         .useTheme()
         .useTypography()
 }
 
 #Preview("Create Entry • Dark") {
-    AddEntryView(state: .create) { _, _ in }
+    AddEntryView(state: .create) { _, _, _ in }
         .useTheme()
         .useTypography()
         .preferredColorScheme(.dark)
@@ -461,7 +681,7 @@ public struct AddEntryView: View {
     Color.gray.opacity(0.3)
         .ignoresSafeArea()
         .sheet(isPresented: .constant(true)) {
-            AddEntryView(state: .create) { _, _ in }
+            AddEntryView(state: .create) { _, _, _ in }
                 .presentationDetents([.fraction(0.95)])
                 .presentationDragIndicator(.hidden)
                 .presentationCornerRadius(32)

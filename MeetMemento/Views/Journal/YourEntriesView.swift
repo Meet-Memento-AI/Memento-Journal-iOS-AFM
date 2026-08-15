@@ -13,6 +13,11 @@ struct YourEntriesView: View {
     @State private var entryToDelete: Entry?
     @State private var lastScrollOffset: CGFloat = 0
     @StateObject private var scrollDebouncer = ScrollDebouncer(delay: 0.25)
+    /// Bumped when a thumbnail finishes loading, purely to re-render the rows.
+    /// The decoded images themselves live in `PhotoThumbnailCache` (an NSCache)
+    /// so they evict under memory pressure — holding a second copy in local
+    /// `@State` would pin them for the life of this view and defeat that.
+    @State private var thumbnailRevision = 0
 
     private let scrollThreshold: CGFloat = 50
 
@@ -187,6 +192,7 @@ struct YourEntriesView: View {
                                     title: entry.displayTitle,
                                     excerpt: entry.excerpt,
                                     date: entry.createdAt,
+                                    photoImage: thumbnail(for: entry),
                                     onTap: {
                                         onNavigateToEntry(.edit(entry))
                                     },
@@ -200,6 +206,13 @@ struct YourEntriesView: View {
                                 )
                                 .frame(maxWidth: .infinity) // Stretch to full width
                                 .id(entry.id) // Explicit ID for better diffing
+                                // Keyed on updatedAt as well as id: replacing an
+                                // entry's photo keeps the same id, so an id-only
+                                // task would never re-fire and the list would keep
+                                // showing the old photo until relaunch.
+                                .task(id: thumbnailToken(for: entry)) {
+                                    await loadThumbnailIfNeeded(for: entry)
+                                }
                             }
                         }
                     }
@@ -231,6 +244,46 @@ struct YourEntriesView: View {
                 }
             }
         }
+    }
+
+    /// Changes whenever the entry's photo could have changed, so `.task(id:)`
+    /// re-runs after an edit that replaced or removed the photo.
+    private func thumbnailToken(for entry: Entry) -> String {
+        "\(entry.id.uuidString)-\(entry.updatedAt.timeIntervalSince1970)-\(entry.hasPhoto)"
+    }
+
+    /// The decoded cover photo for a row, if it's already cached. Reading
+    /// `thumbnailRevision` here is what ties the cache (which SwiftUI can't
+    /// observe) to this view's render cycle.
+    private func thumbnail(for entry: Entry) -> Image? {
+        _ = thumbnailRevision
+        guard entry.hasPhoto,
+              let uiImage = PhotoThumbnailCache.shared.image(for: entry.id) else { return nil }
+        return Image(uiImage: uiImage)
+    }
+
+    /// Lazily decrypts an entry's cover photo at most once per session. A
+    /// strict no-op for entries without a photo (the common case) — no disk
+    /// read, no decrypt.
+    ///
+    /// The disk read, AES decrypt, and JPEG decode run off the main thread:
+    /// `.task` inherits the MainActor, and doing this inline hitched scrolling
+    /// as each photo row appeared in the LazyVStack.
+    private func loadThumbnailIfNeeded(for entry: Entry) async {
+        guard entry.hasPhoto else { return }
+        if PhotoThumbnailCache.shared.image(for: entry.id) != nil { return }
+
+        let entryId = entry.id
+        let decoded: UIImage? = await Task.detached(priority: .utility) {
+            guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
+                  let data = JournalService.shared.encryptionService.decryptData(encrypted),
+                  let uiImage = UIImage(data: data) else { return nil }
+            return uiImage
+        }.value
+
+        guard let decoded else { return }
+        PhotoThumbnailCache.shared.store(decoded, for: entryId)
+        thumbnailRevision &+= 1
     }
 
     private func updateTabBarVisibility(scrollOffset: CGFloat, binding: Binding<Bool>) {

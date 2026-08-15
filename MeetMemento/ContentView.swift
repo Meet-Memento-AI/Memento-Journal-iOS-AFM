@@ -509,32 +509,32 @@ public struct ContentView: View {
     private func entrySheet(for route: EntryRoute) -> some View {
         switch route {
         case .create:
-            AddEntryView(state: .create) { title, text in
-                entryViewModel.createEntry(title: title, text: text)
+            AddEntryView(state: .create) { title, text, photoAction in
+                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
                 activeEntryRoute = nil
                 showEntryToast = true
             }
             .environment(\.fabVisible, false)
         case .createWithTitle(let prefillTitle):
-            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text in
-                entryViewModel.createEntry(title: title, text: text)
+            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text, photoAction in
+                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
                 activeEntryRoute = nil
                 showEntryToast = true
             }
             .environment(\.fabVisible, false)
         case .createWithContent(let prefillTitle, let prefillContent):
-            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text in
-                entryViewModel.createEntry(title: title, text: text)
+            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text, photoAction in
+                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
                 activeEntryRoute = nil
                 showEntryToast = true
             }
             .environment(\.fabVisible, false)
         case .edit(let entry):
-            AddEntryView(state: .edit(entry)) { title, text in
+            AddEntryView(state: .edit(entry)) { title, text, photoAction in
                 var updated = entry
                 updated.title = title
                 updated.text = text
-                entryViewModel.updateEntry(updated)
+                entryViewModel.updateEntry(updated, photoAction: photoAction)
                 activeEntryRoute = nil
                 showEntryToast = true
             }

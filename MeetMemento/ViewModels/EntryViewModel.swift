@@ -162,12 +162,14 @@ class EntryViewModel: ObservableObject {
     /// and no network involved. Losing a journal entry is the one failure mode
     /// this app cannot have, so a failed disk save rolls back the insert and
     /// surfaces an error rather than pretending it worked.
-    func createEntry(title: String, text: String) {
+    func createEntry(title: String, text: String, photoAction: PhotoAction = .unchanged) {
         // One ID from the start, shared by the UI entry and the local
         // encrypted file.
         let entryId = UUID()
         let resolvedTitle = title.isEmpty ? "Untitled" : title
         let now = Date()
+        let hasPhoto: Bool
+        if case .set = photoAction { hasPhoto = true } else { hasPhoto = false }
 
         guard !pendingOperations.contains(entryId) else {
             AppLogger.log("⚠️ [EntryViewModel] Duplicate create operation blocked for \(entryId)")
@@ -175,7 +177,7 @@ class EntryViewModel: ObservableObject {
         }
         pendingOperations.insert(entryId)
 
-        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now)
+        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, hasPhoto: hasPhoto)
 
         // Optimistic insert - UI updates instantly
         entries.insert(newEntry, at: 0)
@@ -191,7 +193,9 @@ class EntryViewModel: ObservableObject {
             }
 
             #if USE_MOCK_DATA
-            // UI Testing Mode - Add to mock data
+            // UI Testing Mode - Add to mock data. Known limitation: no
+            // PhotoStorage file is written in mock mode, so a thumbnail set
+            // here won't reload on a later list load.
             MockDataProvider.shared.addMockEntry(newEntry)
             AppLogger.log("📱 UI Mode: Created mock entry")
             #else
@@ -200,9 +204,39 @@ class EntryViewModel: ObservableObject {
             // operation, not a fallback for a failed network call.
             // No PIN needed: the data key comes from the Keychain, so a save can
             // no longer be blocked by PIN delivery ordering.
+            // The photo write is the source of truth for `hasPhoto`. Deriving
+            // it from the PhotoAction alone would let a failed encrypt/write
+            // persist an entry that claims a photo whose file doesn't exist —
+            // permanently unreadable, with no self-heal path.
+            var photoWriteSucceeded = false
+            if case .set(let photoData) = photoAction {
+                if let encrypted = JournalService.shared.encryptionService.encryptData(photoData) {
+                    do {
+                        try PhotoStorage.shared.saveEncrypted(entryId: entryId, encryptedData: encrypted)
+                        photoWriteSucceeded = true
+                    } catch {
+                        AppLogger.log("⚠️ [EntryViewModel] Failed to save photo for \(entryId): \(error)")
+                    }
+                } else {
+                    AppLogger.log("⚠️ [EntryViewModel] Failed to encrypt photo for \(entryId)")
+                }
+
+                if !photoWriteSucceeded {
+                    // The text still saves; only the photo is lost — say so
+                    // rather than silently dropping it.
+                    await MainActor.run {
+                        if let i = self.entries.firstIndex(where: { $0.id == entryId }) {
+                            self.entries[i].hasPhoto = false
+                            self.updateEntriesByMonth()
+                        }
+                        self.errorMessage = "Couldn't attach the photo. Your entry was saved without it."
+                    }
+                }
+            }
+
             let saved = JournalService.shared.saveEntryLocally(
                 entryId: entryId, title: resolvedTitle, content: text,
-                createdAt: now, updatedAt: now
+                createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded
             )
             if !saved {
                 // Local save failed (e.g. disk/Keychain issue) — this is a
@@ -212,12 +246,13 @@ class EntryViewModel: ObservableObject {
                     self.updateEntriesByMonth()
                     self.errorMessage = "Failed to save entry."
                 }
+                PhotoStorage.shared.deleteEncrypted(entryId: entryId)
             }
             #endif
         }
     }
 
-    func updateEntry(_ entry: Entry) {
+    func updateEntry(_ entry: Entry, photoAction: PhotoAction = .unchanged) {
         // Prevent concurrent operations on the same entry
         guard !pendingOperations.contains(entry.id) else {
                        AppLogger.log("⚠️ [EntryViewModel] Duplicate update operation blocked", type: .error)
@@ -225,6 +260,15 @@ class EntryViewModel: ObservableObject {
         }
 
         pendingOperations.insert(entry.id)
+
+        // `.set` is provisional — `hasPhoto` is confirmed against the actual
+        // photo write below, so a failed write can't persist a phantom photo.
+        var finalEntry = entry
+        switch photoAction {
+        case .set: finalEntry.hasPhoto = true
+        case .removed: finalEntry.hasPhoto = false
+        case .unchanged: break // entry's existing hasPhoto passes through as-is
+        }
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -238,11 +282,12 @@ class EntryViewModel: ObservableObject {
             await MainActor.run { self.isLoading = true }
 
             #if USE_MOCK_DATA
-            // UI Testing Mode - Update mock data
-            MockDataProvider.shared.updateMockEntry(entry)
+            // UI Testing Mode - Update mock data. Known limitation: no
+            // PhotoStorage file is written/deleted in mock mode.
+            MockDataProvider.shared.updateMockEntry(finalEntry)
             await MainActor.run {
                 if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                    self.entries[i] = entry
+                    self.entries[i] = finalEntry
                     self.updateEntriesByMonth()
                 }
             }
@@ -250,17 +295,50 @@ class EntryViewModel: ObservableObject {
             #else
             // Production Mode — local-only (no accounts, spec 023). No server:
             // the local encrypted save below is the entire operation.
+            var photoWriteFailed = false
+            switch photoAction {
+            case .set(let photoData):
+                var succeeded = false
+                if let encrypted = JournalService.shared.encryptionService.encryptData(photoData) {
+                    do {
+                        try PhotoStorage.shared.saveEncrypted(entryId: entry.id, encryptedData: encrypted)
+                        succeeded = true
+                    } catch {
+                        AppLogger.log("⚠️ [EntryViewModel] Failed to save photo for \(entry.id): \(error)")
+                    }
+                } else {
+                    AppLogger.log("⚠️ [EntryViewModel] Failed to encrypt photo for \(entry.id)")
+                }
+                // Replacing overwrites the file under the same key, so the
+                // previously decoded thumbnail is now stale — drop it or the
+                // list keeps rendering the old photo until relaunch.
+                PhotoThumbnailCache.shared.removeImage(for: entry.id)
+                if !succeeded {
+                    photoWriteFailed = true
+                    finalEntry.hasPhoto = false
+                }
+            case .removed:
+                PhotoStorage.shared.deleteEncrypted(entryId: entry.id)
+                PhotoThumbnailCache.shared.removeImage(for: entry.id)
+            case .unchanged:
+                break
+            }
+            let updatedEntry = finalEntry
             let saved = JournalService.shared.saveEntryLocally(
-                entryId: entry.id, title: entry.title, content: entry.text,
-                createdAt: entry.createdAt, updatedAt: Date()
+                entryId: updatedEntry.id, title: updatedEntry.title, content: updatedEntry.text,
+                createdAt: updatedEntry.createdAt, updatedAt: Date(), hasPhoto: updatedEntry.hasPhoto
             )
             await MainActor.run {
-                if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
-                    self.entries[i] = entry
+                // Only reflect the edit in the UI if it actually reached disk —
+                // otherwise the user sees changes that a relaunch would revert.
+                if saved, let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
+                    self.entries[i] = updatedEntry
                     self.updateEntriesByMonth()
                 }
                 if !saved {
                     self.errorMessage = "Failed to update entry."
+                } else if photoWriteFailed {
+                    self.errorMessage = "Couldn't attach the photo. Your changes were saved without it."
                 }
             }
             #endif
@@ -285,6 +363,8 @@ class EntryViewModel: ObservableObject {
         entries.removeAll { $0.id == id }
         updateEntriesByMonth()
         LocalJournalStorage.shared.deleteEncrypted(entryId: id)
+        PhotoStorage.shared.deleteEncrypted(entryId: id)
+        PhotoThumbnailCache.shared.removeImage(for: id)
 
         #if USE_MOCK_DATA
         // UI Testing Mode - Remove from mock data

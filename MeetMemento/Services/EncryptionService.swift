@@ -118,6 +118,31 @@ class EncryptionService {
         return Self.open(ciphertext, using: key)
     }
 
+    /// Encrypts raw bytes under the data key — the `Data` sibling of
+    /// `encrypt(_ plaintext: String)`, for content that isn't text (photos).
+    /// No legacy/PIN variant needed: photos are a new-only feature shipping
+    /// after the data-key migration, so no photo ciphertext can predate it.
+    func encryptData(_ plaintext: Data) -> Data? {
+        guard let key = dataKey() else { return nil }
+        do {
+            return try AES.GCM.seal(plaintext, using: key).combined
+        } catch {
+            AppLogger.log("⚠️ [EncryptionService] Data encryption failed: \(error)")
+            return nil
+        }
+    }
+
+    /// Decrypts raw bytes under the data key — the `Data` sibling of `decrypt(_:)`.
+    func decryptData(_ ciphertext: Data) -> Data? {
+        guard let key = dataKey() else { return nil }
+        do {
+            let sealedBox = try AES.GCM.SealedBox(combined: ciphertext)
+            return try AES.GCM.open(sealedBox, using: key)
+        } catch {
+            return nil
+        }
+    }
+
     /// Reads content written under either scheme.
     ///
     /// Tries the data key first, then falls back to the legacy PBKDF2(PIN) key.

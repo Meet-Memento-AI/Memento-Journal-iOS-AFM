@@ -18,19 +18,25 @@ public struct Entry: Identifiable, Hashable {
     public var text: String
     public var createdAt: Date
     public var updatedAt: Date
+    /// Whether this entry has a photo in `PhotoStorage`, keyed by `id`. Not a
+    /// path/URL — the file location is fully deterministic from `id`, so a
+    /// stored path would be redundant, driftable state.
+    public var hasPhoto: Bool
 
     public init(
         id: UUID = UUID(),
         title: String = "",
         text: String = "",
         createdAt: Date = Date(),
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        hasPhoto: Bool = false
     ) {
         self.id = id
         self.title = title
         self.text = text
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
+        self.hasPhoto = hasPhoto
     }
 }
 

@@ -24,6 +24,8 @@
 		<string>Manrope-Medium.ttf</string>
 		<string>Manrope-Bold.ttf</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Memento needs camera access to add a photo to your journal entries.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Memento uses Face ID to protect your private journal entries.</string>
 	<key>NSMicrophoneUsageDescription</key>

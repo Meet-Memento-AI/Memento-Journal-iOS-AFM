@@ -7,6 +7,11 @@ struct JournalCard: View {
     let title: String
     let excerpt: String
     let date: Date
+    /// The entry's decrypted cover photo, if any. Kept a plain synchronous
+    /// `Image?` — no async/decrypt logic here — so this view keeps its "pure
+    /// inputs, previews instantly" contract; the caller (YourEntriesView) owns
+    /// the lazy decrypt+cache.
+    var photoImage: Image? = nil
 
     /// Optional actions (no-op by default so previews never depend on app state)
     var onTap: (() -> Void)? = nil
@@ -25,41 +30,13 @@ struct JournalCard: View {
 
     // MARK: - Body
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Title
-            header
-                .hPadding(Spacing.lg)
-                .padding(.top, Spacing.lg)
-
-            // Excerpt
-            Text(excerpt)
-                .typographyBody1()
-                .foregroundStyle(theme.mutedForeground)
-                .lineLimit(5)
-                .multilineTextAlignment(.leading)
-                .hPadding(Spacing.lg)
-                .padding(.top, Spacing.sm)
-
-            // Footer/Date
-            footer
-                .hPadding(Spacing.lg)
-                .vPadding(Spacing.md)
+        Group {
+            if let photoImage {
+                photoCardBody(photoImage)
+            } else {
+                plainCardBody
+            }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [theme.secondary, theme.card], // Use semantic tokens
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 1.5)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -91,6 +68,101 @@ struct JournalCard: View {
             onDeleteTapped?()
         }
     }
+
+    // MARK: - Card chrome (photo vs. plain)
+
+    /// Today's shipped card — unchanged. Used when there's no photo.
+    private var plainCardBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .hPadding(Spacing.lg)
+                .padding(.top, Spacing.lg)
+
+            Text(excerpt)
+                .typographyBody1()
+                .foregroundStyle(theme.mutedForeground)
+                .lineLimit(5)
+                .multilineTextAlignment(.leading)
+                .hPadding(Spacing.lg)
+                .padding(.top, Spacing.sm)
+
+            footer
+                .hPadding(Spacing.lg)
+                .vPadding(Spacing.md)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [theme.secondary, theme.card], // Use semantic tokens
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 1.5)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
+    }
+
+    /// With-photo layout: a cover image inset evenly inside the card with the
+    /// SAME corner radius on all four corners, sitting above the text content.
+    /// (This deliberately departs from Figma node 395:5120, which tucked the
+    /// image's bottom edge under an overlapping panel so only its top corners
+    /// were rounded — uniform rounding was preferred.)
+    ///
+    /// The 4pt inset and `theme.radius.lg` (20) are concentric with the card's
+    /// own 24pt radius (24 − 4 = 20), so the image's curve stays parallel to
+    /// the card's rather than visually fighting it.
+    private func photoCardBody(_ image: Image) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(height: 160)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+                .padding(JournalCard.photoInset)
+
+            header
+                .hPadding(Spacing.md)
+                .padding(.top, Spacing.sm)
+
+            Text(excerpt)
+                .typographyBody1()
+                .foregroundStyle(theme.mutedForeground)
+                .lineLimit(5)
+                .multilineTextAlignment(.leading)
+                .hPadding(Spacing.md)
+                .padding(.top, Spacing.xs)
+
+            footer
+                .hPadding(Spacing.md)
+                .padding(.top, Spacing.xs)
+                .padding(.bottom, Spacing.md)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [theme.secondary, theme.card], // same tokens as the plain card
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 2)
+        )
+        .shadow(color: Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255).opacity(0.16), radius: 8, x: 0, y: 4)
+    }
+
+    /// Even inset around the cover photo. Shared with the composer's preview
+    /// (`JournalPhotoThumbnail`) so the two stay visually identical.
+    static let photoInset: CGFloat = 4
 
     // MARK: - Subviews
     private var header: some View {
@@ -144,7 +216,8 @@ struct JournalCard: View {
     }
 
     private var accessibilityLabel: String {
-        "Journal card, \(title). Dated \(formattedDate). \(excerpt)"
+        let photoSuffix = photoImage != nil ? ", with photo" : ""
+        return "Journal card, \(title)\(photoSuffix). Dated \(formattedDate). \(excerpt)"
     }
 }
 
@@ -198,7 +271,6 @@ private struct JournalCardHarness: View {
             onEditTapped: { /* no-op for harness */ },
             onDeleteTapped: { /* no-op for harness */ }
         )
-        .previewLayout(.sizeThatFits)
         .frame(maxWidth: .infinity) // allow card to stretch
         .background(Color(uiColor: .systemBackground))
         .useTheme()
@@ -219,6 +291,55 @@ private struct JournalCardHarness: View {
         excerpt: "What went well: shipped UI preview harnesses, stabilized Xcode canvas. What to improve: fewer side effects in initializers, mock services end-to-end. Next: polish the on-device flows before release.",
         date: .now.addingTimeInterval(-36_00)
     )
-    //.previewLayout(.sizeThatFits)
     .padding()
+    .background(Color(uiColor: .systemBackground))
+    .useTheme()
+    .useTypography()
+}
+
+private enum JournalCardPreviewAssets {
+    /// Opaque stand-in for a real photo. An SF Symbol can't be used here: under
+    /// `.aspectRatio(.fill)` it renders as a vector glyph on a transparent
+    /// canvas, which misrepresents how an opaque photo tiles the 160pt strip.
+    /// A shape can't be used either — `photoImage` is an `Image`, which SwiftUI
+    /// cannot build from a `Rectangle`, so a bitmap is unavoidable.
+    ///
+    /// Intrinsic size is irrelevant (the card scales it with `.resizable()` +
+    /// `.aspectRatio(.fill)`), so this is deliberately tiny, and `static let`
+    /// means it renders once rather than per preview instantiation.
+    static let photo: Image = {
+        let size = CGSize(width: 4, height: 3)
+        let uiImage = UIGraphicsImageRenderer(size: size).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+        return Image(uiImage: uiImage)
+    }()
+}
+
+#Preview("JournalCard · with photo") {
+    JournalCard(
+        title: JournalCard.sampleTitle,
+        excerpt: JournalCard.sampleExcerpt,
+        date: .now,
+        photoImage: JournalCardPreviewAssets.photo
+    )
+    .padding()
+    .background(Color(uiColor: .systemBackground))
+    .useTheme()
+    .useTypography()
+}
+
+#Preview("JournalCard · with photo, dark") {
+    JournalCard(
+        title: JournalCard.sampleTitle,
+        excerpt: JournalCard.sampleExcerpt,
+        date: .now,
+        photoImage: JournalCardPreviewAssets.photo
+    )
+    .padding()
+    .background(Color(uiColor: .systemBackground))
+    .useTheme()
+    .useTypography()
+    .preferredColorScheme(.dark)
 }
