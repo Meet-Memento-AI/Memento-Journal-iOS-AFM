@@ -8,113 +8,72 @@
 import SwiftUI
 
 public struct YourNameView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
+    /// Dissolves in after Welcome's white handoff; opaque for step-slide appearances.
+    @State private var contentOpacity: Double
 
     public var onComplete: (() -> Void)?
     public var isFirstStep: Bool = false
     public var onBack: (() -> Void)?
+    /// Welcome → YourName white dissolve only. Off when this screen is shown via step slides.
+    public var dissolvesInOnAppear: Bool = true
 
-    public init(onComplete: (() -> Void)? = nil, isFirstStep: Bool = false, onBack: (() -> Void)? = nil) {
+    public init(
+        onComplete: (() -> Void)? = nil,
+        isFirstStep: Bool = false,
+        onBack: (() -> Void)? = nil,
+        dissolvesInOnAppear: Bool = true
+    ) {
         self.onComplete = onComplete
         self.isFirstStep = isFirstStep
         self.onBack = onBack
+        self.dissolvesInOnAppear = dissolvesInOnAppear
+        _contentOpacity = State(initialValue: dissolvesInOnAppear ? 0 : 1)
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Custom header with back button
-                headerSection
-
-                // Content area
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Title section
-                        titleSection
-                            .padding(.top, 8)
-
-                        // Input fields
-                        inputFieldsSection
-                            .padding(.top, 24)
-
-                        Spacer(minLength: 120)
-                    }
-                    .padding(.horizontal, 20)
-                }
+        OnboardingPageScaffold(
+            onBack: onBack,
+            scrolls: true
+        ) {
+            VStack(alignment: .leading, spacing: OnboardingLayout.sectionSpacing) {
+                titleSection
+                inputFieldsSection
             }
-
-            // Continue button at bottom
-            VStack {
-                Spacer()
-                PrimaryButton(title: "Continue") {
-                    saveAndContinue()
-                }
-                .opacity(canContinue ? 1.0 : 0.5)
-                .disabled(!canContinue)
-                // Stable UI-test target: label-based queries ("Continue")
-                // collide with iOS 27's keyboard swipe-to-type intro overlay,
-                // which has its own Continue button.
-                .accessibilityIdentifier("onboarding.continueName")
-                .padding(.horizontal, 16)
+        } footer: {
+            PrimaryButton(title: "Continue") {
+                saveAndContinue()
+            }
+            .opacity(canContinue ? 1.0 : 0.5)
+            .disabled(!canContinue)
+            // Stable UI-test target: label-based queries ("Continue")
+            // collide with iOS 27's keyboard swipe-to-type intro overlay,
+            // which has its own Continue button.
+            .accessibilityIdentifier("onboarding.continueName")
+        }
+        .opacity(contentOpacity)
+        .onAppear {
+            guard dissolvesInOnAppear else {
+                contentOpacity = 1
+                return
+            }
+            // Reset so back → Welcome → Get Started can replay the dissolve.
+            contentOpacity = 0
+            withAnimation(.easeInOut(duration: 0.55)) {
+                contentOpacity = 1
             }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Subviews
 
-    private var headerSection: some View {
-        ZStack(alignment: .top) {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: theme.background, location: 0),
-                    .init(color: theme.background.opacity(0), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .frame(height: 64)
-
-            // Header content
-            HStack(alignment: .center, spacing: 12) {
-                // Back button
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 20,
-                    buttonSize: 40,
-                    foregroundColor: theme.foreground,
-                    useDarkBackground: false,
-                    enableHaptic: true,
-                    onTap: { onBack?() ?? dismiss() }
-                )
-                .accessibilityLabel("Back")
-
-                Spacer()
-
-                // Placeholder for alignment
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
-        }
-    }
-
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: OnboardingLayout.titleBodySpacing) {
             Text("What's your name")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
@@ -126,23 +85,18 @@ public struct YourNameView: View {
     }
 
     private var inputFieldsSection: some View {
-        VStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 8) {
-                AppTextField(
-                    placeholder: "First name",
-                    text: $firstName,
-                    textInputAutocapitalization: .words
-                )
-            }
+        VStack(spacing: OnboardingLayout.fieldSpacing) {
+            AppTextField(
+                placeholder: "First name",
+                text: $firstName,
+                textInputAutocapitalization: .words
+            )
 
-            VStack(alignment: .leading, spacing: 8) {
-
-                AppTextField(
-                    placeholder: "Last name",
-                    text: $lastName,
-                    textInputAutocapitalization: .words
-                )
-            }
+            AppTextField(
+                placeholder: "Last name",
+                text: $lastName,
+                textInputAutocapitalization: .words
+            )
         }
     }
 

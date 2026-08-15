@@ -8,7 +8,6 @@
 import SwiftUI
 
 public struct FaceIDView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
@@ -42,85 +41,64 @@ public struct FaceIDView: View {
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
+        OnboardingPageScaffold(
+            onBack: onBack,
+            scrolls: false,
+            centersContent: true
+        ) {
+            VStack(spacing: OnboardingLayout.sectionSpacing) {
+                Image(systemName: "faceid")
+                    .font(.system(size: 80, weight: .thin)) // icon-size: not user text
+                    .foregroundStyle(theme.primary)
+                    .accessibilityHidden(true)
 
-            VStack(spacing: 0) {
-                // Custom header with back button
-                headerSection
+                Text("Set up Face ID")
+                    .font(type.h3)
+                    .foregroundStyle(theme.foreground)
+                    .multilineTextAlignment(.center)
 
-                // Centered content
-                VStack(spacing: 24) {
-                    Spacer()
-
-                    // Face ID icon
-                    Image(systemName: "faceid")
-                        .font(.system(size: 80, weight: .thin)) // icon-size: not user text
-                        .foregroundStyle(theme.primary)
-                        .accessibilityHidden(true)
-
-                    // Title
-                    Text("Set up Face ID")
-                        .font(type.h3)
-                        .foregroundStyle(theme.foreground)
-                        .multilineTextAlignment(.center)
-
-                    // Subtitle
-                    Text("You can use Face ID to encrypt your journals so you won't need to type in your PIN every time.")
-                        .font(type.body1)
-                        .lineSpacing(3.4)
-                        .foregroundStyle(theme.mutedForeground)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                Spacer()
+                Text("You can use Face ID to encrypt your journals so you won't need to type in your PIN every time.")
+                    .font(type.body1)
+                    .lineSpacing(3.4)
+                    .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } footer: {
+            VStack(spacing: OnboardingLayout.footerStackSpacing) {
+                if showError {
+                    Text("Face ID authentication failed. Please try again or use a PIN.")
+                        .font(type.body2)
+                        .foregroundStyle(Color.red)
+                        .multilineTextAlignment(.center)
+                }
 
-            // Bottom buttons
-            VStack {
-                Spacer()
-                VStack(spacing: 16) {
-                    // Error message
-                    if showError {
-                        Text("Face ID authentication failed. Please try again or use a PIN.")
-                            .font(type.body2)
-                            .foregroundStyle(Color.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 16)
-                    }
-
-                    if isAuthenticating {
-                        ProgressView()
-                            .tint(theme.primary)
-                            .padding(.vertical, 16)
-                    } else {
-                        PrimaryButton(title: "Use Face ID") {
-                            handleUseFaceID()
-                        }
-                    }
-
-                    SecondaryButton(title: "Create a PIN instead") {
-                        handleCreatePIN()
-                    }
-
-                    if onSkip != nil {
-                        Button {
-                            showSkipConfirmation = true
-                        } label: {
-                            Text("Skip for now")
-                                .font(type.body2)
-                                .foregroundStyle(theme.mutedForeground)
-                        }
-                        .padding(.top, 4)
+                if isAuthenticating {
+                    ProgressView()
+                        .tint(theme.primary)
+                        .frame(height: 48)
+                } else {
+                    PrimaryButton(title: "Use Face ID") {
+                        handleUseFaceID()
                     }
                 }
-                .padding(.horizontal, 16)
+
+                SecondaryButton(title: "Create a PIN instead") {
+                    handleCreatePIN()
+                }
+
+                if onSkip != nil {
+                    Button {
+                        showSkipConfirmation = true
+                    } label: {
+                        Text("Skip for now")
+                            .font(type.body2)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                    .padding(.top, 4)
+                }
             }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
         .confirmationDialog(
             "Skip journal protection?",
             isPresented: $showSkipConfirmation,
@@ -132,49 +110,6 @@ public struct FaceIDView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your journal will open without protection — anyone with your phone unlocked can read it. You can turn this on later in Settings.")
-        }
-    }
-
-    // MARK: - Subviews
-
-    private var headerSection: some View {
-        ZStack(alignment: .top) {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: theme.background, location: 0),
-                    .init(color: theme.background.opacity(0), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .frame(height: 64)
-
-            // Header content
-            HStack(alignment: .center, spacing: 12) {
-                // Back button - always visible with liquid glass styling
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 20,
-                    buttonSize: 40,
-                    foregroundColor: theme.foreground,
-                    useDarkBackground: false,
-                    enableHaptic: true,
-                    onTap: { onBack?() ?? dismiss() }
-                )
-                .accessibilityLabel("Back")
-
-                Spacer()
-
-                // Placeholder for alignment
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
         }
     }
 

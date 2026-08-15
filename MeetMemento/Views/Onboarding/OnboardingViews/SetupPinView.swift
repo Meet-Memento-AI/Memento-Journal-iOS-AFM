@@ -7,7 +7,6 @@
 import SwiftUI
 
 public struct SetupPinView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
@@ -45,53 +44,43 @@ public struct SetupPinView: View {
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Header with back button
-                headerSection
-
-                // Main content area
-                VStack(spacing: 0) {
-                    // Title
+        OnboardingPageScaffold(
+            onBack: onCancel,
+            scrolls: true,
+            centersContent: false
+        ) {
+            VStack(spacing: OnboardingLayout.sectionSpacing) {
+                VStack(spacing: OnboardingLayout.titleBodySpacing) {
                     Text(titleText)
                         .font(type.h3)
                         .foregroundStyle(theme.foreground)
-                        .padding(.top, 40)
-                        .padding(.bottom, 12)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
 
-                    // Subtitle
                     Text(subtitleText)
                         .font(type.body2)
                         .foregroundStyle(theme.mutedForeground)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 40)
-
-                    // PIN input fields
-                    pinInputFields
-                        .padding(.bottom, 40)
-
-                    Spacer()
-
-                    // Set PIN button
-                    PrimaryButton(title: "Set PIN") {
-                        handlePinComplete()
-                    }
-                    .opacity(pin.count == 4 ? 1.0 : 0.5)
-                    .disabled(pin.count != 4 || isSubmitting)
-                    .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
                 }
+
+                pinInputFields
             }
-            
+        } footer: {
+            PrimaryButton(title: "Set PIN") {
+                handlePinComplete()
+            }
+            .opacity(pin.count == 4 ? 1.0 : 0.5)
+            .disabled(pin.count != 4 || isSubmitting)
+        }
+        .overlay {
             // Hidden TextField for iOS keyboard
             TextField("", text: $pin)
                 .keyboardType(.numberPad)
                 .focused($isPinFieldFocused)
                 .opacity(0)
                 .frame(width: 0, height: 0)
-                .onChange(of: pin) { oldValue, newValue in
+                .onChange(of: pin) { _, newValue in
                     // Filter to only allow digits and limit to 4
                     var filtered = newValue.filter { $0.isNumber }
                     if filtered.count > 4 {
@@ -104,51 +93,14 @@ public struct SetupPinView: View {
                     }
                 }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            DispatchQueue.main.async {
+                isPinFieldFocused = true
+            }
+        }
     }
 
     // MARK: - Subviews
-
-    private var headerSection: some View {
-        ZStack(alignment: .top) {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: theme.background, location: 0),
-                    .init(color: theme.background.opacity(0), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .frame(height: 64)
-
-            // Header content
-            HStack(alignment: .center, spacing: 12) {
-                // Back button (calls coordinator onCancel, or dismiss when used standalone)
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 20,
-                    buttonSize: 40,
-                    foregroundColor: theme.foreground,
-                    useDarkBackground: false,
-                    enableHaptic: true,
-                    onTap: { onCancel?() ?? dismiss() }
-                )
-                .accessibilityLabel("Back")
-
-                Spacer()
-
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
-        }
-    }
 
     private var pinInputFields: some View {
         HStack(spacing: 16) {
@@ -176,6 +128,7 @@ public struct SetupPinView: View {
                 .buttonStyle(.plain)
             }
         }
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("PIN entry")
         .accessibilityValue("\(pin.count) of 4 digits entered")

@@ -9,7 +9,6 @@
 import SwiftUI
 
 public struct LearnAboutYourselfView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @EnvironmentObject var appState: AppStateStore
@@ -40,37 +39,38 @@ public struct LearnAboutYourselfView: View {
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Custom header with back button
-                headerSection
-
-                // Content area
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Title section
-                        titleSection
-                            .padding(.top, 8)
-
-                        // Body editor - same style as AddEntryView
-                        bodyField
-                            .padding(.top, 16)
-
-                        Spacer(minLength: 120)
-                    }
-                    .padding(.horizontal, 20)
+        OnboardingPageScaffold(
+            onBack: onBack,
+            scrolls: true,
+            trailing: {
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    completeStep()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .bold)) // icon-size: not user text
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(theme.primary))
+                }
+                .accessibilityLabel("Continue")
+                .accessibilityHint("Double-tap to save and continue")
+                .accessibilityIdentifier("onboarding.continueLearn")
+            },
+            content: {
+                VStack(alignment: .leading, spacing: OnboardingLayout.sectionSpacing) {
+                    titleSection
+                    bodyField
+                }
+            },
+            footer: {
+                HStack {
+                    Spacer(minLength: 0)
+                    microphoneFAB
+                    Spacer(minLength: 0)
                 }
             }
-
-        }
-        .overlay(alignment: .bottom) {
-            microphoneFAB
-                .padding(.bottom, 32)
-        }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        )
         .onAppear {
             // Auto-focus the text editor after a brief delay
             Task { @MainActor in
@@ -128,44 +128,8 @@ public struct LearnAboutYourselfView: View {
 
     // MARK: - Subviews
 
-    private var headerSection: some View {
-        HStack(alignment: .center) {
-            // Back button - always visible with liquid glass styling
-            IconButtonNav(
-                icon: "chevron.left",
-                iconSize: 20,
-                buttonSize: 40,
-                foregroundColor: theme.foreground,
-                useDarkBackground: false,
-                enableHaptic: true,
-                onTap: { onBack?() ?? dismiss() }
-            )
-            .accessibilityLabel("Back")
-
-            Spacer()
-
-            // Submit button (checkmark)
-            Button {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                completeStep()
-            } label: {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 16, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(theme.primary))
-            }
-            .accessibilityLabel("Continue")
-            .accessibilityHint("Double-tap to save and continue")
-            .accessibilityIdentifier("onboarding.continueLearn")
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-    }
-
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: OnboardingLayout.fieldSpacing) {
             Text("What would you like to learn about yourself?")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
@@ -179,7 +143,7 @@ public struct LearnAboutYourselfView: View {
                     .font(type.body1)
                     .lineSpacing(3.4)
                     .foregroundStyle(theme.mutedForeground.opacity(0.5))
-                    .padding(.top, 8)
+                    .padding(.top, OnboardingLayout.fieldSpacing)
                     .allowsHitTesting(false)
             }
 
@@ -189,7 +153,7 @@ public struct LearnAboutYourselfView: View {
                 .foregroundStyle(theme.foreground)
                 .focused($isFocused)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: 300)
+                .frame(minHeight: 240)
         }
     }
 
@@ -205,7 +169,7 @@ public struct LearnAboutYourselfView: View {
         let trimmedText = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
         onComplete?(trimmedText)
     }
-    
+
     private func consumeTranscriptOnce(_ transcribedText: String) {
         guard !didConsumeTranscript else { return }
         let trimmed = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -225,13 +189,13 @@ public struct LearnAboutYourselfView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         isFocused = true
     }
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
-    
+
     // MARK: - Microphone FAB
 
     private var microphoneFAB: some View {
@@ -257,7 +221,7 @@ public struct LearnAboutYourselfView: View {
                 }
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: OnboardingLayout.fieldSpacing) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
                     .font(.system(size: 18, weight: .bold)) // icon-size: not user text
                     .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)

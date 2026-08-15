@@ -78,9 +78,10 @@ struct MeetMementoApp: App {
                     }
                 }
                 .animation(.easeInOut(duration: 0.4), value: appState.hasCompletedOnboarding)
-                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.4), value: appState.hasStartedOnboarding)
+                // Content must respect the safe area (status bar / home indicator /
+                // keyboard). Only RootBackground is full-bleed.
             }
-            .ignoresSafeArea()
             .task {
                 appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()

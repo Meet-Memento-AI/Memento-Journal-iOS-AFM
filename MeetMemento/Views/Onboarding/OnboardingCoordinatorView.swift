@@ -34,27 +34,34 @@ public struct OnboardingCoordinatorView: View {
     @StateObject private var onboardingViewModel = OnboardingViewModel()
     @StateObject private var entryViewModel = EntryViewModel()
 
-    @State private var navigationPath = NavigationPath()
+    /// Stack of steps. Forward = append (out left / in from right); back = pop (reverse).
+    @State private var routeStack: [OnboardingRoute] = [.yourName]
+    /// `true` while animating a forward push; `false` for back.
+    @State private var isNavigatingForward = true
+    /// After the first forward slide, YourName should not re-run its Welcome dissolve.
+    @State private var hasLeftFirstStep = false
     @State private var hasLoadedState = false
     @State private var hasMetMinimumLoadTime = false
     @State private var showSaveError = false
     @State private var saveErrorMessage: String?
 
+    /// Fast page turn between onboarding steps.
+    private static let stepTransition = Animation.easeInOut(duration: 0.28)
+
     init(lockScreenViewModel: LockScreenViewModel) {
         self.lockScreenViewModel = lockScreenViewModel
     }
 
+    private var currentRoute: OnboardingRoute {
+        routeStack.last ?? .yourName
+    }
+
     public var body: some View {
-        NavigationStack(path: $navigationPath) {
-            Group {
-                if !hasLoadedState || onboardingViewModel.isLoadingState || !hasMetMinimumLoadTime {
-                    LoadingView()
-                } else {
-                    initialView
-                }
-            }
-            .navigationDestination(for: OnboardingRoute.self) { route in
-                destinationView(for: route)
+        Group {
+            if !hasLoadedState || onboardingViewModel.isLoadingState || !hasMetMinimumLoadTime {
+                LoadingView()
+            } else {
+                stepHost
             }
         }
         .environmentObject(onboardingViewModel)
@@ -62,7 +69,16 @@ public struct OnboardingCoordinatorView: View {
         .useTypography()
         .task {
             if !hasLoadedState {
+                // Coming from Welcome's white dissolve: skip the artificial 500ms
+                // LoadingView so YourName can fade in on the white bridge.
+                let fromWelcome = appState.isEnteringOnboardingFromWelcome
+                if fromWelcome {
+                    appState.isEnteringOnboardingFromWelcome = false
+                    hasMetMinimumLoadTime = true
+                }
+
                 let minimumLoadTask = Task {
+                    guard !fromWelcome else { return }
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     await MainActor.run {
                         hasMetMinimumLoadTime = true
@@ -84,19 +100,82 @@ public struct OnboardingCoordinatorView: View {
         }
     }
 
+    // MARK: - Step Host
+
+    private var stepHost: some View {
+        ZStack {
+            // Full-bleed fill behind sliding pages; page scaffolds own their chrome.
+            theme.background.ignoresSafeArea()
+
+            destinationView(for: currentRoute)
+                .id(routeIdentity(for: currentRoute))
+                .transition(stepTransition(forForward: isNavigatingForward))
+        }
+        // Clip horizontal slide overflow only — do not ignore the safe area here.
+        .clipShape(Rectangle())
+    }
+
+    /// Forward: completed step exits left; next enters from the right.
+    /// Back: reverse edges.
+    private func stepTransition(forForward forward: Bool) -> AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: forward ? .trailing : .leading)
+                .combined(with: .opacity),
+            removal: .move(edge: forward ? .leading : .trailing)
+                .combined(with: .opacity)
+        )
+    }
+
+    private func routeIdentity(for route: OnboardingRoute) -> String {
+        switch route {
+        case .yourName: return "yourName"
+        case .learnAboutYourself: return "learnAboutYourself"
+        case .themeConfirmation: return "themeConfirmation"
+        case .faceID: return "faceID"
+        case .setupPin(let isFaceIDBackup): return "setupPin-\(isFaceIDBackup)"
+        case .confirmPin(let originalPin, let isFaceIDBackup):
+            return "confirmPin-\(isFaceIDBackup)-\(originalPin)"
+        case .loading: return "loading"
+        }
+    }
+
+    private func pushRoute(_ route: OnboardingRoute) {
+        isNavigatingForward = true
+        hasLeftFirstStep = true
+        withAnimation(Self.stepTransition) {
+            routeStack.append(route)
+        }
+    }
+
+    private func popRoute() {
+        guard routeStack.count > 1 else { return }
+        isNavigatingForward = false
+        withAnimation(Self.stepTransition) {
+            routeStack.removeLast()
+        }
+    }
+
     // MARK: - Destination View Builder
 
     @ViewBuilder
     private func destinationView(for route: OnboardingRoute) -> some View {
         switch route {
         case .yourName:
-            // When YourNameView is navigated to (not initial), back should go to WelcomeView
-            YourNameView(onComplete: { handleYourNameComplete() }, isFirstStep: false, onBack: { handleBackToWelcome() })
-                .environmentObject(appState)
+            YourNameView(
+                onComplete: { handleYourNameComplete() },
+                isFirstStep: true,
+                onBack: { handleBackToWelcome() },
+                dissolvesInOnAppear: !hasLeftFirstStep
+            )
+            .environmentObject(appState)
 
         case .learnAboutYourself:
-            LearnAboutYourselfView(onComplete: { userInput in handleLearnAboutYourselfComplete(userInput) }, isFirstStep: false, onBack: { handleBack() })
-                .environmentObject(appState)
+            LearnAboutYourselfView(
+                onComplete: { userInput in handleLearnAboutYourselfComplete(userInput) },
+                isFirstStep: false,
+                onBack: { handleBack() }
+            )
+            .environmentObject(appState)
 
         case .themeConfirmation:
             ThemeConfirmationView(
@@ -142,23 +221,15 @@ public struct OnboardingCoordinatorView: View {
         }
     }
 
-    // MARK: - Initial View Logic
-
-    @ViewBuilder
-    private var initialView: some View {
-        // Always start onboarding at YourNameView
-        YourNameView(onComplete: { handleYourNameComplete() }, isFirstStep: true, onBack: { handleBackToWelcome() })
-            .environmentObject(appState)
-    }
-
     // MARK: - Navigation Handlers
 
     private func handleYourNameComplete() {
+        // Slide to the next step immediately; persist in the background.
+        appState.setDisplayName(firstName: onboardingViewModel.firstName, lastName: onboardingViewModel.lastName)
+        pushRoute(.learnAboutYourself)
         Task {
             do {
                 try await onboardingViewModel.saveProfileData()
-                appState.setDisplayName(firstName: onboardingViewModel.firstName, lastName: onboardingViewModel.lastName)
-                navigationPath.append(OnboardingRoute.learnAboutYourself)
             } catch {
                 AppLogger.log("⚠️ Failed to save profile: \(error)")
                 saveErrorMessage = "Failed to save your profile. Please try again."
@@ -169,10 +240,10 @@ public struct OnboardingCoordinatorView: View {
 
     private func handleLearnAboutYourselfComplete(_ userInput: String) {
         onboardingViewModel.personalizationText = userInput
+        pushRoute(.themeConfirmation)
         Task {
             do {
                 try await onboardingViewModel.savePersonalizationText()
-                navigationPath.append(OnboardingRoute.themeConfirmation)
             } catch {
                 AppLogger.log("⚠️ Failed to save personalization: \(error)")
                 saveErrorMessage = "Failed to save your preferences. Please try again."
@@ -182,6 +253,7 @@ public struct OnboardingCoordinatorView: View {
     }
 
     private func handleThemeConfirmationComplete(_ outcome: ThemeSelectionOutcome) {
+        pushRoute(.faceID)
         Task {
             do {
                 try await onboardingViewModel.saveExperienceProfile(
@@ -191,7 +263,6 @@ public struct OnboardingCoordinatorView: View {
                     modelIdentifier: outcome.modelIdentifier,
                     promptVersion: outcome.promptVersion
                 )
-                navigationPath.append(OnboardingRoute.faceID)
             } catch {
                 AppLogger.log("⚠️ Failed to save experience profile: \(error)")
                 saveErrorMessage = "Failed to save your themes. Please try again."
@@ -205,16 +276,16 @@ public struct OnboardingCoordinatorView: View {
         // Now navigate to PIN setup (required for all users as backup + encryption)
         onboardingViewModel.useFaceID = true
         SecurityService.shared.setSecurityMode(.faceID)
-        navigationPath.append(OnboardingRoute.setupPin(isFaceIDBackup: true))
+        pushRoute(.setupPin(isFaceIDBackup: true))
     }
 
     private func handleCreatePIN() {
         onboardingViewModel.useFaceID = false
-        navigationPath.append(OnboardingRoute.setupPin(isFaceIDBackup: false))
+        pushRoute(.setupPin(isFaceIDBackup: false))
     }
 
     private func handleSetupPinComplete(_ pin: String, isFaceIDBackup: Bool) {
-        navigationPath.append(OnboardingRoute.confirmPin(originalPin: pin, isFaceIDBackup: isFaceIDBackup))
+        pushRoute(.confirmPin(originalPin: pin, isFaceIDBackup: isFaceIDBackup))
     }
 
     private func handleConfirmPinComplete() {
@@ -256,9 +327,7 @@ public struct OnboardingCoordinatorView: View {
     }
 
     private func handleBack() {
-        if !navigationPath.isEmpty {
-            navigationPath.removeLast()
-        }
+        popRoute()
     }
 
     private func handleBackToWelcome() {
@@ -268,6 +337,8 @@ public struct OnboardingCoordinatorView: View {
     }
 
     private func finishSecuritySetup() {
+        // Move to the loading / finish screen right away; journal seed can follow.
+        pushRoute(.loading)
         Task {
             if !onboardingViewModel.personalizationText.isEmpty {
                 do {
@@ -278,9 +349,6 @@ public struct OnboardingCoordinatorView: View {
                 } catch {
                     AppLogger.log("⚠️ Failed to create first journal entry: \(error)")
                 }
-            }
-            await MainActor.run {
-                navigationPath.append(OnboardingRoute.loading)
             }
         }
     }

@@ -54,86 +54,71 @@ public struct ThemeConfirmationView: View {
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
+        OnboardingPageScaffold(
+            onBack: onBack,
+            scrolls: true
+        ) {
+            VStack(alignment: .leading, spacing: 0) {
+                titleSection
 
-            VStack(spacing: 0) {
-                headerSection
+                if isEstimating {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                            .tint(theme.primary)
+                        Text("Finding themes that fit…")
+                            .font(type.body2)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                    .padding(.top, OnboardingLayout.sectionSpacing)
+                    .accessibilityIdentifier("onboarding.themeEstimating")
+                } else {
+                    if usedFallback {
+                        Text("Pick the themes that feel right — you can change these anytime.")
+                            .font(type.body2)
+                            .foregroundStyle(theme.mutedForeground)
+                            .padding(.top, OnboardingLayout.titleBodySpacing)
+                    }
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        titleSection
-                            .padding(.top, 8)
+                    if !suggestedThemes.isEmpty {
+                        sectionLabel("Suggested for you")
+                            .padding(.top, OnboardingLayout.sectionSpacing)
+                        themeChipFlow(suggestedThemes)
+                            .padding(.top, OnboardingLayout.titleBodySpacing)
+                    }
 
-                        if isEstimating {
-                            HStack(spacing: 12) {
-                                ProgressView()
-                                    .tint(theme.primary)
-                                Text("Finding themes that fit…")
-                                    .font(type.body2)
-                                    .foregroundStyle(theme.mutedForeground)
-                            }
-                            .padding(.top, 32)
-                            .accessibilityIdentifier("onboarding.themeEstimating")
-                        } else {
-                            if usedFallback {
-                                Text("Pick the themes that feel right — you can change these anytime.")
-                                    .font(type.body2)
-                                    .foregroundStyle(theme.mutedForeground)
-                                    .padding(.top, 12)
-                            }
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showAllThemes.toggle()
+                        }
+                    } label: {
+                        Text(showAllThemes ? "Hide full catalog" : "Browse all themes")
+                            .font(type.body2Bold)
+                            .foregroundStyle(theme.primary)
+                    }
+                    .padding(.top, 20)
+                    .accessibilityIdentifier("onboarding.browseThemes")
 
-                            if !suggestedThemes.isEmpty {
-                                sectionLabel("Suggested for you")
-                                    .padding(.top, 24)
-                                themeChipFlow(suggestedThemes)
-                                    .padding(.top, 12)
-                            }
-
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showAllThemes.toggle()
-                                }
-                            } label: {
-                                Text(showAllThemes ? "Hide full catalog" : "Browse all themes")
-                                    .font(type.body2Bold)
-                                    .foregroundStyle(theme.primary)
-                            }
-                            .padding(.top, 20)
-                            .accessibilityIdentifier("onboarding.browseThemes")
-
-                            if showAllThemes {
-                                ForEach(ThemeFamily.allCases) { family in
-                                    let themes = ThemeCatalog.themes(in: family)
-                                    if !themes.isEmpty {
-                                        sectionLabel(family.title)
-                                            .padding(.top, 20)
-                                        themeChipFlow(themes)
-                                            .padding(.top, 12)
-                                    }
-                                }
+                    if showAllThemes {
+                        ForEach(ThemeFamily.allCases) { family in
+                            let themes = ThemeCatalog.themes(in: family)
+                            if !themes.isEmpty {
+                                sectionLabel(family.title)
+                                    .padding(.top, 20)
+                                themeChipFlow(themes)
+                                    .padding(.top, OnboardingLayout.titleBodySpacing)
                             }
                         }
-
-                        Spacer(minLength: 120)
                     }
-                    .padding(.horizontal, 20)
                 }
             }
-
-            VStack {
-                Spacer()
-                PrimaryButton(title: "Continue") {
-                    saveAndContinue()
-                }
-                .opacity(canContinue ? 1.0 : 0.5)
-                .disabled(!canContinue || isEstimating)
-                .accessibilityIdentifier("onboarding.continueThemes")
-                .padding(.horizontal, 16)
+        } footer: {
+            PrimaryButton(title: "Continue") {
+                saveAndContinue()
             }
+            .opacity(canContinue ? 1.0 : 0.5)
+            .disabled(!canContinue || isEstimating)
+            .accessibilityIdentifier("onboarding.continueThemes")
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
         .task {
             await runEstimate()
         }
@@ -141,30 +126,8 @@ public struct ThemeConfirmationView: View {
 
     // MARK: - Subviews
 
-    private var headerSection: some View {
-        HStack(alignment: .center, spacing: 12) {
-            IconButtonNav(
-                icon: "chevron.left",
-                iconSize: 20,
-                buttonSize: 40,
-                foregroundColor: theme.foreground,
-                useDarkBackground: false,
-                enableHaptic: true,
-                onTap: { onBack?() }
-            )
-            .accessibilityLabel("Back")
-
-            Spacer()
-
-            Color.clear.frame(width: 40, height: 40)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
-        .padding(.bottom, 16)
-    }
-
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: OnboardingLayout.titleBodySpacing) {
             Text("Themes for your journal")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
@@ -182,7 +145,7 @@ public struct ThemeConfirmationView: View {
     }
 
     private func themeChipFlow(_ themes: [JournalTheme]) -> some View {
-        ThemeFlowLayout(spacing: 12) {
+        ThemeFlowLayout(spacing: OnboardingLayout.titleBodySpacing) {
             ForEach(themes) { themeItem in
                 Chip(
                     text: themeItem.displayName,

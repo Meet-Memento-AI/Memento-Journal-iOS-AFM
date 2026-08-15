@@ -40,6 +40,12 @@ class AppStateStore: ObservableObject {
     /// WelcomeView uses this to skip intro animations and show content immediately.
     @Published var isReturningFromOnboarding = false
 
+    /// One-shot: Welcome set this after dissolving to white, just before flipping
+    /// `hasStartedOnboarding`. OnboardingCoordinator consumes it to skip the
+    /// LoadingView minimum delay so YourName can dissolve in on the white bridge.
+    /// Not persisted.
+    @Published var isEnteringOnboardingFromWelcome = false
+
     /// Locally stored display name (set during onboarding / profile edits).
     @Published var firstName: String? = UserDefaults.standard.string(forKey: AppStateStore.firstNameKey)
 

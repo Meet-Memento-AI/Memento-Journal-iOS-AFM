@@ -7,7 +7,6 @@
 import SwiftUI
 
 public struct ConfirmPinView: View {
-    @Environment(\.dismiss) var dismiss
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
@@ -45,48 +44,37 @@ public struct ConfirmPinView: View {
     }
 
     public var body: some View {
-        ZStack {
-            theme.background.ignoresSafeArea()
+        OnboardingPageScaffold(
+            onBack: onCancel,
+            scrolls: true,
+            centersContent: false
+        ) {
+            VStack(spacing: OnboardingLayout.sectionSpacing) {
+                Text(titleText)
+                    .font(type.h3)
+                    .foregroundStyle(theme.foreground)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
 
-            VStack(spacing: 0) {
-                // Header with back button
-                headerSection
+                pinInputFields
+                    .offset(x: shakeOffset)
 
-                // Main content area
-                VStack(spacing: 0) {
-                    // Title
-                    Text(titleText)
-                        .font(type.h3)
-                        .foregroundStyle(theme.foreground)
-                        .padding(.top, 40)
-                        .padding(.bottom, 60)
-
-                    // PIN input fields with shake animation
-                    pinInputFields
-                        .offset(x: shakeOffset)
-                        .padding(.bottom, 40)
-
-                    // Error message
-                    if showError {
-                        Text("PINs don't match. Please try again.")
-                            .font(type.body2)
-                            .foregroundStyle(Color.red)
-                            .padding(.top, 8)
-                            .padding(.bottom, 20)
-                    }
-
-                    Spacer()
-
-                    // Confirm PIN button
-                    PrimaryButton(title: "Confirm PIN") {
-                        handlePinComplete()
-                    }
-                    .opacity(pin.count == 4 ? 1.0 : 0.5)
-                    .disabled(pin.count != 4 || isValidating)
-                    .padding(.horizontal, 16)
+                if showError {
+                    Text("PINs don't match. Please try again.")
+                        .font(type.body2)
+                        .foregroundStyle(Color.red)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            
+        } footer: {
+            PrimaryButton(title: "Confirm PIN") {
+                handlePinComplete()
+            }
+            .opacity(pin.count == 4 ? 1.0 : 0.5)
+            .disabled(pin.count != 4 || isValidating)
+        }
+        .overlay {
             // Hidden TextField for iOS keyboard
             TextField("", text: $pin)
                 .keyboardType(.numberPad)
@@ -115,51 +103,14 @@ public struct ConfirmPinView: View {
                     }
                 }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            DispatchQueue.main.async {
+                isPinFieldFocused = true
+            }
+        }
     }
 
     // MARK: - Subviews
-
-    private var headerSection: some View {
-        ZStack(alignment: .top) {
-            // Background gradient
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: theme.background, location: 0),
-                    .init(color: theme.background.opacity(0), location: 1)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .frame(height: 64)
-
-            // Header content
-            HStack(alignment: .center, spacing: 12) {
-                // Back button (calls coordinator onCancel, or dismiss when used standalone)
-                IconButtonNav(
-                    icon: "chevron.left",
-                    iconSize: 20,
-                    buttonSize: 40,
-                    foregroundColor: theme.foreground,
-                    useDarkBackground: false,
-                    enableHaptic: true,
-                    onTap: { onCancel?() ?? dismiss() }
-                )
-                .accessibilityLabel("Back")
-
-                Spacer()
-
-                Color.clear
-                    .frame(width: 40, height: 40)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 16)
-        }
-    }
 
     private var pinInputFields: some View {
         HStack(spacing: 16) {
@@ -187,6 +138,7 @@ public struct ConfirmPinView: View {
                 .buttonStyle(.plain)
             }
         }
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("PIN entry")
         .accessibilityValue("\(pin.count) of 4 digits entered")
