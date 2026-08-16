@@ -2,8 +2,10 @@
 //  AIChatFooter.swift
 //  MeetMemento
 //
-//  Footer wrapper for AI Chat interface
-//  Wraps ChatInputField with proper padding
+//  Footer wrapper for AI Chat interface.
+//  Wraps ChatInputField with proper padding — and nothing else. Chat history
+//  moved out to TopNavHeader's trailing slot, and dictation now renders inside
+//  the field itself, so this is a pure layout shim.
 //
 
 import SwiftUI
@@ -12,38 +14,25 @@ struct AIChatFooter: View {
     @Binding var inputText: String
     var isSending: Bool
     var onSend: () -> Void
-    var hasExistingChats: Bool
-    var onHistoryTap: (() -> Void)?
-    var onNarrateStateChange: ((Bool) -> Void)?
-
-    @Environment(\.theme) private var theme
 
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
-        onSend: @escaping () -> Void,
-        hasExistingChats: Bool = false,
-        onHistoryTap: (() -> Void)? = nil,
-        onNarrateStateChange: ((Bool) -> Void)? = nil
+        onSend: @escaping () -> Void
     ) {
         self._inputText = inputText
         self.isSending = isSending
         self.onSend = onSend
-        self.hasExistingChats = hasExistingChats
-        self.onHistoryTap = onHistoryTap
-        self.onNarrateStateChange = onNarrateStateChange
     }
 
     var body: some View {
         ChatInputField(
             text: $inputText,
             onSend: onSend,
-            onHistoryTap: onHistoryTap,
-            onNarrateStateChange: onNarrateStateChange,
-            isInteractive: !isSending,
-            hasExistingChats: hasExistingChats
+            isInteractive: !isSending
         )
-        .padding(.horizontal, 20)
+        // 16pt sides: Figma draws the 376pt capsule inside a 408pt frame.
+        .padding(.horizontal, 16)
         .padding(.vertical, 16)
         .opacity(isSending ? 0.7 : 1.0)
     }
@@ -87,20 +76,6 @@ struct AIChatFooter: View {
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)
-}
-
-#Preview("AIChatFooter - With History") {
-    VStack {
-        Spacer()
-        AIChatFooter(
-            inputText: .constant(""),
-            onSend: { AppLogger.log("Send tapped") },
-            hasExistingChats: true,
-            onHistoryTap: { AppLogger.log("History tapped") }
-        )
-    }
-    .useTheme()
-    .useTypography()
 }
 
 #Preview("AIChatFooter - Interactive") {

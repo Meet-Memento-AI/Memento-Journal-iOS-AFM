@@ -14,7 +14,7 @@ private struct PreviewEntryViewModelKey: EnvironmentKey {
     static let defaultValue: EntryViewModel? = nil
 }
 private struct PreviewInitialTabKey: EnvironmentKey {
-    static let defaultValue: JournalTopTab? = nil
+    static let defaultValue: RootPage? = nil
 }
 private struct TabBarHiddenKey: EnvironmentKey {
     static let defaultValue: Binding<Bool>? = nil
@@ -23,7 +23,7 @@ private struct ShowAccessoryKey: EnvironmentKey {
     static let defaultValue: Binding<Bool>? = nil
 }
 private struct SelectedTabKey: EnvironmentKey {
-    static let defaultValue: Binding<JournalTopTab>? = nil
+    static let defaultValue: Binding<RootPage>? = nil
 }
 private struct FABVisibleKey: EnvironmentKey {
     static let defaultValue: Bool = true
@@ -33,7 +33,7 @@ extension EnvironmentValues {
         get { self[PreviewEntryViewModelKey.self] }
         set { self[PreviewEntryViewModelKey.self] = newValue }
     }
-    var previewInitialTab: JournalTopTab? {
+    var previewInitialTab: RootPage? {
         get { self[PreviewInitialTabKey.self] }
         set { self[PreviewInitialTabKey.self] = newValue }
     }
@@ -45,7 +45,7 @@ extension EnvironmentValues {
         get { self[ShowAccessoryKey.self] }
         set { self[ShowAccessoryKey.self] = newValue }
     }
-    var selectedTab: Binding<JournalTopTab>? {
+    var selectedTab: Binding<RootPage>? {
         get { self[SelectedTabKey.self] }
         set { self[SelectedTabKey.self] = newValue }
     }
@@ -114,13 +114,10 @@ extension View {
 }
 
 public struct ContentView: View {
-    /// Selected tab using JournalTopTab enum for top pill navigation
-    @State private var selectedTab: JournalTopTab = .yourEntries
-    @State private var swipeProgress: CGFloat = 0
+    /// Which root page the pager is showing.
+    @State private var selectedPage: RootPage = .journal
     @State private var didSetPreviewTab = false
     @State private var isTabBarHidden = false
-    @State private var showAccessory = true
-    @State private var showJournalSearch = false
     @State private var showSummarySheet = false
     @State private var summaryError: String?
     @State private var activeEntryRoute: EntryRoute?
@@ -129,15 +126,10 @@ public struct ContentView: View {
     /// Consolidated navigation path for all routes
     @State private var navigationPath = NavigationPath()
 
-    // MARK: - Drawer State
-    @State private var isDrawerOpen = false
-    @State private var drawerDragOffset: CGFloat = 0
-    private let drawerWidth: CGFloat = DrawerMenuView.drawerWidth
-
     @StateObject private var defaultEntryViewModel = EntryViewModel()
     @StateObject private var chatViewModel = ChatViewModel()
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
-    @Environment(\.previewInitialTab) private var previewInitialTab: JournalTopTab?
+    @Environment(\.previewInitialTab) private var previewInitialTab: RootPage?
 
     private var entryViewModel: EntryViewModel {
         previewEntryViewModel ?? defaultEntryViewModel
@@ -153,150 +145,73 @@ public struct ContentView: View {
 
     public var body: some View {
         ZStack(alignment: .leading) {
-            // Layer 0: Full-screen background that extends to all edges
+            // Full-screen background that extends to all edges
             theme.background
                 .ignoresSafeArea()
 
-            // Layer 1: Drawer menu (behind main content)
-            DrawerMenuView(
-                onAboutYourselfTapped: {
-                    navigationPath.append(DrawerRoute.aboutYourself)
-                },
-                onJournalGoalsTapped: {
-                    navigationPath.append(DrawerRoute.journalGoals)
-                },
-                onSettingsTapped: {
-                    navigationPath.append(SettingsRoute.main)
-                },
-                onClose: {
-                    closeDrawer()
-                },
-                onSwipeClose: { offset in
-                    // Update drag offset for interactive closing
-                    drawerDragOffset = offset
-                },
-                onSwipeEnd: { velocity in
-                    // Close drawer when swipe ends past threshold
-                    closeDrawer()
-                }
-            )
-            .offset(x: isDrawerOpen ? 0 : -drawerWidth)
-
-            // Tap-to-close overlay (only when drawer is open)
-            if isDrawerOpen {
-                Color.black.opacity(0.001) // Nearly invisible but captures taps
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        closeDrawer()
-                    }
-                    .offset(x: drawerWidth) // Position it over the main content area
-            }
-
-            // Layer 2: Main content (slides right when drawer opens)
+            // The left drawer used to live here, behind the main content, and
+            // slid it aside via an offset/clip transform. It is gone: its
+            // edge-swipe was attached with `.gesture` to the whole
+            // NavigationStack, so every horizontal drag in the app arbitrated
+            // against it. A root pager cannot share the screen with that.
+            // Profile and settings now live in a bottom sheet on the Journal
+            // page instead.
             NavigationStack(path: $navigationPath) {
                 ZStack(alignment: .top) {
                     // Full-screen background that extends to all edges
                     theme.background
                         .ignoresSafeArea()
 
-                    // Main content with swipeable tabs
-                    // Note: Views handle their own top padding when isEmbedded == true
-                    TopTabNavContainer(selection: $selectedTab, swipeProgress: $swipeProgress, showTopNav: false) { tab in
-                        switch tab {
-                        case .yourEntries:
+                    // Whole-page horizontal paging. Each page owns its own
+                    // header and its own chrome, so nothing floats above both.
+                    RootPager(selection: $selectedPage) { page in
+                        switch page {
+                        case .journal:
                             JournalView(
                                 isEmbedded: true,
                                 externalNavigationPath: $navigationPath,
-                                onSwipeToOpenMenu: { openDrawer() },
+                                onOpenChat: { selectedPage = .chat },
                                 onPresentEntry: { route in
                                     activeEntryRoute = route
                                 }
                             )
-                        case .digDeeper:
+                        case .chat:
                             AIChatView(
                                 viewModel: chatViewModel,
                                 isEmbedded: true,
-                                hasEntries: !entryViewModel.entries.isEmpty
+                                hasEntries: !entryViewModel.entries.isEmpty,
+                                onOpenJournal: { selectedPage = .journal }
                             )
                         }
                     }
 
-                    // Gradient blur overlays - at ContentView level to extend to absolute screen edges
-                    // Top fade covers area behind TopNavHeader pills for better visibility while scrolling
-                    // Bottom fade only for Journal tab (AIChatView handles its own bottom fade)
-                    VStack(spacing: 0) {
-                        ScrollEdgeFade(edge: .top, height: 100 + safeAreaTop)
-                        Spacer()
-                        if selectedTab == .yourEntries {
-                            ScrollEdgeFade(edge: .bottom, height: 60)
-                        }
-                    }
-                    .padding(.top, -safeAreaTop)
-                    .ignoresSafeArea()
-
-                    // Floating header
-                    VStack {
-                        TopNavHeader(
-                            selection: $selectedTab,
-                            hasActiveChat: chatViewModel.hasActiveChat,
-                            userInitial: appState.firstName?.first.map { String($0) },
-                            onMenuTapped: {
-                                // Toggle drawer
-                                if isDrawerOpen {
-                                    closeDrawer()
-                                } else {
-                                    openDrawer()
-                                }
-                            },
-                            onActionTapped: {
-                                // Context-aware action: search for Journal, summarize/new entry for Insights
-                                if selectedTab == .yourEntries {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                        showJournalSearch = true
-                                    }
-                                } else {
-                                    // Show summary sheet if active chat, otherwise create new entry
-                                    if chatViewModel.hasActiveChat {
-                                        showSummarySheet = true
-                                    } else {
-                                        activeEntryRoute = .create
-                                    }
-                                }
-                            }
-                        )
-                        .padding(.top, safeAreaTop + 8)
-
-                        // NOTE: the global OfflineBannerContainer was removed 2026-08-08,
-                        // and OfflineBanner + NetworkMonitor were deleted outright in the
-                        // pre-1.0 cleanup. Nothing in this app needs a network — there are
-                        // zero URLSession call sites — and the banner's copy promised a
-                        // sync that no longer exists after the Supabase decommission.
-                        // PRES-010 scopes offline UI to Z1-only features; when Z1 lands,
-                        // recreate both from git history rather than reviving stale copy.
-
-                        Spacer()
-                    }
-
-                    // FAB - Journal tab only, creates new entry
-                    // Animates interactively with swipe progress
-                    // Hidden completely when swipe progress > 95% to prevent lingering
-                    // Hidden when no entries exist (empty state has its own CTA button)
-                    if showAccessory && swipeProgress < 0.95 && !entryViewModel.entries.isEmpty {
-                        PositionedNewEntryFAB(swipeProgress: swipeProgress) {
-                            activeEntryRoute = .create
-                        }
-                    }
+                    // Gradient blur overlay — bottom only, Journal tab only
+                    // (AIChatView handles its own bottom fade).
+                    //
+                    // The matching top fade was removed when TopNavHeader became
+                    // Liquid Glass. `ScrollEdgeFade(.top)` is opaque for its first
+                    // 75% (`ScrollEdgeFade.swift`), so it painted a full-width band
+                    // of solid `theme.background` directly behind the floating
+                    // header — and glass over an opaque colour renders as an opaque
+                    // panel. That scrim is the reason the 2026-08-07 glass attempt
+                    // read as flat gray. Content now meets the header via the
+                    // system scroll-edge effect on each tab's scroll view instead.
+                    // NOTE: the global OfflineBannerContainer was removed 2026-08-08,
+                    // and OfflineBanner + NetworkMonitor were deleted outright in the
+                    // pre-1.0 cleanup. Nothing in this app needs a network — there are
+                    // zero URLSession call sites — and the banner's copy promised a
+                    // sync that no longer exists after the Supabase decommission.
+                    // PRES-010 scopes offline UI to Z1-only features; when Z1 lands,
+                    // recreate both from git history rather than reviving stale copy.
+                    //
+                    // The bottom scroll fade and the new-entry FAB both moved into
+                    // JournalView. As siblings of the pager they needed a
+                    // `swipeProgress` scalar to fade out on the way to Chat; inside
+                    // the page they simply travel with it.
                 }
                 .ignoresSafeArea(edges: .all)
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarHidden(true)
-                .overlay {
-                    if showJournalSearch {
-                        JournalSearchView(isPresented: $showJournalSearch, navigationPath: $navigationPath)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .zIndex(100)
-                    }
-                }
                 .sheet(item: $activeEntryRoute) { route in
                     entrySheet(for: route)
                         .presentationDetents([.fraction(0.95)])
@@ -314,11 +229,6 @@ public struct ContentView: View {
             .ignoresSafeArea(edges: .all)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.background.ignoresSafeArea())
-            .clipShape(RoundedRectangle(cornerRadius: isDrawerOpen || drawerDragOffset > 0 ? 32 : 0))
-            .shadow(color: .black.opacity(isDrawerOpen || drawerDragOffset > 0 ? 0.15 : 0), radius: 20, x: -5, y: 0)
-            .offset(x: mainContentOffset)
-            .disabled(isDrawerOpen)
-            .gesture(edgeSwipeGesture)
             .ignoresSafeArea(edges: .all)
         }
         .ignoresSafeArea(edges: .all)
@@ -333,14 +243,13 @@ public struct ContentView: View {
             }
         }
         .environmentObject(entryViewModel)
-        .environment(\.selectedTab, $selectedTab)
+        .environment(\.selectedTab, $selectedPage)
         .environment(\.tabBarHidden, $isTabBarHidden)
-        .environment(\.showAccessory, $showAccessory)
         .useTheme()
         .useTypography()
         .onAppear {
             if let tab = previewInitialTab, !didSetPreviewTab {
-                selectedTab = tab
+                selectedPage = tab
                 didSetPreviewTab = true
             }
             // Update activity timestamp when ContentView appears
@@ -356,21 +265,6 @@ public struct ContentView: View {
             // which is the exact access control the notification represented.
             if let pin = SecurityService.shared.getPIN() {
                 entryViewModel.setSessionPIN(pin)
-            }
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            // Sync swipeProgress when tab changes via pill tap (fallback for geometry tracking)
-            withAnimation(.smooth(duration: 0.3)) {
-                swipeProgress = newTab == .yourEntries ? 0 : 1
-            }
-        }
-        .onChange(of: navigationPath) { _, _ in
-            // Close drawer when any navigation occurs
-            if isDrawerOpen {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                    isDrawerOpen = false
-                    drawerDragOffset = 0
-                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didUnlockWithPIN)) { notification in
@@ -423,83 +317,6 @@ public struct ContentView: View {
             Button("OK") { summaryError = nil }
         } message: {
             Text(summaryError ?? "Unable to generate summary. Please try again.")
-        }
-    }
-
-    // MARK: - Safe Area Helper
-
-    private var safeAreaTop: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?
-            .windows
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.top ?? 0
-    }
-
-    // MARK: - Drawer Helpers
-
-    /// Calculated offset for main content based on drawer state and drag
-    private var mainContentOffset: CGFloat {
-        if isDrawerOpen {
-            // When drawer is open, offset by drawer width + any close-swipe offset
-            return max(0, drawerWidth + drawerDragOffset)
-        } else {
-            // When drawer is closed, use the open-swipe drag offset
-            return max(0, drawerDragOffset)
-        }
-    }
-
-    /// Edge swipe gesture to open drawer
-    private var edgeSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20, coordinateSpace: .global)
-            .onChanged { value in
-                // Only activate from left 40pt edge when drawer is closed
-                if !isDrawerOpen && value.startLocation.x < 40 && value.translation.width > 0 {
-                    drawerDragOffset = min(value.translation.width, drawerWidth)
-                }
-                // Allow swipe to close when drawer is open
-                else if isDrawerOpen && value.translation.width < 0 {
-                    drawerDragOffset = max(value.translation.width, -drawerWidth)
-                }
-            }
-            .onEnded { value in
-                let threshold = drawerWidth * 0.4
-
-                if !isDrawerOpen {
-                    // Opening gesture
-                    if drawerDragOffset > threshold || value.velocity.width > 500 {
-                        openDrawer()
-                    } else {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            drawerDragOffset = 0
-                        }
-                    }
-                } else {
-                    // Closing gesture
-                    if drawerDragOffset < -threshold || value.velocity.width < -500 {
-                        closeDrawer()
-                    } else {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            drawerDragOffset = 0
-                        }
-                    }
-                }
-            }
-    }
-
-    private func openDrawer() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            isDrawerOpen = true
-            drawerDragOffset = 0
-        }
-    }
-
-    private func closeDrawer() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            isDrawerOpen = false
-            drawerDragOffset = 0
         }
     }
 
@@ -559,6 +376,10 @@ public struct ContentView: View {
             AppearanceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        case .voice:
+            VoiceSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
         case .security:
             SecuritySettingsView()
                 .environmentObject(entryViewModel)
@@ -603,7 +424,7 @@ public struct ContentView: View {
     @Previewable @StateObject var entryViewModel = EntryViewModel.withPreviewEntries()
     ContentView()
         .environment(\.previewEntryViewModel, entryViewModel)
-        .environment(\.previewInitialTab, .digDeeper)
+        .environment(\.previewInitialTab, .chat)
         .environmentObject(AppStateStore())
         .useTheme()
         .useTypography()

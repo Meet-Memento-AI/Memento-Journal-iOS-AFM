@@ -29,6 +29,11 @@ public struct Typography {
     public var size4XL: CGFloat { Self.baseSize4XL }
 
     // MARK: - Font Families (configurable for default vs onboarding)
+    /// Display face for h1/h2 only. Lora (serif) in both the default and the
+    /// onboarding scale — the two largest sizes carry the brand voice, while
+    /// h3 and below stay on the sans `headingFontName` so section headers keep
+    /// matching body copy.
+    private let displayFontName: String
     private let headingFontName: String
     private let bodyRegularFontName: String
     private let bodyMediumFontName: String
@@ -38,9 +43,11 @@ public struct Typography {
     // MARK: - Configurable Properties
     public let headingWeight: Font.Weight
 
-    /// Default app typography: Manrope for all text.
+    /// Default app typography: Lora for the h1/h2 display sizes, Manrope for
+    /// everything else.
     public init(headingWeight: Font.Weight = .semibold) {
         self.headingWeight = headingWeight
+        self.displayFontName = "Lora-SemiBold"
         self.headingFontName = "Manrope-Bold"
         self.bodyRegularFontName = "Manrope-Regular"
         self.bodyMediumFontName = "Manrope-Medium"
@@ -50,6 +57,7 @@ public struct Typography {
 
     /// Internal init for custom font families (e.g. onboarding with Lora).
     private init(
+        displayFontName: String,
         headingFontName: String,
         bodyRegularFontName: String,
         bodyMediumFontName: String,
@@ -58,6 +66,7 @@ public struct Typography {
         headingWeight: Font.Weight = .semibold
     ) {
         self.headingWeight = headingWeight
+        self.displayFontName = displayFontName
         self.headingFontName = headingFontName
         self.bodyRegularFontName = bodyRegularFontName
         self.bodyMediumFontName = bodyMediumFontName
@@ -67,6 +76,7 @@ public struct Typography {
 
     /// Typography for onboarding screens: Lora Serif for headings and body.
     public static let onboarding: Typography = Typography(
+        displayFontName: "Lora-SemiBold",
         headingFontName: "Lora-SemiBold",
         bodyRegularFontName: "Lora-Regular",
         bodyMediumFontName: "Lora-Medium",
@@ -90,6 +100,11 @@ public struct Typography {
     public var bodyLineSpacing: CGFloat { 4 }
 
     // MARK: - Font Helpers
+    /// h1/h2 only — the serif display face.
+    private func displayFont(size: CGFloat) -> Font {
+        Font.custom(displayFontName, size: size, relativeTo: .title)
+    }
+
     private func headingFont(size: CGFloat) -> Font {
         Font.custom(headingFontName, size: size, relativeTo: .title)
     }
@@ -107,11 +122,13 @@ public struct Typography {
         }
     }
 
-    // MARK: - Headings (h1-h6) — Manrope Bold; Lora SemiBold for onboarding
+    // MARK: - Headings (h1-h6)
+    // h1/h2 are Lora SemiBold (the display face); h3-h5 are Manrope Bold, or
+    // Lora SemiBold throughout in the onboarding scale.
     /// 40pt - Major display heading
-    public var h1: Font { headingFont(size: size4XL) }
+    public var h1: Font { displayFont(size: size4XL) }
     /// 32pt - Secondary display heading
-    public var h2: Font { headingFont(size: size3XL) }
+    public var h2: Font { displayFont(size: size3XL) }
     /// 24pt - Section heading
     public var h3: Font { headingFont(size: size2XL) }
     /// 20pt - Subsection heading
@@ -158,6 +175,10 @@ public struct Typography {
     public var button: Font { body1Bold }
     /// Input field text - uses body1 (16pt regular)
     public var input: Font { body1 }
+    /// 18pt medium - chat composer placeholder and field text (Figma 433:1077).
+    /// Sits between body1 (16) and h4 (20); the composer is the only surface
+    /// that asks for it, so it lives here rather than in the size scale.
+    public var inputLarge: Font { bodyFont(size: 18, weight: .medium) }
 
     // MARK: - Deprecated Aliases (for backward compatibility)
     @available(*, deprecated, renamed: "body1")

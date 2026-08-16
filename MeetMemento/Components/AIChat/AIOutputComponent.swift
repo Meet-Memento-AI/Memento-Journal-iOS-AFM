@@ -72,7 +72,14 @@ public struct AIOutputComponent: View {
     /// false, otherwise copy/redo appear over a half-written reply.
     var isStreaming: Bool
     var feedbackType: FeedbackType?
+    /// True while this message is the one VoicePlaybackService is speaking.
+    /// Prop-down like `feedbackType` — the component doesn't know its message
+    /// ID, so observation happens once in AIChatView, which owns identity.
+    var isSpeaking: Bool
+    /// True while this message's playback is paused (tap resumes).
+    var isPaused: Bool
     var onCitationsTapped: (() -> Void)?
+    var onSpeak: (() -> Void)?
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
@@ -135,7 +142,10 @@ public struct AIOutputComponent: View {
         animate: Bool = true,
         isStreaming: Bool = false,
         feedbackType: FeedbackType? = nil,
+        isSpeaking: Bool = false,
+        isPaused: Bool = false,
         onCitationsTapped: (() -> Void)? = nil,
+        onSpeak: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
         onThumbsDown: (() -> Void)? = nil,
@@ -145,7 +155,10 @@ public struct AIOutputComponent: View {
         self.animate = animate
         self.isStreaming = isStreaming
         self.feedbackType = feedbackType
+        self.isSpeaking = isSpeaking
+        self.isPaused = isPaused
         self.onCitationsTapped = onCitationsTapped
+        self.onSpeak = onSpeak
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
@@ -301,6 +314,31 @@ public struct AIOutputComponent: View {
             // "Memento is thinking" shimmer for the whole generation.
             if showsActionBar {
             HStack(spacing: 8) {
+                // Read-aloud first: playback is the primary consumption action;
+                // copy/feedback are secondary. Real Button (not onTapGesture) —
+                // the ScrollView-level dismissKeyboard tap swallows anything else.
+                if onSpeak != nil {
+                    // Three states, one action each: idle → start, speaking →
+                    // pause, paused → resume. No in-app hard stop (user
+                    // decision) — playback ends at drain, or implicitly via
+                    // dictation/regenerate/another message/lock-screen Stop.
+                    let speakIcon = isPaused ? "play.fill"
+                        : (isSpeaking ? "pause.fill" : "speaker.wave.2")
+                    let speakLabel = isPaused ? "Resume reading aloud"
+                        : (isSpeaking ? "Pause reading aloud" : "Read aloud")
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        onSpeak?()
+                    } label: {
+                        Image(systemName: speakIcon)
+                            .font(.system(size: 14, weight: .bold)) // icon-size: not user text
+                            .foregroundStyle(isSpeaking || isPaused ? theme.primary : theme.mutedForeground)
+                            .animation(.easeOut(duration: 0.2), value: isSpeaking)
+                            .animation(.easeOut(duration: 0.2), value: isPaused)
+                    }
+                    .accessibilityLabel(speakLabel)
+                }
+
                 Button {
                     let text = fullTextForCopy
                     guard !text.isEmpty else { return }

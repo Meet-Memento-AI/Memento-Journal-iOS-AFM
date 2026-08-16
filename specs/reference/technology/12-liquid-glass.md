@@ -1,10 +1,30 @@
 # 12 — Liquid Glass (SwiftUI `glassEffect`)
 
-> **HISTORICAL — no longer used in the app (2026-08-07).** Liquid Glass was
-> adopted (spec 024) and then **removed**: it rendered poorly and showed
-> stacked/double glass, so every surface is now a flat `#fafafa` fill. This file
-> is kept only as an API reference in case glass is revisited; nothing in the app
-> currently calls `glassEffect`.
+> **ACTIVE — re-adopted 2026-08-16** (see PRES-092). Glass was adopted by spec
+> 024, removed on 2026-08-07 for rendering "poorly / doubled", and re-adopted once
+> that verdict was traced to two fixable causes rather than the material. The
+> removal was judged in the **Simulator**, where glass renders flat gray by
+> design, and spec 024's own device pass (Task 7) was never completed.
+>
+> **The two causes, and the rules that follow from them:**
+>
+> 1. **An opaque scrim behind the chrome.** `ScrollEdgeFade(.top)` is opaque for
+>    its first 75% and was painted directly behind the floating header, so glass
+>    had nothing but a flat colour to refract. → **Never put an opaque fill or
+>    scrim beneath glass.** Use `scrollEdgeEffectStyle(_:for:)` instead — `.hard`
+>    when a soft fade leaves a hazy band under the chrome.
+> 2. **Adjacent glass with no shared sampling region.** Glass cannot sample glass.
+>    → **One `GlassEffectContainer` per adjacent cluster**, `spacing` matching the
+>    layout's own spacing (spec 024 passed `0`, which merges nothing). Never nest
+>    containers.
+>
+> **Third rule, learned during re-adoption:** apply `.glassEffect` to the view
+> that **contains** the content, never as a sibling `.background(...)`. Only
+> content composited inside the effect receives the system's vibrancy treatment;
+> outside it, glyphs keep their literal token colour and wash out.
+>
+> Current usage: `.regular` only, untinted, navigation layer only — content
+> surfaces (list rows, cards, the crisis card) stay flat.
 
 **Read when:** applying, changing, or reviewing any Liquid Glass surface — nav
 bars, pills, FABs, cards, input fields, listening panels.

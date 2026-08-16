@@ -53,8 +53,12 @@ struct SettingsRow: View {
             .disabled(showProgress)
             .accessibilityIdentifier(accessibilityIdentifier ?? "")
         } else {
-            // No button wrapper - used when wrapped in NavigationLink
+            // No button wrapper - used when wrapped in NavigationLink.
+            // The identifier still applies here — without it, rows inside
+            // NavigationLinks (settings.voice, settings.security) are
+            // unreachable by accessibility identifier in UI tests.
             rowContent
+                .accessibilityIdentifier(accessibilityIdentifier ?? "")
         }
     }
 

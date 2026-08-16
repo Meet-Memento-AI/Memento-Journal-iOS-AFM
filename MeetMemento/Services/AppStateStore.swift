@@ -218,6 +218,19 @@ class AppStateStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)
         UserDefaults.standard.removeObject(forKey: Self.onboardingCompleteKey)
         UserDefaults.standard.removeObject(forKey: Self.localUserIDKey)
+        // Two keys that previously survived an erasure path called "Delete
+        // Everything". Neither gates onboarding and neither caused a visible
+        // bug — deletion was already correct — but leaving them behind
+        // contradicts the confirmation copy.
+        //
+        // `migratedFromAccountKey` marks the pre-023 migration as done; a stale
+        // `true` would suppress re-migration for a user who later restored old
+        // local evidence. Clearing it is safe: the next launch re-runs
+        // `migrateFromPriorAccountIfNeeded()`, finds no cached name, and
+        // returns without completing onboarding. `memento_sample_entry_ids`
+        // holds UUIDs of sample entries whose files have just been deleted.
+        UserDefaults.standard.removeObject(forKey: Self.migratedFromAccountKey)
+        UserDefaults.standard.removeObject(forKey: SampleContentService.seededIdsDefaultsKey)
         PreferencesService.shared.resetToDefaults()
 
         firstName = nil

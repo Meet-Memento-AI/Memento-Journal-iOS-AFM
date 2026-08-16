@@ -304,7 +304,12 @@ struct LockScreenView: View {
                             Group {
                                 if index < enteredPIN.count {
                                     Text(String(enteredPIN[enteredPIN.index(enteredPIN.startIndex, offsetBy: index)]))
-                                        .font(type.h2)
+                                        // Deliberately NOT `type.h2`: h1/h2 are
+                                        // the serif display face now, and Lora
+                                        // numerals in a fixed 60pt PIN cell read
+                                        // as a different control entirely. Same
+                                        // size as h2 so the boxes are unchanged.
+                                        .font(.custom("Manrope-Bold", size: Typography.baseSize3XL, relativeTo: .title))
                                         .foregroundStyle(theme.foreground)
                                 }
                             }

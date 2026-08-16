@@ -164,8 +164,10 @@ struct RichTextParser {
         return segments
     }
 
-    /// Strips the "**Sources:**" section from the end of the text
-    private static func stripSourcesSection(_ text: String) -> String {
+    /// Strips the "**Sources:**" section from the end of the text.
+    /// Internal (not private): `SpeechTextSanitizer` reuses it so spoken text
+    /// and rendered text agree on what a Sources block is.
+    static func stripSourcesSection(_ text: String) -> String {
         // Look for **Sources:** or Sources: followed by bullet list at the end
         let patterns = [
             #"\n\n\*\*Sources:\*\*[\s\S]*$"#,

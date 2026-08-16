@@ -2,7 +2,7 @@
 id: 024
 title: Authentic Liquid Glass Adoption
 tier: P1
-status: superseded (2026-08-07) — R1–R5 shipped, but Liquid Glass was then removed entirely (see the superseding note below); the app no longer uses `.glassEffect`.
+status: shipped (R1–R5), removed 2026-08-07, **re-adopted 2026-08-16** — the removal was traced to an opaque scrim and a missing shared sampling region, not to the material; see PRES-092 and `reference/technology/12-liquid-glass.md`.
 effort: 1 session
 depends_on: [009]
 findings: [dual-glass-systems, glass-hardcoded-values]
@@ -13,16 +13,25 @@ pres_refs: [frontend-preservation-contract.md]
 
 # 024 — Authentic Liquid Glass Adoption
 
-> **SUPERSEDED 2026-08-07 — Liquid Glass removed.** Shortly after this adoption
-> landed, Liquid Glass was rendering poorly and showing stacked/double-glass in
-> practice, so it was **removed entirely** and replaced with a flat `#fafafa`
-> surface fill at every site (prominent brand actions — new-entry FAB, submit,
-> active-chat action — keep their purple fill). The `theme.glassFill` token was
-> also removed; `theme.glassBorder` remains for non-glass insight-card strokes.
-> The native `.glassEffect` / `.buttonStyle(.glassProminent)` / `GlassEffect
-> Container` API is no longer used anywhere in the app. The API reference in
-> `reference/technology/12-liquid-glass.md` is kept for historical/context value
-> only. Everything below documents the (now-reverted) adoption.
+> **REMOVED 2026-08-07, RE-ADOPTED 2026-08-16.** Shortly after this adoption
+> landed, Liquid Glass appeared to render poorly and show stacked/double glass, so
+> it was removed entirely and replaced with a flat `#fafafa` surface fill at every
+> site. Those literals were later routed through `theme.cardBackground` for
+> dark-mode support (commit `77fb206`).
+>
+> **The removal was premature.** Task 7 below — the real-device visual pass — was
+> never completed, and this spec's own R6 notes that glass reads as translucent
+> *only* on device; in the Simulator it renders flat gray by design. Re-adoption
+> traced both symptoms to fixable causes rather than to the material: an **opaque
+> `ScrollEdgeFade(.top)` scrim** painted behind the floating header (glass had
+> nothing to refract), and **adjacent glass with no shared `GlassEffectContainer`**
+> (glass cannot sample glass). R2 audited `.fill()` on the glass views themselves
+> and missed the separate full-width scrim one layer down in `ContentView`.
+>
+> Glass is active again as of 2026-08-16 — `.regular` only, untinted, navigation
+> layer only. See **PRES-092** and `reference/technology/12-liquid-glass.md`, which
+> is a live reference again, not a historical one. Everything below documents the
+> original adoption and still describes the intended end state.
 
 **Traceability:** completes spec 009 R3 ("one glass system") by reversing its
 *mechanism*: instead of consolidating on the `mementoGlassEffect` wrapper, the app

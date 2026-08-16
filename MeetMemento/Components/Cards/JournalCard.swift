@@ -29,7 +29,29 @@ struct JournalCard: View {
     @State private var isPressed = false
 
     // MARK: - Body
+    // Kept deliberately short: the previous single ~14-modifier chain exceeded
+    // the type-checker's budget in the Previews thunk build ("unable to
+    // type-check this expression in reasonable time"). Each ViewModifier body
+    // is its own type-checking unit.
     var body: some View {
+        card
+            .modifier(JournalCardInteractionModifier(
+                isInteractive: isInteractive,
+                isPressed: $isPressed,
+                onTap: onTap,
+                onEditTapped: onEditTapped,
+                onDeleteTapped: onDeleteTapped
+            ))
+            .modifier(JournalCardAccessibilityModifier(
+                isInteractive: isInteractive,
+                label: accessibilityLabel,
+                onTap: onTap,
+                onEditTapped: onEditTapped,
+                onDeleteTapped: onDeleteTapped
+            ))
+    }
+
+    private var card: some View {
         Group {
             if let photoImage {
                 photoCardBody(photoImage)
@@ -39,34 +61,6 @@ struct JournalCard: View {
         }
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
         .contentShape(Rectangle())
-        .onTapGesture {
-            guard isInteractive else { return }
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            onTap?()
-        }
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            guard isInteractive else { return }
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = pressing
-            }
-        }, perform: {})
-        .modifier(JournalCardContextMenuModifier(isInteractive: isInteractive, onEditTapped: onEditTapped, onDeleteTapped: onDeleteTapped))
-        .allowsHitTesting(isInteractive)
-        // MARK: - Accessibility
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(isInteractive ? "Double-tap to open" : "")
-        .accessibilityAddTraits(isInteractive ? [.isButton] : [])
-        .accessibilityAction(named: "Open") {
-            onTap?()
-        }
-        .accessibilityAction(named: "Edit") {
-            onEditTapped?()
-        }
-        .accessibilityAction(named: "Delete") {
-            onDeleteTapped?()
-        }
     }
 
     // MARK: - Card chrome (photo vs. plain)
@@ -218,6 +212,64 @@ struct JournalCard: View {
     private var accessibilityLabel: String {
         let photoSuffix = photoImage != nil ? ", with photo" : ""
         return "Journal card, \(title)\(photoSuffix). Dated \(formattedDate). \(excerpt)"
+    }
+}
+
+// MARK: - Gestures & hit-testing (split out of `body` for type-checker performance)
+private struct JournalCardInteractionModifier: ViewModifier {
+    let isInteractive: Bool
+    @Binding var isPressed: Bool
+    var onTap: (() -> Void)?
+    var onEditTapped: (() -> Void)?
+    var onDeleteTapped: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        content
+            .onTapGesture {
+                guard isInteractive else { return }
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                onTap?()
+            }
+            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                guard isInteractive else { return }
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isPressed = pressing
+                }
+            }, perform: {})
+            .modifier(JournalCardContextMenuModifier(isInteractive: isInteractive, onEditTapped: onEditTapped, onDeleteTapped: onDeleteTapped))
+            .allowsHitTesting(isInteractive)
+    }
+}
+
+// MARK: - Accessibility (split out of `body` for type-checker performance)
+private struct JournalCardAccessibilityModifier: ViewModifier {
+    let isInteractive: Bool
+    let label: String
+    var onTap: (() -> Void)?
+    var onEditTapped: (() -> Void)?
+    var onDeleteTapped: (() -> Void)?
+
+    // Typed helpers keep literal inference out of the modifier chain — the
+    // `[.isButton] : []` ternary inline was a solver hot spot.
+    private var traits: AccessibilityTraits { isInteractive ? .isButton : [] }
+    private var hint: String { isInteractive ? "Double-tap to open" : "" }
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(label)
+            .accessibilityHint(hint)
+            .accessibilityAddTraits(traits)
+            .accessibilityAction(named: "Open") {
+                onTap?()
+            }
+            .accessibilityAction(named: "Edit") {
+                onEditTapped?()
+            }
+            .accessibilityAction(named: "Delete") {
+                onDeleteTapped?()
+            }
     }
 }
 

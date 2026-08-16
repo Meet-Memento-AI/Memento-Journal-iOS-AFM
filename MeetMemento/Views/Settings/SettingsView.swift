@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme
@@ -29,6 +30,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 appearanceSection
+                voiceSection
                 securitySection
                 aboutSection
                 yourDataSection
@@ -109,6 +111,51 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Read-aloud voice + speed (spec 018 R7). A presentation preference, so
+    /// it sits with Appearance rather than in Your Data's privacy narrative.
+    private var voiceSection: some View {
+        SettingsSection(title: "Voice") {
+            NavigationLink(value: SettingsRoute.voice) {
+                SettingsRow(
+                    icon: "speaker.wave.2.fill",
+                    title: "Read Aloud",
+                    subtitle: voiceSubtitle,
+                    showChevron: true,
+                    accessibilityIdentifier: "settings.voice",
+                    action: nil
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Live device state, `securitySubtitle`-style: names the effective voice,
+    /// and — per R7's acceptance criterion — surfaces the Enhanced-voice
+    /// download whenever playback would fall back to a compact voice. Never a
+    /// silent fallback.
+    private var voiceSubtitle: String {
+        let chosen = PreferencesService.shared.selectedVoiceIdentifier
+            .flatMap { AVSpeechSynthesisVoice(identifier: $0) }
+        if let chosen {
+            switch chosen.quality {
+            case .premium: return "\(chosen.name) — Premium"
+            case .enhanced: return "\(chosen.name) — Enhanced"
+            default: return "\(chosen.name) — compact; a downloaded Enhanced voice sounds better"
+            }
+        }
+        let language = AVSpeechSynthesisVoice.currentLanguageCode()
+        let prefix = (language.split(separator: "-").first.map(String.init) ?? language) + "-"
+        let hasNatural = AVSpeechSynthesisVoice.speechVoices().contains {
+            $0.language.hasPrefix(prefix)
+                && ($0.quality == .enhanced || $0.quality == .premium)
+                && !$0.voiceTraits.contains(.isNoveltyVoice)
+                && !$0.voiceTraits.contains(.isPersonalVoice)
+        }
+        return hasNatural
+            ? "Automatic — best voice on this device"
+            : "Compact voice — download an Enhanced voice for natural speech"
     }
 
     /// The app lock, controllable after onboarding. `SecuritySettingsView`

@@ -319,9 +319,38 @@ surfaced in Settings — never a silent fallback to a compact robotic voice
 **The load-bearing constraint** (`technology/06` B1, 🟡): the synthesizer
 cannot consume a token stream — it needs complete text. That is why
 reflections arrive complete while chat streams (`REQ-INT-014`, spec 017 R6 —
-cited, not re-decided here). TTS belongs on reflection surfaces, never chat,
-and no third-party streaming TTS SDK may be added to fight this (P1 and the
-privacy story both forbid it).
+cited, not re-decided here). Reflection surfaces remain the primary TTS home;
+**chat additionally offers post-stream, per-message playback** (amended
+2026-08-16: early validation of the voice-output pillar ahead of reflection
+surfaces shipping). The complete-text constraint is upheld, not waived — chat
+playback is only offered once a message's stream has ended (the action bar,
+speak button included, is gated on `!isStreaming`); mid-stream playback and
+any third-party streaming TTS SDK remain forbidden (P1 and the privacy story
+both forbid it). Chat playback is `.z0Device`, synthesized on demand via
+`VoicePlaybackService` and **not cached** (`REQ-VOX-004` caching remains
+reflection-only); chat prose is markdown-bearing by design, so it passes
+through a runtime `SpeechTextSanitizer` before synthesis — a transformer,
+distinct from R9's speakable-by-construction contract for reflection prose.
+Playback yields to capture: starting any dictation stops chat playback, and
+playback never activates while `SpeechService` is recording.
+
+**Amended 2026-08-16 (second chat amendment):** `REQ-VOX-005`'s lock-screen
+and background behavior now covers chat playback too. The `audio` background
+mode keeps an in-progress read alive when the app backgrounds or the device
+locks; `MPNowPlayingInfoCenter` carries the speaking message's heading (no
+duration or elapsed time — `AVSpeechSynthesizer` exposes no natural duration,
+and an estimated scrubber would lie); `MPRemoteCommandCenter` play / pause /
+toggle / stop drive `VoicePlaybackService`. The audio session deactivates when
+the utterance queue drains, so no silent background session is ever held.
+In-app, the speak button is pause/resume-only (tap pauses at the current word,
+tap resumes); hard stop lives on the lock screen and in the implicit paths
+(dictation start, regenerate, another message's playback). Voice selection and
+speaking rate are user preferences (`selectedVoiceIdentifier`, `speechRate`),
+surfaced in Settings → Read Aloud with the Enhanced/Premium download path per
+this requirement's acceptance criteria; interruptions pause and — when the
+system signals `.shouldResume` — resume in place. AirPlay/CarPlay validation
+and render caching remain reflection-only. This satisfies "a play button
+without lock-screen presence is a half-built feature" for chat.
 
 - **Caching (`REQ-VOX-004`):** render once to an audio file, reference it via
   `Reflection.audioAssetID` (spec 015 R1's field; file storage, protection
@@ -332,10 +361,12 @@ privacy story both forbid it).
   metadata (title, date, duration), AirPlay, CarPlay-safe session
   configuration, correct ducking. A play button without lock-screen presence
   is a half-built feature (`technology/06` B5).
-- **Reuse ledger:** the orphaned `NarrateButton`/`ListeningPanel` components
-  are this spec's claimed items (ATTACH-05, Regression Guards) — adopt or
-  consciously supersede them when building playback; do not build a third
-  thing in parallel.
+- **Reuse ledger (ATTACH-05, updated 2026-08-16):** the orphaned
+  `NarrateButton`/`ListeningPanel` components were consciously superseded by
+  the composer rework (`DictationWaveform` replaced `ListeningDotsView`; the
+  files are deleted). They were voice-*input* UI and contained no synthesis
+  code; nothing from them carries into playback. Chat playback's claimed
+  items are now `VoicePlaybackService` and `SpeechTextSanitizer`.
 
 **Interface contract and state machine** (§17):
 
@@ -377,6 +408,10 @@ chat/reflection split and is recorded in V18 first, not preempted here.
 - Given no Enhanced/Premium voice downloaded, when the user visits Settings,
   then the download is offered with clear copy — and playback before download
   uses the best available voice with the upgrade surfaced, never silently.
+- Given a completed assistant chat message, when Read Aloud is tapped, then
+  playback uses the best Enhanced/Premium system voice, exactly one message
+  speaks at a time, and starting dictation stops playback (chat amendment,
+  2026-08-16).
 
 ### R8. Personal Voice — delighter tier, verify posture before building
 `REQ-VOX-002`: request authorization via

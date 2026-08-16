@@ -90,6 +90,11 @@ struct Theme {
         let button: CGFloat = 16  // Standard button corner radius
         let lg: CGFloat = 20    // For circular buttons (40pt diameter)
         let xl: CGFloat = 24    // For pills (48pt height)
+        /// 32 — the chat composer, and the presentation corner radius the entry
+        /// and summary sheets already pass literally. A fixed radius, not a
+        /// capsule: the composer grows to five lines, and a capsule's radius
+        /// grows with it, so the shape would change as you type.
+        let xxl: CGFloat = 32
         let round: CGFloat = 999
     }
     let radius = Radius()

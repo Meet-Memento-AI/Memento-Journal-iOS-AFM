@@ -33,6 +33,7 @@ public enum SettingsRoute: Hashable {
     case main
     case profile
     case appearance
+    case voice
     case security
     case about
 }

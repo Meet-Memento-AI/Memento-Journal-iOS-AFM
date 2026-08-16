@@ -50,7 +50,8 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
   no cloud fallback of any kind (`REQ-CAP-001` — note: the source document's "Gemini
   Audio fallback" concern doesn't apply to this codebase; `SpeechService.swift`
   already has no such fallback to remove, confirmed by spec 018);
-  `AVSpeechSynthesizer` (+ optional Personal Voice) for reflection playback. Owned by
+  `AVSpeechSynthesizer` (+ optional Personal Voice) for reflection playback and
+  post-stream chat message playback (018 R7, amended 2026-08-16). Owned by
   spec 018.
 - **Config / identity**: **no accounts at all** (2026-07-23 decision, spec 023 —
   supersedes the earlier "Sign in with Apple only" plan and makes the "No

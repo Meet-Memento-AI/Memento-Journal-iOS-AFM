@@ -17,8 +17,6 @@ struct AvatarInitialButton: View {
     var accessibilityLabel: String = "Menu"
     var onTap: (() -> Void)?
 
-    @Environment(\.theme) private var theme
-
     private var resolvedFontSize: CGFloat {
         fontSize ?? size * 0.4
     }
@@ -31,8 +29,6 @@ struct AvatarInitialButton: View {
             onTap?()
         }) {
             ZStack {
-                glassBackground
-
                 if let initial, !initial.isEmpty {
                     Text(initial.uppercased())
                         .font(.system(size: resolvedFontSize, weight: .semibold)) // icon-size: not user text (avatar initial glyph scales with button size)
@@ -44,19 +40,30 @@ struct AvatarInitialButton: View {
                 }
             }
             .frame(width: size, height: size)
+            // Glass goes on the view that CONTAINS the glyph, not on a sibling
+            // layer behind it. Only content composited inside the glass effect
+            // receives the system's vibrancy treatment — which adjusts colour,
+            // brightness and saturation for legibility against whatever the
+            // glass is refracting. As a separate `.background(...)` layer the
+            // glyph kept its literal token colour and washed out.
+            .glassEffect(.regular.interactive(), in: .circle)
+            .contentShape(Circle())
         }
-        .buttonStyle(IconButtonPressStyle())
+        // `.plain`, not IconButtonPressStyle: the glass is `.interactive()`, which
+        // supplies its own press scale/bounce. Keeping the custom 0.92 scale on
+        // top compounds two press animations. `.plain` rather than the default
+        // style so the button doesn't tint the initial glyph.
+        .buttonStyle(.plain)
+        // Without this, SwiftUI promotes the inner glyph to be the accessibility
+        // element: the tree reported this control as a 13×14pt `person.fill`
+        // image, flagged NOT hittable, instead of the 40pt circle. The
+        // destructive-flow UI test taps `app.buttons["Menu"]`, so that mismatch
+        // fails the test even though a finger hits the button fine.
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(.isButton)
     }
 
-    // MARK: - Glass Background
-
-    @ViewBuilder
-    private var glassBackground: some View {
-        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
-        Circle()
-            .fill(theme.cardBackground)
-    }
 }
 
 // MARK: - Previews

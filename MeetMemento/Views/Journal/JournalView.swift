@@ -1,3 +1,4 @@
+
 //
 //  JournalView.swift
 //  MeetMemento
@@ -26,8 +27,9 @@ public struct JournalView: View {
     var isEmbedded: Bool = false
     /// External navigation path binding when embedded
     @Binding var externalNavigationPath: NavigationPath
-    /// Callback to open drawer menu on right swipe
-    var onSwipeToOpenMenu: (() -> Void)? = nil
+    /// Page to the AI chat screen. The header's chat icon and a left swipe are
+    /// the same navigation, so both route through here.
+    var onOpenChat: (() -> Void)? = nil
     /// Callback to present entry sheet when embedded (ContentView provides this)
     var onPresentEntry: ((EntryRoute) -> Void)? = nil
 
@@ -52,10 +54,14 @@ public struct JournalView: View {
     // Entry sheet state for standalone mode
     @State private var activeEntryRoute: EntryRoute?
 
+    /// Search overlay and the profile/settings sheet, both driven by this
+    /// page's own header. They used to live in ContentView because the header
+    /// was shared; it isn't any more.
+    @State private var showJournalSearch = false
+    @State private var showProfileSheet = false
+
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.showAccessory) private var showAccessory
-    @Environment(\.selectedTab) private var selectedTab
 
     /// Use external navigation when embedded, internal when standalone
     private var navigationPath: Binding<NavigationPath> {
@@ -95,44 +101,21 @@ public struct JournalView: View {
         return Array(Set(monthsForYear)).sorted()
     }
 
-    /// Dynamic inset for floating header (includes 32px gap below header)
-    private var topHeaderInset: CGFloat {
-        let safeAreaTop = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?
-            .windows
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.top ?? 0
-        // TopNavHeader positioned at safeAreaTop + 8 with height 44px
-        // Content starts 32px below header bottom
-        return safeAreaTop + 8 + 44 + 32  // = safeAreaTop + 84
-    }
-
     public init(
         isEmbedded: Bool = false,
         externalNavigationPath: Binding<NavigationPath> = .constant(NavigationPath()),
-        onSwipeToOpenMenu: (() -> Void)? = nil,
+        onOpenChat: (() -> Void)? = nil,
         onPresentEntry: ((EntryRoute) -> Void)? = nil
     ) {
         self.isEmbedded = isEmbedded
         self._externalNavigationPath = externalNavigationPath
-        self.onSwipeToOpenMenu = onSwipeToOpenMenu
+        self.onOpenChat = onOpenChat
         self.onPresentEntry = onPresentEntry
     }
 
     public var body: some View {
         journalContent
-            .onChange(of: navigationPath.wrappedValue.count) { _, count in
-                // Only update if Journal tab is selected to avoid race condition
-                if selectedTab?.wrappedValue == .yourEntries {
-                    showAccessory?.wrappedValue = (count == 0)
-                }
-            }
             .onAppear {
-                // Only update if Journal tab is selected to avoid race condition
-                if selectedTab?.wrappedValue == .yourEntries {
-                    showAccessory?.wrappedValue = (navigationPath.wrappedValue.count == 0)
-                }
                 loadingTask = Task {
                     await entryViewModel.loadEntriesIfNeeded()
                     guard !Task.isCancelled else { return }
@@ -206,23 +189,51 @@ public struct JournalView: View {
                         Color.clear.frame(height: 100)
                     }
                 }
+                // The header reserves its own height — no more hardcoded
+                // `safeAreaTop + 8 + 44 + 32` guess in three separate files.
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if isEmbedded { journalHeader }
+                }
+
+            // Bottom scroll fade and the FAB both live inside the page now. As
+            // siblings of the pager they needed a `swipeProgress` scalar to fade
+            // out on the way to Chat; here they simply travel with the page.
+            VStack(spacing: 0) {
+                Spacer()
+                ScrollEdgeFade(edge: .bottom, height: 60)
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+
+            if isEmbedded,
+               navigationPath.wrappedValue.isEmpty,
+               !entryViewModel.entries.isEmpty {
+                PositionedNewEntryFAB {
+                    presentEntry(.create)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: .all)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 50, coordinateSpace: .local)
-                .onEnded { value in
-                    let horizontal = value.translation.width
-                    let vertical = abs(value.translation.height)
-                    // Right swipe: positive horizontal, more horizontal than vertical
-                    if horizontal > 80 && horizontal > vertical {
-                        onSwipeToOpenMenu?()
-                    }
-                }
-        )
+        // The right-swipe-to-open-drawer `simultaneousGesture` that used to sit
+        // here is gone with the drawer. It fired *in addition to* the pager,
+        // which is precisely the arbitration a root pager cannot tolerate.
         .background(theme.background.ignoresSafeArea(edges: .all))
+        .overlay {
+            if showJournalSearch {
+                JournalSearchView(isPresented: $showJournalSearch,
+                                  navigationPath: navigationPath)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(100)
+            }
+        }
+        .sheet(isPresented: $showProfileSheet) {
+            ProfileSheet(navigationPath: navigationPath)
+                .environmentObject(entryViewModel)
+                .environmentObject(appState)
+        }
         .toolbar {
-                // Only show toolbar when NOT embedded (embedded uses TopNavHeader)
+                // Only show toolbar when NOT embedded (embedded uses AppHeader)
                 if !isEmbedded {
                     // Leading: User avatar (placeholder for future features)
                     ToolbarItem(placement: .navigationBarLeading) {
@@ -276,7 +287,11 @@ public struct JournalView: View {
         YourEntriesView(
             entryViewModel: entryViewModel,
             monthGroups: allEntriesByMonth,
-            topContentPadding: isEmbedded ? topHeaderInset : 0,
+            // Breathing room under the floating header, matching
+            // `AIChatView.topContentInset` so the two root pages agree. The
+            // header reserves its own height via `safeAreaInset` above; this is
+            // only the gap between it and the first month title.
+            topContentPadding: 16,
             onMonthVisibilityChanged: { monthStart in
                 // Sync scroll position with picker selection
                 selectedDate = monthStart
@@ -285,15 +300,63 @@ public struct JournalView: View {
                 visibleMonthStart = monthStart
             },
             onNavigateToEntry: { route in
-                if isEmbedded, let onPresentEntry = onPresentEntry {
-                    // When embedded, use ContentView's sheet presentation
-                    onPresentEntry(route)
-                } else {
-                    // Standalone mode: use our own sheet
-                    activeEntryRoute = route
-                }
+                presentEntry(route)
             }
         )
+    }
+
+    /// Embedded, ContentView owns the entry sheet; standalone, we do.
+    private func presentEntry(_ route: EntryRoute) {
+        if isEmbedded, let onPresentEntry {
+            onPresentEntry(route)
+        } else {
+            activeEntryRoute = route
+        }
+    }
+
+    // MARK: - Header (Figma 483:1213)
+
+    private var journalHeader: some View {
+        AppHeader {
+            AvatarInitialButton(
+                initial: appState.firstName?.first.map { String($0) },
+                size: 40,
+                enableHaptic: true,
+                // Kept as "Menu" deliberately: the destructive-flow UI test uses
+                // `app.buttons["Menu"]` as its entry point into settings.
+                accessibilityLabel: "Menu",
+                onTap: { showProfileSheet = true }
+            )
+        } trailing: {
+            HStack(spacing: 12) {
+                HeaderIconButton(
+                    systemName: "magnifyingglass",
+                    size: 40,
+                    accessibilityLabel: "Search"
+                ) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        showJournalSearch = true
+                    }
+                }
+
+                // Top-right, facing its destination: Chat is the page to the
+                // right, and a left swipe reveals it. Tap and swipe are the same
+                // navigation.
+                // Label is "AI chat", NOT "Chat with Memento": the composer's
+                // idle button on the chat page already uses that label, and two
+                // controls sharing one label is ambiguous for VoiceOver and
+                // makes `app.buttons["Chat with Memento"]` resolve to whichever
+                // page the pager happens to hand back first.
+                HeaderIconButton(
+                    systemName: "message",
+                    size: 40,
+                    accessibilityLabel: "AI chat",
+                    accessibilityHint: "Double-tap to open the AI chat, or swipe left"
+                ) {
+                    onOpenChat?()
+                }
+            }
+        }
     }
 
     // MARK: - Month Picker Sheet
@@ -412,6 +475,10 @@ public struct JournalView: View {
                 .environment(\.fabVisible, false)
         case .appearance:
             AppearanceSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .voice:
+            VoiceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         case .security:

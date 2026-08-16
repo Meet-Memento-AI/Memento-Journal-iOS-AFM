@@ -14,7 +14,13 @@ public struct ChatMessageBubble: View {
     /// typewriter so it only completes once the full reply has arrived.
     var isStreaming: Bool
     var feedbackType: FeedbackType?
+    /// True while this message is the one being read aloud (spec 018 R7, chat
+    /// amendment). Forwarded into AIOutputComponent's action bar.
+    var isSpeaking: Bool
+    /// True while this message's playback is paused (tap resumes).
+    var isPaused: Bool
     var onCitationsTapped: (() -> Void)?
+    var onSpeak: (() -> Void)?
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
@@ -31,7 +37,10 @@ public struct ChatMessageBubble: View {
         animate: Bool = true,
         isStreaming: Bool = false,
         feedbackType: FeedbackType? = nil,
+        isSpeaking: Bool = false,
+        isPaused: Bool = false,
         onCitationsTapped: (() -> Void)? = nil,
+        onSpeak: (() -> Void)? = nil,
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
         onThumbsDown: (() -> Void)? = nil,
@@ -42,7 +51,10 @@ public struct ChatMessageBubble: View {
         self.animate = animate
         self.isStreaming = isStreaming
         self.feedbackType = feedbackType
+        self.isSpeaking = isSpeaking
+        self.isPaused = isPaused
         self.onCitationsTapped = onCitationsTapped
+        self.onSpeak = onSpeak
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
@@ -108,7 +120,10 @@ public struct ChatMessageBubble: View {
                 animate: animate,
                 isStreaming: isStreaming,
                 feedbackType: feedbackType,
+                isSpeaking: isSpeaking,
+                isPaused: isPaused,
                 onCitationsTapped: onCitationsTapped,
+                onSpeak: onSpeak,
                 onRedo: onRedo,
                 onThumbsUp: onThumbsUp,
                 onThumbsDown: onThumbsDown,

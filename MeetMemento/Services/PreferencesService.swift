@@ -19,6 +19,8 @@ class PreferencesService: ObservableObject {
         static let themePreference = "themePreference"
         static let aiEnabled = "aiEnabled"
         static let processOnDeviceOnly = "processOnDeviceOnly"
+        static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
+        static let speechRate = "speechRate"
     }
 
     // MARK: - Published Properties
@@ -47,6 +49,29 @@ class PreferencesService: ObservableObject {
         }
     }
 
+    /// Read-aloud voice choice (spec 018 R7). nil = Automatic: the best
+    /// Enhanced/Premium voice on the device via
+    /// `VoicePlaybackService.bestVoice()`. Stores an
+    /// `AVSpeechSynthesisVoice.identifier`; a since-deleted voice resolves to
+    /// nil at playback time and falls back to Automatic.
+    @Published var selectedVoiceIdentifier: String? {
+        didSet {
+            if let selectedVoiceIdentifier {
+                defaults.set(selectedVoiceIdentifier, forKey: Keys.selectedVoiceIdentifier)
+            } else {
+                defaults.removeObject(forKey: Keys.selectedVoiceIdentifier)
+            }
+        }
+    }
+
+    /// Read-aloud speaking rate (AVSpeechUtterance.rate). Default 0.53 —
+    /// `SpeechRatePreset.brisk`, the tuned value the feature shipped with.
+    @Published var speechRate: Float {
+        didSet {
+            defaults.set(speechRate, forKey: Keys.speechRate)
+        }
+    }
+
     // MARK: - Theme Preference
     var themePreference: AppThemePreference {
         get {
@@ -64,6 +89,9 @@ class PreferencesService: ObservableObject {
         let storedEnabled = defaults.object(forKey: Keys.aiEnabled) as? Bool
         self.aiEnabled = storedEnabled ?? true
         self.processOnDeviceOnly = defaults.object(forKey: Keys.processOnDeviceOnly) as? Bool ?? false
+        self.selectedVoiceIdentifier = defaults.string(forKey: Keys.selectedVoiceIdentifier)
+        self.speechRate = defaults.object(forKey: Keys.speechRate) as? Float
+            ?? SpeechRatePreset.brisk.rawValue
     }
 
     /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
@@ -71,7 +99,11 @@ class PreferencesService: ObservableObject {
         defaults.removeObject(forKey: Keys.themePreference)
         defaults.removeObject(forKey: Keys.aiEnabled)
         defaults.removeObject(forKey: Keys.processOnDeviceOnly)
+        defaults.removeObject(forKey: Keys.selectedVoiceIdentifier)
+        defaults.removeObject(forKey: Keys.speechRate)
         aiEnabled = true
         processOnDeviceOnly = false
+        selectedVoiceIdentifier = nil
+        speechRate = SpeechRatePreset.brisk.rawValue
     }
 }

@@ -88,8 +88,13 @@ final class MeetMementoUpgradeMigrationUITests: XCTestCase {
 
     /// spec 023 R4's "Delete Everything" must produce a state indistinguishable
     /// from a fresh install — driven end to end through the real Settings UI
-    /// (drawer → Settings → Delete Everything → both confirmations), not by
-    /// calling `AppStateStore.deleteEverything()` directly.
+    /// (profile sheet → Settings → Delete Everything → both confirmations), not
+    /// by calling `AppStateStore.deleteEverything()` directly.
+    ///
+    /// The entry point used to be the left drawer. That was removed when the
+    /// root screens became a horizontal pager — its edge-swipe owned the whole
+    /// NavigationStack and fought the pager — so settings now open from a bottom
+    /// sheet behind the same "Menu" avatar.
     func test_deleteEverything_relaunchIndistinguishableFromFreshInstall() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting", "-SeedUpgradeFixture"]
@@ -103,7 +108,7 @@ final class MeetMementoUpgradeMigrationUITests: XCTestCase {
         XCTAssertTrue(menuButton.waitForExistence(timeout: 10))
         menuButton.tap()
 
-        let settingsRow = app.buttons["drawer.settings"]
+        let settingsRow = app.buttons["profile.settings"]
         XCTAssertTrue(settingsRow.waitForExistence(timeout: 5))
         settingsRow.tap()
 
@@ -131,6 +136,14 @@ final class MeetMementoUpgradeMigrationUITests: XCTestCase {
         // pass even if deleteEverything() were a no-op. Omitting it forces
         // initializeAppState() to read real UserDefaults, so Welcome only
         // appears here if onboarding-complete was genuinely cleared.
+        //
+        // Because this launch reads REAL UserDefaults, it is also sensitive to
+        // anything written into the app's preference domain out of band. If it
+        // ever fails, check that first:
+        //   xcrun simctl spawn <udid> defaults read com.sebastianmendo.MeetMemento
+        // A stray `defaults write memento_onboarding_completed -bool YES` (a
+        // convenient way to skip onboarding while developing) makes this test
+        // fail against perfectly correct deletion code, and clones inherit it.
         app.terminate()
         let relaunched = XCUIApplication()
         relaunched.launch()

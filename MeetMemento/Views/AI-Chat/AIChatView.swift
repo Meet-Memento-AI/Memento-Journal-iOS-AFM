@@ -8,8 +8,11 @@
 import SwiftUI
 
 public struct AIChatView: View {
-    /// When true, hides the back button and adjusts layout for inline display in TopTabNavContainer
+    /// When true, the view renders its own header and is hosted by the pager.
     var isEmbedded: Bool = false
+    /// Page back to the Journal screen. The header's book icon and a right
+    /// swipe are the same navigation, so both route through here.
+    var onOpenJournal: (() -> Void)? = nil
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -30,19 +33,21 @@ public struct AIChatView: View {
         }
     }
     @State private var selectedCitations: CitationsWrapper? = nil
-    @State private var showChatHistorySheet = false
     @State private var scrollTask: Task<Void, Never>?
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var isNarrateActive = false
 
     /// Measured height of the composer, so the scroll view reserves exactly what
     /// the input actually occupies as it grows to five lines / larger Dynamic
-    /// Type. Seeded with the resting height (48pt pill + AIChatFooter's 16pt
+    /// Type. Seeded with the resting height (64pt capsule + AIChatFooter's 16pt
     /// vertical padding) so the very first layout pass is already correct.
-    @State private var composerHeight: CGFloat = 80
+    @State private var composerHeight: CGFloat = 96
     /// Breathing room between the last message and the composer.
     private let composerGap: CGFloat = 8
     @StateObject private var keyboardObserver = KeyboardObserver()
+
+    /// Owned here again: the trigger is this page's own header now, not a
+    /// shared one that only ContentView could reach.
+    @State private var showChatHistorySheet = false
 
     // Summary flow state
     @State private var showSummarySheet = false
@@ -56,6 +61,10 @@ public struct AIChatView: View {
     @State private var summaryItem: SummaryItem?
 
     @ObservedObject private var preferences = PreferencesService.shared
+    /// Read-aloud playback (spec 018 R7, chat amendment). Observed here — not
+    /// inside the bubbles — because this view owns message identity, so it can
+    /// derive per-message `isSpeaking` the same way it derives `feedbackType`.
+    @ObservedObject private var voiceService = VoicePlaybackService.shared
 
     // Suggestion prompts loaded from JSON with inline fallback
     @State private var currentSuggestions: [String] = []
@@ -103,10 +112,16 @@ public struct AIChatView: View {
     /// Defaults to true so previews and non-embedded call sites are unchanged.
     private let hasEntries: Bool
 
-    init(viewModel: ChatViewModel, isEmbedded: Bool = false, hasEntries: Bool = true) {
+    init(
+        viewModel: ChatViewModel,
+        isEmbedded: Bool = false,
+        hasEntries: Bool = true,
+        onOpenJournal: (() -> Void)? = nil
+    ) {
         self.viewModel = viewModel
         self.isEmbedded = isEmbedded
         self.hasEntries = hasEntries
+        self.onOpenJournal = onOpenJournal
     }
 
     /// Rotate suggestions: prefer ThemeCatalog-tuned starters, fall back to generic pool.
@@ -114,21 +129,10 @@ public struct AIChatView: View {
         currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
     }
     
-    /// Height reserved for floating header when embedded (includes 32px gap below header)
-    private var topContentInset: CGFloat {
-        if isEmbedded {
-            let safeAreaTop = UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first?
-                .windows
-                .first { $0.isKeyWindow }?
-                .safeAreaInsets.top ?? 0
-            // TopNavHeader positioned at safeAreaTop + 8 with height 44px
-            // Content starts 32px below header bottom
-            return safeAreaTop + 8 + 44 + 32  // = safeAreaTop + 84
-        }
-        return 16
-    }
+    /// Small breathing room under the header. The header itself reserves its
+    /// own height via `safeAreaInset`, so this is no longer a hand-computed
+    /// `safeAreaTop + 8 + 44 + 32` guess at another view's geometry.
+    private let topContentInset: CGFloat = 16
 
     public var body: some View {
         GeometryReader { geometry in
@@ -149,24 +153,23 @@ public struct AIChatView: View {
                             // a long draft slid underneath the last message.
                             Color.clear.frame(height: bottomReserve(geometry: geometry))
                         }
+                        // The header reserves its own height, so nothing here
+                        // hand-computes another view's geometry any more.
+                        .safeAreaInset(edge: .top, spacing: 0) {
+                            if isEmbedded { chatHeader }
+                        }
 
-                    // Blur overlay for narrate only. Typing deliberately does NOT
-                    // blur: the composer rising to meet the keyboard is enough of
-                    // a mode change on its own, and frosting the conversation the
+                    // No scrim, in either mode. Typing never had one: the
+                    // composer rising to meet the keyboard is enough of a mode
+                    // change on its own, and frosting the conversation the
                     // moment someone starts typing hides the very messages they
-                    // are replying to. Narrate keeps it because its 280pt panel
-                    // takes over the bottom of the screen, and the scrim is what
-                    // separates that panel from the conversation behind it.
-                    //
-                    // This also drops a full-screen material composited over a
-                    // live ScrollView — with `.scrollDismissesKeyboard(.interactively)`
-                    // below, its backdrop was re-sampled every frame of the drag.
-                    if isNarrateActive {
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .ignoresSafeArea()
-                            .allowsHitTesting(false)
-                    }
+                    // are replying to. Narrate used to get one because its 280pt
+                    // panel took over the bottom of the screen and needed
+                    // separating from the conversation behind it — dictation now
+                    // renders inline in the 64pt capsule, so there is nothing
+                    // left to separate. Removing it also drops a full-screen
+                    // material composited over a live ScrollView, whose backdrop
+                    // was re-sampled every frame of an interactive dismiss.
 
                     // Outside-tap target, present ONLY while the keyboard is up.
                     // Being conditional is what makes it safe: it cannot shadow
@@ -241,15 +244,13 @@ public struct AIChatView: View {
                 sessions: viewModel.sessions,
                 isLoading: viewModel.isLoadingSessions,
                 onSessionSelect: { session in
-                    loadSession(session)
+                    Task { await viewModel.loadSession(session) }
                 },
                 onNewChat: {
-                    startNewChat()
+                    withAnimation { viewModel.startNewChat() }
                 },
                 onDeleteSession: { session in
-                    Task {
-                        await viewModel.deleteSession(session)
-                    }
+                    Task { await viewModel.deleteSession(session) }
                 }
             )
         }
@@ -311,6 +312,38 @@ public struct AIChatView: View {
         }
     }
     
+    // MARK: - Header (Figma 483:1235)
+
+    private var chatHeader: some View {
+        AppHeader {
+            // Top-left, facing its destination: Journal is the page to the
+            // left, and a right swipe reveals it. The mirrored counterpart of
+            // Journal's top-right chat icon.
+            HeaderIconButton(
+                systemName: "book",
+                size: 48,
+                accessibilityLabel: "Journal",
+                accessibilityHint: "Double-tap to go back to your journal, or swipe right"
+            ) {
+                // Let go of the keyboard before the page moves, or it stays up
+                // over the Journal screen.
+                dismissKeyboard()
+                onOpenJournal?()
+            }
+        } trailing: {
+            // Shown unconditionally, as drawn. It used to be gated on having
+            // sessions; the sheet already has an empty state, so the gate only
+            // made the control flicker into existence after the first chat.
+            HeaderIconButton(
+                systemName: "list.bullet",
+                size: 48,
+                accessibilityLabel: "Chat history"
+            ) {
+                showChatHistorySheet = true
+            }
+        }
+    }
+
     // MARK: - Messages Scroll View
 
     /// Space reserved under the transcript for the floating composer (and keyboard).
@@ -355,12 +388,30 @@ public struct AIChatView: View {
                                     animate: message.isNew,
                                     isStreaming: message.isStreaming,
                                     feedbackType: viewModel.feedbackType(for: message.id),
+                                    isSpeaking: voiceService.speakingMessageID == message.id,
+                                    isPaused: voiceService.speakingMessageID == message.id
+                                        && voiceService.isPaused,
                                     onCitationsTapped: {
                                         if let citations = message.citations, !citations.isEmpty {
                                             selectedCitations = CitationsWrapper(citations: citations)
                                         }
                                     },
-                                    onRedo: message.isFromUser ? nil : { viewModel.regenerateResponse(for: message.id) },
+                                    onSpeak: message.isFromUser ? nil : {
+                                        if let ai = message.aiOutputContent {
+                                            voiceService.toggleSpeech(
+                                                messageID: message.id,
+                                                heading1: ai.heading1,
+                                                heading2: ai.heading2,
+                                                body: ai.body
+                                            )
+                                        }
+                                    },
+                                    onRedo: message.isFromUser ? nil : {
+                                        // Regenerate removes the message pair —
+                                        // speech must not outlive its message.
+                                        voiceService.stopIfSpeaking(messageID: message.id)
+                                        viewModel.regenerateResponse(for: message.id)
+                                    },
                                     onThumbsUp: message.isFromUser ? nil : {
                                         viewModel.toggleThumbsUp(for: message.id)
                                     },
@@ -419,6 +470,11 @@ public struct AIChatView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollContentBackground(.hidden)
             .background(theme.background)
+            // Replaces the opaque `ScrollEdgeFade(.top)` that ContentView used to
+            // paint behind the floating header, and `.hard` rather than `.soft`
+            // so content is cut crisply at the bar instead of fading into a hazy
+            // band under it — see YourEntriesView for the full reasoning.
+            .scrollEdgeEffectStyle(.hard, for: .top)
             // ⚠️ This gesture spans the whole message list, and it will SWALLOW
             // taps from any descendant that is not a `Button`. A plain
             // `.onTapGesture` on a child loses to it across the ScrollView
@@ -446,14 +502,7 @@ public struct AIChatView: View {
         AIChatFooter(
             inputText: $viewModel.inputText,
             isSending: viewModel.isLoading,
-            onSend: { viewModel.sendMessage() },
-            hasExistingChats: !viewModel.sessions.isEmpty,
-            onHistoryTap: { showChatHistorySheet = true },
-            onNarrateStateChange: { isActive in
-                withAnimation(.easeOut(duration: 0.25)) {
-                    isNarrateActive = isActive
-                }
-            }
+            onSend: { viewModel.sendMessage() }
         )
     }
 
@@ -463,47 +512,45 @@ public struct AIChatView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(spacing: 24) {
                 // Memento icon — left 32/132 of logo SVG rendered at 44pt height
                 Image("Memento-Logo")
                     .resizable()
                     .frame(width: 176, height: 44)
                     .frame(width: 44, alignment: .leading)
                     .clipped()
-                    .padding(.leading, 20)
 
                 // Welcome message
-                Text("Welcome \(viewModel.userName ?? "there"), let's dive deeper into your journal")
-                    .font(type.h3)
+                Text("Let’s dive deeper into your journal")
+                    .font(type.h2)
                     .foregroundStyle(theme.foreground)
-                    .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 20)
+                    .multilineTextAlignment(.center)
+                    // The block sits in a fixed-height frame with a Spacer above
+                    // and below, so the VStack is free to compress the headline
+                    // rather than the Spacers — at h2 that truncated it to a
+                    // single "Let's dive deeper into…". This claims the height
+                    // the wrapped text actually needs.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
 
-                if hasEntries {
-                    // Suggestion cards — horizontal scroll
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(currentSuggestions, id: \.self) { suggestion in
-                                AISuggestionCard(suggestion: suggestion) {
-                                    viewModel.sendMessage(prompt: suggestion)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
+                // NOTE: the suggested-prompt cards that used to sit here for
+                // `hasEntries` are temporarily removed. `currentSuggestions` /
+                // `rotateSuggestions()` are deliberately left in place — they
+                // still run, they just have no renderer for now, so restoring
+                // the strip is a matter of putting the ScrollView back.
+                if !hasEntries {
                     // No entries yet: every suggestion in the pool asks about a
                     // corpus that does not exist, so offering them guarantees a
                     // poor first answer. Point at the actual first step instead.
                     Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
                         .font(type.body1)
                         .foregroundStyle(theme.mutedForeground)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 20)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 16)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
 
             Spacer()
         }
@@ -604,19 +651,6 @@ public struct AIChatView: View {
         }
     }
 
-    // MARK: - Chat History Actions
-
-    private func loadSession(_ session: ChatSession) {
-        Task {
-            await viewModel.loadSession(session)
-        }
-    }
-
-    private func startNewChat() {
-        withAnimation {
-            viewModel.startNewChat()
-        }
-    }
 }
 
 // MARK: - Composer height

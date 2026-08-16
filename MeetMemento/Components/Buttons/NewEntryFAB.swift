@@ -3,8 +3,8 @@
 //  MeetMemento
 //
 //  Floating Action Button for creating new journal entries.
-//  Rendered as a prominent, tinted Liquid Glass button (native `.glassProminent`
-//  button style). The deployment target is iOS 26, so glass is always available.
+//  Plain, untinted Liquid Glass — no `.glassProminent`, no brand fill — so it
+//  reads as chrome over whatever it floats above and inverts with the theme.
 //
 
 import SwiftUI
@@ -29,13 +29,20 @@ public struct NewEntryFAB: View {
             }
             action()
         } label: {
-            // Liquid Glass removed — brand color intentionally kept (prominent
-            // FAB); flat purple circle, no glass.
+            // Glass on the view CONTAINING the glyph, not a layer behind it:
+            // only content composited inside the effect receives the system's
+            // vibrancy treatment, which adapts the glyph to whatever is being
+            // refracted. As a `.background(...)` layer it keeps its literal
+            // token colour and washes out — the note on `AvatarInitialButton`.
+            //
+            // No `.tint()` and no fill underneath: an opaque fill beneath glass
+            // renders it as a flat panel. `theme.foreground` gives a dark glyph
+            // in light mode and a light one in dark.
             Image(systemName: "square.and.pencil")
                 .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.foreground)
                 .frame(width: size, height: size)
-                .background(Circle().fill(theme.primary))
+                .glassEffect(.regular.interactive(), in: .circle)
         }
         .buttonStyle(FABPressStyle())
         .accessibilityLabel("New Journal Entry")
@@ -55,15 +62,17 @@ private struct FABPressStyle: ButtonStyle {
 
 // MARK: - Positioned Wrapper
 
-/// Wrapper that positions the FAB in the bottom-right corner with swipe animations
+/// Positions the FAB in the bottom-right corner of whatever it overlays.
+///
+/// It used to take a `swipeProgress` scalar and fade/scale/slide itself out as
+/// the user paged toward Chat, because it was a *sibling* of the pager and would
+/// otherwise have hovered over both screens. It now lives inside the Journal
+/// page and simply travels with it, so the whole animation — and the plumbing
+/// that computed the scalar — is gone.
 public struct PositionedNewEntryFAB: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    let swipeProgress: CGFloat
     let action: () -> Void
 
-    public init(swipeProgress: CGFloat = 0, action: @escaping () -> Void) {
-        self.swipeProgress = swipeProgress
+    public init(action: @escaping () -> Void) {
         self.action = action
     }
 
@@ -73,11 +82,6 @@ public struct PositionedNewEntryFAB: View {
             HStack {
                 Spacer()
                 NewEntryFAB(action: action)
-                    .opacity(1 - swipeProgress)
-                    .scaleEffect(1 - (swipeProgress * 0.3))
-                    .offset(x: swipeProgress * 60)
-                    .allowsHitTesting(swipeProgress < 0.5)
-                    .animation(reduceMotion ? nil : .interactiveSpring(response: 0.3, dampingFraction: 0.8), value: swipeProgress)
                     .padding(.trailing, 20)
                     .padding(.bottom, 56)
             }

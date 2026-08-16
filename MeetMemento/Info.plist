@@ -32,5 +32,13 @@
 	<string>Memento needs microphone access to transcribe your voice into journal entries.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Memento uses speech recognition to convert your voice to text for journaling.</string>
+	<!-- Read-aloud keeps speaking when the app backgrounds or the device
+	     locks (spec 018 REQ-VOX-005, chat amendment 2026-08-16). The audio
+	     session deactivates when the queue drains, so no silent session is
+	     ever held. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

@@ -29,7 +29,13 @@ import Foundation
 final class SampleContentService: ObservableObject {
     static let shared = SampleContentService()
 
-    private let seededIdsKey = "memento_sample_entry_ids"
+    /// Exposed so `AppStateStore.deleteEverything()` can clear it. The service
+    /// is `@MainActor`-isolated and deletion runs synchronously from an alert
+    /// button, so a static key is simpler — and safer — than reaching through
+    /// the singleton from an erasure path.
+    static let seededIdsDefaultsKey = "memento_sample_entry_ids"
+
+    private let seededIdsKey = SampleContentService.seededIdsDefaultsKey
 
     private struct SampleFile: Decodable {
         struct SampleEntry: Decodable {

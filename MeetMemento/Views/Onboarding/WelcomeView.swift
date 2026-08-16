@@ -221,7 +221,24 @@ public struct WelcomeView: View {
             // trust boundary. 1.x is on-device (Z0) only: no Private Cloud
             // Compute path has shipped, so the copy must not mention it.
             // Re-introduce the PCC clause only when Z1 routing actually lands.
-            
+            //
+            // Restored 2026-08-16. `adbe7fa` ("boomerang the intro video")
+            // deleted this Text and all nine of its modifiers as collateral —
+            // its commit message never mentions the positioning line, and the
+            // comment above was left stranded over a blank line. `b1bab65`
+            // reverted that commit's video change but not this. The only thing
+            // that noticed for five days was the smoke test asserting
+            // `welcome.positioning`, which has been red ever since.
+            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone with Apple's on-device models. Nothing else.")
+                .font(type.body2)
+                .foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 32)
+                .padding(.top, 12)
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                .accessibilityIdentifier("welcome.positioning")
+                .opacity(showHeadline ? 1 : 0)
 
             Spacer()
 

@@ -61,8 +61,10 @@ struct YourEntriesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Bleed the page fill under the glass header, but do not ignore the top
+        // safeAreaInset JournalView attaches for AppHeader — that was shoving
+        // month titles under the chrome (spec 027 R3).
         .background(theme.background.ignoresSafeArea())
-        .ignoresSafeArea()
         .confirmationDialog(
             "Delete this entry?",
             isPresented: $showDeleteConfirmation,
@@ -219,7 +221,10 @@ struct YourEntriesView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, topContentPadding) // Header clearance (includes 32px gap)
+            // Breathing room only. The header reserves its own height via
+            // `safeAreaInset` (spec 027 R3), so this is no longer the
+            // `safeAreaTop + 8 + 44 + 32` header-height guess it used to carry.
+            .padding(.top, topContentPadding)
             .padding(.bottom, 20) // Bottom padding for scrolling
             .background(
                 GeometryReader { geometry in
@@ -234,6 +239,18 @@ struct YourEntriesView: View {
         .coordinateSpace(name: "scroll")
         .scrollContentBackground(.hidden)
         .background(theme.background)
+        // Replaces the opaque `ScrollEdgeFade(.top)` that ContentView used to
+        // paint behind the floating header. That scrim rendered the header's
+        // Liquid Glass as a flat panel; the system edge effect separates content
+        // from the glass instead of hiding what sits behind it.
+        //
+        // `.hard`, not `.soft`: a soft edge fades content into the bar over a
+        // long distance, which leaves a hazy band directly under the chrome and
+        // makes the glass read as washed out. A hard edge cuts content crisply
+        // at the boundary, so the glass has a clean backdrop and its own icons
+        // stay legible. This is the transparency-side fix — the material stays
+        // `.regular` and untinted.
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
             // Only apply tracking on iOS 18, not iOS 26+
             if #available(iOS 26.0, *) {
