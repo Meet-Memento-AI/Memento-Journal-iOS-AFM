@@ -22,6 +22,11 @@ changes belong to this spec until the gates in §Gates are green.
 more lookups, the eight primitives, and the restraint filter. That file is
 exploratory; this spec remains the dialect source of truth.
 
+**Implementation map (not Swift):** send conditions, thresholds, AFM call
+kinds, and success metrics live in
+[`reference/028-ask-genui-implementation-map.md`](reference/028-ask-genui-implementation-map.md).
+Swift selects the asset; AFM writes the caption — or is skipped.
+
 **Traceability:** extends spec [019](019-surfaces.md) R5 (Ask restores
 PRES-040…048; computed answers, not just prose) and the snapshot-streaming
 contract in spec [017](017-intelligence-boundary-and-prompt-architecture.md)
