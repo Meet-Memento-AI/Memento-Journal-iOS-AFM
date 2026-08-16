@@ -17,6 +17,11 @@ pres_refs: [PRES-042, PRES-043, PRES-044, PRES-047]
 Markdown and GenUI land as one dialect, not two competing rewrites. No Swift
 changes belong to this spec until the gates in §Gates are green.
 
+**Ideation (not contract):** lo-fi use cases and wireframes live in
+[`reference/028-ask-genui-ideation.md`](reference/028-ask-genui-ideation.md) —
+more lookups, the eight primitives, and the restraint filter. That file is
+exploratory; this spec remains the dialect source of truth.
+
 **Traceability:** extends spec [019](019-surfaces.md) R5 (Ask restores
 PRES-040…048; computed answers, not just prose) and the snapshot-streaming
 contract in spec [017](017-intelligence-boundary-and-prompt-architecture.md)
