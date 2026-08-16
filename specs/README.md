@@ -16,7 +16,7 @@ specs/
 ├── ROADMAP.md         ← status board, dependency graph, launch gates
 ├── 001…012-*.md       ← the original twelve specs (pre-2.0 app; 003/004/007/008/010
 │                        obsolete, 002 paused — see ROADMAP.md's Status board)
-├── 013…025-*.md       ← Memento 2.0 rewrite + Ship CI specs (see below)
+├── 013…028-*.md       ← Memento 2.0 rewrite + Ship CI + Ask richness (028 is plan-only until gated)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
@@ -36,7 +36,8 @@ Apple-framework API behavior (`tech_refs:` front-matter plus a "Technology
 References" body section — a WWDC26-sourced API library using the same
 ✅ VERIFIED / 🟡 LIKELY / 🔴 UNVERIFIED confidence markers as the source document's
 `⚠️ VERIFY` items, see `specs/reference/technology/00-INDEX.md`). `ROADMAP.md`'s
-"2.0 Rewrite — Phase Plan" section is the status board for these.
+"2.0 Rewrite — Phase Plan" section is the status board for these. Spec
+[028](028-ask-markdown-and-genui.md) is plan-only until its gates are green.
 
 ---
 
