@@ -146,7 +146,8 @@ public struct JournalView: View {
     @ViewBuilder
     private var journalContent: some View {
         if isEmbedded {
-            // When embedded, don't wrap in NavigationStack (ContentView provides it)
+            // When embedded, the pager is the host;
+            // ContentView no longer wraps it in NavigationStack.
             coreContentView
         } else {
             // Standalone mode with own NavigationStack
@@ -176,49 +177,27 @@ public struct JournalView: View {
 
     @ViewBuilder
     private var coreContentView: some View {
-        ZStack {
-            // Full-screen background - must fill entire space including safe areas
-            theme.background
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .all)
+        let showsFAB = isEmbedded
+            && navigationPath.wrappedValue.isEmpty
+            && !entryViewModel.entries.isEmpty
 
-            yourEntriesContent
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if isEmbedded {
-                        // Spacer for FAB clearance when embedded
-                        Color.clear.frame(height: 100)
+        RootPageScaffold(
+            footerBottomPadding: showsFAB ? 16 : 0,
+            header: { if isEmbedded { journalHeader } },
+            footer: {
+                if showsFAB {
+                    HStack {
+                        Spacer(minLength: 0)
+                        NewEntryFAB(size: AppHeaderMetrics.footerButtonSize) {
+                            presentEntry(.create)
+                        }
                     }
-                }
-                // The header reserves its own height — no more hardcoded
-                // `safeAreaTop + 8 + 44 + 32` guess in three separate files.
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if isEmbedded { journalHeader }
-                }
-
-            // Bottom scroll fade and the FAB both live inside the page now. As
-            // siblings of the pager they needed a `swipeProgress` scalar to fade
-            // out on the way to Chat; here they simply travel with the page.
-            VStack(spacing: 0) {
-                Spacer()
-                ScrollEdgeFade(edge: .bottom, height: 60)
-            }
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-
-            if isEmbedded,
-               navigationPath.wrappedValue.isEmpty,
-               !entryViewModel.entries.isEmpty {
-                PositionedNewEntryFAB {
-                    presentEntry(.create)
+                    .padding(.horizontal, 16)
                 }
             }
+        ) {
+            yourEntriesContent
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea(edges: .all)
-        // The right-swipe-to-open-drawer `simultaneousGesture` that used to sit
-        // here is gone with the drawer. It fired *in addition to* the pager,
-        // which is precisely the arbitration a root pager cannot tolerate.
-        .background(theme.background.ignoresSafeArea(edges: .all))
         .overlay {
             if showJournalSearch {
                 JournalSearchView(isPresented: $showJournalSearch,
@@ -235,20 +214,16 @@ public struct JournalView: View {
         .toolbar {
                 // Only show toolbar when NOT embedded (embedded uses AppHeader)
                 if !isEmbedded {
-                    // Leading: User avatar (placeholder for future features)
                     ToolbarItem(placement: .navigationBarLeading) {
                         AvatarInitialButton(
                             initial: appState.firstName?.first.map { String($0) },
                             size: 32,
                             enableHaptic: true,
                             accessibilityLabel: "Menu",
-                            onTap: {
-                                // Future: Open side menu or feature panel
-                            }
+                            onTap: {}
                         )
                     }
 
-                    // Trailing: Settings button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -262,7 +237,6 @@ public struct JournalView: View {
                         .accessibilityLabel("Settings")
                     }
 
-                    // Trailing: New Entry button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -287,11 +261,10 @@ public struct JournalView: View {
         YourEntriesView(
             entryViewModel: entryViewModel,
             monthGroups: allEntriesByMonth,
-            // Breathing room under the floating header, matching
-            // `AIChatView.topContentInset` so the two root pages agree. The
-            // header reserves its own height via `safeAreaInset` above; this is
-            // only the gap between it and the first month title.
-            topContentPadding: 16,
+            topContentPadding: AppHeaderMetrics.contentTopPadding,
+            bottomContentPadding: isEmbedded
+                ? PositionedNewEntryFAB.scrollClearance
+                : 20,
             onMonthVisibilityChanged: { monthStart in
                 // Sync scroll position with picker selection
                 selectedDate = monthStart
@@ -320,7 +293,7 @@ public struct JournalView: View {
         AppHeader {
             AvatarInitialButton(
                 initial: appState.firstName?.first.map { String($0) },
-                size: 40,
+                size: AppHeaderMetrics.controlSize,
                 enableHaptic: true,
                 // Kept as "Menu" deliberately: the destructive-flow UI test uses
                 // `app.buttons["Menu"]` as its entry point into settings.
@@ -331,7 +304,6 @@ public struct JournalView: View {
             HStack(spacing: 12) {
                 HeaderIconButton(
                     systemName: "magnifyingglass",
-                    size: 40,
                     accessibilityLabel: "Search"
                 ) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
@@ -349,7 +321,6 @@ public struct JournalView: View {
                 // page the pager happens to hand back first.
                 HeaderIconButton(
                     systemName: "message",
-                    size: 40,
                     accessibilityLabel: "AI chat",
                     accessibilityHint: "Double-tap to open the AI chat, or swipe left"
                 ) {

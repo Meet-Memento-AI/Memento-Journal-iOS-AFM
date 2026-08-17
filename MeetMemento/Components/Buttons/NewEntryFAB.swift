@@ -69,7 +69,17 @@ private struct FABPressStyle: ButtonStyle {
 /// otherwise have hovered over both screens. It now lives inside the Journal
 /// page and simply travels with it, so the whole animation — and the plumbing
 /// that computed the scalar — is gone.
+///
+/// Edge insets match the Chat/Journal footer: `windowBottom + 16` above
+/// the physical bottom (the scaffold owns the home-indicator pad).
 public struct PositionedNewEntryFAB: View {
+    public static let fabSize: CGFloat = AppHeaderMetrics.footerButtonSize
+    public static let edgeInset: CGFloat = AppHeaderMetrics.contentGap
+    /// Scroll-content clearance: FAB + 16pt edge + home indicator + 8pt air.
+    public static var scrollClearance: CGFloat {
+        fabSize + edgeInset + AppHeaderMetrics.windowBottom + 8
+    }
+
     let action: () -> Void
 
     public init(action: @escaping () -> Void) {
@@ -78,14 +88,15 @@ public struct PositionedNewEntryFAB: View {
 
     public var body: some View {
         VStack {
-            Spacer()
+            Spacer(minLength: 0)
             HStack {
-                Spacer()
-                NewEntryFAB(action: action)
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 56)
+                Spacer(minLength: 0)
+                NewEntryFAB(size: Self.fabSize, action: action)
+                    .padding(.trailing, Self.edgeInset)
+                    .padding(.bottom, Self.edgeInset)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

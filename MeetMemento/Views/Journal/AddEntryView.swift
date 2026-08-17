@@ -30,6 +30,11 @@ public struct AddEntryView: View {
     private let speechOwnerId = "AddEntryView"
 
     @StateObject private var keyboardObserver = KeyboardObserver()
+    /// Home-indicator inset cached while the keyboard is hidden — same reason
+    /// as `AIChatView.restingHomeIndicator`: live `safeAreaInsets.bottom` is
+    /// usually 0 in this sheet's GeometryReader (or becomes the keyboard), so
+    /// subtracting it left the FABs floating well above the keys.
+    @State private var restingHomeIndicator: CGFloat = 0
 
     @State private var title: String
     @State private var text: String
@@ -108,12 +113,25 @@ public struct AddEntryView: View {
     }
 
     private func keyboardBottomPadding(geometry: GeometryProxy) -> CGFloat {
-        if keyboardObserver.isKeyboardVisible {
-            let safeArea = geometry.safeAreaInsets.bottom
-            return max(keyboardObserver.keyboardHeight - safeArea, 0) + 8
-        } else {
-            return 32
+        guard keyboardObserver.isKeyboardVisible else {
+            // Resting: FABs sit on the sheet's bottom frame edge (16pt air,
+            // matching `PositionedNewEntryFAB.edgeInset` / chat composer).
+            return PositionedNewEntryFAB.edgeInset
         }
+
+        let home = restingHomeIndicator > 0
+            ? restingHomeIndicator
+            : max(geometry.safeAreaInsets.bottom, Self.windowBottomSafeArea())
+        // Flush to the keyboard — no extra +8 gap.
+        return max(keyboardObserver.keyboardHeight - home, 0)
+    }
+
+    private static func windowBottomSafeArea() -> CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .safeAreaInsets.bottom ?? 0
     }
 
     private var formattedDate: String {
@@ -170,10 +188,12 @@ public struct AddEntryView: View {
                         bodyField
                             .padding(.top, 16)
 
-                        // Reserves the full bottom band (Figma Bottom-Nav, 120pt:
-                        // 32 clearance + 56 FAB row + 32 to the edge) so body
-                        // text can never crowd or slide under the buttons.
-                        Spacer(minLength: 120)
+                        // Reserves the bottom chrome band so body text can never
+                        // crowd the FABs. Matches resting overlay:
+                        // edgeInset + 56 FAB + edgeInset.
+                        Spacer(minLength: PositionedNewEntryFAB.edgeInset
+                               + 56
+                               + PositionedNewEntryFAB.edgeInset)
                     }
                     .padding(.horizontal, 20)
                 }
@@ -192,7 +212,13 @@ public struct AddEntryView: View {
         .ignoresSafeArea(.keyboard)
         .background(theme.background.ignoresSafeArea())
         .onAppear {
+            restingHomeIndicator = Self.windowBottomSafeArea()
             setupInitialFocus()
+        }
+        .onChange(of: keyboardObserver.isKeyboardVisible) { _, visible in
+            if !visible {
+                restingHomeIndicator = Self.windowBottomSafeArea()
+            }
         }
         .task {
             await preloadExistingPhotoIfNeeded()

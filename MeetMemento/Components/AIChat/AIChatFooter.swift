@@ -14,26 +14,31 @@ struct AIChatFooter: View {
     @Binding var inputText: String
     var isSending: Bool
     var onSend: () -> Void
+    var onNarrate: (() -> Void)?
 
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
-        onSend: @escaping () -> Void
+        onSend: @escaping () -> Void,
+        onNarrate: (() -> Void)? = nil
     ) {
         self._inputText = inputText
         self.isSending = isSending
         self.onSend = onSend
+        self.onNarrate = onNarrate
     }
 
     var body: some View {
         ChatInputField(
             text: $inputText,
             onSend: onSend,
+            onNarrate: onNarrate,
             isInteractive: !isSending
         )
-        // 16pt sides: Figma draws the 376pt capsule inside a 408pt frame.
+        // 16pt sides and 16pt above the field. Bottom offset is
+        // `windowBottom + 16`, applied by AIChatView's scaffold.
         .padding(.horizontal, 16)
-        .padding(.vertical, 16)
+        .padding(.top, 16)
         .opacity(isSending ? 0.7 : 1.0)
     }
 }

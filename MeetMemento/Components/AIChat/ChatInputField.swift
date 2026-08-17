@@ -42,6 +42,9 @@ struct ChatInputField: View {
     var onSend: () -> Void
     /// Called when the input field should be dismissed (e.g., tap outside)
     var onDismiss: (() -> Void)?
+    /// Enters hands-free Narration Mode (the black waveform button). Only
+    /// reachable from `.defaultState`, i.e. with an empty draft.
+    var onNarrate: (() -> Void)?
     /// When false, input is disabled (e.g. while a send is in flight)
     var isInteractive: Bool
     /// For preview purposes - allows setting initial state
@@ -73,8 +76,8 @@ struct ChatInputField: View {
 
     // MARK: - Design Constants
 
-    /// Figma: 64pt tall, radius 100 → a capsule.
-    private let pillHeight: CGFloat = 64
+    /// Capsule height — same 64pt as Narration footer circles / FAB.
+    private let pillHeight: CGFloat = AppHeaderMetrics.footerButtonSize
     /// Figma: every control in the bar is a 40pt circle.
     private let iconButtonSize: CGFloat = 40
     private let glyphSize: CGFloat = 22          // icon-size: not user text
@@ -111,12 +114,14 @@ struct ChatInputField: View {
         text: Binding<String>,
         onSend: @escaping () -> Void = {},
         onDismiss: (() -> Void)? = nil,
+        onNarrate: (() -> Void)? = nil,
         isInteractive: Bool = true,
         initialState: InputState = .defaultState
     ) {
         self._text = text
         self.onSend = onSend
         self.onDismiss = onDismiss
+        self.onNarrate = onNarrate
         self.isInteractive = isInteractive
         self.initialState = initialState
         self._inputState = State(initialValue: initialState)
@@ -411,13 +416,12 @@ struct ChatInputField: View {
         }
     }
 
-    /// Figma "solar:soundwave-bold" on a #1C2329 circle. Reserved for the
-    /// hands-free voice mode that ships next — rendered now so the bar matches
-    /// the design, but it has nothing to call yet.
+    /// Figma "solar:soundwave-bold" on a #1C2329 circle. Enters hands-free
+    /// narration on the chat page (`AIChatView.startNarration`).
     private var voiceModeButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            // TODO: hands-free voice conversation mode (not yet implemented).
+            onNarrate?()
         } label: {
             Image(systemName: "waveform")
                 .font(.system(size: glyphSize, weight: .semibold)) // icon-size: not user text
@@ -431,7 +435,7 @@ struct ChatInputField: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Hands-free voice")
-        .accessibilityHint("Coming soon")
+        .accessibilityHint("Double-tap to start a voice conversation")
     }
 
     private var sendButton: some View {

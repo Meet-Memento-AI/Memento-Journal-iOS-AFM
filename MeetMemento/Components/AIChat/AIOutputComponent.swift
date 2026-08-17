@@ -373,14 +373,20 @@ public struct AIOutputComponent: View {
                 }
                 .accessibilityLabel(feedbackType == .negative ? "Remove thumbs down" : "Thumbs down")
 
-                Button {
-                    onRedo?()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(theme.mutedForeground)
+                // Conditional like read-aloud above: narration mode passes nil
+                // (regenerating mid-voice-loop would fight the TTS chunker, and
+                // its Figma action bar omits the affordance); chat always passes
+                // a handler, so the chat page is unchanged.
+                if onRedo != nil {
+                    Button {
+                        onRedo?()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14, weight: .bold)) // icon-size: not user text
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                    .accessibilityLabel("Regenerate")
                 }
-                .accessibilityLabel("Regenerate")
             }
             .padding(.top, 8)
             .opacity(hasAnimated || !animate ? 1 : 0)

@@ -14,53 +14,93 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
+
+// MARK: - Shared metrics
+
+/// Drawn diameter and padding for every control in `AppHeader`.
+/// Journal and Chat (including Chat's narration mode) all use these so chrome stays matched.
+enum AppHeaderMetrics {
+    /// Drawn diameter for every header control (avatar + icon buttons).
+    static let controlSize: CGFloat = 48
+    /// Hit-target floor. Matches `controlSize` now that controls clear Apple's
+    /// 44pt minimum on their own; kept so smaller sizes still expand cleanly.
+    static let minimumTapTarget: CGFloat = max(44, controlSize)
+    /// Bottom pad under the control row, and the 16pt air above the home
+    /// indicator (Chat footer / FAB contract).
+    static let rowBottomPadding: CGFloat = 16
+    /// Breathing room between the header row and the first line of content.
+    static let contentGap: CGFloat = 16
+    /// Footer / FAB circle diameter (Narration footer buttons and ChatInputField).
+    static let footerButtonSize: CGFloat = 64
+
+    /// Status-bar / Dynamic Island inset from the key window. Root pages
+    /// ignore the system safe area and apply this as padding on the header.
+    static var windowTop: CGFloat { windowSafeArea.top }
+    /// Home-indicator inset from the key window. Applied under the footer
+    /// together with `rowBottomPadding` (16pt).
+    static var windowBottom: CGFloat { windowSafeArea.bottom }
+
+    /// Overlay header occupies this much below the physical top
+    /// (`windowTop` + 48pt controls + 16pt row pad).
+    static var headerClearance: CGFloat { windowTop + controlSize + rowBottomPadding }
+    /// First line of scroll content: header clearance plus 16pt air.
+    static var contentTopPadding: CGFloat { headerClearance + contentGap }
+
+    private static var windowSafeArea: UIEdgeInsets {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .safeAreaInsets ?? .zero
+    }
+}
 
 // MARK: - AppHeader
 
 /// Leading and trailing control clusters over a transparent bar.
 ///
-/// Attach with `.safeAreaInset(edge: .top)` so the page reserves exactly the
-/// height the header occupies. The three views that used to hardcode
-/// `safeAreaTop + 8 + 44 + 32` to guess that height are gone.
+/// The overlay is pinned to the physical top of the frame. A `windowTop`
+/// spacer stretches through the Dynamic Island / status bar; the glass row
+/// sits on that safe-area guide (16pt sides, 16pt below the row). Blur lives
+/// only in the island strip — never behind the buttons — so glass can sample
+/// the scrolling content.
 struct AppHeader<Leading: View, Trailing: View>: View {
     @ViewBuilder var leading: Leading
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        // One sampling region for the row. Glass cannot sample glass, and these
-        // controls sit within 12pt of each other — migrating them without a
-        // shared container is what read as stacked/double glass in the
-        // 2026-08-07 attempt.
-        GlassEffectContainer(spacing: 12) {
-            HStack(spacing: 12) {
-                leading
-                Spacer(minLength: 12)
-                trailing
-            }
-            // Figma: px-16, pb-16, and buttons starting at y≈64 — i.e. just
-            // below the status bar.
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-            // The header owns its status-bar clearance explicitly rather than
-            // relying on an ambient safe area. Every root surface in this app
-            // is deliberately full-bleed (`ignoresSafeArea(edges: .all)` on the
-            // page, the pager and ContentView's stack), so by the time a
-            // `safeAreaInset` reaches here there is no inset left to sit in —
-            // the buttons rendered clipped by the screen edge, at y = -48 and
-            // then y = 45. This is the one remaining copy of a measurement the
-            // old shared header duplicated in four files.
-            .padding(.top, Self.statusBarClearance)
-        }
-    }
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: AppHeaderMetrics.windowTop)
+                .frame(maxWidth: .infinity)
+                .background {
+                    ProgressiveBlurEdge(
+                        edge: .top,
+                        height: AppHeaderMetrics.windowTop
+                    )
+                }
+                .clipped()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
 
-    /// Top window safe-area inset, or a sane default if no key window is up yet.
-    private static var statusBarClearance: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?
-            .windows
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.top ?? 20
+            // One sampling region for the row. Glass cannot sample glass, and
+            // these controls sit within 12pt of each other — migrating them
+            // without a shared container is what read as stacked/double glass
+            // in the 2026-08-07 attempt.
+            GlassEffectContainer(spacing: 12) {
+                HStack(spacing: 12) {
+                    leading
+                    Spacer(minLength: 12)
+                    trailing
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -70,17 +110,13 @@ struct AppHeader<Leading: View, Trailing: View>: View {
 /// always clears Apple's 44pt minimum even when the circle is smaller.
 struct HeaderIconButton: View {
     let systemName: String
-    /// Figma draws 40pt on Journal and 48pt on Chat.
-    var size: CGFloat = 40
+    /// Defaults to `AppHeaderMetrics.controlSize` so Journal and Chat stay matched.
+    var size: CGFloat = AppHeaderMetrics.controlSize
     var accessibilityLabel: String
     var accessibilityHint: String?
     let action: () -> Void
 
     @Environment(\.theme) private var theme
-
-    /// Apple's minimum tap target. A 40pt circle is under it, so the hit area
-    /// is expanded without changing what is drawn.
-    private static let minimumTapTarget: CGFloat = 44
 
     var body: some View {
         Button {
@@ -98,8 +134,8 @@ struct HeaderIconButton: View {
                 .frame(width: size, height: size)
                 .glassEffect(.regular.interactive(), in: .circle)
                 .frame(
-                    minWidth: Self.minimumTapTarget,
-                    minHeight: Self.minimumTapTarget
+                    minWidth: AppHeaderMetrics.minimumTapTarget,
+                    minHeight: AppHeaderMetrics.minimumTapTarget
                 )
                 .contentShape(Circle())
         }
@@ -128,13 +164,13 @@ private struct OptionalHint: ViewModifier {
                        startPoint: .top, endPoint: .bottom)
             .ignoresSafeArea()
         AppHeader {
-            AvatarInitialButton(initial: "S", size: 40, enableHaptic: true,
-                                accessibilityLabel: "Menu") {}
+            AvatarInitialButton(initial: "S", size: AppHeaderMetrics.controlSize,
+                                enableHaptic: true, accessibilityLabel: "Menu") {}
         } trailing: {
             HStack(spacing: 12) {
-                HeaderIconButton(systemName: "magnifyingglass", size: 40,
+                HeaderIconButton(systemName: "magnifyingglass",
                                  accessibilityLabel: "Search") {}
-                HeaderIconButton(systemName: "message", size: 40,
+                HeaderIconButton(systemName: "message",
                                  accessibilityLabel: "Chat with Memento") {}
             }
         }
@@ -149,11 +185,15 @@ private struct OptionalHint: ViewModifier {
                        startPoint: .top, endPoint: .bottom)
             .ignoresSafeArea()
         AppHeader {
-            HeaderIconButton(systemName: "book", size: 48,
+            HeaderIconButton(systemName: "book",
                              accessibilityLabel: "Journal") {}
         } trailing: {
-            HeaderIconButton(systemName: "list.bullet", size: 48,
-                             accessibilityLabel: "Chat history") {}
+            HStack(spacing: 12) {
+                HeaderIconButton(systemName: "sparkles",
+                                 accessibilityLabel: "Summarise chat") {}
+                HeaderIconButton(systemName: "list.bullet",
+                                 accessibilityLabel: "Chat history") {}
+            }
         }
     }
     .useTheme()

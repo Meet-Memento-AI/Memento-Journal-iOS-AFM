@@ -47,6 +47,13 @@ struct AvatarInitialButton: View {
             // glass is refracting. As a separate `.background(...)` layer the
             // glyph kept its literal token colour and washed out.
             .glassEffect(.regular.interactive(), in: .circle)
+            // Match `HeaderIconButton`: expand the layout/hit slot to 44pt when
+            // the drawn circle is smaller, so avatar + icon buttons share one
+            // row geometry in `AppHeader`.
+            .frame(
+                minWidth: AppHeaderMetrics.minimumTapTarget,
+                minHeight: AppHeaderMetrics.minimumTapTarget
+            )
             .contentShape(Circle())
         }
         // `.plain`, not IconButtonPressStyle: the glass is `.interactive()`, which

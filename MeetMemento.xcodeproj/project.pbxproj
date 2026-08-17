@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */ = {isa = PBXBuildFile; productRef = A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		A52968752E8CCF13004F65BE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -81,7 +77,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A5BLUR0032E9F0003004F65BE /* ProgressiveBlurHeader in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,7 +157,6 @@
 			);
 			name = MeetMemento;
 			packageProductDependencies = (
-				A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */,
 			);
 			productName = MeetMemento;
 			productReference = A52968642E8CCF12004F65BE /* MeetMemento.app */;
@@ -244,7 +238,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */,
-				A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A52968652E8CCF12004F65BE /* Products */;
@@ -629,23 +622,7 @@
 				minimumVersion = 3.0.0;
 			};
 		};
-		A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/dominikmartn/ProgressiveBlurHeader";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A5BLUR0022E9F0002004F65BE /* ProgressiveBlurHeader */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A5BLUR0012E9F0001004F65BE /* XCRemoteSwiftPackageReference "ProgressiveBlurHeader" */;
-			productName = ProgressiveBlurHeader;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A529685C2E8CCF12004F65BE /* Project object */;
 }

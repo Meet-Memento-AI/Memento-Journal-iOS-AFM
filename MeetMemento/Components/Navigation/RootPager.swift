@@ -35,13 +35,19 @@ public enum RootPage: String, CaseIterable, Identifiable, Hashable {
 
 // MARK: - RootPager
 
-/// Pages between the root screens, full-bleed.
+/// Pages between the root screens.
 ///
 /// Built on `TabView` + `.page`, deliberately: it gives interruptible,
 /// rubber-banded, velocity-aware paging and per-page state preservation that a
 /// hand-rolled `DragGesture` would only approximate. The previous version of
 /// this file shipped exactly such a hand-rolled alternative
 /// (`SwipeGestureModifier`) that never had a single call site.
+///
+/// Layout contract (spec 027 R3): Journal and Chat on ContentView's outer
+/// ZStack. Page `TabView` otherwise keeps its own top inset, which stacked
+/// on `windowTop` and floated headers. Expand the pager to the physical
+/// frame (`windowTop` on the glass row, `windowBottom + 16` on the footer).
+/// Narration is a mode of `AIChatView`, not a sibling of this pager.
 public struct RootPager<Content: View>: View {
     @Binding public var selection: RootPage
     public let content: (RootPage) -> Content
@@ -57,28 +63,31 @@ public struct RootPager<Content: View>: View {
     }
 
     public var body: some View {
-        TabView(selection: $selection) {
-            ForEach(RootPage.allCases) { page in
-                // Deliberately NOT `.ignoresSafeArea(edges: .all)` here. The
-                // previous pager did that, and it overrode each page's own
-                // safe-area handling: the pages attach their headers with
-                // `safeAreaInset(edge: .top)`, and forcing the content into the
-                // safe area from out here pushed those headers to y = -48 —
-                // above the screen edge, where taps land on the status bar
-                // instead of the buttons. Each page owns its own bleed; its
-                // background already ignores every edge.
-                content(page)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .tag(page)
+        GeometryReader { proxy in
+            // TabView + `.page` keeps a top inset even when told to ignore
+            // the safe area. Lift the pager by its global minY so Journal/Chat
+            // occupy the physical frame.
+            let topLift = max(proxy.frame(in: .global).minY, 0)
+            let bottomLift = topLift > 0 ? AppHeaderMetrics.windowBottom : 0
+            TabView(selection: $selection) {
+                ForEach(RootPage.allCases) { page in
+                    content(page)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.clear)
+                        .ignoresSafeArea()
+                        .tag(page)
+                }
             }
+            #if os(iOS)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            #endif
+            .frame(
+                width: proxy.size.width,
+                height: proxy.size.height + topLift + bottomLift
+            )
+            .offset(y: -topLift)
         }
-        .background(theme.background)
-        #if os(iOS)
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        #endif
-        // The tactile half of the pattern — both apps this is modelled on tick
-        // when the page commits, whether it was swiped or tapped.
+        .ignoresSafeArea()
         .onChange(of: selection) { _, _ in
             #if canImport(UIKit)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()

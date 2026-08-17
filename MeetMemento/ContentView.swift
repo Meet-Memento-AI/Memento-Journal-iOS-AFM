@@ -118,8 +118,6 @@ public struct ContentView: View {
     @State private var selectedPage: RootPage = .journal
     @State private var didSetPreviewTab = false
     @State private var isTabBarHidden = false
-    @State private var showSummarySheet = false
-    @State private var summaryError: String?
     @State private var activeEntryRoute: EntryRoute?
     @State private var showEntryToast = false
 
@@ -149,89 +147,60 @@ public struct ContentView: View {
             theme.background
                 .ignoresSafeArea()
 
-            // The left drawer used to live here, behind the main content, and
-            // slid it aside via an offset/clip transform. It is gone: its
-            // edge-swipe was attached with `.gesture` to the whole
-            // NavigationStack, so every horizontal drag in the app arbitrated
-            // against it. A root pager cannot share the screen with that.
-            // Profile and settings now live in a bottom sheet on the Journal
-            // page instead.
-            NavigationStack(path: $navigationPath) {
-                ZStack(alignment: .top) {
-                    // Full-screen background that extends to all edges
-                    theme.background
-                        .ignoresSafeArea()
-
-                    // Whole-page horizontal paging. Each page owns its own
-                    // header and its own chrome, so nothing floats above both.
-                    RootPager(selection: $selectedPage) { page in
-                        switch page {
-                        case .journal:
-                            JournalView(
-                                isEmbedded: true,
-                                externalNavigationPath: $navigationPath,
-                                onOpenChat: { selectedPage = .chat },
-                                onPresentEntry: { route in
-                                    activeEntryRoute = route
-                                }
-                            )
-                        case .chat:
-                            AIChatView(
-                                viewModel: chatViewModel,
-                                isEmbedded: true,
-                                hasEntries: !entryViewModel.entries.isEmpty,
-                                onOpenJournal: { selectedPage = .journal }
-                            )
+            // Journal and Chat share RootPageScaffold on the pager.
+            // Narration is a mode of AIChatView, not a sibling overlay.
+            // NavigationStack must not wrap the pager.
+            RootPager(selection: $selectedPage) { page in
+                switch page {
+                case .journal:
+                    JournalView(
+                        isEmbedded: true,
+                        externalNavigationPath: $navigationPath,
+                        onOpenChat: { selectedPage = .chat },
+                        onPresentEntry: { route in
+                            activeEntryRoute = route
                         }
-                    }
-
-                    // Gradient blur overlay — bottom only, Journal tab only
-                    // (AIChatView handles its own bottom fade).
-                    //
-                    // The matching top fade was removed when TopNavHeader became
-                    // Liquid Glass. `ScrollEdgeFade(.top)` is opaque for its first
-                    // 75% (`ScrollEdgeFade.swift`), so it painted a full-width band
-                    // of solid `theme.background` directly behind the floating
-                    // header — and glass over an opaque colour renders as an opaque
-                    // panel. That scrim is the reason the 2026-08-07 glass attempt
-                    // read as flat gray. Content now meets the header via the
-                    // system scroll-edge effect on each tab's scroll view instead.
-                    // NOTE: the global OfflineBannerContainer was removed 2026-08-08,
-                    // and OfflineBanner + NetworkMonitor were deleted outright in the
-                    // pre-1.0 cleanup. Nothing in this app needs a network — there are
-                    // zero URLSession call sites — and the banner's copy promised a
-                    // sync that no longer exists after the Supabase decommission.
-                    // PRES-010 scopes offline UI to Z1-only features; when Z1 lands,
-                    // recreate both from git history rather than reviving stale copy.
-                    //
-                    // The bottom scroll fade and the new-entry FAB both moved into
-                    // JournalView. As siblings of the pager they needed a
-                    // `swipeProgress` scalar to fade out on the way to Chat; inside
-                    // the page they simply travel with it.
-                }
-                .ignoresSafeArea(edges: .all)
-                .toolbar(.hidden, for: .navigationBar)
-                .navigationBarHidden(true)
-                .sheet(item: $activeEntryRoute) { route in
-                    entrySheet(for: route)
-                        .presentationDetents([.fraction(0.95)])
-                        .presentationDragIndicator(.hidden)
-                        .presentationCornerRadius(32)
-                        .interactiveDismissDisabled(false)
-                }
-                .navigationDestination(for: SettingsRoute.self) { route in
-                    settingsDestination(for: route)
-                }
-                .navigationDestination(for: DrawerRoute.self) { route in
-                    drawerDestination(for: route)
+                    )
+                case .chat:
+                    AIChatView(
+                        viewModel: chatViewModel,
+                        isEmbedded: true,
+                        hasEntries: !entryViewModel.entries.isEmpty,
+                        onOpenJournal: { selectedPage = .journal },
+                        onPresentEntry: { route in
+                            activeEntryRoute = route
+                        }
+                    )
                 }
             }
-            .ignoresSafeArea(edges: .all)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.background.ignoresSafeArea())
-            .ignoresSafeArea(edges: .all)
+
+            // Destinations that still push on `navigationPath` (search, the
+            // standalone journal toolbar). Hit-testing is off while the path
+            // is empty so the pager receives swipes.
+            NavigationStack(path: $navigationPath) {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .navigationDestination(for: SettingsRoute.self) { route in
+                        settingsDestination(for: route)
+                    }
+                    .navigationDestination(for: DrawerRoute.self) { route in
+                        drawerDestination(for: route)
+                    }
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .containerBackground(.clear, for: .navigation)
+            .allowsHitTesting(!navigationPath.isEmpty)
+            .opacity(navigationPath.isEmpty ? 0 : 1)
         }
-        .ignoresSafeArea(edges: .all)
+        .sheet(item: $activeEntryRoute) { route in
+            entrySheet(for: route)
+                .presentationDetents([.fraction(0.95)])
+                .presentationDragIndicator(.hidden)
+                .presentationCornerRadius(32)
+                .interactiveDismissDisabled(false)
+        }
         .overlay(alignment: .bottom) {
             if showEntryToast {
                 JournalToast(message: "Entry saved") {
@@ -287,37 +256,13 @@ public struct ContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showSummarySheet) {
-            ChatSummarySheet(
-                onSummarize: {
-                    Task {
-                        do {
-                            let summary = try await chatViewModel.generateChatSummary()
-                            await MainActor.run {
-                                showSummarySheet = false
-                                activeEntryRoute = .createWithContent(
-                                    title: summary.title,
-                                    content: summary.content
-                                )
-                            }
-                        } catch {
-                            await MainActor.run {
-                                summaryError = error.localizedDescription
-                            }
-                        }
-                    }
-                },
-                isSummarizing: chatViewModel.isSummarizing
-            )
-        }
-        .alert("Summary Failed", isPresented: .init(
-            get: { summaryError != nil },
-            set: { if !$0 { summaryError = nil } }
-        )) {
-            Button("OK") { summaryError = nil }
-        } message: {
-            Text(summaryError ?? "Unable to generate summary. Please try again.")
-        }
+        // The chat-summary sheet and its "Summary Failed" alert used to be
+        // duplicated here. They were orphaned when the shared header was
+        // replaced by per-page headers — nothing could set `showSummarySheet`
+        // once ContentView stopped drawing chat's chrome. AIChatView owns the
+        // whole flow now and hands the finished summary back through
+        // `onPresentEntry`, which lands in `entrySheet(for:)` below and is the
+        // only path that actually calls `entryViewModel.createEntry`.
     }
 
     // MARK: - Navigation Destinations

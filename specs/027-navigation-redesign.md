@@ -59,13 +59,51 @@ icon goes to Chat, Chat's top-left book icon comes back. The icon is not a
 separate navigation; it is the swipe's shortcut.
 
 ### R3. Per-page headers
-**Acceptance:** `AppHeader` is attached by each page via
-`.safeAreaInset(edge: .top)`, so the page reserves exactly the height the header
-occupies. The three views that hardcoded `safeAreaTop + 8 + 44 + 32` to guess
-another view's geometry are gone. Each page carries only its own controls, which
-dissolves the three-control ceiling. The header owns its status-bar clearance
-explicitly (`AppHeader.swift:52-60`) because every root surface is deliberately
-full-bleed, so no ambient safe area survives to sit in.
+**Acceptance:** each root page overlays its own `AppHeader`. The three views
+that hardcoded `safeAreaTop + 8 + 44 + 32` to guess another view's geometry
+remain gone — clearance lives in one place, `AppHeaderMetrics`. Each page
+carries only its own controls, which dissolves the three-control ceiling.
+
+**Amended 2026-08-17 (header on the physical frame).** Root pages **ignore**
+the system safe area so TabView cannot leave a visible band. `RootPager`
+expands the page `TabView` to the physical frame. `AppHeader` is pinned to
+the physical top; its glass row sits on `windowTop` (Dynamic Island). Blur
+fills only the island strip — not behind the buttons. Footer is
+`windowBottom + 16`.
+
+Journal and Chat share `RootPageScaffold` on the pager. **Narration is a
+mode of `AIChatView`** (same header and thread; footer and glow swap) — not
+a sibling overlay. `NavigationStack` is an overlay that is hit-testable only
+when `navigationPath` is non-empty.
+
+```
+ZStack {
+    theme.background.ignoresSafeArea()
+    content
+    footer.padding(.bottom, windowBottom + 16)
+}
+.ignoresSafeArea()
+.overlay(alignment: .top) {
+    header  // AppHeader: island spacer + glass row, pinned to frame top
+}
+```
+
+- Header chrome stretches from the physical top through the safe area.
+  Glass buttons sit `windowTop` below that (below the Dynamic Island),
+  then 16pt under the row. No material behind the buttons.
+- Footer / FAB / composer sit `windowBottom + 16` above the physical bottom.
+  Chat with the keyboard up uses `keyboardHeight` as the total (no extra 16).
+- Fill is edge to edge. Do **not** combine this with `safeAreaInset` or
+  `.safeAreaPadding` on chrome — that is how bands come back.
+- Header icons 48pt; edge inset 16pt; footer/FAB circles 64pt.
+- `TabView` is expanded to the physical frame. Do **not** wrap the pager
+  in `NavigationStack`. Do **not** wrap a root *page* in an outer
+  `GeometryReader` (the pager itself may, to cancel TabView's inset).
+
+Sheets and settings keep ambient safe areas.
+
+**Invariant:** Journal and Chat share one scaffold. Narration is a Chat
+mode, not a third root page.
 
 ### R4. Profile sheet replaces the drawer — **sanctioned removal of PRES-002**
 **Acceptance:** `ProfileSheet`, presented from the Journal header's avatar
@@ -106,8 +144,9 @@ updated where components were consumed.
 ## Acceptance
 
 - [x] `RootPager` pages between both root screens with commit haptics.
-- [x] `AppHeader` attached per page via `safeAreaInset`; no hardcoded header-height
-      arithmetic remains.
+- [x] `AppHeader` per page, pinned to the physical top with glass on `windowTop`;
+      Journal and Chat share `RootPageScaffold`. Narration is a mode of
+      `AIChatView` (ignore safe area; footer `windowBottom + 16`).
 - [x] `ProfileSheet` reaches About yourself / journal themes / Settings.
 - [x] `TopNavHeader`, `TopTabNav`, `DrawerMenuView`, `DrawerMenuItem` deleted with
       no code references remaining (comments only).

@@ -79,8 +79,8 @@ struct MeetMementoApp: App {
                 }
                 .animation(.easeInOut(duration: 0.4), value: appState.hasCompletedOnboarding)
                 .animation(.easeInOut(duration: 0.4), value: appState.hasStartedOnboarding)
-                // Content must respect the safe area (status bar / home indicator /
-                // keyboard). Only RootBackground is full-bleed.
+                // Root pages ignore the system safe area and pad by window
+                // insets. Only RootBackground is full-bleed at this layer.
             }
             .task {
                 appState.initializeAppState()

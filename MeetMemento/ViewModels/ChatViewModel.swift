@@ -17,6 +17,12 @@ class ChatViewModel: ObservableObject {
     // Summary generation
     @Published var isSummarizing: Bool = false
 
+    /// The assistant message currently being streamed into, or nil once the
+    /// stream settles (success, error, or cancel). Narration mode observes
+    /// this to know which message to read aloud as it arrives; ordinary chat
+    /// UI ignores it (bubbles already track their own `isStreaming`).
+    @Published private(set) var streamingAssistantMessageID: UUID?
+
     // Feedback state per message (thumbs up/down) - using Sets for boolean-like behavior
     @Published var thumbsUpMessages: Set<UUID> = []
     @Published var thumbsDownMessages: Set<UUID> = []
@@ -243,6 +249,7 @@ class ChatViewModel: ObservableObject {
         // the whole reply, no artificial typewriter).
         let assistantId = UUID()
         appendMessage(ChatMessage.aiMessage(id: assistantId, body: "", isNew: true))
+        streamingAssistantMessageID = assistantId
 
         track(Task { [weak self] in
             guard let self else { return }
@@ -255,6 +262,11 @@ class ChatViewModel: ObservableObject {
                 if let idx = messages.firstIndex(where: { $0.id == assistantId }),
                    messages[idx].isStreaming {
                     messages[idx].isStreaming = false
+                }
+                // Settle the narration observer with the bubble. Guarded so a
+                // superseded send can't clear a newer send's marker.
+                if streamingAssistantMessageID == assistantId {
+                    streamingAssistantMessageID = nil
                 }
             }
             var sawContent = false

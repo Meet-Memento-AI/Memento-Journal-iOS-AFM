@@ -490,11 +490,20 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         let related = eligible.filter {
             $0.language != currentLanguage && $0.language.hasPrefix(prefix + "-")
         }
-        return exact.first { $0.quality == .premium }?.identifier
-            ?? exact.first { $0.quality == .enhanced }?.identifier
-            ?? related.first { $0.quality == .premium }?.identifier
-            ?? related.first { $0.quality == .enhanced }?.identifier
-            ?? exact.first?.identifier
+
+        if let premiumExact = exact.first(where: { $0.quality == .premium }) {
+            return premiumExact.identifier
+        }
+        if let enhancedExact = exact.first(where: { $0.quality == .enhanced }) {
+            return enhancedExact.identifier
+        }
+        if let premiumRelated = related.first(where: { $0.quality == .premium }) {
+            return premiumRelated.identifier
+        }
+        if let enhancedRelated = related.first(where: { $0.quality == .enhanced }) {
+            return enhancedRelated.identifier
+        }
+        return exact.first?.identifier
     }
 
     private nonisolated static func bestVoice() -> AVSpeechSynthesisVoice? {
