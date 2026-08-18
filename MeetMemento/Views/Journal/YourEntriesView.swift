@@ -24,7 +24,7 @@ struct YourEntriesView: View {
     let monthGroups: [MonthGroup]
     let topContentPadding: CGFloat  // windowTop + header row + 16pt air
     let bottomContentPadding: CGFloat  // FAB + windowBottom + 16pt + 8pt air
-    let onMonthVisibilityChanged: ((Date) -> Void)?
+    let onMonthVisibilityChanged: ((Date) -> Void)
     let onNavigateToEntry: (EntryRoute) -> Void
 
     @Environment(\.theme) private var theme
@@ -43,7 +43,7 @@ struct YourEntriesView: View {
         self.monthGroups = monthGroups
         self.topContentPadding = topContentPadding
         self.bottomContentPadding = bottomContentPadding
-        self.onMonthVisibilityChanged = onMonthVisibilityChanged
+        self.onMonthVisibilityChanged = onMonthVisibilityChanged ?? { _ in }
         self.onNavigateToEntry = onNavigateToEntry
     }
 
@@ -85,7 +85,7 @@ struct YourEntriesView: View {
         VStack(spacing: 12) {
             Spacer()
             ProgressView()
-                .tint(theme.primary)
+                .tint(theme.foreground)
                 .scaleEffect(1.2)
             Text("Loading your entries...")
                 .font(type.body1)
@@ -127,7 +127,7 @@ struct YourEntriesView: View {
 
             Image(systemName: "book.closed.fill")
                 .font(.system(size: 36)) // icon-size: not user text
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(theme.foreground)
 
             Text("No journal entries yet")
                 .font(type.h3)
