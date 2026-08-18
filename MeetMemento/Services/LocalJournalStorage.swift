@@ -8,35 +8,17 @@
 
 import Foundation
 
-/// A journal write that hasn't been confirmed on the server yet, either
-/// because it was made offline or because the sync attempt failed
-/// transiently. Tracks only the operation to retry — the actual content
-/// lives in the existing encrypted-content store (`saveEncrypted`), so a
-/// queued entry goes through the exact same `EncryptionService` path as a
-/// synced one; nothing here duplicates plaintext at rest.
-struct PendingSyncOperation: Codable {
-    enum OpType: String, Codable {
-        case create, update, delete
-    }
-
-    let entryId: UUID
-    let opType: OpType
-    let timestamp: Date
-    /// Entry title, encrypted with the same session PIN as the content —
-    /// titles aren't part of `saveEncrypted`'s payload, but a queued create
-    /// has nowhere else to persist its title until the server round-trip
-    /// completes, so it gets the same protection here.
-    let encryptedTitle: Data
-}
-
 class LocalJournalStorage {
     static let shared = LocalJournalStorage()
 
     private let fileManager = FileManager.default
 
+    private var documentsURL: URL {
+        fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
     /// Directory for encrypted journal files
     private var encryptedStorageURL: URL {
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let storageURL = documentsURL.appendingPathComponent("EncryptedJournals", isDirectory: true)
 
         // Create directory if needed
@@ -51,23 +33,16 @@ class LocalJournalStorage {
         return storageURL
     }
 
-    /// Directory for the pending-sync queue index (one JSON file per queued op).
-    private var pendingSyncStorageURL: URL {
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let storageURL = documentsURL.appendingPathComponent("PendingSync", isDirectory: true)
-
-        if !fileManager.fileExists(atPath: storageURL.path) {
-            do {
-                try fileManager.createDirectory(at: storageURL, withIntermediateDirectories: true)
-            } catch {
-                AppLogger.log("⚠️ [LocalJournalStorage] Failed to create pending-sync directory: \(error)")
-            }
-        }
-
-        return storageURL
+    /// Pre-1.x leftover: a server retry queue that no longer has a server.
+    /// Never recreate this directory. `purgeLegacyPendingSyncDirectory()`
+    /// deletes it on first access and on delete-everything.
+    private var legacyPendingSyncDirectoryURL: URL {
+        documentsURL.appendingPathComponent("PendingSync", isDirectory: true)
     }
 
-    private init() {}
+    private init() {
+        purgeLegacyPendingSyncDirectory()
+    }
 
     // MARK: - File Operations
 
@@ -136,7 +111,8 @@ class LocalJournalStorage {
         }
     }
 
-    /// Clears all encrypted content (called on logout or PIN change)
+    /// Clears all encrypted content (called on logout, PIN change, or
+    /// delete-everything). Also removes any leftover pre-1.x sync queue.
     func clearAll() {
         do {
             let contents = try fileManager.contentsOfDirectory(
@@ -151,6 +127,21 @@ class LocalJournalStorage {
                         AppLogger.log("🗑️ [LocalJournalStorage] Cleared all encrypted entries (\(contents.count) files)")
         } catch {
             AppLogger.log("⚠️ [LocalJournalStorage] Failed to clear all: \(error)")
+        }
+        purgeLegacyPendingSyncDirectory()
+    }
+
+    /// Deletes `Documents/PendingSync` if a previous build left it behind.
+    /// There is no server to drain; leftover files would contradict the
+    /// on-device-only product. Safe to call repeatedly.
+    func purgeLegacyPendingSyncDirectory() {
+        let url = legacyPendingSyncDirectoryURL
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        do {
+            try fileManager.removeItem(at: url)
+            AppLogger.log("🗑️ [LocalJournalStorage] Removed leftover PendingSync directory")
+        } catch {
+            AppLogger.log("⚠️ [LocalJournalStorage] Failed to remove PendingSync: \(error)")
         }
     }
 
@@ -185,59 +176,4 @@ class LocalJournalStorage {
         }
     }
 
-    // MARK: - Pending Sync Queue
-
-    private func pendingSyncFileURL(for entryId: UUID) -> URL {
-        pendingSyncStorageURL.appendingPathComponent("\(entryId.uuidString).json")
-    }
-
-    /// Queues (or replaces) a pending sync operation for an entry. A later
-    /// call for the same `entryId` overwrites the earlier one — e.g. an
-    /// offline edit right after an offline create just updates the queued
-    /// `create` op's title, it doesn't stack a second op.
-    func enqueuePendingSync(_ operation: PendingSyncOperation) {
-        do {
-            let data = try JSONEncoder().encode(operation)
-            try data.write(to: pendingSyncFileURL(for: operation.entryId), options: .completeFileProtection)
-            AppLogger.log("📁 [LocalJournalStorage] Queued pending sync (\(operation.opType.rawValue)): \(operation.entryId)")
-        } catch {
-            AppLogger.log("⚠️ [LocalJournalStorage] Failed to queue pending sync for \(operation.entryId): \(error)")
-        }
-    }
-
-    /// Removes an entry's queued operation once it has synced successfully.
-    func dequeuePendingSync(entryId: UUID) {
-        let url = pendingSyncFileURL(for: entryId)
-        guard fileManager.fileExists(atPath: url.path) else { return }
-        do {
-            try fileManager.removeItem(at: url)
-            AppLogger.log("✅ [LocalJournalStorage] Dequeued synced entry: \(entryId)")
-        } catch {
-            AppLogger.log("⚠️ [LocalJournalStorage] Failed to dequeue \(entryId): \(error)")
-        }
-    }
-
-    /// True if an entry has an unsynced local write pending.
-    func hasPendingSync(entryId: UUID) -> Bool {
-        fileManager.fileExists(atPath: pendingSyncFileURL(for: entryId).path)
-    }
-
-    /// All queued operations, oldest first, so a drain retries them in the
-    /// order they were made.
-    func allPendingSyncOperations() -> [PendingSyncOperation] {
-        do {
-            let contents = try fileManager.contentsOfDirectory(
-                at: pendingSyncStorageURL,
-                includingPropertiesForKeys: nil
-            )
-            let operations = contents.compactMap { url -> PendingSyncOperation? in
-                guard url.pathExtension == "json",
-                      let data = try? Data(contentsOf: url) else { return nil }
-                return try? JSONDecoder().decode(PendingSyncOperation.self, from: data)
-            }
-            return operations.sorted { $0.timestamp < $1.timestamp }
-        } catch {
-            return []
-        }
-    }
 }

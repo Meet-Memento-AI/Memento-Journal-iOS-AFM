@@ -16,10 +16,11 @@ enum Constants {
     enum Legal {
         static let supportEmail = "contact@sebastianmendo.design"
 
-        // TODO(user-confirm): repoint at the Meet-Memento-AI GitHub Pages host
-        // once checklist A6 publishes docs/ from this repo. Until then these
-        // stay on the currently-live host — an in-app link must never 404.
-        static let privacyPolicyURL = URL(string: "https://sebmendo1.github.io/MeetMemento/privacy.html")!
-        static let termsOfServiceURL = URL(string: "https://sebmendo1.github.io/MeetMemento/terms.html")!
+        /// GitHub Pages for this repo (`main` → `/docs`). Checklist A6.
+        static let siteBase = URL(string: "https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM")!
+
+        static let privacyPolicyURL = siteBase.appendingPathComponent("privacy.html")
+        static let termsOfServiceURL = siteBase.appendingPathComponent("terms.html")
+        static let supportURL = siteBase.appendingPathComponent("support.html")
     }
 }

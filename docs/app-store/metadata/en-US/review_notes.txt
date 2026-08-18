@@ -6,9 +6,9 @@ Memento has no sign-in of any kind — no account system, no server, no login
 screen. Every feature is reachable immediately after installing. The Sign-In
 Information fields are blank for this reason, not by oversight.
 
-Onboarding offers an OPTIONAL app lock (Face ID or 4-digit passcode),
-skippable via "Not now". If enabled, the lock screen offers a device
-passcode fallback.
+Onboarding offers an OPTIONAL app lock (Face ID or 4-digit PIN), skippable
+via "Not now". If enabled, the lock screen offers a device-passcode fallback.
+Do not look for a PIN in these notes; the fallback is the recovery path.
 
 
 2. HOW TO REACH THE CORE EXPERIENCE
@@ -17,22 +17,23 @@ Memento's AI companion draws on what has been written, and a fresh install has
 no entries yet. To see it working:
 
   a. Complete onboarding (~20 seconds; skip the app lock).
-  b. Swipe in from the left edge > Settings > "Load Sample Entries" adds a
-     fictional nine-month journal so the companion has something to draw
-     from. Reversible from the same row; it never touches real entries.
-  c. Open the "Insights" tab (top of the Journal screen) and ask a question,
-     e.g. "what have I been worried about?". The reply is grounded in those
-     entries and cites the ones it drew from — tap a citation to see the
-     source.
-  d. A conversation can be turned into a first-person journal entry from the
-     summary action.
+  b. On Journal, tap the initials button in the top-left (VoiceOver: "Menu")
+     to open Profile, then open Settings. Tap "Load Sample Entries". This
+     adds a fictional journal so the companion has something to draw from.
+     Reversible from the same row; it never touches real entries.
+  c. Return to Journal. Swipe left, or tap the chat icon in the top-right,
+     and ask a question, e.g. "what have I been writing about?". The reply
+     is grounded in those entries and cites the ones it drew from — tap a
+     citation to see the source.
 
-To test capture: tap the microphone in a new entry, grant microphone and
-speech recognition access, and speak. The text appears as you talk, with a
-visible recording indicator while the microphone is active.
+To test capture: tap the new-entry button, grant microphone and speech
+recognition access, and speak. The text appears as you talk.
 
-To test export: Settings > "Export Your Journal" shares the user's entries as
-Markdown and JSON files (sample entries are excluded from exports).
+To test photos: in a new entry, add a photo from the camera or the picker.
+Camera access is optional and only used to attach a picture to an entry.
+
+To test export: Settings → "Export Your Journal" shares the user's entries
+as Markdown and JSON files (sample entries are excluded from exports).
 
 NOTE: The AI companion uses Apple's on-device Foundation Models and requires
 a device with Apple Intelligence enabled. On other devices the app degrades
@@ -51,8 +52,8 @@ user content is sent to any non-Apple service. Speech is transcribed with
 Apple's speech recognition framework with requiresOnDeviceRecognition set to
 true, so audio is not sent off the device for transcription.
 
-Our privacy policy describes all of this and is linked from Settings in the
-app as well as from the product page.
+Our privacy policy describes all of this and is linked from Settings → About
+in the app as well as from the product page.
 
 
 4. PERMISSIONS
@@ -60,11 +61,12 @@ app as well as from the product page.
   Microphone          recording voice entries, only while actively recording
   Speech Recognition  turning those recordings into journal text (on-device
                       recognition required)
+  Camera              optional photo attached to an entry
   Face ID             unlocking the optional app lock; LocalAuthentication
                       only, never used for identification
 
-No location, photos, contacts, calendar, or tracking permission is requested,
-and the app contains no tracking functionality.
+No location, contacts, calendar, or tracking permission is requested, and
+the app contains no tracking functionality.
 
 
 5. AGE RATING AND CONTENT
@@ -73,23 +75,20 @@ A private, single-user journal. No content sharing, messaging, social
 features, in-app web browsing, or advertising.
 
 The AI companion converses about what the user wrote. The app does not
-diagnose, offer treatment information, or present itself as a health or
-wellness product. Where an entry suggests possible crisis, the companion
-refers to standard support resources rather than advising.
+diagnose, offer treatment information, or present itself as a medical
+product. Where an entry suggests possible crisis, the companion shows a
+static support-resource card rather than generating advice.
 
 
 6. WHAT IS IN THIS VERSION
 
-[REWRITE EVERY RELEASE — Guideline 2.3.1(a) requires new features described with
-specificity; generic descriptions are rejected.]
-
-First release. Voice and text capture with on-device transcription; searchable
-timeline; an AI companion that answers questions from the user's own entries
-with citations back to them; conversation-to-entry summaries; Markdown and
-JSON export; optional Face ID or passcode lock.
+First release. Voice and text capture with on-device transcription; photos
+on entries; searchable timeline; an AI companion that answers questions from
+the user's own entries with citations; Markdown and JSON export; optional
+Face ID or PIN lock.
 
 
 7. CONTACT
 
-[NAME], [PHONE] — contact@sebastianmendo.design
+Sebastian Mendo — contact@sebastianmendo.design
 We reply within one business day. Thank you for your time.

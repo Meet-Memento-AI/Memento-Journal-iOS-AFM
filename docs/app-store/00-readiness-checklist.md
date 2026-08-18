@@ -7,6 +7,8 @@ owner and what is blocking it.
 For a sequenced **product enhancement plan** (backend/data honesty, dark mode,
 accessibility) that closes many of the agent-owned rows below, see
 [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md).
+For the 1.x Account Holder click path (agreements, ASC paste, screenshots), see
+[`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md).
 
 - **Owner `agent`** — closeable from the repo by an implementation session.
 - **Owner `☐ user`** — requires the **Account Holder** signed in to App Store
@@ -27,13 +29,13 @@ control. Everything else can be done in an afternoon; these cannot.
 | # | Item | Owner | Blocks | Status / evidence |
 |---|---|---|---|---|
 | A1 | **Accept the current Program License Agreement** at developer.apple.com. Archive signing has been failing on a pending PLA since 2026-07-13. | ☐ user | Gate T | ☐ Open — `specs/002` Task 8 blocked on this since 2026-07-13 |
-| A2 | **Sign the Paid Apps Agreement** (Business → Agreements), complete **tax forms** (W-9 or W-8BEN) and **banking**. Account Holder only, requires 2FA, cannot be undone. Without all three the app **cannot go on sale even after App Review approves it**. | ☐ user | Gate L | ☐ Open — required because 1.0 is paid. See `06`. |
-| A3 | **Enroll in the App Store Small Business Program.** This is the eligibility gate for A4 and therefore for the entire Z1 architecture, not a commission perk. | ☐ user | Gate S (architecture) | ☐ Open — process researched in `specs/013` R5(a); filing date not yet recorded |
-| A4 | **File the Private Cloud Compute access request** at `developer.apple.com/contact/request/private-cloud-compute/`. Separate, gated, and **Apple states no lead time anywhere** — this is the least controllable dependency in the project. | ☐ user | Gate S (architecture) | ☐ Open — `specs/013` R5(b); file immediately after A3 confirms |
-| A5 | **Declare EU Digital Services Act trader status** and pass email + phone verification. Required since 2025-02-17; apps without it are **removed from the App Store in all 27 EU territories**. See `05` — this is a *decision*, because an individual developer's address and phone are **published on the EU product page**. | ☐ user | Gate S | ☐ Open — decision not yet made |
-| A6 | **Enable GitHub Pages** on `Meet-Memento-AI/Memento-Journal-iOS-AFM`, source `main` → `/docs`. The live legal site is currently served from a *different* repo (`sebmendo1/MeetMemento` @ `Memento-v1.1`), which is why fixes committed here never reached production. | ☐ user | Gate S | ☐ Open — `gh api repos/Meet-Memento-AI/Memento-Journal-iOS-AFM/pages` → 404 (2026-08-07) |
-| A7 | **Answer the updated age-rating questionnaire** (5-tier scale: 4+/9+/13+/16+/18+). Was due 2026-01-31; unanswered apps are blocked from submitting. | ☐ user | Gate S | ☐ Open — worked answers in `05` |
-| A8 | **Answer the social-media capability declaration.** New in the July 2026 questionnaire; **required to submit new versions or updates from September 2026**. Our answer is "no". | ☐ user | Gate S | ☐ Open — becomes mandatory within weeks of this document's date |
+| A2 | **Sign the Paid Apps Agreement** (Business → Agreements), complete **tax forms** (W-9 or W-8BEN) and **banking**. Account Holder only, requires 2FA, cannot be undone. Without all three the app **cannot go on sale even after App Review approves it**. | ☐ user | Gate L | ☐ Open for **paid download**. **Skip if 1.x is Free** (no IAP). Click path in `13`. |
+| A3 | **Enroll in the App Store Small Business Program.** This is the eligibility gate for A4 and therefore for the entire Z1 architecture, not a commission perk. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — Z1/PCC is not in this binary. File when 2.0 starts. |
+| A4 | **File the Private Cloud Compute access request** at `developer.apple.com/contact/request/private-cloud-compute/`. Separate, gated, and **Apple states no lead time anywhere** — this is the least controllable dependency in the project. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — this build is on-device Foundation Models only. |
+| A5 | **Declare EU Digital Services Act trader status** and pass email + phone verification. Required since 2025-02-17; apps without it are **removed from the App Store in all 27 EU territories**. See `05` — this is a *decision*, because an individual developer's address and phone are **published on the EU product page**. | ☐ user | Gate S | ✅ **1.x default recorded 2026-08-17** — deselect the 27 EU territories (reversible). Still answer the account-level trader question. Click path in `13`. |
+| A6 | **Enable GitHub Pages** on `Meet-Memento-AI/Memento-Journal-iOS-AFM`, source `main` → `/docs`. The live legal site is currently served from a *different* repo (`sebmendo1/MeetMemento` @ `Memento-v1.1`), which is why fixes committed here never reached production. | ☐ user | Gate S | ✅ **Enabled 2026-08-17** — `html_url` `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`, source `main` `/docs`. Verify with `scripts/ci/check_live_legal_urls.sh`. |
+| A7 | **Answer the updated age-rating questionnaire** (5-tier scale: 4+/9+/13+/16+/18+). Was due 2026-01-31; unanswered apps are blocked from submitting. | ☐ user | Gate S | ☐ Open — worked answers in `05` and `13` (expect **9+**) |
+| A8 | **Answer the social-media capability declaration.** New in the July 2026 questionnaire; **required to submit new versions or updates from September 2026**. Our answer is "no". | ☐ user | Gate S | ☐ Open — answer **No**. Click path in `13`. |
 
 ---
 
@@ -45,17 +47,17 @@ reject us on.
 
 | # | Item | Owner | Guideline | Status / evidence |
 |---|---|---|---|---|
-| B1 | **The Support URL returns 404.** `https://sebmendo1.github.io/MeetMemento/support.html` → HTTP 404; the live index links only privacy and terms. This is the *exact* reason Apple cited in November 2025. `docs/support.html` exists in this repo but has never been published (see A6). | agent + ☐ user | **1.5**, 2.1 | 🔴 **Live defect** — `curl -o /dev/null -w "%{http_code}" …/support.html` → `404` (2026-08-07) |
-| B2 | **The live privacy policy describes third-party AI and a backend the app no longer uses.** The published page at `https://sebmendo1.github.io/MeetMemento/privacy.html` names **OpenAI, Google, and Supabase**. The app is on-device only. `PRIVACY_POLICY.md` at the repo root is equally stale (it has a "Google Gemini 2.5 Flash" section). `docs/privacy.html` in this repo *is* clean — it just was never published. | agent + ☐ user | **5.1.1(i)**, **5.1.2(i)**, 2.3 | 🔴 **Live defect** — `curl -s …/privacy.html \| grep -io "gemini\|supabase\|openai"` → matches (2026-08-07) |
+| B1 | **The Support URL returns 404.** `https://sebmendo1.github.io/MeetMemento/support.html` → HTTP 404; the live index links only privacy and terms. This is the *exact* reason Apple cited in November 2025. `docs/support.html` exists in this repo but has never been published (see A6). | agent + ☐ user | **1.5**, 2.1 | 🟠 **Host moved 2026-08-17** — new URL `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html`. Point ASC Support URL here. Confirm with `check_live_legal_urls.sh`. |
+| B2 | **The live privacy policy describes third-party AI and a backend the app no longer uses.** The published page at `https://sebmendo1.github.io/MeetMemento/privacy.html` names **OpenAI, Google, and Supabase**. The app is on-device only. `PRIVACY_POLICY.md` at the repo root is equally stale (it has a "Google Gemini 2.5 Flash" section). `docs/privacy.html` in this repo *is* clean — it just was never published. | agent + ☐ user | **5.1.1(i)**, **5.1.2(i)**, 2.3 | 🟠 **Host moved 2026-08-17** — in-app and ASC must use `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html`. Confirm with `check_live_legal_urls.sh`. |
 | B3 | **`PrivacyInfo.xcprivacy` declared `NSPrivacyAccessedAPICategorySystemBootTime` (`35F9.1`) for an API the app never calls.** No `systemUptime`, `mach_absolute_time`, or `kern.boottime` anywhere in `MeetMemento/`. Over-declaring is an unforced inaccuracy in exactly the metadata category we were rejected on. | agent | **5.1.2**, ITMS-91055 | ✅ **Fixed 2026-08-07** — block removed; `scripts/ci/check_privacy_manifest.sh` now fails on both over- and under-declaration |
 | B4 | **The published privacy policy will become an overclaim when Z1 ships.** `docs/privacy.html` (the corrected version, not yet published) says content is *"processed on the device and are not sent to us or to any third-party AI service"* and makes no mention of **Private Cloud Compute**. That is accurate today, because no Z1 routing has shipped — and becomes false the moment `specs/017`'s PCC path lands. `REQ-POS-001` governs app strings and store copy; the privacy policy is the one place making the same claim *legally*. | agent | **5.1.2(i)**, `REQ-POS-001` | 🟠 **Open** — must be rewritten to state the Z0/Z1 boundary **before** PCC routing ships, not after. `01` §5.1.1(i) has the required content |
-| B5 | **A third, older privacy policy is what users actually see.** `PRIVACY_POLICY.md` (repo root) describes Gemini and Supabase; the **live** page describes OpenAI, Google, and Supabase; `docs/privacy.html` is correct but unpublished. Three versions, one of them served. | agent + ☐ user | **5.1.1(i)** | 🟠 **Agent half closed 2026-08-11** — stale root `PRIVACY_POLICY.md`/`TERMS_OF_SERVICE.md` deleted; `docs/*.html` is the single in-repo version. Remaining half is A6 (publish) |
+| B5 | **A third, older privacy policy is what users actually see.** `PRIVACY_POLICY.md` (repo root) describes Gemini and Supabase; the **live** page describes OpenAI, Google, and Supabase; `docs/privacy.html` is correct but unpublished. Three versions, one of them served. | agent + ☐ user | **5.1.1(i)** | ✅ **Closed 2026-08-17** — in-repo `docs/*.html` is canonical; Pages now serves this repo. Remaining: ASC URLs must match (D1/D2). |
 
 > **Already fixed, do not redo:** `NSPrivacyCollectedDataTypes` is now an **empty
 > array** with an on-device-only comment — the stale EmailAddress / Name / UserID
 > / UserContent entries are gone. `NSPrivacyAccessedAPICategoryFileTimestamp`
 > (`C617.1`) is **correctly justified** by
-> `MeetMemento/Services/LocalJournalStorage.swift:118-121`
+> `MeetMemento/Services/LocalJournalStorage.swift` `modificationDate`
 > (`attributesOfItem` → `.modificationDate` on files inside the app container).
 > `NSPrivacyAccessedAPICategoryUserDefaults` (`CA92.1`) is justified by 11 call
 > sites. `ITSAppUsesNonExemptEncryption = false` is present in `Info.plist`.
@@ -73,7 +75,7 @@ reject us on.
 | C5 | Submission noise removed: `Configuration.storekit` with placeholder product IDs `12345678`/`123456789`; dead `SubscriptionPlan.swift` with Supabase-era `CodingKeys`; linked-but-unused `AuthenticationServices.framework`; unhandled `memento://` URL scheme; orphan `GoogleIcon.imageset`. | agent | ✅ **Closed 2026-08-11** — all five deleted (storekit + navigator refs + `membershipExceptions` entries cleaned from pbxproj; `CFBundleURLTypes` removed from Info.plist); `check_archive_hygiene.sh` now reports "no .storekit configuration in the project" |
 | C6 | Release bundle contains only shipping resources — no xcconfigs, no `.storekit`, no internal docs. | agent | 🟠 **Regression found and fixed 2026-08-07** — `Config/Debug.xcconfig` and `Config/Release.xcconfig` had **dropped out** of the synchronized-group `membershipExceptions` set during the Supabase decommission, so they would have shipped in the bundle. Exactly spec 002 finding #7 recurring. Re-added; now guarded by `check_archive_hygiene.sh`. **Still re-verify on the actual archive** — the check reads the project file, not the built product |
 | C7 | Usage-description strings are specific and defined exactly once. Apple's own common-rejection #6 is vague purpose strings. | agent | ✅ Present in `Info.plist`; wording review in `02` |
-| C8 | App icon is 1024×1024 PNG, opaque, no alpha, square corners. | agent | ✅ `AppIcon.png` (spec 002 Task 2); dark/tinted variants deliberately absent — design TODO |
+| C8 | App icon is 1024×1024 PNG, opaque, no alpha, square corners. | agent | ✅ `AppIcon.png` (spec 002 Task 2); **1.x skip recorded 2026-08-17** — no dark/tinted variants |
 | C9 | A reviewer opening the app for the first time can reach the core experience. **>40% of unresolved App Review issues are Guideline 2.1**, and the reviewer will open an empty journal with no meeting to record. | agent | ✅ **Decision recorded 2026-08-11**: review-notes-only (no product change). `SampleContentService` + the Settings "Load Sample Entries" row are the path; `review_notes.txt` §2 walks the reviewer through it step by step |
 
 ### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
@@ -116,17 +118,17 @@ export keep working. **That is `DEC-001` Option A, already implemented**; see
 
 | # | Item | Owner | Status / evidence |
 |---|---|---|---|
-| D1 | Privacy Policy URL — required for **all** apps, must be reachable without login **and** from inside the app. | ☐ user | Blocked on A6 + B2 |
-| D2 | Support URL — required, must be live. | ☐ user | Blocked on A6 + B1 |
+| D1 | Privacy Policy URL — required for **all** apps, must be reachable without login **and** from inside the app. | ☐ user | Paste `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` — in-app already uses `Constants.Legal.privacyPolicyURL` |
+| D2 | Support URL — required, must be live. | ☐ user | Paste `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` |
 | D3 | Support email standardized on **`contact@sebastianmendo.design`** (the developer-account address, already verified with Apple). Three addresses are currently in circulation. | agent + ☐ user | ✅ **Agent half closed 2026-08-11** — in-app sites now read `Constants.Legal.supportEmail`; `docs/{privacy,terms,support}.html` collapsed to the one address. Remaining: confirm ASC fields use it |
 | D4 | Categories: primary **Lifestyle**. Do **not** choose Health & Fitness or Medical — see `01` on 1.4.1 / 5.1.1(ix). | ☐ user | ✅ In project (`public.app-category.lifestyle`); confirm in ASC |
 | D5 | Copyright string, content rights declaration, licence agreement. | ☐ user | ☐ Open — values in `02` |
 | D6 | App Privacy nutrition label set to the target and **matching `PrivacyInfo.xcprivacy` and the privacy policy**. The label is editable without a build, which is exactly how it drifted last time. | ☐ user | ☐ Open — `03` |
-| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | ☐ Open — ready-to-paste draft in `08` |
-| D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | ☐ Open — drafts in `04` |
-| D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | ☐ user | ☐ Open — `04` |
-| D10 | Price and **tax category** — both required before submission. | ☐ user | 🔒 Blocked on `DEC-004` (spec 021) |
-| D11 | Availability / territories, including the EU decision from A5 and the recommendation to exclude mainland China. | ☐ user | ☐ Open — `10` |
+| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | ☐ Open — paste `metadata/en-US/review_notes.txt` (updated 2026-08-17 for Profile sheet + Chat pager). Click path in `13`. |
+| D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | ☐ Open — paste `metadata/en-US/` via `13` |
+| D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | ☐ user | ☐ Open — shot list in `13` |
+| D10 | Price and **tax category** — both required before submission. | ☐ user | 1.x has **no IAP**. Set Free, or a paid-download tier after A2. Subscription `DEC-004` is 2.0. See `13`. |
+| D11 | Availability / territories, including the EU decision from A5 and the recommendation to exclude mainland China. | ☐ user | 1.x default: exclude mainland China **and** the 27 EU until trader verification. See `13`. |
 | D12 | Release option — **Manual** recommended for 1.0. | ☐ user | ☐ Open — `10` |
 
 ---
@@ -138,11 +140,11 @@ resolution unblocks rows above.
 
 | Decision | Owner | Gates |
 |---|---|---|
-| `DEC-004` — final price and trial length | `specs/021` R1 | D10, the paywall, all ASC product configuration |
-| `DEC-001` — ship on non-Apple-Intelligence (Reduced-tier) devices? | `specs/021` R2 | The device-requirement declaration and the paywall-presentability rule (`REQ-PLAT-004`) |
-| **V8** — does RevenueCat's SDK force a collection disclosure? | `specs/021` R5/R8 | D6, and whether RevenueCat's privacy manifest + signature obligation attaches (`03` §3) |
-| **EU trader status** — registered business address, or exclude the EU? | ☐ user | A5, D11 |
-| **Seeded demo content** — what does a reviewer see on first launch? | ☐ user + agent | C9, D7 |
+| `DEC-004` — subscription price and trial | `specs/021` R1 | **Deferred past 1.x** — no IAP in this binary |
+| `DEC-001` — ship on non-Apple-Intelligence (Reduced-tier) devices? | `specs/021` R2 | Already implemented Option A: companion unavailable, capture/journal still work |
+| **V8** — does RevenueCat's SDK force a collection disclosure? | `specs/021` R5/R8 | **N/A for 1.x** — StoreKit/RevenueCat not linked |
+| **EU trader status** — registered business address, or exclude the EU? | ☐ user | A5, D11 — **1.x default: exclude EU** |
+| **Seeded demo content** — what does a reviewer see on first launch? | ☐ user + agent | C9, D7 — Load Sample Entries; notes updated 2026-08-17 |
 
 ---
 
@@ -172,17 +174,19 @@ Connect privacy label matches the manifest. Those need evidence, not a script.
 ## Do not press Submit until
 
 1. `curl` returns **200** for `privacy.html`, `terms.html`, `support.html`, and
-   `index.html` on the *published* host, and the App Store Connect URLs point at
-   that host. **(B1, B2, A6)**
+   `index.html` on `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`,
+   and the App Store Connect URLs point at that host. **(B1, B2, A6)** —
+   `scripts/ci/check_live_legal_urls.sh`
 2. The published privacy policy describes the app that actually exists — no
-   OpenAI, no Google, no Supabase — and states the on-device / Private Cloud
-   Compute boundary in the words `specs/014` uses. **(B2)**
+   OpenAI, no Google, no Supabase — and matches the **1.x on-device** binary
+   (do **not** mention Private Cloud Compute until Z1 ships). **(B2, B4)**
 3. `PrivacyInfo.xcprivacy`, the App Store Connect privacy label, and the privacy
-   policy **all say the same thing**. **(B3, D6)**
+   policy **all say the same thing** (Data Not Collected). **(B3, D6)**
 4. `xcodebuild archive` → `-exportArchive` → `altool --validate-app` completes
    with **zero ITMS errors**. **(C1–C6, `07`)**
 5. A reviewer who launches the app cold can reach capture → transcription →
-   reflection without an account, and the review notes tell them how. **(C9, D7)**
-6. The Paid Apps Agreement, tax forms, and banking are all in effect. **(A2)**
+   Chat without an account, and the review notes tell them how. **(C9, D7)**
+6. If the app is **paid**, the Paid Apps Agreement, tax forms, and banking are
+   all in effect. If **free**, skip. **(A2)**
 7. Age rating and the social-media declaration are answered. **(A7, A8)**
-8. EU trader status is declared and verified, or the EU is deselected. **(A5)**
+8. EU trader status is declared and verified, **or** the EU is deselected. **(A5)**

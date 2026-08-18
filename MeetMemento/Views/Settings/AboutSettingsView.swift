@@ -91,6 +91,18 @@ public struct AboutSettingsView: View {
                     openContactSupport()
                 }
             )
+
+            SettingsRowDivider()
+
+            SettingsRow(
+                icon: "safari.fill",
+                title: "Support Page",
+                subtitle: nil,
+                showChevron: true,
+                action: {
+                    UIApplication.shared.open(Constants.Legal.supportURL)
+                }
+            )
         }
     }
 

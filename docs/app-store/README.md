@@ -1,7 +1,10 @@
 # docs/app-store/ — App Store Connect submission and review readiness
 
-**Compiled 2026-08-07** against Apple's published documentation. Target:
-**Memento 1.0, iOS 27 GA, paid subscription, "Data Not Collected" privacy label.**
+**Compiled 2026-08-07** against Apple's published documentation; **1.x submit
+path updated 2026-08-17.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
+on-device Foundation Models, "Data Not Collected" privacy label.** iOS 27 GA,
+SwiftData/CloudKit, PCC, and RevenueCat are **2.0** and do not block this submit.
+Account Holder clicks live in [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md).
 
 This folder is the **single source of truth for everything Apple requires before
 Memento can be submitted, reviewed, and released.** It is the store-facing
@@ -62,6 +65,7 @@ the same status board as the engineering phases. Gate S sits after Phase 5.
 | [`10-release-and-availability.md`](10-release-and-availability.md) | Pricing, territories, release option, phased release, post-launch operations | [Overview of publishing](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/overview-of-publishing-your-app-on-the-app-store/) |
 | [`11-rejection-playbook.md`](11-rejection-playbook.md) | Our rejection history, metadata vs binary rejection, Resolution Center, expedited review, appeals | [App Review](https://developer.apple.com/distribute/app-review/) |
 | [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md) | Prioritized product enhancement plan (data-layer honesty, dark mode, accessibility) sequenced for Gate S | — (aggregates repo scan + specs) |
+| [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md) | 1.x click path: Apple's clock, ASC paste values, screenshot sizes, archive | — |
 
 Plus two data files:
 

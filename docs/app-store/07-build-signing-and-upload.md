@@ -81,7 +81,7 @@ already does.
 
 ### 3.2 Export
 
-`ExportOptions.plist` — commit this, it does not contain secrets:
+`ExportOptions.plist` lives at [`docs/app-store/ExportOptions.plist`](ExportOptions.plist) — it does not contain secrets:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -107,7 +107,7 @@ already does.
 ```sh
 xcodebuild -exportArchive \
   -archivePath build/MeetMemento.xcarchive \
-  -exportOptionsPlist ExportOptions.plist \
+  -exportOptionsPlist docs/app-store/ExportOptions.plist \
   -exportPath build/export
 ```
 
