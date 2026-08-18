@@ -56,7 +56,9 @@ struct ChatMessagesView: View {
                         }
                         .padding(.top, AppHeaderMetrics.contentTopPadding)
                     }
-                    .contentMargins(.horizontal, AppHeaderMetrics.edgeInset, for: .scrollContent)
+                    // Same 16pt gutter as header/footer. Padding is ignored
+                    // under RootPageScaffold's `.ignoresSafeArea()`.
+                    .rootEdgeInset()
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
