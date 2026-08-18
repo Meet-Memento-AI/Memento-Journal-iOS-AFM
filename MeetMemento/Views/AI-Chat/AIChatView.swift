@@ -38,6 +38,9 @@ public struct AIChatView: View {
     }
 
     @State private var isNarrating = false
+    /// Compact-voice tip (spec 029 R8): shown when narration starts with a
+    /// compact voice; the X persists dismissal so it never reappears.
+    @State private var showVoiceNudge = false
     @State private var selectedCitations: CitationsWrapper? = nil
     /// Measured footer height (composer or narration stack), excluding the
     /// scaffold's `windowBottom + 16` pad.
@@ -48,6 +51,9 @@ public struct AIChatView: View {
     @State private var currentSuggestions: [String] = []
 
     private let hasEntries: Bool
+    /// When set, the view opens already in Narration Mode with this phase —
+    /// used by canvas previews so QA does not have to start the mic.
+    private let narrationPreview: AIChatNarrationPreviewConfiguration?
 
     private static var allPrompts: [String] = {
         if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
@@ -88,13 +94,17 @@ public struct AIChatView: View {
         isEmbedded: Bool = false,
         hasEntries: Bool = true,
         onOpenJournal: (() -> Void)? = nil,
-        onPresentEntry: ((EntryRoute) -> Void)? = nil
+        onPresentEntry: ((EntryRoute) -> Void)? = nil,
+        narrationPreview: AIChatNarrationPreviewConfiguration? = nil
     ) {
         self.viewModel = viewModel
         self.isEmbedded = isEmbedded
         self.hasEntries = hasEntries
         self.onOpenJournal = onOpenJournal
         self.onPresentEntry = onPresentEntry
+        self.narrationPreview = narrationPreview
+        _isNarrating = State(initialValue: narrationPreview != nil)
+        _showVoiceNudge = State(initialValue: narrationPreview?.showVoiceNudge ?? false)
     }
 
     private var footerBottomPadding: CGFloat {
@@ -125,13 +135,12 @@ public struct AIChatView: View {
             header: { if isEmbedded { chatHeader } },
             footer: { chatFooter },
             backgroundOverlay: {
-                if isNarrating {
-                    NarrationGlow(
-                        audioLevel: speechService.audioLevel,
-                        isAutonomous: narrationCoordinator.phase == .speaking
-                            || narrationCoordinator.phase == .awaitingResponse
-                    )
-                }
+                NarrationGlow(
+                    isActive: isNarrating,
+                    audioLevel: speechService.audioLevel,
+                    isAutonomous: narrationCoordinator.phase == .speaking
+                        || narrationCoordinator.phase == .awaitingResponse
+                )
             }
         ) {
             ZStack {
@@ -153,6 +162,13 @@ public struct AIChatView: View {
                             .onTapGesture { dismissKeyboard() }
                             .accessibilityHidden(true)
                     }
+
+                    if showVoiceNudge && isNarrating {
+                        voiceNudgeBanner
+                            .frame(maxHeight: .infinity, alignment: .top)
+                            .padding(.top, AppHeaderMetrics.contentTopPadding)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
                 } else {
                     aiDisabledView
                 }
@@ -162,6 +178,7 @@ public struct AIChatView: View {
             guard height > 0 else { return }
             footerHeight = height
         }
+        .onAppear(perform: applyNarrationPreviewIfNeeded)
         .ignoresSafeArea(.keyboard)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -244,6 +261,9 @@ public struct AIChatView: View {
             Text(speechService.errorMessage ?? "Unable to start recording. Please try again.")
         }
         .onAppear {
+            // Launch → chat interactive marker (spec 029 R1/R5); Instruments
+            // measures from process start to this point of interest.
+            PerfSignposts.appLoad.emitEvent("chat.appeared")
             viewModel.prewarm()
             if currentSuggestions.isEmpty {
                 rotateSuggestions()
@@ -299,21 +319,26 @@ public struct AIChatView: View {
     @ViewBuilder
     private var chatFooter: some View {
         if preferences.aiEnabled {
-            Group {
-                if isNarrating {
-                    NarrationFooter(
-                        coordinator: narrationCoordinator,
-                        onExit: stopNarration
-                    )
-                } else {
-                    AIChatFooter(
-                        inputText: $viewModel.inputText,
-                        isSending: viewModel.isLoading,
-                        onSend: { viewModel.sendMessage() },
-                        onNarrate: startNarration
-                    )
-                }
+            ZStack(alignment: .bottom) {
+                AIChatFooter(
+                    inputText: $viewModel.inputText,
+                    isSending: viewModel.isLoading,
+                    onSend: { viewModel.sendMessage() },
+                    onNarrate: startNarration
+                )
+                .opacity(isNarrating ? 0 : 1)
+                .allowsHitTesting(!isNarrating)
+                .accessibilityHidden(isNarrating)
+
+                NarrationFooter(
+                    coordinator: narrationCoordinator,
+                    onExit: stopNarration
+                )
+                .opacity(isNarrating ? 1 : 0)
+                .allowsHitTesting(isNarrating)
+                .accessibilityHidden(!isNarrating)
             }
+            .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
             .background(
                 GeometryReader { proxy in
                     Color.clear.preference(
@@ -323,6 +348,39 @@ public struct AIChatView: View {
                 }
             )
         }
+    }
+
+    /// One-time compact-voice tip (spec 029 R8). Informational, non-blocking;
+    /// the X persists dismissal via PreferencesService.
+    private var voiceNudgeBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "waveform.badge.magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(theme.mutedForeground)
+                .padding(.top, 2)
+            Text("A more natural voice is available — download an Enhanced voice in Settings → Voice.")
+                .font(type.body2)
+                .foregroundStyle(theme.foreground)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                preferences.compactVoiceNudgeDismissed = true
+                withAnimation(.easeInOut(duration: 0.25)) { showVoiceNudge = false }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.mutedForeground)
+                    .frame(width: 28, height: 28)
+            }
+            .accessibilityLabel("Dismiss voice tip")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(theme.card)
+                .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+        )
+        .rootEdgeInset()
     }
 
     private var aiDisabledView: some View {
@@ -351,7 +409,7 @@ public struct AIChatView: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                     .background(theme.primary)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.primaryForeground)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
@@ -363,15 +421,51 @@ public struct AIChatView: View {
 
     // MARK: - Narration
 
+    private func applyNarrationPreviewIfNeeded() {
+        guard let preview = narrationPreview else { return }
+        isNarrating = true
+        showVoiceNudge = preview.showVoiceNudge
+        narrationCoordinator.seedPreview(
+            phase: preview.phase,
+            liveTranscript: preview.liveTranscript
+        )
+        viewModel.isLoading = preview.isLoading
+        if !preview.messages.isEmpty {
+            viewModel.messages = preview.messages
+        }
+    }
+
     private func startNarration() {
         dismissKeyboard()
-        isNarrating = true
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
+            isNarrating = true
+        }
+        // One-time compact-voice tip (spec 029 R8): narration is about to
+        // speak with a robotic compact voice and a better one is a download
+        // away. Reads the warmed cache only — never triggers the slow
+        // catalog enumeration.
+        if !preferences.compactVoiceNudgeDismissed,
+           let quality = voiceService.resolvedVoiceQuality,
+           quality != .enhanced, quality != .premium {
+            showVoiceNudge = true
+        }
+        Task { await voiceService.warmVoiceCatalog() }
         narrationCoordinator.start(chatViewModel: viewModel)
     }
 
     private func stopNarration() {
+        guard isNarrating else {
+            narrationCoordinator.stop()
+            return
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         narrationCoordinator.stop()
-        isNarrating = false
+        withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
+            isNarrating = false
+            // Hide without persisting: only the explicit X commits dismissal.
+            showVoiceNudge = false
+        }
     }
 
     private func rotateSuggestions() {
@@ -438,4 +532,94 @@ private struct ChatFooterHeightKey: PreferenceKey {
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)
+}
+
+#Preview("Narration · Listening") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(phase: .listening)
+    )
+}
+
+#Preview("Narration · Live transcript") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .listening,
+            liveTranscript: "I’ve been thinking about how last week felt heavier than I expected, especially around work."
+        )
+    )
+}
+
+#Preview("Narration · Thinking") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .awaitingResponse,
+            isLoading: true,
+            messages: AIChatNarrationPreviewConfiguration.sampleTurn
+        )
+    )
+}
+
+#Preview("Narration · Speaking") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .speaking,
+            messages: AIChatNarrationPreviewConfiguration.sampleTurn
+        )
+    )
+}
+
+#Preview("Narration · Voice nudge") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .listening,
+            showVoiceNudge: true
+        )
+    )
+}
+
+#Preview("Narration · Dark") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .listening,
+            liveTranscript: "What have I been writing about lately?"
+        )
+    )
+    .preferredColorScheme(.dark)
+}
+
+/// Canvas seed for Narration Mode. Does not arm the mic or TTS.
+struct AIChatNarrationPreviewConfiguration {
+    var phase: NarrationCoordinator.Phase = .listening
+    var liveTranscript: String = ""
+    var showVoiceNudge: Bool = false
+    var isLoading: Bool = false
+    var messages: [ChatMessage] = []
+
+    static var sampleTurn: [ChatMessage] {
+        [
+            ChatMessage(
+                content: "What have I been writing about lately?",
+                isFromUser: true
+            ),
+            ChatMessage(
+                content: "You’ve been circling work pressure and how evenings feel shorter than they used to. A few entries come back to wanting more quiet, not more advice.",
+                isFromUser: false
+            )
+        ]
+    }
+}
+
+private struct AIChatNarrationPreview: View {
+    let configuration: AIChatNarrationPreviewConfiguration
+    @StateObject private var viewModel = ChatViewModel()
+
+    var body: some View {
+        AIChatView(
+            viewModel: viewModel,
+            isEmbedded: true,
+            narrationPreview: configuration
+        )
+        .useTheme()
+        .useTypography()
+    }
 }

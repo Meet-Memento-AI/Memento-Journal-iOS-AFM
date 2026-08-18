@@ -35,12 +35,12 @@ public struct SecondaryButton: View {
                 if let systemImage { Image(systemName: systemImage) }
                 Text(title)
                     .typographyH5()
-                if isLoading { ProgressView().tint(customColor ?? theme.primary) }
+                if isLoading { ProgressView().tint(customColor ?? theme.foreground) }
             }
             .frame(height: 48)
             .frame(maxWidth: .infinity)
-            .foregroundStyle(customColor ?? theme.primary)
-            .background(isDarkVariant ? Color.white.opacity(0.15) : theme.primary.opacity(0.1))
+            .foregroundStyle(customColor ?? theme.foreground)
+            .background(isDarkVariant ? Color.white.opacity(0.15) : theme.muted)
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
@@ -93,7 +93,7 @@ struct SecondaryButtonPressStyle: ButtonStyle {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(
         LinearGradient(
-            colors: [PrimaryScale.primary900, PrimaryScale.primary700],
+            colors: [PrimaryScale.primary900, GrayScale.gray900],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

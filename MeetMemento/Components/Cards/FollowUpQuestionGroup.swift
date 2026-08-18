@@ -44,7 +44,7 @@ struct FollowUpQuestionGroup: View {
 
 #Preview("Three Questions") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         ScrollView {
@@ -65,7 +65,7 @@ struct FollowUpQuestionGroup: View {
 
 #Preview("Two Questions") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         ScrollView {
@@ -85,7 +85,7 @@ struct FollowUpQuestionGroup: View {
 
 #Preview("Four Questions") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         ScrollView {
@@ -104,14 +104,14 @@ struct FollowUpQuestionGroup: View {
 
 #Preview("In Insights Context") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 Text("Your Reflections")
                     .font(Typography().h3)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(BaseColors.black)
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
 

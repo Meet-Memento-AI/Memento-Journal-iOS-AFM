@@ -36,7 +36,7 @@ struct CrisisResourceCard: View {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
                             Text(resource.name)
                                 .font(type.body2Bold)
-                                .foregroundStyle(theme.primary)
+                                .foregroundStyle(BrandColors.brandOnText)
                             Text(resource.detail)
                                 .font(type.caption)
                                 .foregroundStyle(theme.mutedForeground)

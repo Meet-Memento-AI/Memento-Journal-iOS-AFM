@@ -151,12 +151,12 @@ struct LockScreenView: View {
                     Text("Try Again")
                         .font(type.body1)
                 }
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(theme.foreground)
                 .padding(.vertical, 14)
                 .padding(.horizontal, 28)
                 .background(
                     Capsule()
-                        .fill(theme.primary.opacity(0.1))
+                        .fill(theme.muted)
                 )
             }
 
@@ -196,7 +196,7 @@ struct LockScreenView: View {
             } label: {
                 Text("Use Device Passcode")
                     .font(type.body1)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.primaryForeground)
                     .padding(.vertical, 14)
                     .padding(.horizontal, 28)
                     .background(
@@ -304,12 +304,7 @@ struct LockScreenView: View {
                             Group {
                                 if index < enteredPIN.count {
                                     Text(String(enteredPIN[enteredPIN.index(enteredPIN.startIndex, offsetBy: index)]))
-                                        // Deliberately NOT `type.h2`: h1/h2 are
-                                        // the serif display face now, and Lora
-                                        // numerals in a fixed 60pt PIN cell read
-                                        // as a different control entirely. Same
-                                        // size as h2 so the boxes are unchanged.
-                                        .font(.custom("Manrope-Bold", size: Typography.baseSize3XL, relativeTo: .title))
+                                        .font(type.h2)
                                         .foregroundStyle(theme.foreground)
                                 }
                             }

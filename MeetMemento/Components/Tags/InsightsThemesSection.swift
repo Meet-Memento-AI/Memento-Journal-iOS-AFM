@@ -17,11 +17,11 @@ public struct InsightsThemesSection: View {
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 16, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.accent)
 
                 Text("Your Themes")
                     .font(type.h6)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
             }
 
             // Wrapping tags
@@ -121,8 +121,8 @@ private struct InsightsTagFlowLayout<Content: View>: View {
         // Purple gradient background to match Insights view
         LinearGradient(
             gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
+                GrayScale.gray50,
+                GrayScale.gray50
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing

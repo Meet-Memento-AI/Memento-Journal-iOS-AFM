@@ -24,7 +24,7 @@ public struct OnboardingThemeTag: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Text(text)
-                .font(type.body1Bold) // Manrope Bold from Typography.swift
+                .font(type.body1Bold)
                 .modifier(type.lineSpacingModifier(for: type.sizeLG))
                 .foregroundStyle(theme.foreground) // token: high-contrast text
                 .frame(maxWidth: .infinity) // Allow full width stretch

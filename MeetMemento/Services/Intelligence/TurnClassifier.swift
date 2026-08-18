@@ -108,6 +108,25 @@ enum TurnClassifier {
         "i", "me", "my", "mine", "myself", "im", "ive", "id", "you", "your", "we"
     ]
 
+    // MARK: - Precompiled packs (spec 029 Amendment A)
+    //
+    // Each pack is compiled once at first touch of the static — a plain array
+    // walk on the hot path, no lock and no pattern-string hash per call (the
+    // dictionary cache below cost a lock+hash round trip per pattern, and
+    // classification runs per streamed snapshot via the history memo). Options
+    // stay empty (case-SENSITIVE), exactly like `range(of:options:)`'s default;
+    // `compactMap` drops an invalid pattern, the same silent no-match
+    // `range(of:)` gave.
+
+    static let metaRegexes = compile(metaPatterns)
+    static let retrospectiveRegexes = compile(retrospectivePatterns)
+    static let reflectiveRegexes = compile(reflectivePatterns)
+    static let offdomainRegexes = compile(offdomainPatterns)
+
+    static func compile(_ patterns: [String]) -> [NSRegularExpression] {
+        patterns.compactMap { try? NSRegularExpression(pattern: $0, options: []) }
+    }
+
     // MARK: - Classification
 
     /// Classifies ONLY the current message. `hasHistory` gates `followup` —
@@ -141,7 +160,7 @@ enum TurnClassifier {
         }
 
         // 3. meta — about the app/assistant.
-        if matches(normalized, any: metaPatterns) { return .meta }
+        if matches(normalized, anyOf: metaRegexes) { return .meta }
 
         // 4. followup — needs history.
         if hasHistory {
@@ -162,14 +181,14 @@ enum TurnClassifier {
 
         // 5. journalQuery — journal lexicon or retrospective shape.
         if words.contains(where: { journalWords.contains($0) }) { return .journalQuery }
-        if matches(normalized, any: retrospectivePatterns), mentionsSelf(words) { return .journalQuery }
+        if matches(normalized, anyOf: retrospectiveRegexes), mentionsSelf(words) { return .journalQuery }
 
         // 6. reflectiveQuestion — first-person pattern questions.
-        if isQuestion, matches(normalized, any: reflectivePatterns) { return .reflectiveQuestion }
+        if isQuestion, matches(normalized, anyOf: reflectiveRegexes) { return .reflectiveQuestion }
 
         // 7. offdomain — a question with zero self/you reference + world markers.
         if isQuestion, !words.contains(where: { firstOrSecondPerson.contains($0) }),
-           matches(normalized, any: offdomainPatterns) {
+           matches(normalized, anyOf: offdomainRegexes) {
             return .offdomain
         }
 
@@ -193,8 +212,37 @@ enum TurnClassifier {
             .replacingOccurrences(of: "’", with: "'")
     }
 
-    private static func matches(_ text: String, any patterns: [String]) -> Bool {
-        patterns.contains { text.range(of: $0, options: .regularExpression) != nil }
+    private static func matches(_ text: String, anyOf regexes: [NSRegularExpression]) -> Bool {
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regexes.contains { regex in
+            regex.firstMatch(in: text, options: [], range: range) != nil
+        }
+    }
+
+    // MARK: - Regex cache
+
+    /// Compile-once cache, kept for the string-pattern lookups the tests pin.
+    /// The classify() hot path walks the precompiled arrays above instead.
+    /// Options stay empty (case-SENSITIVE), exactly like `range(of:)`'s
+    /// default; the packs above are all-lowercase and are matched against the
+    /// lowercased message, so sensitivity never mattered — but it must not
+    /// change. Compiled regexes are immutable and thread-safe; the lock only
+    /// guards the dictionary.
+    private static let regexLock = NSLock()
+    private static var regexCache: [String: NSRegularExpression] = [:]
+
+    /// Internal (not private) so tests can assert the cache returns the same
+    /// compiled instance. Returns nil only for an invalid pattern — the same
+    /// silent no-match `range(of:)` gave.
+    static func cachedRegex(_ pattern: String) -> NSRegularExpression? {
+        regexLock.lock()
+        defer { regexLock.unlock() }
+        if let cached = regexCache[pattern] { return cached }
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return nil
+        }
+        regexCache[pattern] = regex
+        return regex
     }
 
     private static func mentionsSelf(_ words: [String]) -> Bool {

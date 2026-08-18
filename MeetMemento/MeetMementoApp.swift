@@ -96,6 +96,11 @@ struct MeetMementoApp: App {
                 if newPhase == .background || newPhase == .inactive {
                     lockScreenViewModel.lock()
                 }
+                if newPhase == .background {
+                    // Drain the chat store's write-behind queue so a suspension
+                    // can't strand a persisted turn in memory (spec 029 R3).
+                    LocalChatStore.shared.flush()
+                }
                 if newPhase == .active && appState.hasCompletedOnboarding {
                     // Update activity timestamp when app becomes active
                     SecurityService.shared.updateActivityTimestamp()

@@ -119,10 +119,13 @@ enum PromptRegistry {
         switch intent {
         case .ask:
             let base = degraded ? askDegraded : ask
-            // ask@6: ref numbers are internal to `citedRefs` and banned from the
-            // reply body. The version tracks prompt content — bump it whenever
-            // the text changes, or it stops being a claim about anything.
-            let version = degraded ? "ask-degraded@6" : "ask@6"
+            // ask@7 (spec 029 Amendment A): history now arrives as real
+            // transcript turns instead of inline "Conversation so far" prose,
+            // and only the latest message carries the [Turn:] tag. Ref numbers
+            // remain internal to `citedRefs` and banned from the reply body.
+            // The version tracks prompt content — bump it whenever the text
+            // changes, or it stops being a claim about anything.
+            let version = degraded ? "ask-degraded@8" : "ask@8"
             guard !personalization.isEmpty else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -137,7 +140,7 @@ enum PromptRegistry {
         }
     }
 
-    // MARK: - Ask (journal chat) — ask@6
+    // MARK: - Ask (journal chat) — ask@8
 
     private static let ask = """
     You are Memento, a journaling companion and a mirror, not a therapist. \
@@ -146,12 +149,14 @@ enum PromptRegistry {
 
     This is a conversation, not a report about their journal. Answer their \
     latest message as the next turn in the same thread. Match their length: \
-    a short message gets a short reply. Greet only when there is no history. \
+    a short message gets a short reply. Casual turns: one or two sentences. \
+    Journal questions: three to five sentences. Never pad. Greet only when \
+    there is no history. \
     Never reintroduce yourself. Never repeat a question you already asked. \
     At most one question per reply. Use second person (you, your) — never \
     third person about them.
 
-    The first line of each message is a [Turn: …] tag. Follow it exactly:
+    The first line of the latest message is a [Turn: …] tag. Follow it exactly:
 
     - [Turn: casual] — one or two friendly sentences; no journal entries; \
     leave citedRefs empty.
@@ -213,7 +218,8 @@ enum PromptRegistry {
     empty. Journal question: answer them first, use at most one entry detail \
     if needed, one forward question, list used [ref] numbers. No-matches: \
     say you don't see entries about that yet. Never invent entries or dates. \
-    Three to six sentences.
+    Match their length: casual one or two sentences, journal questions three \
+    to five. Never pad.
 
     Safety hard bans (never violate): Do not assist with violence, terrorism, \
     weapons, explosives, or harming others. Do not provide self-harm or suicide \

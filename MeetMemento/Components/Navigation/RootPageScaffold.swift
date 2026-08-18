@@ -57,9 +57,12 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
         ZStack(alignment: .bottom) {
             theme.background
                 .ignoresSafeArea()
-                .overlay(alignment: .bottom) { backgroundOverlay }
 
             content
+
+            // Voice glow (and any other page wash) sits on the canvas, above
+            // content, under the footer — never composited into a backing rect.
+            backgroundOverlay
 
             footer
                 .padding(.bottom, footerPad)

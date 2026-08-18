@@ -39,12 +39,12 @@ struct SentimentAnalysisCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .typographyBody2Bold()
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.accent)
 
                 Text("SENTIMENT ANALYSIS")
                     .typographyCaptionBold()
                     .tracking(0.5)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
 
                 Spacer()
             }
@@ -76,7 +76,7 @@ struct SentimentAnalysisCard: View {
                         // Emotion label
                         Text(label)
                             .typographyBody1()
-                            .foregroundStyle(theme.overlayText)
+                            .foregroundStyle(theme.foreground)
 
                         Spacer()
 
@@ -84,37 +84,18 @@ struct SentimentAnalysisCard: View {
                         if showPercentages {
                             Text("\(percentage(for: emotionValues[index]))%")
                                 .typographyBody1()
-                                .foregroundStyle(theme.overlayTextSecondary)
+                                .foregroundStyle(theme.mutedForeground)
                         }
                     }
                 }
             }
         }
         .padding(24)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    PrimaryScale.primary700,
-                    PrimaryScale.primary800
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            PrimaryScale.primary400,
-                            PrimaryScale.primary800
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+                .stroke(theme.border, lineWidth: 1)
         )
     }
 

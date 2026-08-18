@@ -106,12 +106,17 @@ protocol ChatServiceProtocol: AnyObject {
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse
     /// Warm the on-device model ahead of the first send (chat view appears).
     func prewarm()
+    /// Prefill the next turn from this conversation's stored history tail.
+    /// `sessionId` nil warms the empty-history first-turn session.
+    func prewarmConversation(sessionId: UUID?)
     /// Streaming send: emits the reply as it generates, then a final response.
     func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
     func prewarm() {}
+
+    func prewarmConversation(sessionId: UUID?) {}
 
     /// Default streaming: run the one-shot `sendMessage` and emit a single
     /// delta + final. Mocks that only implement `sendMessage` still work.
@@ -146,13 +151,32 @@ class ChatService {
 
     /// Warm the model AND precompute entry embeddings ahead of the first send,
     /// off the main thread, so message #1 doesn't pay cold model load + cold
-    /// "embed every entry" costs.
+    /// "embed every entry" costs. Entirely detached (spec 029 R5): the
+    /// intelligence prewarm builds the personalized instruction string and a
+    /// session — main-thread work it used to do on every chat onAppear.
     func prewarm() {
-        intelligence.prewarm()
         Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
+            // Resolve the legacy PIN here so the once-per-launch Keychain
+            // round-trip never lands on the send path (spec 029 Amendment A).
+            _ = Self.legacyPIN
+            self.intelligence.prewarm()
             EntryRetriever.warmEmbeddings(self.loadLocalEntries())
         }
+        // Resolve the TTS voice catalog off-main too, so the first narrated
+        // reply (or a Settings visit) doesn't pay the slow first
+        // speechVoices() call on the main thread (spec 029 R5).
+        Task.detached(priority: .utility) {
+            await VoicePlaybackService.shared.warmVoiceCatalog()
+        }
+    }
+
+    /// Next-turn speculative prefill (spec 029 Amendment A). History comes
+    /// from the in-memory store tail so a matching send adopts the warm
+    /// session instead of re-prefilling instructions + history.
+    func prewarmConversation(sessionId: UUID?) {
+        let history = sessionId.map { Self.recentHistory(for: $0) } ?? []
+        intelligence.prewarmConversation(history: history)
     }
 
     /// Reused across citation mapping (avoids a per-source allocation).
@@ -167,8 +191,14 @@ class ChatService {
     /// now read under the Keychain-resident data key; the PIN is passed only so
     /// content still encrypted under the legacy PBKDF2(PIN) scheme can be read
     /// and rewritten.
+    /// The legacy PIN is only needed for content still encrypted under the old
+    /// PBKDF2(PIN) scheme; the Keychain round-trip was paid on EVERY send.
+    /// Resolved once per launch (spec 029 R3) — a PIN change mid-session goes
+    /// through Settings flows that re-encrypt legacy content anyway.
+    private static let legacyPIN: String? = SecurityService.shared.getPIN()
+
     private func loadLocalEntries() -> [Entry] {
-        JournalService.shared.loadAllEntriesLocally(legacyPIN: SecurityService.shared.getPIN())
+        JournalService.shared.loadAllEntriesLocally(legacyPIN: Self.legacyPIN)
     }
 
     func sendMessage(_ text: String, sessionId: UUID? = nil) async throws -> ChatResponse {
@@ -178,7 +208,7 @@ class ChatService {
         // History comes from the on-device store (the single source of truth),
         // so reopening a saved conversation or relaunching keeps full context —
         // the fix for the model losing the thread / re-greeting each turn.
-        let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+        let history = Self.recentHistory(for: conversationId)
         let entries = loadLocalEntries()
 
         do {
@@ -286,15 +316,20 @@ class ChatService {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let conversationId = sessionId ?? UUID()
-                let history = Self.historyTurns(from: LocalChatStore.shared.messages(for: conversationId))
+                let history = Self.recentHistory(for: conversationId)
                 let entries = self.loadLocalEntries()
                 do {
                     var finalResult: AskResult?
+                    // The reviewed set is constant for the whole turn — map it
+                    // once instead of per delta (spec 029 Amendment A).
+                    var deltaSources: [ChatSource]?
                     for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
                         switch event {
                         case .delta(let bodySoFar, let h1, let h2, let reviewed):
+                            let sources = deltaSources ?? Self.sources(from: reviewed)
+                            deltaSources = sources
                             continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2,
-                                                      sources: Self.sources(from: reviewed)))
+                                                      sources: sources))
                         case .final(let result):
                             finalResult = result
                         }
@@ -305,6 +340,12 @@ class ChatService {
                         return
                     }
                     let sources = Self.sources(from: result.citations)
+                    // The store is memory-fast with write-behind persistence
+                    // (spec 029 R3), so keeping this BEFORE `.final` is safe —
+                    // and required: ChatViewModel refetches the session list on
+                    // `.final` of a new conversation and must see the upsert.
+                    LiveTurnClock.shared.start(.persist)
+                    let persistState = PerfSignposts.chatTurn.beginInterval("persist.turn")
                     LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
                     LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
                     LocalChatStore.shared.appendMessage(
@@ -317,6 +358,8 @@ class ChatService {
             ),
                         to: conversationId
                     )
+                    PerfSignposts.chatTurn.endInterval("persist.turn", persistState)
+                    LiveTurnClock.shared.end(.persist)
                     continuation.yield(.final(ChatResponse(
                         reply: result.body,
                         heading1: result.heading1,
@@ -377,6 +420,25 @@ class ChatService {
     func deleteSession(sessionId: UUID) async throws {
         LocalChatStore.shared.deleteSession(sessionId)
                 AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
+    }
+
+    /// Only the trailing slice of a conversation ever reaches the model: the
+    /// prompt's history window (≤9 turns), the retrieval-assist context, and
+    /// RetrievalPolicy's ≤4-user-turn walkback. 24 messages covers all three
+    /// with margin, so the per-send history rebuild stops re-parsing every
+    /// assistant JSON blob in a long conversation (spec 029 Amendment A).
+    static let historyMessageLimit = 24
+
+    /// The model-facing history for a conversation, rebuilt from the store's
+    /// trailing records (single source of truth, spec 017 R9).
+    static func recentHistory(for conversationId: UUID) -> [ChatTurn] {
+        LocalChatStore.shared
+            .recentTurnRecords(for: conversationId, limit: historyMessageLimit)
+            .map { record in
+                record.role == "user"
+                    ? ChatTurn(role: .user, text: record.content)
+                    : ChatTurn(role: .assistant, text: unwrapAssistantBody(record.content))
+            }
     }
 
     /// Rebuilds the prior conversation as `[ChatTurn]` from the stored messages,

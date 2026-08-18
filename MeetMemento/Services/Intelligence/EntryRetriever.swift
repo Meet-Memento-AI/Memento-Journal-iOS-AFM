@@ -133,17 +133,121 @@ enum EntryRetriever {
 
     /// The canonical text an entry is embedded under — must match what
     /// `retrieve` uses so the warm pass and the retrieval pass hit the same
-    /// `EmbeddingService` cache key.
+    /// `EmbeddingService` cache key (which is `contentHash(for:)`, computed
+    /// once per entry per pass and shared with the keyword-scoring cache).
     static func embedText(for entry: Entry) -> String { "\(entry.title). \(entry.text)" }
 
-    /// Precompute and cache every entry's embedding off the send path, so the
-    /// first chat message doesn't pay the cold "embed all entries" cost. Cheap
-    /// on repeat (the per-entry cache short-circuits unchanged entries). Call
-    /// from a background context.
-    static func warmEmbeddings(_ entries: [Entry]) {
-        for entry in entries {
-            _ = EmbeddingService.shared.embedEntry(id: entry.id, text: embedText(for: entry))
+    /// The stable invalidation key for everything cached about an entry's
+    /// content (vector, norm, lowercased keyword text) — hashed over
+    /// (title, text) separately rather than over `embedText`'s concatenation,
+    /// so title/text boundary shifts can't collide. `warmed` is the
+    /// generation-validated hash table from the last warm pass (audit F8):
+    /// a hit skips re-hashing the entry's full title+text bytes; a miss (or a
+    /// stale table — `warmedHashesIfCurrent` returns nil then) computes the
+    /// identical FNV value directly, so results are bit-for-bit unchanged.
+    private static func contentHash(for entry: Entry, warmed: [UUID: UInt64]?) -> UInt64 {
+        if let hash = warmed?[entry.id] { return hash }
+        return EmbeddingService.contentHash(title: entry.title, text: entry.text)
+    }
+
+    // MARK: - Warm pass + per-generation content-hash cache (spec 029 Amendment A)
+
+    /// Guards `warmedHashes` and `warmedGeneration`.
+    private static let warmLock = NSLock()
+    /// entryID → content hash, as computed by the last COMMITTED warm pass.
+    private static var warmedHashes: [UUID: UInt64] = [:]
+    /// The `JournalService` corpus generation `warmedHashes` was computed
+    /// against; nil until a warm pass commits. Stale ids from deleted entries
+    /// may linger in the table between generations — harmless, they are never
+    /// looked up (the entry is gone from the corpus) and the whole table is
+    /// replaced on the next re-warm.
+    private static var warmedGeneration: UInt64?
+
+    /// `warmedHashes`, but only when it still describes the LIVE corpus —
+    /// any mutation since the warm bumps the generation and the whole table
+    /// is ignored (full per-turn rehash until the next warm re-runs, which
+    /// every chat onAppear does). Never partially trusted: a single entry
+    /// edit invalidates everything, because per-id staleness is undetectable
+    /// without rehashing — exactly the work being avoided.
+    private static func warmedHashesIfCurrent() -> [UUID: UInt64]? {
+        warmLock.lock()
+        guard let tagged = warmedGeneration, !warmedHashes.isEmpty else {
+            warmLock.unlock()
+            return nil
         }
+        let hashes = warmedHashes
+        warmLock.unlock()
+        guard tagged == JournalService.shared.currentEntriesGeneration() else { return nil }
+        return hashes
+    }
+
+    /// Precompute and cache every entry's embedding AND content hash off the
+    /// send path, so the first chat message doesn't pay the cold "embed all
+    /// entries" cost and steady-state turns don't re-hash the corpus
+    /// (audit F8). Call from a background context.
+    ///
+    /// Idempotent-cheap (audit F6): called on every chat onAppear, so when
+    /// the corpus generation hasn't moved since the last committed warm it
+    /// returns immediately — no per-entry hashing, just the (post-first-call
+    /// trivial) disk-cache check. Returns whether a full warm pass actually
+    /// ran; `service`/`generation` are injectable for tests and default to
+    /// the production singletons.
+    @discardableResult
+    static func warmEmbeddings(
+        _ entries: [Entry],
+        using service: EmbeddingService = .shared,
+        generation explicitGeneration: UInt64? = nil
+    ) -> Bool {
+        let generation = explicitGeneration ?? JournalService.shared.currentEntriesGeneration()
+
+        warmLock.lock()
+        let alreadyWarm = warmedGeneration == generation
+        warmLock.unlock()
+        // Make sure the persisted vectors are in memory either way — a no-op
+        // once loaded, and on the very first call it performs the disk-cache
+        // load here, off the send path.
+        service.warmDiskCache()
+        if alreadyWarm { return false }
+
+        var hashes = [UUID: UInt64](minimumCapacity: entries.count)
+        for entry in entries {
+            let hash = EmbeddingService.contentHash(title: entry.title, text: entry.text)
+            hashes[entry.id] = hash
+            _ = service.entryVector(id: entry.id, text: embedText(for: entry), contentHash: hash)
+        }
+
+        // Commit only if no mutation raced this pass — otherwise the hashes
+        // may describe content the live corpus no longer has, and tagging
+        // them with the newer generation would serve stale derived data.
+        // (A save that lands before `entries` was even snapshotted by the
+        // caller is outside what this guard can see; the window is the
+        // microseconds between the caller's load and the generation read
+        // above, and the next save heals it by bumping the generation.)
+        let generationAfter = explicitGeneration ?? JournalService.shared.currentEntriesGeneration()
+        warmLock.lock()
+        if generation == generationAfter {
+            warmedHashes = hashes
+            warmedGeneration = generation
+        }
+        warmLock.unlock()
+        return true
+    }
+
+    /// Test seam: forget all warm state so tests are order-independent.
+    // periphery:ignore - test-only seam (EntryRetrieverConfidenceTests); retained deliberately
+    static func resetWarmStateForTesting() {
+        warmLock.lock()
+        warmedHashes = [:]
+        warmedGeneration = nil
+        warmLock.unlock()
+    }
+
+    /// Test seam: the raw cached hash for an id (no generation check).
+    // periphery:ignore - test-only seam (EntryRetrieverConfidenceTests); retained deliberately
+    static func warmedHashForTesting(id: UUID) -> UInt64? {
+        warmLock.lock()
+        defer { warmLock.unlock() }
+        return warmedHashes[id]
     }
 
     private static let stopwords: Set<String> = [
@@ -167,21 +271,37 @@ enum EntryRetriever {
         if entries.isEmpty || trimmed.isEmpty { return .empty }
 
         let terms = tokenize(trimmed)
-        let currentVector = EmbeddingService.shared.embed(trimmed)
-        let historyVector = query.historyContext.flatMap { EmbeddingService.shared.embed($0) }
+        // Query vectors come from the LRU (`embedQuery`), so a repeated or
+        // follow-up question skips NLEmbedding entirely.
+        let currentVector = EmbeddingService.shared.embedQuery(trimmed)
+        let historyVector = query.historyContext.flatMap { EmbeddingService.shared.embedQuery($0) }
         let now = Date()
 
         // Pass 1: per-entry combined cosine (current-message dominated) so the
-        // significance threshold can be computed over the whole corpus.
+        // significance threshold can be computed over the whole corpus. The
+        // content hash is resolved ONCE per entry here — from the warm pass's
+        // generation-validated table when the corpus hasn't changed (the
+        // steady state; no hashing at all), recomputed otherwise — and shared
+        // by the vector cache and the keyword cache; norms are precomputed at
+        // embed time, so each pair costs a single vDSP dot product.
+        let warmedHashes = warmedHashesIfCurrent()
         struct Measured { let entry: Entry; let cosine: Double?; let keyword: Double }
         let measured: [Measured] = entries.map { entry in
-            let keyword = keywordScore(entry: entry, terms: terms)
+            let hash = contentHash(for: entry, warmed: warmedHashes)
+            let keyword = keywordScore(entry: entry, terms: terms, contentHash: hash)
             var cosine: Double? = nil
             if let currentVector,
-               let entryVector = EmbeddingService.shared.embedEntry(id: entry.id, text: embedText(for: entry)) {
-                var value = EmbeddingService.cosineSimilarity(currentVector, entryVector) * tuning.currentWeight
+               let entryVector = EmbeddingService.shared.entryVector(
+                   id: entry.id, text: embedText(for: entry), contentHash: hash) {
+                var value = EmbeddingService.cosineSimilarity(
+                    currentVector.vector, normA: currentVector.norm,
+                    entryVector.vector, normB: entryVector.norm
+                ) * tuning.currentWeight
                 if let historyVector {
-                    value += EmbeddingService.cosineSimilarity(historyVector, entryVector) * tuning.historyWeight
+                    value += EmbeddingService.cosineSimilarity(
+                        historyVector.vector, normA: historyVector.norm,
+                        entryVector.vector, normB: entryVector.norm
+                    ) * tuning.historyWeight
                 } else {
                     // No history assist — don't penalize the current-only match.
                     value /= tuning.currentWeight
@@ -265,10 +385,17 @@ enum EntryRetriever {
 
     // MARK: - Scoring
 
-    private static func keywordScore(entry: Entry, terms: [String]) -> Double {
+    private static func keywordScore(entry: Entry, terms: [String], contentHash: UInt64) -> Double {
         guard !terms.isEmpty else { return 0 }
-        let title = entry.title.lowercased()
-        let text = entry.text.lowercased()
+        // The lowercased copies are cached per entry (hash-invalidated), so
+        // this no longer re-lowercases the full corpus on every turn. Cached
+        // full strings — not token sets — deliberately: substring containment
+        // on the whole lowercased text is the existing scoring semantics, and
+        // tokenizing would change it (e.g. "run" matching inside "running").
+        // The cost is roughly one extra in-memory copy of the journal text.
+        let (title, text) = EmbeddingService.shared.lowercasedEntryText(
+            id: entry.id, contentHash: contentHash, title: entry.title, text: entry.text
+        )
         var overlap = 0.0
         for term in terms {
             if text.contains(term) { overlap += 1 }

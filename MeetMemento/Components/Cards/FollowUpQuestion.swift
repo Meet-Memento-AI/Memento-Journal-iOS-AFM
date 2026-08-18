@@ -25,11 +25,11 @@ struct FollowUpQuestion: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "arrow.turn.down.right")
                 .font(type.h4)
-                .foregroundStyle(theme.overlayText)
+                .foregroundStyle(theme.foreground)
 
             Text(question)
                 .font(type.h6)
-                .foregroundStyle(theme.overlayText)
+                .foregroundStyle(theme.foreground)
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -56,7 +56,7 @@ struct FollowUpQuestion: View {
 
 #Preview("Single Question") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         FollowUpQuestion(
@@ -68,11 +68,12 @@ struct FollowUpQuestion: View {
         .padding(.horizontal, 20)
     }
     .useTypography()
+    .useTheme()
 }
 
 #Preview("With Tap Handler") {
     ZStack {
-        PrimaryScale.primary900
+        GrayScale.gray50
             .ignoresSafeArea()
 
         FollowUpQuestion(
@@ -84,4 +85,5 @@ struct FollowUpQuestion: View {
         .padding(.horizontal, 20)
     }
     .useTypography()
+    .useTheme()
 }

@@ -200,13 +200,19 @@ public struct AddEntryView: View {
                 .scrollDismissesKeyboard(.interactively)
             }
             .overlay(alignment: .bottom) {
-                HStack {
-                    attachmentFAB
-                    Spacer()
-                    microphoneFAB
+                // One sampling region for the footer cluster. Glass cannot
+                // sample glass, and the attachment circles sit next to the
+                // mic pill — migrating them without a shared container is
+                // what reads as stacked/double glass (PRES-092).
+                GlassEffectContainer(spacing: Self.optionSpacing) {
+                    HStack {
+                        attachmentFAB
+                        Spacer(minLength: Self.optionSpacing)
+                        microphoneFAB
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, keyboardBottomPadding(geometry: geometry))
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, keyboardBottomPadding(geometry: geometry))
             }
         }
         .ignoresSafeArea(.keyboard)
@@ -318,88 +324,64 @@ public struct AddEntryView: View {
                 .frame(width: 36, height: 5)
                 .padding(.top, 8)
 
-            // Header row
-            HStack {
-                // Back button
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(theme.foreground)
-                        .frame(width: 44, height: 44)
-                        .background(iconButtonBackground)
-                }
-                .accessibilityLabel("Back")
-                .accessibilityHint("Double-tap to close without saving")
-
-                Spacer()
-
-                // Date pill
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 13, weight: .bold)) // icon-size: not user text
-                    Text(formattedDate)
-                        .font(type.body2Medium)
-                }
-                .foregroundStyle(theme.foreground)
-                .padding(.horizontal, 14)
-                // AX5: minHeight (not fixed height) lets the pill grow instead of
-                // clipping/overlapping when the date text scales up at large Dynamic Type sizes.
-                .frame(minHeight: 44)
-                .background(datePillBackground)
-
-                Spacer()
-
-                // Submit button
-                Button { save() } label: {
-                    if isSaving {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(width: 44, height: 44)
-                            .background(submitButtonBackground)
-                    } else {
-                        Image(systemName: "arrow.up")
+            // One sampling region for back, date pill, and save. Glass on the
+            // view containing the glyph — never a sibling fill underneath
+            // (PRES-092).
+            GlassEffectContainer(spacing: 12) {
+                HStack {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
                             .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                            .foregroundStyle(.white)
+                            .foregroundStyle(theme.foreground)
                             .frame(width: 44, height: 44)
-                            .background(submitButtonBackground)
+                            .glassEffect(.regular.interactive(), in: .circle)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
+                    .accessibilityHint("Double-tap to close without saving")
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 13, weight: .bold)) // icon-size: not user text
+                        Text(formattedDate)
+                            .font(type.body2Medium)
+                    }
+                    .foregroundStyle(theme.foreground)
+                    .padding(.horizontal, 14)
+                    // AX5: minHeight (not fixed height) lets the pill grow instead of
+                    // clipping/overlapping when the date text scales up at large Dynamic Type sizes.
+                    .frame(minHeight: 44)
+                    .glassEffect(.regular, in: .capsule)
+
+                    Spacer(minLength: 12)
+
+                    Button { save() } label: {
+                        Group {
+                            if isSaving {
+                                ProgressView()
+                                    .tint(theme.foreground)
+                            } else {
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 14, weight: .bold)) // icon-size: not user text
+                                    .foregroundStyle(theme.foreground)
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                        .glassEffect(.regular.interactive(), in: .circle)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSaving || !hasSaveableContent)
+                    .opacity(isSaving || !hasSaveableContent ? 0.4 : 1)
+                    .accessibilityLabel(isSaving ? "Saving entry" : "Save entry")
+                    .accessibilityHint("Double-tap to save your journal entry")
                 }
-                .disabled(isSaving || !hasSaveableContent)
-                .accessibilityLabel(isSaving ? "Saving entry" : "Save entry")
-                .accessibilityHint("Double-tap to save your journal entry")
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
         }
         .padding(.bottom, 8)
-    }
-
-    // MARK: - Button Backgrounds
-
-    @ViewBuilder
-    private var iconButtonBackground: some View {
-        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
-        Circle()
-            .fill(theme.cardBackground)
-    }
-
-    @ViewBuilder
-    private var datePillBackground: some View {
-        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
-        Capsule()
-            .fill(theme.cardBackground)
-    }
-
-    @ViewBuilder
-    private var submitButtonBackground: some View {
-        // Dimmed state must track the same condition as `.disabled`, or a
-        // photo-only entry would look unsavable while actually being savable.
-        let baseColor = hasSaveableContent ? theme.primary : theme.primary.opacity(0.4)
-
-        // Liquid Glass removed — brand color intentionally kept (prominent submit
-        // action); flat purple fill, no glass or shadow.
-        Circle()
-            .fill(baseColor)
     }
 
     private var titleField: some View {
@@ -479,51 +461,48 @@ public struct AddEntryView: View {
             // AX5: minHeight lets the pill grow instead of clipping the duration
             // timer text, which scales with Dynamic Type, when recording.
             .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 56)
-            .background(microphoneFABBackground)
-            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
+        .buttonStyle(.plain)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: speechService.isRecording)
         .accessibilityLabel(speechService.isRecording ? "Stop recording" : "Start voice recording")
         .accessibilityHint(speechService.isRecording ? "Double-tap to stop and insert text" : "Double-tap to record your voice")
     }
 
-    @ViewBuilder
-    private var microphoneFABBackground: some View {
-        // Liquid Glass removed — flat themed surface — cardBackground adapts to dark mode.
-        Capsule()
-            .fill(theme.cardBackground)
-    }
-
-    /// Leading attachment FAB (Figma node 393:4851): camera + photo-library
-    /// icons, functional, plus a location pin shown for visual parity with
-    /// Figma but non-interactive — location capture is a future feature.
-    /// Reuses the same `theme.cardBackground` capsule chrome as `microphoneFAB`.
-    /// Sizing: each icon gets a 44x44 frame — Apple's HIG minimum tap target —
-    /// and the capsule's 6pt padding falls out of that. The arithmetic lands on
-    /// Figma's FAB exactly: 6+44+4+44+4+44+6 = 152 wide, 6+44+6 = 56 tall.
-    private static let optionButtonSize: CGFloat = 44
-    private static let optionIconSize: CGFloat = 26
+    /// Leading attachment cluster: camera, photo library, and a non-interactive
+    /// location placeholder. Each icon is its own glass circle; they share the
+    /// footer `GlassEffectContainer`. Drawn 32pt with 14pt glyphs, spaced 28pt
+    /// apart — smaller and more open than the old 26pt-in-44pt packed capsule.
+    /// Hit targets still clear Apple's 44pt minimum.
+    private static let optionButtonSize: CGFloat = 32
+    private static let optionIconSize: CGFloat = 14
+    private static let optionSpacing: CGFloat = 28
 
     private var attachmentFAB: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Self.optionSpacing) {
             Button {
                 presentCameraOrHandleUnavailable()
             } label: {
                 Image(systemName: "camera")
-                    .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                    .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
                     .foregroundStyle(theme.foreground)
                     .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
-                    .contentShape(Rectangle()) // whole 44x44 is tappable, not just the glyph
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Circle())
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Take photo")
             .accessibilityHint(photoData == nil ? "Double-tap to capture a photo with the camera" : "Double-tap to replace the current photo with a new one")
 
             PhotosPicker(selection: $photoPickerItem, matching: .images) {
                 Image(systemName: "photo.on.rectangle")
-                    .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                    .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
                     .foregroundStyle(theme.foreground)
                     .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
-                    .contentShape(Rectangle())
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Circle())
             }
             .accessibilityLabel("Choose photo from library")
             .accessibilityHint(photoData == nil ? "Double-tap to choose a photo from your library" : "Double-tap to replace the current photo with one from your library")
@@ -531,16 +510,14 @@ public struct AddEntryView: View {
             // Visible-but-disabled placeholder for Figma parity (boxicons:location).
             // A plain Image, not a disabled Button — that's what makes "disabled"
             // structurally true for VoiceOver instead of announcing an inert control.
-            // Same 44x44 frame purely so the three icons keep an even rhythm.
             Image(systemName: "location")
-                .font(.system(size: Self.optionIconSize)) // icon-size: not user text
+                .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
                 .foregroundStyle(theme.foreground.opacity(0.3))
                 .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
+                .glassEffect(.regular, in: .circle)
+                .frame(minWidth: 44, minHeight: 44)
                 .accessibilityHidden(true)
         }
-        .padding(6)
-        .background(Capsule().fill(theme.cardBackground))
-        .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 8)
     }
 
     // MARK: - Actions

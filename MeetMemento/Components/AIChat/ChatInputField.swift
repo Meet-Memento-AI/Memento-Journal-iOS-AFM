@@ -242,6 +242,7 @@ struct ChatInputField: View {
         // scales with Dynamic Type, and a hard 64 clips both.
         .frame(minHeight: pillHeight)
         .frame(maxWidth: .infinity)
+        .rootEdgeInset()
         // Liquid Glass, `.regular` — the frosted variant, which is what spec 024
         // and the API reference both assign to this surface. `.clear` has
         // refraction but no frost, and this capsule floats over a scrolling
@@ -420,7 +421,6 @@ struct ChatInputField: View {
     /// narration on the chat page (`AIChatView.startNarration`).
     private var voiceModeButton: some View {
         Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             onNarrate?()
         } label: {
             Image(systemName: "waveform")

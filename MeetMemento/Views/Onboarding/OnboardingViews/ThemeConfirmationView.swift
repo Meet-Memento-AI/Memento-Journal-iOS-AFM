@@ -64,7 +64,7 @@ public struct ThemeConfirmationView: View {
                 if isEstimating {
                     HStack(spacing: 12) {
                         ProgressView()
-                            .tint(theme.primary)
+                            .tint(theme.foreground)
                         Text("Finding themes that fit…")
                             .font(type.body2)
                             .foregroundStyle(theme.mutedForeground)
@@ -93,7 +93,7 @@ public struct ThemeConfirmationView: View {
                     } label: {
                         Text(showAllThemes ? "Hide full catalog" : "Browse all themes")
                             .font(type.body2Bold)
-                            .foregroundStyle(theme.primary)
+                            .foregroundStyle(theme.foreground)
                     }
                     .padding(.top, 20)
                     .accessibilityIdentifier("onboarding.browseThemes")

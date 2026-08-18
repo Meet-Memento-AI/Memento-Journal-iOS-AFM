@@ -54,9 +54,9 @@ struct ChatMessagesView: View {
                                 .frame(height: 1)
                                 .id(Self.bottomAnchorID)
                         }
-                        .padding(.horizontal, 16)
                         .padding(.top, AppHeaderMetrics.contentTopPadding)
                     }
+                    .contentMargins(.horizontal, AppHeaderMetrics.edgeInset, for: .scrollContent)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -154,18 +154,23 @@ struct ChatMessagesView: View {
             Spacer()
 
             VStack(spacing: 24) {
-                Image("Memento-Logo")
-                    .resizable()
-                    .frame(width: 176, height: 44)
-                    .frame(width: 44, alignment: .leading)
-                    .clipped()
+                LinearGradient(
+                    colors: [PrimaryScale.primary700, PrimaryScale.primary400],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .mask {
+                    Image("LaunchLogo")
+                        .resizable()
+                        .scaledToFit()
+                }
+                .frame(width: 56, height: 56)
 
-                Text("Let’s dive deeper into your journal")
+                Text("Let’s dive deeper\ninto your journal")
                     .font(type.h2)
-                    .foregroundStyle(theme.foreground)
+                    .foregroundStyle(PrimaryScale.primary700)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 16)
 
                 if !hasEntries {
                     Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
@@ -173,9 +178,9 @@ struct ChatMessagesView: View {
                         .foregroundStyle(theme.mutedForeground)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 16)
                 }
             }
+            .padding(.horizontal, AppHeaderMetrics.edgeInset)
             .frame(maxWidth: .infinity)
 
             Spacer()

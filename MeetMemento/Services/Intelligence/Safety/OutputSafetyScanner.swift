@@ -16,7 +16,8 @@ struct OutputSafetyHit: Sendable, Equatable {
 enum OutputSafetyScanner {
 
     /// Scan model output for policy leaks (methods, weapons how-to, diagnosis,
-    /// crisis counseling voice, etc.).
+    /// crisis counseling voice, etc.). Runs on every streamed snapshot, so the
+    /// packs below go through SafetyClassifier's compile-once regex cache.
     static func scan(_ text: String) -> OutputSafetyHit? {
         let normalized = SafetyClassifier.normalize(text)
         guard !normalized.isEmpty else { return nil }

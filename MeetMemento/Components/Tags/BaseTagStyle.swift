@@ -97,19 +97,19 @@ extension View {
 // MARK: - Preset Configurations
 
 extension TagStyleConfig {
-    /// Purple pill tag for insights (white text on purple background)
+    /// Ink pill tag for insights (white on darkest brown).
     static func insightsPill(typography: Typography) -> TagStyleConfig {
         TagStyleConfig(
-            backgroundColor: PrimaryScale.primary500,
-            foregroundColor: PrimaryScale.primary50,
+            backgroundColor: PrimaryScale.primary900,
+            foregroundColor: BaseColors.white,
             font: typography.captionMedium
         )
     }
 
-    /// Dark purple pill tag for entries count
+    /// Ink pill tag for entries count. White on primary900 is 16.08:1.
     static func entriesPill(typography: Typography) -> TagStyleConfig {
         TagStyleConfig(
-            backgroundColor: PrimaryScale.primary600,
+            backgroundColor: PrimaryScale.primary900,
             foregroundColor: .white,
             font: typography.captionBold
         )

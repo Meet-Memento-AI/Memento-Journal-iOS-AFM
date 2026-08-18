@@ -34,11 +34,11 @@ public struct JournalReviewIndicator: View {
             HStack(spacing: 6) {
                 Text("Reviewed \(reviewedCount) \(reviewedCount == 1 ? "journal" : "journals")")
                     .font(type.body2)
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(BrandColors.brandOnText)
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(BrandColors.brandOnText)
             }
         }
         .sheet(isPresented: $showDetailSheet) {
@@ -107,7 +107,7 @@ private struct DetailRow: View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16)) // icon-size: not user text
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(theme.accent)
             
             Text(text)
                 .font(type.body1)

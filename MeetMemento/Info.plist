@@ -23,6 +23,11 @@
 		<string>Manrope-Regular.ttf</string>
 		<string>Manrope-Medium.ttf</string>
 		<string>Manrope-Bold.ttf</string>
+		<string>Figtree-VariableFont_wght.ttf</string>
+		<string>Figtree-Regular.ttf</string>
+		<string>Figtree-Medium.ttf</string>
+		<string>Figtree-SemiBold.ttf</string>
+		<string>Figtree-Bold.ttf</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Memento needs camera access to add a photo to your journal entries.</string>

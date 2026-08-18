@@ -89,7 +89,7 @@ struct ProfileSheet: View {
                 drawerDestination(for: route)
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.fraction(0.95)])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(32)
     }
@@ -107,28 +107,40 @@ struct ProfileSheet: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 12) {
             AvatarInitialButton(
                 initial: appState.firstName?.first.map { String($0) },
-                size: 44,
+                size: 96,
                 accessibilityLabel: "Your profile"
             )
             .allowsHitTesting(false)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: 4) {
                 Text(appState.firstName ?? "Your account")
-                    .font(type.h5)
+                    .font(type.h4)
                     .foregroundStyle(theme.foreground)
                     .lineLimit(1)
-                Text("On this device only")
+                    .multilineTextAlignment(.center)
+                Text(journalingSinceCaption)
                     .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
             }
-
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
+    }
+
+    /// Earliest real entry (samples excluded). Empty / sample-only journals
+    /// keep the device-local fallback rather than inventing a start month.
+    private var journalingSinceCaption: String {
+        let earliest = entryViewModel.entries
+            .filter { !SampleContentService.shared.isSampleEntry($0.id) }
+            .map(\.createdAt)
+            .min()
+        guard let earliest else { return "On this device only" }
+        return "Journaling since \(earliest.formatted(as: "MMMM, yyyy"))"
     }
 
     // MARK: - Destinations

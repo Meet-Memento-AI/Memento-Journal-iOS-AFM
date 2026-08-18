@@ -42,7 +42,7 @@ public struct CitationLink: View {
                     .font(type.caption)
                     .fontWeight(.semibold)
             }
-            .foregroundStyle(theme.primary)
+            .foregroundStyle(BrandColors.brandOnText)
         }
         .buttonStyle(.plain)
         .accessibilityHint("Double-tap to view journal citations")

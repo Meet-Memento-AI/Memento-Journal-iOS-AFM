@@ -13,24 +13,25 @@ struct EntriesTag: View {
     let count: Int
 
     @Environment(\.typography) private var type
+    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
             // Pen/notepad icon
             Image(systemName: "square.and.pencil")
                 .font(type.captionMedium)
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.primaryForeground)
 
             // Count + "entries" text
             Text("\(count) entries")
                 .font(type.captionBold)
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.primaryForeground)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 12)
         .background(
             Capsule()
-                .fill(PrimaryScale.primary600)
+                .fill(theme.primary)
         )
         .accessibilityLabel(Text("\(count) entries"))
     }

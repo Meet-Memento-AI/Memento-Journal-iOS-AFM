@@ -11,13 +11,72 @@
 //  `.voiceChat` is reserved for a future full-duplex mode). The loop therefore
 //  sequences the audio session explicitly: recording is fully stopped and the
 //  transcript consumed *before* a TTS session begins, and the TTS session is
-//  fully drained (`speakingMessageID == nil`) before the mic restarts. It
-//  never leans on VoicePlaybackService's reactive "TTS yields to STT" sink —
+//  fully drained (`speakingMessageID == nil`) **and its audio-session release
+//  awaited** (`waitForSessionRelease`, spec 028 R3a) before the mic restarts.
+//  It never leans on VoicePlaybackService's reactive "TTS yields to STT" sink —
 //  that guard exists for the tap-a-mic-somewhere case, not for this loop.
 //
 
 import Combine
 import Foundation
+import os
+
+// MARK: - Service seams (spec 028 R8)
+
+/// What the narration loop needs from SpeechService — a seam so unit tests can
+/// drive loop transitions without a mic (mirrors `SpeechSynthesizing`).
+@MainActor
+protocol NarrationSpeechListening: AnyObject {
+    var audioLevel: Float { get }
+    var bestAvailableTranscript: String { get }
+    var partialTranscriptPublisher: AnyPublisher<String, Never> { get }
+    var isRecordingPublisher: AnyPublisher<Bool, Never> { get }
+    func isOwner(_ ownerId: String) -> Bool
+    func startRecording(ownerId: String) async throws
+    func stopRecording() async
+    func cancelRecording() async
+    func clearTranscription()
+}
+
+extension SpeechService: NarrationSpeechListening {
+    var partialTranscriptPublisher: AnyPublisher<String, Never> {
+        $partialTranscribedText.eraseToAnyPublisher()
+    }
+    var isRecordingPublisher: AnyPublisher<Bool, Never> {
+        $isRecording.eraseToAnyPublisher()
+    }
+}
+
+/// What the narration loop needs from VoicePlaybackService.
+@MainActor
+protocol NarrationVoicePlayback: AnyObject {
+    var speakingMessageIDPublisher: AnyPublisher<UUID?, Never> { get }
+    func beginUtteranceSession(for messageID: UUID, title: String?)
+    func enqueue(sentence: String)
+    func finishEnqueueing()
+    func stop()
+    func waitForSessionRelease() async
+    /// Activate the playback session while the model thinks (spec 029 R4).
+    func preactivateSession()
+    /// Release an unused pre-activation (the send failed; back to listening).
+    func releasePreactivatedSession()
+    /// An external audio hand-off (mic teardown) every activation must follow
+    /// (spec 029 Amendment A).
+    func setActivationBarrier(_ task: Task<Void, Never>?)
+    /// Resolve the TTS voice catalog if it is not already cached.
+    func ensureVoiceCatalogWarmed() async
+    /// Silent synthesizer spin-up so the first real `speak` is warm.
+    func warmSynthesizer()
+    /// Utterances currently speaking or buffered — used to prefetch a stable
+    /// tail before the queue runs dry.
+    var queuedSpeechCount: Int { get }
+}
+
+extension VoicePlaybackService: NarrationVoicePlayback {
+    var speakingMessageIDPublisher: AnyPublisher<UUID?, Never> {
+        $speakingMessageID.eraseToAnyPublisher()
+    }
+}
 
 @MainActor
 final class NarrationCoordinator: ObservableObject {
@@ -55,6 +114,14 @@ final class NarrationCoordinator: ObservableObject {
     @Published private(set) var transcriptStartIndex: Int = 0
     @Published var errorKind: NarrationError?
 
+    /// Canvas / QA only. Sets the visible phase without arming the mic or TTS,
+    /// so `#Preview` can render Narration Mode as the user would see it.
+    func seedPreview(phase: Phase, liveTranscript: String = "") {
+        self.phase = phase
+        self.liveTranscript = liveTranscript
+        errorKind = nil
+    }
+
     // MARK: - Tuning
 
     /// A pause this long (with the transcript stable) counts as "done talking".
@@ -65,16 +132,46 @@ final class NarrationCoordinator: ObservableObject {
     /// stops a send from firing mid-word. SpeechService publishes
     /// `min(1, rms * 3)`, where normal speech lands around 0.05–0.45.
     static let autoSendMaxAudioLevel: Float = 0.05
-    /// Watchdog cadence — 4 Hz keeps worst-case added latency at 250ms.
+    /// Watchdog cadence — 4 Hz normally; the tick tightens to 10 Hz once the
+    /// pause is close to firing, so auto-send jitter drops from ~125ms average
+    /// to ~50ms without polling fast the whole time (spec 029 R4).
     private static let watchdogTick: UInt64 = 250_000_000
+    private static let watchdogFineTick: UInt64 = 100_000_000
+    /// How close to `autoSendPause` the fine tick kicks in.
+    private static let watchdogFineWindow: TimeInterval = 0.3
+
+    /// Pure tick chooser (unit-tested): fine cadence when the send decision is
+    /// imminent, coarse otherwise.
+    static func watchdogDelay(secondsSinceChange: TimeInterval) -> UInt64 {
+        secondsSinceChange >= autoSendPause - watchdogFineWindow
+            ? watchdogFineTick
+            : watchdogTick
+    }
+    /// A listening turn that has produced NO signal (no partial, audio level
+    /// pinned at exactly 0) for this long is dead — a live mic's smoothed RMS
+    /// noise floor is nonzero, so exact 0 means the tap never delivered a
+    /// buffer (spec 028 R4: the killed-session failure mode is silent).
+    static let listeningLivenessTimeout: TimeInterval = 4.0
+    /// Instance copy so unit tests can shrink the window; production never
+    /// changes it.
+    var livenessTimeout: TimeInterval = NarrationCoordinator.listeningLivenessTimeout
 
     // MARK: - Dependencies
 
-    private let speechService = SpeechService.shared
-    private let voiceService = VoicePlaybackService.shared
+    private let speechService: NarrationSpeechListening
+    private let voiceService: NarrationVoicePlayback
     private weak var chatViewModel: ChatViewModel?
 
     private let speechOwnerId = "NarrationMode"
+
+    /// Default-argument DI, same convention as `ChatViewModel.init(chatService:)`.
+    init(
+        speechService: NarrationSpeechListening = SpeechService.shared,
+        voiceService: NarrationVoicePlayback = VoicePlaybackService.shared
+    ) {
+        self.speechService = speechService
+        self.voiceService = voiceService
+    }
 
     // MARK: - Internals
 
@@ -90,12 +187,23 @@ final class NarrationCoordinator: ObservableObject {
     private var lastTranscriptChange = Date()
     /// One silent retry after an unexpected recording drop before alerting.
     private var didRetryListening = false
+    /// Liveness clock: when the current listening turn's mic actually armed.
+    private var listenStartedAt = Date()
+    /// True once the current listening turn showed any sign of life (nonzero
+    /// audio level or a partial transcript).
+    private var sawListeningActivity = false
+    /// One silent re-arm per turn for a dead listen before alerting
+    /// (spec 028 R4). Separate from `didRetryListening`, which resets on every
+    /// successful start and so cannot bound a start-succeeds-then-dies loop.
+    private var didRecoverDeadListen = false
     /// Guards the `$isRecording == false` sink: true only while a stop the
     /// coordinator did NOT initiate should be treated as an auto-send.
     private var expectsRecordingStop = false
     /// False after `stop()`. Async continuations (mic start/stop tasks) check
     /// this on resume so a torn-down session can't restart the loop.
     private var sessionActive = false
+    /// Open `listen.rearm` signpost: TTS drained → mic live (spec 029 R1).
+    private var rearmSignpostState: OSSignpostIntervalState?
 
     // MARK: - Pure decision helper (unit-tested)
 
@@ -110,6 +218,16 @@ final class NarrationCoordinator: ObservableObject {
             && audioLevel < autoSendMaxAudioLevel
     }
 
+    /// Whether the current listening turn is dead (spec 028 R4): never showed
+    /// any activity, and the liveness window has elapsed.
+    static func isListeningDead(
+        sawActivity: Bool,
+        secondsListening: TimeInterval,
+        timeout: TimeInterval = listeningLivenessTimeout
+    ) -> Bool {
+        !sawActivity && secondsListening >= timeout
+    }
+
     // MARK: - Lifecycle
 
     /// Enters the loop. Idempotent — a second call while active is a no-op.
@@ -119,8 +237,11 @@ final class NarrationCoordinator: ObservableObject {
         transcriptStartIndex = chatViewModel.messages.count
         errorKind = nil
         didRetryListening = false
+        didRecoverDeadListen = false
         sessionActive = true
         subscribe()
+        Task { await voiceService.ensureVoiceCatalogWarmed() }
+        chatViewModel.prewarmNextTurn()
         beginListening()
     }
 
@@ -134,6 +255,10 @@ final class NarrationCoordinator: ObservableObject {
         watchdog = nil
         cancellables.removeAll()
         voiceService.stop()
+        // A pre-activation with no session yet is invisible to stop() —
+        // release it explicitly so exiting mid-"Thinking…" can't leak an
+        // active playback session.
+        voiceService.releasePreactivatedSession()
         if speechService.isOwner(speechOwnerId) {
             Task { await speechService.cancelRecording() }
         }
@@ -168,6 +293,7 @@ final class NarrationCoordinator: ObservableObject {
         guard phase == .idle || phase == .listening else { return }
         errorKind = nil
         didRetryListening = false
+        didRecoverDeadListen = false
         beginListening()
     }
 
@@ -181,6 +307,16 @@ final class NarrationCoordinator: ObservableObject {
 
         Task {
             do {
+                // The TTS session's release is async and, un-awaited, can land
+                // AFTER our record session activates — deactivating it silently
+                // (the "narration works once" bug, spec 028 R3a). Order it.
+                // The previous turn's mic teardown is likewise no longer
+                // awaited at send time (spec 029 Amendment A), so a fast
+                // failure path could re-arm while it is still in flight —
+                // order behind it too.
+                await micReleaseTask?.value
+                await voiceService.waitForSessionRelease()
+                guard sessionActive else { return }
                 try await speechService.startRecording(ownerId: speechOwnerId)
                 guard sessionActive else {
                     // Torn down while the mic was spinning up — don't leave it open.
@@ -189,6 +325,15 @@ final class NarrationCoordinator: ObservableObject {
                 }
                 expectsRecordingStop = true
                 didRetryListening = false
+                listenStartedAt = Date()
+                sawListeningActivity = false
+                if let state = rearmSignpostState {
+                    rearmSignpostState = nil
+                    PerfSignposts.speechLoop.endInterval("listen.rearm", state)
+                    LiveTurnClock.shared.end(.listenRearm)
+                    LiveTurnClock.shared.releaseAndLog()
+                }
+                chatViewModel?.prewarmNextTurn()
                 startWatchdog()
             } catch let error as SpeechService.SpeechError {
                 phase = .idle
@@ -213,9 +358,27 @@ final class NarrationCoordinator: ObservableObject {
         watchdog?.cancel()
         watchdog = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: Self.watchdogTick)
+                guard let strongSelf = self else { return }
+                let delay = Self.watchdogDelay(
+                    secondsSinceChange: Date().timeIntervalSince(strongSelf.lastTranscriptChange)
+                )
+                try? await Task.sleep(nanoseconds: delay)
                 guard let self, !Task.isCancelled else { return }
                 guard self.phase == .listening else { continue }
+                // Liveness (spec 028 R4): any nonzero level or partial marks
+                // the turn alive; a turn with no signal at all for the whole
+                // window is a dead session (e.g. killed by a stale
+                // setActive(false)) and hangs forever if left alone.
+                if self.speechService.audioLevel > 0 || !self.liveTranscript.isEmpty {
+                    self.sawListeningActivity = true
+                } else if Self.isListeningDead(
+                    sawActivity: self.sawListeningActivity,
+                    secondsListening: Date().timeIntervalSince(self.listenStartedAt),
+                    timeout: self.livenessTimeout
+                ) {
+                    self.recoverDeadListen()
+                    return
+                }
                 // A send already in flight (barge-in while the previous reply
                 // was still streaming): hold the turn until it settles rather
                 // than dropping it on ChatViewModel's isLoading guard.
@@ -231,31 +394,89 @@ final class NarrationCoordinator: ObservableObject {
         }
     }
 
+    /// A listening turn died silently (no signal for the liveness window):
+    /// cancel the dead session and re-arm once; a second death in the same
+    /// turn surfaces the error (spec 028 R4).
+    private func recoverDeadListen() {
+        guard phase == .listening else { return }
+        watchdog?.cancel()
+        watchdog = nil
+        // The cancel below flips isRecording; don't let the unexpected-stop
+        // sink treat it as a drop and race this recovery.
+        expectsRecordingStop = false
+
+        Task {
+            await speechService.cancelRecording()
+            guard sessionActive else { return }
+            if !didRecoverDeadListen {
+                didRecoverDeadListen = true
+                beginListening()
+            } else {
+                phase = .idle
+                errorKind = .recordingFailed
+            }
+        }
+    }
+
+    /// The in-flight mic engine teardown from the last listening turn. The
+    /// send no longer waits for it (spec 029 Amendment A): the transcript is
+    /// captured fast-partial and the model call dispatches immediately, hiding
+    /// the ~100–400ms teardown behind model thinking. Everything that touches
+    /// the shared audio session afterwards is ordered behind this task — the
+    /// TTS pre-activation awaits it here, and VoicePlaybackService carries it
+    /// as its activation barrier for the direct-activation path.
+    private var micReleaseTask: Task<Void, Never>?
+
     private func finishListeningAndSend() {
         guard phase == .listening else { return }
+        // Narrated-turn origin is mic-stop, not send — so the later
+        // ChatViewModel beginTurn is a no-op (LiveTurnClock is idempotent).
+        LiveTurnClock.shared.beginTurn(heldOpen: true)
         phase = .finalizing
         watchdog?.cancel()
         watchdog = nil
         expectsRecordingStop = false
 
-        Task {
-            await speechService.stopRecording()
-            guard sessionActive else { return }
-            // Fast-partial by design: take the best transcript available right
-            // now instead of waiting ~1.8s for finalization. The pause already
-            // cost 1.5s; narration favors loop snappiness over a rare
-            // last-word correction.
-            let text = speechService.bestAvailableTranscript
-            // Releases ownership AND clears isProcessing — the latter is what
-            // VoicePlaybackService's isRecordingProvider checks, so this must
-            // precede any TTS session.
-            speechService.clearTranscription()
+        // Fast-partial by design: take the best transcript available right
+        // now instead of waiting ~1.8s for finalization. The pause already
+        // cost 1.5s; narration favors loop snappiness over a rare
+        // last-word correction.
+        let text = speechService.bestAvailableTranscript
+        // Releases ownership AND clears isProcessing — the latter is what
+        // VoicePlaybackService's isRecordingProvider checks, so this must
+        // precede any TTS session.
+        speechService.clearTranscription()
 
-            guard !text.isEmpty else {
+        let release = Task {
+            LiveTurnClock.shared.start(.micStop)
+            let micStopState = PerfSignposts.speechLoop.beginInterval("mic.stop")
+            await speechService.stopRecording()
+            PerfSignposts.speechLoop.endInterval("mic.stop", micStopState)
+            LiveTurnClock.shared.end(.micStop)
+        }
+        micReleaseTask = release
+        voiceService.setActivationBarrier(release)
+
+        guard !text.isEmpty else {
+            // Nothing to send — wait out the teardown, then listen again
+            // (startRecording orders itself behind its own pending teardown).
+            Task {
+                await release.value
+                guard sessionActive else { return }
+                LiveTurnClock.shared.releaseAndLog()
                 beginListening()
-                return
             }
-            sendTurn(text)
+            return
+        }
+        sendTurn(text)
+        // Pre-activate TTS once the mic hand-off completes — still hidden
+        // behind model thinking, which comfortably outlasts the teardown.
+        Task { [weak self] in
+            await release.value
+            guard let self, self.sessionActive,
+                  self.phase == .awaitingResponse || self.phase == .speaking else { return }
+            self.voiceService.preactivateSession()
+            self.voiceService.warmSynthesizer()
         }
     }
 
@@ -263,6 +484,7 @@ final class NarrationCoordinator: ObservableObject {
 
     private func sendTurn(_ text: String) {
         guard let chatViewModel else {
+            voiceService.releasePreactivatedSession()
             phase = .idle
             return
         }
@@ -270,8 +492,13 @@ final class NarrationCoordinator: ObservableObject {
         replyMessageID = nil
         ttsSessionBegun = false
         responseSettled = false
+        // A fresh turn gets a fresh dead-listen recovery budget (spec 028 R4).
+        didRecoverDeadListen = false
         liveTranscript = ""
         phase = .awaitingResponse
+        // TTS pre-activation happens in finishListeningAndSend once the mic
+        // hand-off completes (spec 029 Amendment A) — the model call below is
+        // deliberately dispatched without waiting for either.
         chatViewModel.sendMessage(prompt: text)
     }
 
@@ -284,21 +511,37 @@ final class NarrationCoordinator: ObservableObject {
 
         guard let message = chatViewModel.messages.first(where: { $0.id == id }) else {
             // Placeholder removed — the send failed outright. Listen again;
-            // the user can rephrase.
+            // the user can rephrase. The pre-activated TTS session goes unused —
+            // release it so the mic re-arm awaits a clean handoff.
             if chatViewModel.streamingAssistantMessageID == nil {
                 responseSettled = true
+                voiceService.releasePreactivatedSession()
+                LiveTurnClock.shared.releaseAndLog()
                 beginListening()
             }
             return
         }
 
         let body = message.aiOutputContent?.body ?? message.content
+        // NOT `!message.isStreaming` alone: the freshly appended placeholder
+        // has `isStreaming == false` (it flips on the first delta), so the
+        // messages hop that runs before any delta would read the empty
+        // placeholder as a settled empty reply — settling the turn and
+        // skipping the entire narration. The turn is final only once the send
+        // itself settled: performSend's defer moves the marker off this
+        // message on success, error, and cancel alike.
         let isFinal = !message.isStreaming
-        let sentences = chunker.consume(body, isFinal: isFinal)
+            && chatViewModel.streamingAssistantMessageID != id
+        // Prefetch a stable tail when TTS is about to run dry so the
+        // synthesizer does not sit in dead air waiting for a period.
+        let allowStableTail = ttsSessionBegun && voiceService.queuedSpeechCount <= 1
+        let sentences = chunker.consume(body, isFinal: isFinal, allowStableTail: allowStableTail)
 
         for sentence in sentences {
             if !ttsSessionBegun {
                 ttsSessionBegun = true
+                PerfSignposts.speechLoop.emitEvent("chunk.firstSentence")
+                LiveTurnClock.shared.mark(.firstSentence)
                 voiceService.beginUtteranceSession(
                     for: id,
                     title: message.aiOutputContent?.heading1
@@ -314,7 +557,10 @@ final class NarrationCoordinator: ObservableObject {
                 voiceService.finishEnqueueing()
             } else {
                 // Reply settled with nothing speakable (empty or fully
-                // stripped). Nothing will drain, so loop back directly.
+                // stripped). Nothing will drain, so loop back directly —
+                // releasing the pre-activated TTS session first.
+                voiceService.releasePreactivatedSession()
+                LiveTurnClock.shared.releaseAndLog()
                 beginListening()
             }
         }
@@ -326,20 +572,21 @@ final class NarrationCoordinator: ObservableObject {
         cancellables.removeAll()
 
         // Live transcript → preview card + pause clock.
-        speechService.$partialTranscribedText
+        speechService.partialTranscriptPublisher
             .removeDuplicates()
             .sink { [weak self] text in
                 guard let self, self.speechService.isOwner(self.speechOwnerId) else { return }
                 guard self.phase == .listening else { return }
                 self.liveTranscript = text
                 self.lastTranscriptChange = Date()
+                if !text.isEmpty { self.sawListeningActivity = true }
             }
             .store(in: &cancellables)
 
         // Recording dropped without the coordinator asking (SpeechService's
         // internal 20s silence stop, or an engine error): salvage the words if
         // there are any, otherwise try listening once more before alerting.
-        speechService.$isRecording
+        speechService.isRecordingPublisher
             .removeDuplicates()
             .filter { !$0 }
             .sink { [weak self] _ in
@@ -367,11 +614,23 @@ final class NarrationCoordinator: ObservableObject {
         // chatViewModel outlives the coordinator's session (owned by
         // ContentView), so observing it directly is safe.
         chatViewModel?.$streamingAssistantMessageID
-            .compactMap { $0 }
             .sink { [weak self] id in
-                guard let self, self.phase == .awaitingResponse,
-                      self.replyMessageID == nil else { return }
-                self.replyMessageID = id
+                guard let self else { return }
+                if let id {
+                    guard self.phase == .awaitingResponse,
+                          self.replyMessageID == nil else { return }
+                    self.replyMessageID = id
+                } else {
+                    // The send settled (success, error, or cancel). Finality
+                    // is read from this marker, and the settling itself may
+                    // not touch `messages` (the defer's isStreaming flip
+                    // no-ops when `.final` already cleared it) — so the
+                    // messages sink alone can miss the last transition.
+                    // Same one-hop deferral as that sink (willSet).
+                    DispatchQueue.main.async { [weak self] in
+                        self?.consumeReplyProgress()
+                    }
+                }
             }
             .store(in: &cancellables)
 
@@ -387,11 +646,13 @@ final class NarrationCoordinator: ObservableObject {
 
         // Loop close: the TTS queue drained (or errored/was barged into) —
         // the reply is done being spoken, reopen the mic.
-        voiceService.$speakingMessageID
+        voiceService.speakingMessageIDPublisher
             .removeDuplicates()
             .filter { $0 == nil }
             .sink { [weak self] _ in
                 guard let self, self.phase == .speaking else { return }
+                self.rearmSignpostState = PerfSignposts.speechLoop.beginInterval("listen.rearm")
+                LiveTurnClock.shared.start(.listenRearm)
                 self.beginListening()
             }
             .store(in: &cancellables)

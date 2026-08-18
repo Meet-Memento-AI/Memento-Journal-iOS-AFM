@@ -114,6 +114,64 @@ public struct AIOutputComponent: View {
     /// reveal never lags the model yet still reads as typing.
     private let baseTickNanos: UInt64 = 14_000_000
 
+    /// Backlog (in characters) at which the reveal switches from the calm
+    /// typing curve to the catch-up curve. Below this the pacing is identical
+    /// to the classic typewriter; at or above it the shown text is trailing a
+    /// fast stream, so drain harder rather than fall behind.
+    static let catchUpThreshold = 120
+
+    /// Characters to reveal this tick. Pure so it's unit-testable
+    /// (see `AIOutputTypewriterTests`).
+    ///
+    /// While the model is still streaming, snap to the available body — the
+    /// bubble must not trail the model. After `.final`, drain a quarter of
+    /// any leftover per tick so a late-appearing remainder still settles
+    /// within 1 s.
+    static func revealStep(remaining: Int, isStreamComplete: Bool) -> Int {
+        guard remaining > 0 else { return 0 }
+        if !isStreamComplete { return remaining }
+        return max(1, remaining / 4)
+    }
+
+    /// Start of the trailing (possibly still-parsing) line: the index just after
+    /// the last "\n", or `startIndex` when the text is a single line. Everything
+    /// before this is stable, fully-formed lines — the cacheable parse prefix.
+    static func lastLineStart(of text: String) -> String.Index {
+        guard let newline = text.lastIndex(of: "\n") else { return text.startIndex }
+        return text.index(after: newline)
+    }
+
+    /// Single-entry memo for `RichTextParser.parse`. A class (not @State value)
+    /// on purpose: `bodyText` re-evaluates every tick, and mutating a boxed
+    /// cache during body evaluation publishes nothing — no re-render loop.
+    /// Keyed on the exact inputs, so a theme or Dynamic Type change simply
+    /// misses and re-parses.
+    private final class ParseCache {
+        private var text: String?
+        private var baseFont: Font?
+        private var boldFont: Font?
+        private var textColor: Color?
+        private var attr = AttributedString()
+
+        func parse(_ text: String, baseFont: Font, boldFont: Font, textColor: Color) -> AttributedString {
+            if text == self.text, baseFont == self.baseFont,
+               boldFont == self.boldFont, textColor == self.textColor {
+                return attr
+            }
+            let parsed = RichTextParser.parse(
+                text, baseFont: baseFont, boldFont: boldFont, textColor: textColor
+            )
+            self.text = text
+            self.baseFont = baseFont
+            self.boldFont = boldFont
+            self.textColor = textColor
+            self.attr = parsed
+            return parsed
+        }
+    }
+
+    @State private var parseCache = ParseCache()
+
     /// Soft leading-edge dissolve (ChatGPT-style): the newest `dissolveRamp`
     /// characters ramp from `dissolveMinOpacity` up to full opacity, so streamed
     /// text melts in instead of snapping on. Redrawn each tick as the index
@@ -197,10 +255,10 @@ public struct AIOutputComponent: View {
     private var totalCount: Int { tHeading1.count + tHeading2.count + tBody.count }
 
     /// The three fields sliced by the single `displayedCount`, in order. Because
-    /// the `@Generable` fields fill in declaration order (h1 → h2 → body), typing
-    /// only up to what's currently available means an early snapshot (heading
-    /// present, body empty) types the heading, then continues seamlessly into the
-    /// body as it arrives — no gap, no pop-in.
+    /// `AskAnswer.body` leads guided-generation decode order, so the first
+    /// snapshot is almost always body text. Headings, when they arrive later,
+    /// sit in front of the already-shown body in the combined index — rare
+    /// for casual replies, where both headings stay empty.
     private var shownHeading1: String { String(tHeading1.prefix(displayedCount)) }
     private var shownHeading2: String {
         String(tHeading2.prefix(max(0, displayedCount - tHeading1.count)))
@@ -229,12 +287,44 @@ public struct AIOutputComponent: View {
     /// characters from faint to full so the leading edge melts in, and folds the
     /// caret into the same `AttributedString` (no deprecated `Text` concatenation).
     private var bodyText: Text {
-        var attr = RichTextParser.parse(
-            animate ? shownBody : content.body,
-            baseFont: type.body1,
-            boldFont: type.body1Bold,
-            textColor: theme.foreground
-        )
+        let shown = animate ? shownBody : content.body
+        var attr: AttributedString
+        // Splice while the reply is in motion (revealing OR merely paused
+        // mid-stream — a pause must not evict the prefix cache); one full parse
+        // once it settles for good.
+        if animate && (isDissolving || streamingState) {
+            // Mid-reveal: don't re-parse the whole shown prefix at 70Hz.
+            // RichTextParser is line-scoped — it splits on "\n" and parses each
+            // line independently, joining with a bare newline — so
+            // parse(prefix-through-last-newline) + parse(trailing line) is
+            // exactly parse(shown). The prefix only changes when the reveal
+            // crosses a newline, so each tick the cache hit means only the
+            // short trailing line is re-parsed.
+            let lineStart = Self.lastLineStart(of: shown)
+            attr = parseCache.parse(
+                String(shown[..<lineStart]),
+                baseFont: type.body1,
+                boldFont: type.body1Bold,
+                textColor: theme.foreground
+            )
+            attr.append(RichTextParser.parse(
+                String(shown[lineStart...]),
+                baseFont: type.body1,
+                boldFont: type.body1Bold,
+                textColor: theme.foreground
+            ))
+        } else {
+            // Settled (finished and drained, or reloaded history): one full
+            // parse of the complete text — the finished reply renders from
+            // exactly the same parse of the full body as before, and the cache
+            // keeps scroll-driven re-renders from re-parsing it.
+            attr = parseCache.parse(
+                shown,
+                baseFont: type.body1,
+                boldFont: type.body1Bold,
+                textColor: theme.foreground
+            )
+        }
         if isDissolving {
             let ramp = min(dissolveRamp, attr.characters.count)
             if ramp > 0 {
@@ -332,7 +422,7 @@ public struct AIOutputComponent: View {
                     } label: {
                         Image(systemName: speakIcon)
                             .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                            .foregroundStyle(isSpeaking || isPaused ? theme.primary : theme.mutedForeground)
+                            .foregroundStyle(isSpeaking || isPaused ? theme.accent : theme.mutedForeground)
                             .animation(.easeOut(duration: 0.2), value: isSpeaking)
                             .animation(.easeOut(duration: 0.2), value: isPaused)
                     }
@@ -357,7 +447,7 @@ public struct AIOutputComponent: View {
                 } label: {
                     Image(systemName: feedbackType == .positive ? "hand.thumbsup.fill" : "hand.thumbsup")
                         .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(feedbackType == .positive ? theme.primary : theme.mutedForeground)
+                        .foregroundStyle(feedbackType == .positive ? theme.accent : theme.mutedForeground)
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
                 .accessibilityLabel(feedbackType == .positive ? "Remove thumbs up" : "Thumbs up")
@@ -459,9 +549,15 @@ public struct AIOutputComponent: View {
 
                 let remaining = totalCount - displayedCount
                 if remaining > 0 {
-                    // Ease toward the target: a large backlog drains fast (never
-                    // lag the model), a trickle reveals ~1 char/tick (typing feel).
-                    let step = max(1, remaining / 8)
+                    // Adaptive curve: a small live backlog trickles at the
+                    // classic pace, a large one (or a finished stream) drains a
+                    // quarter per tick — so the reveal never trails the model
+                    // by more than ~1s, and a long finished reply wraps up in
+                    // well under a second instead of typing on and on.
+                    let step = Self.revealStep(
+                        remaining: remaining,
+                        isStreamComplete: !streamingState
+                    )
                     displayedCount = min(totalCount, displayedCount + step)
                     try? await Task.sleep(nanoseconds: baseTickNanos)
                 } else if streamingState {

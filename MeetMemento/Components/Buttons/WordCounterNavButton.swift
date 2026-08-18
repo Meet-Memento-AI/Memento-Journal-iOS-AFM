@@ -102,7 +102,7 @@ public struct WordCounterNavButton: View {
     private var completedStateIcon: some View {
         Image(systemName: "checkmark.circle.fill")
             .font(.system(size: buttonSize * 0.6, weight: .bold)) // icon-size: not user text
-            .foregroundStyle(theme.primary)
+            .foregroundStyle(theme.accent)
             .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
 
@@ -116,7 +116,7 @@ public struct WordCounterNavButton: View {
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    theme.primary.opacity(0.8),
+                    theme.accent.opacity(0.8),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -266,13 +266,13 @@ private struct InteractiveDemoView: View {
                 HStack {
                     Text("\(text.count) / 100 characters")
                         .typographyBody2()
-                        .foregroundStyle(text.count >= 100 ? theme.primary : theme.mutedForeground)
+                        .foregroundStyle(text.count >= 100 ? theme.accent : theme.mutedForeground)
 
                     Spacer()
 
                     if text.count >= 100 {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(theme.primary)
+                            .foregroundStyle(theme.accent)
                     }
                 }
             }

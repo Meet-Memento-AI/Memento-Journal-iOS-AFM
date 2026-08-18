@@ -153,6 +153,17 @@ final class SpeechService: ObservableObject {
 
     // MARK: - Authorization
 
+    /// Pure mapping shared by the synchronous fast path and the async request
+    /// path (spec 029 R4).
+    static func mapSpeechAuth(_ status: SFSpeechRecognizerAuthorizationStatus) -> AuthorizationStatus {
+        switch status {
+        case .authorized: return .authorized
+        case .notDetermined: return .notDetermined
+        case .denied, .restricted: return .denied
+        @unknown default: return .denied
+        }
+    }
+
     func requestAuthorization() async -> AuthorizationStatus {
         await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { [weak self] status in
@@ -186,8 +197,25 @@ final class SpeechService: ObservableObject {
         }
     }
 
+    /// One recognizer per locale, reused across turns — startRecording used to
+    /// allocate two fresh `SFSpeechRecognizer`s on every narration turn
+    /// (spec 029 R4). Invalidates itself if the locale changes.
+    private var cachedRecognizer: SFSpeechRecognizer?
+    private var cachedRecognizerLocale: String?
+
+    private func currentRecognizer() -> SFSpeechRecognizer? {
+        let localeId = Locale.current.identifier
+        if let cachedRecognizer, cachedRecognizerLocale == localeId {
+            return cachedRecognizer
+        }
+        let fresh = SFSpeechRecognizer(locale: Locale.current)
+        cachedRecognizer = fresh
+        cachedRecognizerLocale = localeId
+        return fresh
+    }
+
     private func checkAvailability() throws {
-        guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
+        guard let recognizer = currentRecognizer(), recognizer.isAvailable else {
             throw SpeechError.notAvailable
         }
         if !recognizer.supportsOnDeviceRecognition {
@@ -346,6 +374,11 @@ final class SpeechService: ObservableObject {
             engine.inputNode.removeTap(onBus: 0)
             engine.stop()
         }
+        // Only deactivate when this teardown actually owned hardware —
+        // startRecording calls teardown defensively before arming, and
+        // deactivating a session we never activated paid a full audio-session
+        // round-trip before every re-arm (spec 029 Amendment A).
+        guard engine != nil || request != nil else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
@@ -366,8 +399,18 @@ final class SpeechService: ObservableObject {
         sessionGeneration &+= 1
         let generation = sessionGeneration
 
-        // 1. Speech authorization
-        let speechAuth = await requestAuthorization()
+        // 1. Speech authorization. The async request is an XPC round-trip that
+        // was paid on EVERY turn; once the status is determined, the
+        // synchronous read answers instantly (and stays correct if the user
+        // later revokes in Settings — it re-reads every start, spec 029 R4).
+        let knownAuth = Self.mapSpeechAuth(SFSpeechRecognizer.authorizationStatus())
+        let speechAuth: AuthorizationStatus
+        if knownAuth == .notDetermined {
+            speechAuth = await requestAuthorization()
+        } else {
+            authorizationStatus = knownAuth
+            speechAuth = knownAuth
+        }
         if speechAuth != .authorized {
             authorizationStatus = speechAuth
             errorMessage = SpeechError.permissionDenied.errorDescription
@@ -375,8 +418,13 @@ final class SpeechService: ObservableObject {
             throw SpeechError.permissionDenied
         }
 
-        // 2. Microphone permission
-        let micGranted = await requestMicrophonePermission()
+        // 2. Microphone permission — same synchronous fast path.
+        let micGranted: Bool
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted: micGranted = true
+        case .denied: micGranted = false
+        default: micGranted = await requestMicrophonePermission()
+        }
         if !micGranted {
             errorMessage = SpeechError.permissionDenied.errorDescription
             activeSessionOwner = nil
@@ -392,7 +440,7 @@ final class SpeechService: ObservableObject {
             throw error
         }
 
-        guard let recognizer = SFSpeechRecognizer(locale: Locale.current) else {
+        guard let recognizer = currentRecognizer() else {
             errorMessage = SpeechError.notAvailable.errorDescription
             activeSessionOwner = nil
             throw SpeechError.notAvailable
@@ -409,6 +457,12 @@ final class SpeechService: ObservableObject {
                 self?.updateAudioLevel(rms)
             }
         }
+
+        // Any teardown still in flight (ours from the top of this call, or a
+        // cancel that immediately preceded this restart) must land before the
+        // new session's setActive(true) — a late setActive(false) would kill
+        // the fresh session silently (spec 028 R3d).
+        await pendingTeardown?.value
 
         let setupResult: Result<(AVAudioEngine, SFSpeechAudioBufferRecognitionRequest, SFSpeechRecognitionTask), Error>
         do {
@@ -551,6 +605,10 @@ final class SpeechService: ObservableObject {
         }
     }
 
+    /// The most recent fire-and-forget engine teardown, stored so an immediate
+    /// restart (`startRecording`) can await it instead of racing it.
+    private var pendingTeardown: Task<Void, Never>?
+
     private func teardownEngine(cancelTask: Bool, clearOwnership: Bool) {
         durationTimer?.invalidate()
         durationTimer = nil
@@ -564,16 +622,19 @@ final class SpeechService: ObservableObject {
         // Capture the hardware and clear refs on the main actor, then run the
         // blocking endAudio / engine.stop() / setActive(false) off the main thread
         // (AVAudioSession hang fix — those calls can block for hundreds of ms).
-        // Fire-and-forget: cancel/error paths don't immediately restart, so there
-        // is no activate/deactivate ordering that needs awaiting. The closure
-        // retains the objects until teardown completes.
+        // Not awaited here — cancel/error paths don't restart in-line — but the
+        // task is *stored* so `startRecording` can await it: narration's
+        // silent-retry re-arms the mic immediately after a cancel, and this
+        // teardown's setActive(false) landing after that restart's
+        // setActive(true) would silently kill the new session (spec 028 R3d).
+        // The closure retains the objects until teardown completes.
         let engine = audioEngine
         let request = recognitionRequest
         audioEngine = nil
         recognitionRequest = nil
         recognitionTask = nil
 
-        Task.detached(priority: .userInitiated) {
+        pendingTeardown = Task.detached(priority: .userInitiated) {
             Self.performEngineTeardown(engine: engine, request: request)
         }
 

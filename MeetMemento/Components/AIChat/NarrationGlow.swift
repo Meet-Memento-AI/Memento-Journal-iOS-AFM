@@ -13,13 +13,21 @@ import SwiftUI
 /// glow's top edge. While Memento thinks/speaks the buffer is fed a slow sine
 /// instead, so the wave stays alive without a live mic.
 ///
+/// One brown silhouette, blurred, composited straight onto the page fill.
+/// A second bloom + `drawingGroup()` used to rasterize a light backing rect
+/// behind the wave — that is gone.
+///
 /// Driven by a 20 Hz clock, NOT `.onChange(of: audioLevel)` — SpeechService's
 /// smoothed level decays to exactly 0 in silence and stops publishing changes.
 struct NarrationGlow: View {
+    /// False while Chat is in the typing composer — the glow stays mounted
+    /// so it can dissolve in and out, rather than popping on `if`.
+    var isActive: Bool
     var audioLevel: Float
     /// True while TTS speaks/thinks: ignore the (dead) mic level and roll.
     var isAutonomous: Bool
 
+    @Environment(\.theme) private var theme
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -30,53 +38,83 @@ struct NarrationGlow: View {
     private static let tick: TimeInterval = 0.05
     private static let attack: Double = 0.6
     private static let release: Double = 0.15
-    private static let gain: Double = 1.8
+    /// Speech RMS is typically 0.05–0.45 after SpeechService's `* 3`; this
+    /// gain makes spoken syllables occupy most of the wave's height.
+    private static let gain: Double = 2.6
     private static let pointCount = 48
+    /// Soft enough to read as a wave, not a hard edge — without a second
+    /// bloom layer that painted a light backing behind it.
+    private static let waveBlur: CGFloat = 24
+    /// Composer ↔ narration dissolve. Shared with `AIChatView`'s footer swap.
+    static let dissolveDuration: TimeInterval = 0.55
 
-    private var baseOpacity: Double { colorScheme == .dark ? 0.30 : 0.40 }
+    /// Sits just past the bottom edge so the bloom reads as a floor wash.
+    private static let restingOffset: CGFloat = 40
+    /// Off-screen start for the rise-from-below dissolve (PRES-094 skips this).
+    private static let hiddenOffset: CGFloat = 100
 
     private var gradient: LinearGradient {
-        LinearGradient(
-            colors: [Color(hex: "#7B5239"), Color(hex: "#5E4E42")],
+        let bottom: Color = colorScheme == .dark
+            ? theme.accent.opacity(0.55)
+            : BrandColors.brandOnText
+        return LinearGradient(
+            colors: [theme.accent, bottom],
             startPoint: .top,
             endPoint: .bottom
         )
     }
 
+    private var waveBaseOpacity: Double {
+        colorScheme == .dark ? 0.60 : 0.75
+    }
+
+    private var waveOpacity: Double {
+        guard isActive else { return 0 }
+        return waveBaseOpacity + 0.20 * displayLevel
+    }
+
+    private var glowOffset: CGFloat {
+        if reduceMotion { return Self.restingOffset }
+        return isActive ? Self.restingOffset : Self.hiddenOffset
+    }
+
     private let clock = Timer.publish(every: tick, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        Group {
-            if reduceMotion {
-                Ellipse()
-                    .fill(gradient)
-            } else {
-                NarrationWaveShape(points: AnimatableCurve(values: samples))
-                    .fill(gradient)
+        silhouette
+            .frame(width: 440, height: 220)
+            .blur(radius: Self.waveBlur)
+            .opacity(waveOpacity)
+            .offset(y: glowOffset)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .animation(.easeInOut(duration: Self.dissolveDuration), value: isActive)
+            .animation(.linear(duration: Self.tick), value: samples)
+            .onReceive(clock) { _ in advance() }
+            .onAppear {
+                if samples.count < Self.pointCount {
+                    samples = Array(repeating: 0, count: Self.pointCount - samples.count) + samples
+                }
             }
-        }
-        .frame(width: 440, height: 220)
-        .blur(radius: 50)
-        .opacity(baseOpacity + 0.35 * displayLevel)
-        .drawingGroup()
-        .offset(y: 80)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-        .animation(.linear(duration: Self.tick), value: samples)
-        .animation(.linear(duration: Self.tick), value: displayLevel)
-        .onReceive(clock) { _ in advance() }
-        .onAppear {
-            if samples.count < Self.pointCount {
-                samples = Array(repeating: 0, count: Self.pointCount - samples.count) + samples
-            }
+    }
+
+    @ViewBuilder
+    private var silhouette: some View {
+        if reduceMotion {
+            Ellipse()
+                .fill(gradient)
+        } else {
+            NarrationWaveShape(points: AnimatableCurve(values: samples))
+                .fill(gradient)
         }
     }
 
     private func advance() {
+        guard isActive else { return }
         let target: Double
         if isAutonomous {
             breathPhase += Self.tick
-            target = 0.3 + 0.15 * sin(breathPhase * 2 * .pi * 0.2)
+            target = 0.40 + 0.32 * sin(breathPhase * 2 * .pi * 0.2)
         } else {
             target = min(1, max(0, Double(audioLevel) * Self.gain))
         }
@@ -100,8 +138,8 @@ private struct NarrationWaveShape: Shape {
         set { points = newValue }
     }
 
-    private static let restFraction: CGFloat = 0.35
-    private static let peakFraction: CGFloat = 0.85
+    private static let restFraction: CGFloat = 0.48
+    private static let peakFraction: CGFloat = 0.95
 
     func path(in rect: CGRect) -> Path {
         let values = points.values

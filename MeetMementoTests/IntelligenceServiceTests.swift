@@ -164,6 +164,9 @@ final class IntelligenceServiceTests: XCTestCase {
         XCTAssertEqual(store.messages(for: s2).count, 1)
 
         // A fresh instance reads the same data from disk (survives relaunch).
+        // Persistence is write-behind (spec 029 R3); flush() models the app's
+        // background-drain before the "relaunch".
+        store.flush()
         let reopened = LocalChatStore(directory: dir)
         XCTAssertEqual(reopened.sessions().count, 2)
         XCTAssertEqual(reopened.messages(for: s1).count, 2)

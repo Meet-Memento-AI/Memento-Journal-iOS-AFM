@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// A card component for displaying monthly insights with entry count and summary.
-/// Features a purple gradient background with white text and navigation affordance.
+/// Features a white/raised card with navigation affordance.
 public struct MonthlyInsightCard: View {
     // MARK: - Inputs
     let month: String // e.g., "January 2026"
@@ -36,19 +36,19 @@ public struct MonthlyInsightCard: View {
                     Text(month)
                         .font(type.h5)
                         .fontWeight(.semibold)
-                        .foregroundStyle(theme.overlayText)
+                        .foregroundStyle(theme.foreground)
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 20, weight: .semibold)) // icon-size: not user text
-                        .foregroundStyle(theme.overlayTextSecondary)
+                        .foregroundStyle(theme.mutedForeground)
                 }
 
                 // Summary text
                 Text(summary)
                     .font(type.body1)
-                    .foregroundStyle(theme.overlayTextSecondary)
+                    .foregroundStyle(theme.mutedForeground)
                     .lineLimit(4)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -61,30 +61,11 @@ public struct MonthlyInsightCard: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            PrimaryScale.primary700.opacity(0.9),
-                            PrimaryScale.primary800.opacity(Spacing.Opacity.muted)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(theme.card)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            theme.glassBorder,
-                            theme.glassBorder.opacity(0.25)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+                .stroke(theme.border, lineWidth: 1)
         )
         .shadow(color: .black.opacity(Spacing.Opacity.border), radius: 12, x: 0, y: 6)
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.standard)
@@ -111,21 +92,21 @@ public struct MonthlyInsightCard: View {
         HStack(spacing: 6) {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 14, weight: .semibold)) // icon-size: not user text
-                .foregroundStyle(theme.overlayText)
+                .foregroundStyle(theme.foreground)
 
             Text("\(entryCount) \(entryCount == 1 ? "entry" : "entries")")
                 .font(type.body2Medium)
-                .foregroundStyle(theme.overlayText)
+                .foregroundStyle(theme.foreground)
         }
         .hPadding(Spacing.sm)
         .vPadding(Spacing.xs)
         .background(
             Capsule()
-                .fill(theme.glassBorder)
+                .fill(theme.muted)
         )
         .overlay(
             Capsule()
-                .stroke(theme.glassBorder, lineWidth: 1)
+                .stroke(theme.border, lineWidth: 1)
         )
     }
 
@@ -192,7 +173,7 @@ private struct MonthlyInsightCardHarness: View {
         entryCount: 1
     )
     .padding()
-    .background(PrimaryScale.primary900)
+    .background(GrayScale.gray50)
     .useTheme()
     .useTypography()
 }

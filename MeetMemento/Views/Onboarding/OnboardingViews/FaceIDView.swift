@@ -49,7 +49,7 @@ public struct FaceIDView: View {
             VStack(spacing: OnboardingLayout.sectionSpacing) {
                 Image(systemName: "faceid")
                     .font(.system(size: 80, weight: .thin)) // icon-size: not user text
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                     .accessibilityHidden(true)
 
                 Text("Set up Face ID")
@@ -75,7 +75,7 @@ public struct FaceIDView: View {
 
                 if isAuthenticating {
                     ProgressView()
-                        .tint(theme.primary)
+                        .tint(theme.foreground)
                         .frame(height: 48)
                 } else {
                     PrimaryButton(title: "Use Face ID") {

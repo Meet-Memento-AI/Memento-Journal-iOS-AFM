@@ -13,6 +13,7 @@ struct InsightsThemeTag: View {
     let text: String
 
     @Environment(\.typography) private var type
+    @Environment(\.theme) private var theme
 
     init(_ text: String) {
         self.text = text
@@ -21,16 +22,16 @@ struct InsightsThemeTag: View {
     var body: some View {
         Text(text)
             .font(type.h6)
-            .foregroundStyle(.white)
+            .foregroundStyle(theme.foreground)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 999, style: .continuous)
-                    .fill(.white.opacity(0.15))
+                    .fill(theme.muted)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 999, style: .continuous)
-                    .strokeBorder(.white.opacity(0.2), lineWidth: 0)
+                    .strokeBorder(theme.border, lineWidth: 1)
             )
     }
 }

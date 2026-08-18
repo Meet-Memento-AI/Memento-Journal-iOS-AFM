@@ -54,7 +54,7 @@ struct CitationPopover: View {
             // Date header
             Text(formattedDate)
                 .font(type.captionBold)
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(BrandColors.brandOnText)
 
             // Excerpt text (4 line limit)
             Text(data.excerpt)

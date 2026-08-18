@@ -298,4 +298,38 @@ final class VoicePlaybackServiceTests: XCTestCase {
         XCTAssertLessThanOrEqual(localMock.spokenUtterances[0].rate,
                                  AVSpeechUtteranceMaximumSpeechRate)
     }
+
+    // MARK: - shouldReleaseAudioSession decision table (spec 028 R3b)
+
+    func test_shouldReleaseAudioSession_allClear_releases() {
+        XCTAssertTrue(VoicePlaybackService.shouldReleaseAudioSession(
+            scheduledGeneration: 7, currentGeneration: 7,
+            isRecording: false, speakingMessageID: nil
+        ))
+    }
+
+    func test_shouldReleaseAudioSession_staleGeneration_skips() {
+        // A newer TTS session owns the audio session; the old teardown must
+        // not deactivate it (barge-in → immediate next reply).
+        XCTAssertFalse(VoicePlaybackService.shouldReleaseAudioSession(
+            scheduledGeneration: 7, currentGeneration: 8,
+            isRecording: false, speakingMessageID: nil
+        ))
+    }
+
+    func test_shouldReleaseAudioSession_liveRecording_skips() {
+        // STT owns the shared session now (narration's next turn, or inline
+        // dictation after the yield sink) — deactivating would dead-mic it.
+        XCTAssertFalse(VoicePlaybackService.shouldReleaseAudioSession(
+            scheduledGeneration: 7, currentGeneration: 7,
+            isRecording: true, speakingMessageID: nil
+        ))
+    }
+
+    func test_shouldReleaseAudioSession_newSpeakingSession_skips() {
+        XCTAssertFalse(VoicePlaybackService.shouldReleaseAudioSession(
+            scheduledGeneration: 7, currentGeneration: 7,
+            isRecording: false, speakingMessageID: UUID()
+        ))
+    }
 }

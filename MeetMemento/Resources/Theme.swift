@@ -30,46 +30,97 @@ extension Color {
 /// - UI components and graphics: 3:1 minimum
 ///
 /// ## Verified Contrast Ratios (Light Mode)
-/// - foreground (gray900) on background (white): 15.4:1 ✓
-/// - mutedForeground (gray600) on background (white): 5.7:1 ✓
-/// - primary (primary500) on white: 4.6:1 ✓
-/// - primaryForeground (white) on primary (primary500): 4.6:1 ✓
+/// Measured 2026-08-17 against the B&W canvas + ink buttons, not carried over.
+/// - foreground (#000000) on background (#FFFFFF): 21.00:1 ✓
+/// - mutedForeground (gray600 #525252) on background: 7.78:1 ✓
+/// - white on primary / primary900 (#2C1E19): 16.08:1 ✓ (filled buttons)
+/// - accent (brand #A87549) on background, as UI/icon: 3.96:1 ✓ (3:1 floor)
+/// - brandOnText (#895C37) on background, as text: 5.75:1 ✓
 ///
 /// ## Verified Contrast Ratios (Dark Mode)
-/// - foreground (gray50) on background (gray900): 14.1:1 ✓
-/// - mutedForeground (gray300) on background (gray900): 7.4:1 ✓
-/// - primary (primary400) on gray900: 5.2:1 ✓
+/// - foreground (#FFFFFF) on background (#000000): 21.00:1 ✓
+/// - mutedForeground (gray400 #A3A3A3) on background: 8.36:1 ✓
+/// - black on primary (#FFFFFF): 21.00:1 ✓ (filled buttons)
+/// - accent (brandDark #C89A6E) on background: 8.28:1 ✓
 ///
 /// ## Low Contrast Warning - Use with caution
-/// - overlayTextSecondary (.opacity(0.8)): May fail at small sizes
-/// - glassBorder (.opacity(0.2)): Decorative only, not critical info
+/// - overlayTextSecondary (mutedForeground): fine as secondary copy; not a
+///   disabled-control colour
+/// - glassBorder: decorative hairline only, not critical info
+/// - **accent (#A87549) must never carry small text.** It is 3.96:1 against
+///   white — fine as a fill or icon, below AA as text. Use
+///   `BrandColors.brandOnText` wherever brown *is* text.
+/// - gray500 (#737373) is 4.75:1 on white — AA for normal text, but keep it
+///   off tiny captions when possible.
+///
+/// ## Correction
+/// The pre-cordovan header claimed dark `primary400` on `gray900` was 5.2:1.
+/// Re-measuring the old purple gives **4.02:1** — it was already failing AA.
+/// These ratios were never machine-verified (see specs/012 §4); the numbers
+/// above were computed directly from the hex values in this file.
 
-/// Gray scale color tokens - neutral colors for backgrounds, borders, and text
+/// Neutral scale — cool greys for canvas, wells, and hairlines. `gray800` /
+/// `gray900` stay warm ink so leftover fill call sites match the darkest
+/// brown used for filled buttons. Kept under the name `GrayScale` because
+/// ~40 call sites depend on it.
 struct GrayScale {
-    static let gray50  = Color(hex: "#F9FBFC")
-    static let gray100 = Color(hex: "#F0F4F7")
-    static let gray200 = Color(hex: "#E2E8ED")
-    static let gray300 = Color(hex: "#CFD6DC")
-    static let gray400 = Color(hex: "#B8C0C7")
-    static let gray500 = Color(hex: "#8D97A3")
-    static let gray600 = Color(hex: "#66707A")
-    static let gray700 = Color(hex: "#4B5560")
-    static let gray800 = Color(hex: "#2F3943")
-    static let gray900 = Color(hex: "#1C2329")
+    static let gray50  = Color(hex: "#FFFFFF") // canvas
+    static let gray100 = Color(hex: "#F5F5F5") // surface-sunken
+    static let gray200 = Color(hex: "#E5E5E5") // border
+    static let gray300 = Color(hex: "#D4D4D4") // border-strong
+    static let gray400 = Color(hex: "#A3A3A3") // text-tertiary (dark)
+    static let gray500 = Color(hex: "#737373") // text-tertiary (light)
+    static let gray600 = Color(hex: "#525252") // text-secondary
+    static let gray700 = Color(hex: "#3D3D3D")
+    static let gray800 = Color(hex: "#29241C") // ink-fill
+    static let gray900 = Color(hex: "#191510") // ink text
+    /// Dark-mode canvas — true black, not warm brown-black.
+    static let gray950 = Color(hex: "#000000") // canvas (dark)
 }
 
-/// Primary purple scale - brand colors for interactive elements
+/// Cordovan ramp — kept for the darkest ink step (`primary900`) used as
+/// `theme.primary` in light mode, and for leftover chart/tag call sites.
+/// Mid-ramp steps are no longer card or page fills.
+///
+/// Mid-brown highlights come from `BrandColors.brand` via `theme.accent`,
+/// not from this ramp and not from `theme.primary`.
 struct PrimaryScale {
-    static let primary50  = Color(hex: "#F2EEFC")
-    static let primary100 = Color(hex: "#E2D5F3")
-    static let primary200 = Color(hex: "#C5A9E7")
-    static let primary300 = Color(hex: "#A77FDB")
-    static let primary400 = Color(hex: "#9869D5")
-    static let primary500 = Color(hex: "#7B3EC9")
-    static let primary600 = Color(hex: "#6125B1")
-    static let primary700 = Color(hex: "#57219C")
-    static let primary800 = Color(hex: "#411976")
-    static let primary900 = Color(hex: "#361562")
+    static let primary50  = Color(hex: "#FAF5F2")
+    static let primary100 = Color(hex: "#F2E9E3")
+    static let primary200 = Color(hex: "#E6D8CE")
+    static let primary300 = Color(hex: "#D4BFB1")
+    static let primary400 = Color(hex: "#BB9E8C")
+    static let primary500 = Color(hex: "#9D7F6C")
+    static let primary600 = Color(hex: "#7E6252")
+    static let primary700 = Color(hex: "#5F473A")
+    static let primary800 = Color(hex: "#45322A")
+    static let primary900 = Color(hex: "#2C1E19")
+    static let primary950 = Color(hex: "#1B110E")
+}
+
+/// The brand hue — **highlights and force only**, never page/card/button fills.
+/// Figma's `brand` is a more saturated family than any cordovan step
+/// (`#A87549` vs cordovan-500 `#9D7F6C`).
+struct BrandColors {
+    /// Brand hue for highlights (sparkles, citations, focus, speaking).
+    /// 3.96:1 on white — clears the 3:1 component threshold, but **not** 4.5:1
+    /// for text. Wire through `theme.accent`, not `theme.primary`.
+    static let brand     = Color(hex: "#A87549")
+    static let brandDark = Color(hex: "#C89A6E")
+
+    /// Use wherever brand carries white text, or where brand *is* text.
+    /// `#A87549` gives only 3.96:1 against white — below AA. This is Figma's
+    /// own `text-brand` / `button-brand-hover` at 5.75:1 on white.
+    static let brandOnText = Color(hex: "#895C37")
+
+    /// Sage-green secondary accent (Figma `highlight`).
+    static let highlight     = Color(hex: "#4E6B5C")
+    static let highlightDark = Color(hex: "#7E9B8B")
+
+    /// Legacy cream / warm-dark surfaces. Cards now use `BaseColors.white` /
+    /// `#111111`; these remain so leftover call sites do not break.
+    static let surface     = Color(hex: "#FFFFFF")
+    static let surfaceDark = Color(hex: "#111111")
 }
 
 /// Base colors - pure white and black
@@ -112,7 +163,7 @@ struct Theme {
     let foreground: Color
     let card: Color
     let cardForeground: Color
-    let cardBackground: Color  // Pure white background for cards
+    let cardBackground: Color  // Sunken card fill — one cool step under `card`
     let popover: Color
     let popoverForeground: Color
     let primary: Color
@@ -147,7 +198,7 @@ struct Theme {
     let fabGradientStart: Color
     let fabGradientEnd: Color
 
-    // Header text gradient (for H1, H2, H3 in Manrope)
+    // Header text gradient (for H1/H2 in Lora, H3 in Figtree)
     let headerGradientStart: Color
     let headerGradientEnd: Color
 
@@ -183,7 +234,7 @@ struct Theme {
     let sidebarBorder: Color
     let sidebarRing: Color
 
-    // Overlay text (white text on gradient backgrounds)
+    // Overlay text (on former gradient cards; now matches foreground)
     let overlayText: Color
     let overlayTextSecondary: Color
 
@@ -201,19 +252,20 @@ struct Theme {
 
     static let light = Theme(
         background: BaseColors.white,
-        foreground: GrayScale.gray900,
+        foreground: BaseColors.black,
         card: BaseColors.white,
-        cardForeground: GrayScale.gray900,
-        cardBackground: GrayScale.gray50,
+        cardForeground: BaseColors.black,
+        cardBackground: GrayScale.gray100,
         popover: BaseColors.white,
-        popoverForeground: GrayScale.gray900,
-        primary: PrimaryScale.primary500,
+        popoverForeground: BaseColors.black,
+        // Darkest brown — filled buttons and block CTAs. Highlights use `accent`.
+        primary: PrimaryScale.primary900,
         primaryForeground: BaseColors.white,
         secondary: GrayScale.gray100,
-        secondaryForeground: GrayScale.gray900,
-        muted: GrayScale.gray200,
+        secondaryForeground: BaseColors.black,
+        muted: BaseColors.offWhite,
         mutedForeground: GrayScale.gray600,
-        accent: PrimaryScale.primary500,
+        accent: BrandColors.brand,
         accentForeground: BaseColors.white,
         destructive: Color(hex: "#D4183D"),
         destructiveForeground: BaseColors.white,
@@ -221,7 +273,7 @@ struct Theme {
         input: GrayScale.gray300,
         inputBackground: BaseColors.white,
         switchBackground: GrayScale.gray400,
-        ring: PrimaryScale.primary500,
+        ring: BrandColors.brand,
 
         chart1: Color(hex: "#F54900"),
         chart2: Color(hex: "#009689"),
@@ -229,34 +281,34 @@ struct Theme {
         chart4: Color(hex: "#FFB900"),
         chart5: Color(hex: "#FE9A00"),
 
-        followUpGradientStart: PrimaryScale.primary400,
-        followUpGradientEnd: PrimaryScale.primary700,
-        followUpTagBackground: BaseColors.white.opacity(0.2),
+        followUpGradientStart: BaseColors.white,
+        followUpGradientEnd: BaseColors.white,
+        followUpTagBackground: GrayScale.gray100,
 
-        fabGradientStart: PrimaryScale.primary400,
-        fabGradientEnd: PrimaryScale.primary600,
+        fabGradientStart: PrimaryScale.primary900,
+        fabGradientEnd: PrimaryScale.primary900,
 
-        headerGradientStart: PrimaryScale.primary500,
-        headerGradientEnd: PrimaryScale.primary700,
+        headerGradientStart: BaseColors.black,
+        headerGradientEnd: BaseColors.black,
 
-        backgroundGradientStart: PrimaryScale.primary600,
-        backgroundGradientEnd: PrimaryScale.primary700,
+        backgroundGradientStart: BaseColors.white,
+        backgroundGradientEnd: BaseColors.white,
 
-        insightsBackgroundStart: PrimaryScale.primary900,
-        insightsBackgroundEnd: PrimaryScale.primary900,
+        insightsBackgroundStart: BaseColors.white,
+        insightsBackgroundEnd: BaseColors.white,
 
         sidebar: BaseColors.white,
-        sidebarForeground: GrayScale.gray900,
-        sidebarPrimary: PrimaryScale.primary500,
+        sidebarForeground: BaseColors.black,
+        sidebarPrimary: PrimaryScale.primary900,
         sidebarPrimaryForeground: BaseColors.white,
         sidebarAccent: GrayScale.gray100,
-        sidebarAccentForeground: GrayScale.gray900,
+        sidebarAccentForeground: BaseColors.black,
         sidebarBorder: GrayScale.gray200,
-        sidebarRing: PrimaryScale.primary500,
+        sidebarRing: BrandColors.brand,
 
-        overlayText: BaseColors.white,
-        overlayTextSecondary: BaseColors.white.opacity(0.8),
-        glassBorder: BaseColors.white.opacity(0.2),
+        overlayText: BaseColors.black,
+        overlayTextSecondary: GrayScale.gray600,
+        glassBorder: GrayScale.gray200,
         emotionJoy: Color(hex: "#7FE87D"),
         emotionSadness: Color(hex: "#5DD4E8"),
         emotionAnger: Color(hex: "#F19B8D"),
@@ -265,28 +317,28 @@ struct Theme {
     )
 
     static let dark = Theme(
-        background: GrayScale.gray900,
-        foreground: GrayScale.gray50,
-        card: GrayScale.gray800,
-        cardForeground: GrayScale.gray50,
-        cardBackground: GrayScale.gray800,
-        popover: GrayScale.gray800,
-        popoverForeground: GrayScale.gray50,
-        primary: PrimaryScale.primary400,
-        primaryForeground: GrayScale.gray900,
-        secondary: GrayScale.gray800,
-        secondaryForeground: GrayScale.gray50,
-        muted: GrayScale.gray700,
-        mutedForeground: GrayScale.gray300,
-        accent: PrimaryScale.primary400,
-        accentForeground: GrayScale.gray900,
+        background: BaseColors.black,
+        foreground: BaseColors.white,
+        card: Color(hex: "#111111"),
+        cardForeground: BaseColors.white,
+        cardBackground: Color(hex: "#1A1A1A"),
+        popover: Color(hex: "#111111"),
+        popoverForeground: BaseColors.white,
+        primary: BaseColors.white,
+        primaryForeground: BaseColors.black,
+        secondary: Color(hex: "#1A1A1A"),
+        secondaryForeground: BaseColors.white,
+        muted: Color(hex: "#1A1A1A"),
+        mutedForeground: GrayScale.gray400,
+        accent: BrandColors.brandDark,
+        accentForeground: BaseColors.black,
         destructive: Color(hex: "#FF4D6A"),
-        destructiveForeground: GrayScale.gray50,
-        border: GrayScale.gray800,
-        input: GrayScale.gray700,
-        inputBackground: GrayScale.gray900,
+        destructiveForeground: BaseColors.white,
+        border: Color(hex: "#2A2A2A"),
+        input: Color(hex: "#2A2A2A"),
+        inputBackground: Color(hex: "#111111"),
         switchBackground: GrayScale.gray600,
-        ring: PrimaryScale.primary400,
+        ring: BrandColors.brandDark,
 
         chart1: Color(hex: "#1447E6"),
         chart2: Color(hex: "#00BC7D"),
@@ -294,35 +346,34 @@ struct Theme {
         chart4: Color(hex: "#AD46FF"),
         chart5: Color(hex: "#FF2056"),
 
-        followUpGradientStart: PrimaryScale.primary300,
-        followUpGradientEnd: PrimaryScale.primary600,
-        followUpTagBackground: BaseColors.white.opacity(0.15),
+        followUpGradientStart: Color(hex: "#111111"),
+        followUpGradientEnd: Color(hex: "#111111"),
+        followUpTagBackground: Color(hex: "#1A1A1A"),
 
-        fabGradientStart: PrimaryScale.primary400,
-        fabGradientEnd: PrimaryScale.primary600,
+        fabGradientStart: BaseColors.white,
+        fabGradientEnd: BaseColors.white,
 
-        headerGradientStart: PrimaryScale.primary500,
-        headerGradientEnd: PrimaryScale.primary700,
+        headerGradientStart: BaseColors.white,
+        headerGradientEnd: BaseColors.white,
 
-        backgroundGradientStart: PrimaryScale.primary600,
-        backgroundGradientEnd: PrimaryScale.primary700,
+        backgroundGradientStart: Color(hex: "#111111"),
+        backgroundGradientEnd: Color(hex: "#111111"),
 
-        insightsBackgroundStart: PrimaryScale.primary900,
-        insightsBackgroundEnd: PrimaryScale.primary900,
+        insightsBackgroundStart: BaseColors.black,
+        insightsBackgroundEnd: BaseColors.black,
 
-        sidebar: GrayScale.gray800,
-        sidebarForeground: GrayScale.gray50,
-        sidebarPrimary: PrimaryScale.primary400,
-        sidebarPrimaryForeground: GrayScale.gray900,
-        sidebarAccent: GrayScale.gray700,
-        sidebarAccentForeground: GrayScale.gray50,
-        sidebarBorder: GrayScale.gray700,
-        sidebarRing: PrimaryScale.primary400,
+        sidebar: Color(hex: "#111111"),
+        sidebarForeground: BaseColors.white,
+        sidebarPrimary: BaseColors.white,
+        sidebarPrimaryForeground: BaseColors.black,
+        sidebarAccent: Color(hex: "#1A1A1A"),
+        sidebarAccentForeground: BaseColors.white,
+        sidebarBorder: Color(hex: "#2A2A2A"),
+        sidebarRing: BrandColors.brandDark,
 
         overlayText: BaseColors.white,
-        overlayTextSecondary: BaseColors.white.opacity(0.8),
-        glassBorder: BaseColors.white.opacity(0.2),
-        // Emotion colors adjusted for dark mode visibility (slightly brighter)
+        overlayTextSecondary: GrayScale.gray400,
+        glassBorder: BaseColors.white.opacity(0.12),
         emotionJoy: Color(hex: "#8FFF8D"),
         emotionSadness: Color(hex: "#6DE4F8"),
         emotionAnger: Color(hex: "#FFAB9D"),

@@ -211,8 +211,8 @@ class AppStateStore: ObservableObject {
         // fire-and-forget Task in an erasure path can outlive the call.
         LocalChatStore.shared.clear()
         // Cached entry embedding vectors are content-derived (CONSTITUTION §4
-        // rule 8), so they go too. In-memory only, but "delete everything"
-        // should not leave the process holding vectors of deleted entries.
+        // rule 8), so they go too — both the in-process cache and the
+        // persisted vector files under Application Support (spec 029 R8).
         EmbeddingService.shared.clearCache()
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)

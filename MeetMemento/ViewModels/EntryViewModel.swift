@@ -126,8 +126,21 @@ class EntryViewModel: ObservableObject {
         // miss left the user staring at a permanently empty journal with a save
         // error and no way out. `legacyPIN`, when present, only lets entries
         // still encrypted under the old PBKDF2(PIN) scheme be read and rewritten.
-        let localEntries = JournalService.shared.loadAllEntriesLocally(legacyPIN: legacyPIN)
-        self.entries = localEntries.sorted { $0.createdAt > $1.createdAt }
+        //
+        // The load + sort runs OFF the main actor (spec 029 Amendment A,
+        // audit F7): a cold JournalService cache means AES-GCM-decrypting the
+        // whole corpus, which used to run synchronously on the MainActor and
+        // stall first paint. The detached task resumes back on the MainActor
+        // (this class is @MainActor), so every @Published assignment below
+        // still happens on main; `isLoading`/`isLoadingEntries` bracket the
+        // await exactly as they bracketed the synchronous call, so the view's
+        // loading states are unchanged.
+        let pin = legacyPIN
+        let localEntries = await Task.detached(priority: .userInitiated) {
+            JournalService.shared.loadAllEntriesLocally(legacyPIN: pin)
+                .sorted { $0.createdAt > $1.createdAt }
+        }.value
+        self.entries = localEntries
         updateEntriesByMonth()
         await loadUserProfile()
         hasInitiallyLoaded = true
@@ -145,9 +158,17 @@ class EntryViewModel: ObservableObject {
         self.userFirstName = UserDefaults.standard.string(forKey: "memento_first_name") ?? ""
     }
     
-    /// Wrapper for loadEntries() - provides semantic clarity at call sites
-    /// where entries should only be loaded if needed (e.g., on first view appear)
+    /// Loads entries only when nothing has been loaded yet this session —
+    /// the guard that makes the "IfNeeded" name true (spec 029 Amendment A,
+    /// audit F7: JournalView's onAppear called this on every appearance and
+    /// paid a full reload each time).
+    ///
+    /// Forced reloads deliberately bypass this guard by calling
+    /// `loadEntries()` directly: pull-to-refresh (`refreshEntries`), the
+    /// Settings sample-content toggle, the error-state "Try Again" button,
+    /// and the `setSessionPIN` self-heal path.
     func loadEntriesIfNeeded() async {
+        guard !hasInitiallyLoaded else { return }
         await loadEntries()
     }
 

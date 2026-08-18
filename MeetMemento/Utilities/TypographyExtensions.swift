@@ -132,7 +132,7 @@ private struct Body2Modifier: ViewModifier {
     @Environment(\.typography) private var typography
     func body(content: Content) -> some View {
         content.font(typography.body2)
-            .lineSpacing(typography.bodyLineSpacing)
+            .lineSpacing(typography.bodyLineSpacing(for: typography.sizeMD))
     }
 }
 
@@ -168,6 +168,6 @@ private struct Body2BoldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(typography.body2Bold)
-            .lineSpacing(typography.bodyLineSpacing)
+            .lineSpacing(typography.bodyLineSpacing(for: typography.sizeMD))
     }
 }

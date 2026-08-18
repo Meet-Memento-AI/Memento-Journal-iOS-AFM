@@ -68,6 +68,8 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     /// the new session enqueued — a count would decrement the new session's
     /// bookkeeping and end it prematurely.
     private var activeUtteranceIDs = Set<ObjectIdentifier>()
+    /// Zero-volume warmup utterance — ignored by session bookkeeping.
+    private var warmupUtteranceID: ObjectIdentifier?
     /// Set by `finishEnqueueing()`: when the queue drains after this, the
     /// session ends. Without it, `didFinish` of the last *currently queued*
     /// utterance would prematurely end a streaming session.
@@ -75,6 +77,12 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     /// Bumped on every begin/stop so a late delegate callback from a cancelled
     /// session can't revive state (SpeechService's proven pattern).
     private var sessionGeneration: UInt64 = 0
+    /// The in-flight audio-session release, if any (spec 028 R3). Stored so the
+    /// next activation — ours via `activateAudioSessionIfNeeded`, or the mic's
+    /// via `waitForSessionRelease` — can await it instead of racing it. An
+    /// un-awaited `setActive(false)` landing after the next `setActive(true)`
+    /// silently kills the new session (the "narration works once" bug).
+    private var sessionReleaseTask: Task<Void, Never>?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -242,15 +250,24 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         isPaused = false
         errorMessage = nil
         activeUtteranceIDs.removeAll()
+        pendingUtterances.removeAll()
         inputComplete = false
-        activateAudioSessionIfNeeded()
-        publishNowPlaying(title: title)
+        beginSessionActivation()
+        // The lock-screen publish is an XPC hop to the media server — defer it
+        // one hop so it never sits between session begin and the first
+        // utterance (spec 029 Amendment A).
+        Task { @MainActor [weak self] in
+            guard let self, self.speakingMessageID == messageID else { return }
+            self.publishNowPlaying(title: title)
+        }
     }
 
     /// Enqueue one sentence/paragraph as its own utterance. Sanitizes
     /// internally — the single choke point, so every caller (tap today, the
     /// chunker later) produces clean speech. AVSpeechSynthesizer queues
-    /// utterances FIFO natively.
+    /// utterances FIFO natively. Until the audio session activation lands,
+    /// utterances buffer in `pendingUtterances` (spec 029 R4: speaking before
+    /// `setActive(true)` completes clips the first word).
     func enqueue(sentence: String) {
         guard speakingMessageID != nil else { return }
         let text = SpeechTextSanitizer.sanitize(sentence)
@@ -262,10 +279,17 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         // reads slightly slow for conversational AI.
         utterance.rate = min(max(rateProvider(), AVSpeechUtteranceMinimumSpeechRate),
                              AVSpeechUtteranceMaximumSpeechRate)
-        // A breath between parts (heading → body, sentence → sentence).
-        utterance.postUtteranceDelay = 0.25
+        // A short breath between parts (heading → body, sentence → sentence).
+        // Was 0.25 — measurably dead air across a multi-sentence reply
+        // (spec 029 R4); the synthesizer's own inter-utterance latency already
+        // provides part of the pause.
+        utterance.postUtteranceDelay = 0.1
         activeUtteranceIDs.insert(ObjectIdentifier(utterance))
-        synthesizer.speak(utterance)
+        if activationComplete {
+            synthesizer.speak(utterance)
+        } else {
+            pendingUtterances.append(utterance)
+        }
     }
 
     /// Marks input complete: once the synthesizer queue drains past this,
@@ -291,6 +315,168 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         finishEnqueueing()
     }
 
+    // MARK: - Session activation (spec 029 R4)
+
+    /// True once the playback audio session is active for the current
+    /// utterance session (always true when `managesAudioSession` is false —
+    /// unit tests). While false, `enqueue` buffers into `pendingUtterances`.
+    private var activationComplete = true
+    /// Utterances enqueued before activation landed, spoken in order once it does.
+    private var pendingUtterances: [AVSpeechUtterance] = []
+    /// The in-flight `setActive(true)` (nil error = success). Shared between
+    /// pre-activation and session begin so narration can pay this cost while
+    /// the model is still thinking.
+    private var activationTask: Task<Error?, Never>?
+
+    /// An audio-session hand-off owned by ANOTHER service (the mic's engine
+    /// teardown) that any playback activation must strictly follow. Narration
+    /// sets it when it dispatches a turn without awaiting the mic teardown
+    /// (spec 029 Amendment A) — the half-duplex ordering invariant (spec 028
+    /// R2/R3) then holds through this barrier instead of through the caller's
+    /// await. Awaiting an already-completed task is instant, so it never needs
+    /// clearing.
+    private var externalActivationBarrier: Task<Void, Never>?
+
+    func setActivationBarrier(_ task: Task<Void, Never>?) {
+        externalActivationBarrier = task
+    }
+
+    private func startPlaybackActivation() -> Task<Error?, Never> {
+        let release = sessionReleaseTask
+        let barrier = externalActivationBarrier
+        return Task.detached(priority: .userInitiated) {
+            await barrier?.value
+            await release?.value
+            LiveTurnClock.shared.start(.ttsActivate)
+            let state = PerfSignposts.speechLoop.beginInterval("tts.activate")
+            defer {
+                PerfSignposts.speechLoop.endInterval("tts.activate", state)
+                LiveTurnClock.shared.end(.ttsActivate)
+            }
+            do { try Self.performPlaybackSessionSetup(); return nil }
+            catch { return error }
+        }
+    }
+
+    /// Activates the playback session ahead of a TTS session — narration calls
+    /// this the moment a turn is dispatched (mic already released), so the
+    /// activation cost hides behind model thinking time. Generation-guarded by
+    /// the begin/stop machinery; if no session follows, call
+    /// `releasePreactivatedSession()`.
+    func preactivateSession() {
+        guard managesAudioSession, activationTask == nil, speakingMessageID == nil,
+              !isRecordingProvider() else { return }
+        activationTask = startPlaybackActivation()
+    }
+
+    /// Releases a pre-activated session that ended up unused (the send failed
+    /// and narration went back to listening). Ordered behind the activation
+    /// and guarded like every release (`shouldReleaseAudioSession`).
+    func releasePreactivatedSession() {
+        guard speakingMessageID == nil, let pending = activationTask else { return }
+        activationTask = nil
+        let scheduledGeneration = sessionGeneration
+        sessionReleaseTask = Task.detached(priority: .userInitiated) { [weak self] in
+            _ = await pending.value
+            let shouldRelease = await MainActor.run { [weak self] () -> Bool in
+                guard let self else { return true }
+                return Self.shouldReleaseAudioSession(
+                    scheduledGeneration: scheduledGeneration,
+                    currentGeneration: self.sessionGeneration,
+                    isRecording: self.isRecordingProvider(),
+                    speakingMessageID: self.speakingMessageID
+                )
+            }
+            guard shouldRelease else { return }
+            Self.performPlaybackSessionTeardown()
+        }
+    }
+
+    /// Ensures the session is (or becomes) active for the current utterance
+    /// session, then flushes any buffered utterances in order. Adopts a
+    /// pre-activation when one is in flight.
+    private func beginSessionActivation() {
+        guard managesAudioSession else {
+            activationComplete = true
+            return
+        }
+        activationComplete = false
+        let generation = sessionGeneration
+        let task = activationTask ?? startPlaybackActivation()
+        activationTask = task
+        Task { [weak self] in
+            let failure = await task.value
+            guard let self, self.sessionGeneration == generation else { return }
+            self.activationTask = nil
+            if let failure {
+                self.errorMessage = "Audio playback unavailable: \(failure.localizedDescription)"
+                self.synthesizer.stopSpeaking(at: .immediate)
+                self.clearSession()
+            } else {
+                self.activationComplete = true
+                let queued = self.pendingUtterances
+                self.pendingUtterances.removeAll()
+                queued.forEach { self.synthesizer.speak($0) }
+            }
+        }
+    }
+
+    /// Resolves the voice catalog off the main thread and caches the result —
+    /// the first `AVSpeechSynthesisVoice.speechVoices()` call is slow and used
+    /// to land on the main thread at first narrated reply (spec 029 R5).
+    func ensureVoiceCatalogWarmed() async {
+        await warmVoiceCatalog()
+    }
+
+    /// Speaks a zero-volume space so the synthesizer engine is live before
+    /// the first real sentence. Generation-guarded: a barge-in or cancel
+    /// that bumps `sessionGeneration` drops the utterance unused.
+    func warmSynthesizer() {
+        let generation = sessionGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.warmVoiceCatalog()
+            guard self.sessionGeneration == generation, self.speakingMessageID == nil else { return }
+            if let pending = self.activationTask {
+                _ = await pending.value
+            }
+            guard self.sessionGeneration == generation, self.speakingMessageID == nil else { return }
+            let utterance = AVSpeechUtterance(string: " ")
+            utterance.volume = 0
+            utterance.rate = AVSpeechUtteranceMaximumSpeechRate
+            if let voice = self.voice { utterance.voice = voice }
+            self.warmupUtteranceID = ObjectIdentifier(utterance)
+            self.synthesizer.speak(utterance)
+        }
+    }
+
+    var queuedSpeechCount: Int {
+        activeUtteranceIDs.count + pendingUtterances.count
+    }
+
+    func warmVoiceCatalog() async {
+        guard !voiceCacheValid else { return }
+        let identifier = PreferencesService.shared.selectedVoiceIdentifier
+        let resolved = await Task.detached(priority: .utility) { () -> AVSpeechSynthesisVoice? in
+            if let identifier, let chosen = AVSpeechSynthesisVoice(identifier: identifier) {
+                return chosen
+            }
+            return Self.bestVoice()
+        }.value
+        if !voiceCacheValid {
+            cachedVoice = resolved
+            voiceCacheValid = true
+        }
+    }
+
+    /// Quality of the voice narration will actually use (nil until resolvable).
+    /// Drives the one-time compact-voice nudge (spec 029 R8) — call after
+    /// `warmVoiceCatalog()` so this never triggers the slow catalog load.
+    var resolvedVoiceQuality: AVSpeechSynthesisVoiceQuality? {
+        guard voiceCacheValid else { return nil }
+        return cachedVoice?.quality
+    }
+
     // MARK: - Session bookkeeping
 
     private func clearSession() {
@@ -298,9 +484,16 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         isSpeaking = false
         isPaused = false
         activeUtteranceIDs.removeAll()
+        pendingUtterances.removeAll()
         inputComplete = false
+        activationComplete = !managesAudioSession
         deactivateAudioSessionIfNeeded()
-        clearNowPlaying()
+        // Deferred like publishNowPlaying — the clear must not delay the
+        // listen re-arm the drain publisher just triggered.
+        Task { @MainActor [weak self] in
+            guard let self, self.speakingMessageID == nil else { return }
+            self.clearNowPlaying()
+        }
     }
 
     // MARK: - Lock screen (REQ-VOX-005, chat amendment)
@@ -415,28 +608,61 @@ final class VoicePlaybackService: NSObject, ObservableObject {
 
     // MARK: - Audio session (off-main, watchdog-safe)
 
-    private func activateAudioSessionIfNeeded() {
+    private func deactivateAudioSessionIfNeeded() {
         guard managesAudioSession else { return }
-        let generation = sessionGeneration
-        Task.detached(priority: .userInitiated) { [weak self] in
-            do {
-                try Self.performPlaybackSessionSetup()
-            } catch {
-                await MainActor.run { [weak self] in
-                    guard let self, self.sessionGeneration == generation else { return }
-                    self.errorMessage = "Audio playback unavailable: \(error.localizedDescription)"
-                    self.synthesizer.stopSpeaking(at: .immediate)
-                    self.clearSession()
-                }
+        let scheduledGeneration = sessionGeneration
+        // A stop can land while activation is still in flight — the release
+        // must run strictly after that setActive(true), or it deactivates
+        // nothing and the session leaks active.
+        let pendingActivation = activationTask
+        activationTask = nil
+        sessionReleaseTask = Task.detached(priority: .userInitiated) { [weak self] in
+            _ = await pendingActivation?.value
+            // Re-check on the main actor at execution time, not schedule time:
+            // by the time this runs, a new TTS session may have begun (barge-in
+            // → immediate next reply) or a recording may already own the shared
+            // session (inline dictation after the yield sink's stop()). In
+            // either case deactivating would kill a live session that is no
+            // longer ours to release.
+            let shouldRelease = await MainActor.run { [weak self] () -> Bool in
+                guard let self else { return true }
+                return Self.shouldReleaseAudioSession(
+                    scheduledGeneration: scheduledGeneration,
+                    currentGeneration: self.sessionGeneration,
+                    isRecording: self.isRecordingProvider(),
+                    speakingMessageID: self.speakingMessageID
+                )
             }
+            guard shouldRelease else { return }
+            Self.performPlaybackSessionTeardown()
         }
     }
 
-    private func deactivateAudioSessionIfNeeded() {
-        guard managesAudioSession else { return }
-        Task.detached(priority: .userInitiated) {
-            Self.performPlaybackSessionTeardown()
-        }
+    /// Awaits the in-flight session release, if any (spec 028 R3a). The
+    /// narration loop calls this before re-arming the mic so the record
+    /// session's setActive(true) is strictly ordered after our
+    /// setActive(false). Invariant: `clearSession()` assigns
+    /// `sessionReleaseTask` synchronously on the main actor, before any Task
+    /// spawned by the `speakingMessageID = nil` willSet sink can run — so a
+    /// caller reacting to that publish always observes the fresh task here.
+    func waitForSessionRelease() async {
+        await sessionReleaseTask?.value
+    }
+
+    /// Pure decision: may a release scheduled by generation
+    /// `scheduledGeneration` deactivate the shared audio session now?
+    /// False whenever the session is no longer ours to release: the playback
+    /// generation moved on (a newer TTS session owns it), a recording is live
+    /// (STT owns it), or a speaking session is active.
+    nonisolated static func shouldReleaseAudioSession(
+        scheduledGeneration: UInt64,
+        currentGeneration: UInt64,
+        isRecording: Bool,
+        speakingMessageID: UUID?
+    ) -> Bool {
+        scheduledGeneration == currentGeneration
+            && !isRecording
+            && speakingMessageID == nil
     }
 
     /// `.playback` + `.spokenAudio`: music ducks under speech and recovers;
@@ -536,6 +762,12 @@ extension VoicePlaybackService: AVSpeechSynthesizerDelegate {
     ) {
         Task { @MainActor in
             guard self.activeUtteranceIDs.contains(ObjectIdentifier(utterance)) else { return }
+            if !self.isSpeaking {
+                // First audio of the session — the moment the user hears the
+                // reply begin (spec 029 R1 `tts.firstAudio`).
+                PerfSignposts.speechLoop.emitEvent("tts.firstAudio")
+                LiveTurnClock.shared.mark(.ttsFirstAudio)
+            }
             self.isSpeaking = true
         }
     }
@@ -579,6 +811,10 @@ extension VoicePlaybackService: AVSpeechSynthesizerDelegate {
     /// Internal (not fileprivate) so unit tests can drive the state machine
     /// synchronously instead of racing the delegate's main-actor hop.
     func utteranceEnded(_ utterance: AVSpeechUtterance) {
+        if warmupUtteranceID == ObjectIdentifier(utterance) {
+            warmupUtteranceID = nil
+            return
+        }
         guard activeUtteranceIDs.remove(ObjectIdentifier(utterance)) != nil else { return }
         endSessionIfDrained()
     }

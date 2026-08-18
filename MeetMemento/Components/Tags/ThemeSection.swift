@@ -27,12 +27,12 @@ public struct ThemesSection: View {
             // Title
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.accent)
                     .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                 Text(title)
-                    .font(type.body1Bold) // Manrope Bold 17 from Typography.swift
+                    .font(type.body1Bold)
                     .modifier(type.lineSpacingModifier(for: type.sizeLG))
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
             }
             .padding(.horizontal, 4)
 

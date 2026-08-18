@@ -54,7 +54,7 @@ struct InsightMonthPickerSheet: View {
                     Button("Cancel") {
                         isPresented = false
                     }
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -62,7 +62,7 @@ struct InsightMonthPickerSheet: View {
                         onDone()
                         isPresented = false
                     }
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                     .fontWeight(.semibold)
                 }
             }

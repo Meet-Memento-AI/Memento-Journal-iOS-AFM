@@ -4,20 +4,25 @@ This directory contains custom font files for the MeetMemento app.
 
 ## Installed Fonts
 
-### Manrope (Default — app-wide) ✅
-- **Manrope-Regular.ttf** - Body text, captions, micro
-- **Manrope-Medium.ttf** - Labels, buttons, emphasized body
-- **Manrope-Bold.ttf** - All headings (h1–h6), bold body, buttons
+### Figtree (Default UI — h3–h6, body, caption) ✅
+- **Figtree-Regular.ttf** - Captions, micro
+- **Figtree-Medium.ttf** - Body, labels, emphasized caption
+- **Figtree-SemiBold.ttf** - Emphasized body
+- **Figtree-Bold.ttf** - Section headings (h3–h5), h6, bold body, buttons
+- **Figtree-VariableFont_wght.ttf** - Variable source (SIL OFL 1.1)
 
-Default typography uses Manrope for all text. See `Typography.swift`.
+Default typography uses Figtree for UI copy. See `Typography.swift`.
 
-### Lora (Onboarding only) ✅
+### Lora (Display + onboarding) ✅
 - **Lora-Regular.ttf** - Body text on onboarding
 - **Lora-Medium.ttf** - Emphasized body on onboarding
-- **Lora-SemiBold.ttf** - Headings on onboarding
-- **Lora-Bold.ttf** - Bold body on onboarding
+- **Lora-SemiBold.ttf** - Onboarding h3–h5
+- **Lora-Bold.ttf** - h1/h2 display face app-wide; bold body on onboarding
 
-Use `Typography.onboarding` (e.g. on WelcomeView and onboarding flow) to get Lora Serif.
+Use `Typography.onboarding` (e.g. on WelcomeView and onboarding flow) to get Lora throughout.
+
+### Manrope (legacy)
+Manrope files remain in the bundle so leftover call sites do not break. Default UI type is Figtree.
 
 ### Sora (optional / legacy)
 - Sora font files may remain in the bundle for reference but are not used by default typography.
@@ -25,17 +30,20 @@ Use `Typography.onboarding` (e.g. on WelcomeView and onboarding flow) to get Lor
 ## Installation Steps
 
 ✅ **Font files are in place!** Add them to Xcode and ensure Info.plist UIAppFonts includes:
-- Manrope-Regular, Manrope-Medium, Manrope-Bold
+- Figtree-Regular, Figtree-Medium, Figtree-SemiBold, Figtree-Bold, Figtree-VariableFont_wght
 - Lora-Regular, Lora-Medium, Lora-SemiBold, Lora-Bold
+- Manrope-Regular, Manrope-Medium, Manrope-Bold (legacy)
 
 ## Font PostScript Names (Typography.swift)
 
-**Default (Manrope):**
-- `Manrope-Bold` (h1–h5)
-- `Manrope-Regular`, `Manrope-Medium`, `Manrope-Bold` (body, caption, micro, h6)
+**Default:**
+- `Lora-Bold` (h1/h2 display)
+- `Figtree-Bold` (h3–h5)
+- `Figtree-Regular`, `Figtree-Medium`, `Figtree-SemiBold`, `Figtree-Bold` (h6, body, caption, micro)
 
 **Onboarding (Lora):**
-- `Lora-SemiBold` (h1–h5)
+- `Lora-Bold` (h1/h2)
+- `Lora-SemiBold` (h3–h5)
 - `Lora-Regular`, `Lora-Medium`, `Lora-Bold` (body, caption, micro, h6)
 
 ## Testing

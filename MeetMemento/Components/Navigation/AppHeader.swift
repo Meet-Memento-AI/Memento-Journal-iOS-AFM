@@ -31,6 +31,9 @@ enum AppHeaderMetrics {
     /// Bottom pad under the control row, and the 16pt air above the home
     /// indicator (Chat footer / FAB contract).
     static let rowBottomPadding: CGFloat = 16
+    /// Left/right inset for root chrome and content (spec 027). Applied as a
+    /// width shrink *before* Liquid Glass, not as padding around it.
+    static let edgeInset: CGFloat = 16
     /// Breathing room between the header row and the first line of content.
     static let contentGap: CGFloat = 16
     /// Footer / FAB circle diameter (Narration footer buttons and ChatInputField).
@@ -55,6 +58,17 @@ enum AppHeaderMetrics {
             .flatMap(\.windows)
             .first { $0.isKeyWindow }?
             .safeAreaInsets ?? .zero
+    }
+}
+
+extension View {
+    /// Shrinks this view to `container width - 2 × edgeInset` before glass
+    /// samples. Padding around `glassEffect` is ignored on root pages that
+    /// call `.ignoresSafeArea()`; this is not.
+    func rootEdgeInset() -> some View {
+        containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
+            max(length - AppHeaderMetrics.edgeInset * 2, 0)
+        }
     }
 }
 
@@ -96,8 +110,8 @@ struct AppHeader<Leading: View, Trailing: View>: View {
                     Spacer(minLength: 12)
                     trailing
                 }
-                .padding(.horizontal, 16)
                 .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
+                .rootEdgeInset()
             }
         }
         .frame(maxWidth: .infinity)
@@ -160,7 +174,7 @@ private struct OptionalHint: ViewModifier {
 
 #Preview("Journal header") {
     ZStack(alignment: .top) {
-        LinearGradient(colors: [.purple.opacity(0.25), .blue.opacity(0.15)],
+        LinearGradient(colors: [GrayScale.gray100, GrayScale.gray50],
                        startPoint: .top, endPoint: .bottom)
             .ignoresSafeArea()
         AppHeader {
@@ -181,7 +195,7 @@ private struct OptionalHint: ViewModifier {
 
 #Preview("Chat header") {
     ZStack(alignment: .top) {
-        LinearGradient(colors: [.purple.opacity(0.25), .blue.opacity(0.15)],
+        LinearGradient(colors: [GrayScale.gray100, GrayScale.gray50],
                        startPoint: .top, endPoint: .bottom)
             .ignoresSafeArea()
         AppHeader {

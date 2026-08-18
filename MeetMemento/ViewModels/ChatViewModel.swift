@@ -81,6 +81,12 @@ class ChatViewModel: ObservableObject {
         chatService.prewarm()
     }
 
+    /// Prefill the next turn from the current conversation's history.
+    /// Safe to call repeatedly — the intelligence layer dedupes by fingerprint.
+    func prewarmNextTurn() {
+        chatService.prewarmConversation(sessionId: currentSessionId)
+    }
+
     /// Reads the user's first name for personalized welcome messages. No
     /// accounts / no backend (the name is captured during onboarding and
     /// stored locally); this is a local UserDefaults read, kept `async` to
@@ -98,30 +104,22 @@ class ChatViewModel: ObservableObject {
     /// Extracts clean body text from potentially JSON-formatted content
     /// Handles: raw JSON strings, legacy plain text, nested JSON
     /// Also extracts sources/citations for display
-    /// Reads the persisted `safety_presentation` key written by
-    /// `ChatService.assistantContentJSON`. Absent on every message stored before
-    /// spec 026 (and on all ordinary replies), which correctly yields `.none`.
-    private static func storedSafetyPresentation(from content: String) -> ChatSafetyPresentation {
-        guard let data = content.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let raw = json["safety_presentation"] as? String,
-              let presentation = ChatSafetyPresentation(rawValue: raw) else {
-            return .none
-        }
-        return presentation
-    }
-
-    private func extractBodyContent(from content: String, role: String) -> (body: String, aiContent: AIOutputContent?, citations: [JournalCitation]?) {
+    private func extractBodyContent(from content: String, role: String) -> (body: String, aiContent: AIOutputContent?, citations: [JournalCitation]?, safety: ChatSafetyPresentation) {
         guard role == "assistant" else {
-            return (content, nil, nil)
+            return (content, nil, nil, .none)
         }
 
-        // Try parsing as generic JSON with body field and sources
+        // Try parsing as generic JSON with body field and sources. One parse
+        // serves body, headings, citations AND the safety presentation —
+        // loadSession used to re-parse the same string for the safety key
+        // (spec 029 Amendment A).
         if let data = content.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let body = json["body"] as? String {
             let heading1 = json["heading1"] as? String
             let heading2 = json["heading2"] as? String
+            let safety = (json["safety_presentation"] as? String)
+                .flatMap(ChatSafetyPresentation.init(rawValue:)) ?? .none
 
             // Extract sources/citations from stored message
             var citations: [JournalCitation]? = nil
@@ -137,32 +135,23 @@ class ChatViewModel: ObservableObject {
                     let createdAt = source["created_at"] as? String ?? ""
                     sources.append(ChatSource(id: idString, createdAt: createdAt, preview: preview))
 
-                    let date: Date
-                    if let parsed = ISO8601DateFormatter().date(from: createdAt) {
-                        date = parsed
-                    } else {
-                        let formatter = ISO8601DateFormatter()
-                        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                        date = formatter.date(from: createdAt) ?? Date()
-                    }
-
                     return JournalCitation(
                         entryId: entryId,
                         entryTitle: "",
-                        entryDate: date,
+                        entryDate: Self.parseISODate(createdAt) ?? Date(),
                         excerpt: preview
                     )
                 }
             }
 
             let aiContent = AIOutputContent(heading1: heading1, heading2: heading2, body: body, citations: citations)
-            return (body, aiContent, citations)
+            return (body, aiContent, citations, safety)
         }
 
         // Try parsing as AIOutputContent JSON (legacy format without sources)
         if let data = content.data(using: .utf8),
            let parsed = try? JSONDecoder().decode(AIOutputContent.self, from: data) {
-            return (parsed.body, parsed, parsed.citations)
+            return (parsed.body, parsed, parsed.citations, .none)
         }
 
         // Check if content looks like JSON but parsing failed - try to extract body
@@ -177,7 +166,7 @@ class ChatViewModel: ObservableObject {
                     .replacingOccurrences(of: "\\n", with: "\n")
                 if !extracted.isEmpty {
                     let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: extracted)
-                    return (extracted, aiContent, nil)
+                    return (extracted, aiContent, nil, .none)
                 }
             }
 
@@ -185,7 +174,7 @@ class ChatViewModel: ObservableObject {
             AppLogger.log("[ChatViewModel] Raw JSON detected but body extraction failed", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
-            return (fallbackBody, aiContent, nil)
+            return (fallbackBody, aiContent, nil, .none)
         }
 
         // Final check: if content still looks like raw JSON (starts with '{'), sanitize
@@ -194,12 +183,12 @@ class ChatViewModel: ObservableObject {
             AppLogger.log("[ChatViewModel] Unexpected JSON-like content in message", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
-            return (fallbackBody, aiContent, nil)
+            return (fallbackBody, aiContent, nil, .none)
         }
 
         // Not JSON - return as-is (legacy plain text)
         let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: content)
-        return (content, aiContent, nil)
+        return (content, aiContent, nil, .none)
     }
 
     // MARK: - Send Message
@@ -253,12 +242,14 @@ class ChatViewModel: ObservableObject {
 
         track(Task { [weak self] in
             guard let self else { return }
+            LiveTurnClock.shared.beginTurn()
             // Whatever ends the stream — success, error, or cancel — settle the
             // assistant bubble so the typewriter can complete instead of blinking
             // its caret forever. On the success path `.final` already cleared this,
             // so the flip is a no-op; on error/cancel `.final` never arrives, so
             // this is the only thing that settles a partial reply.
             defer {
+                LiveTurnClock.shared.finishAndLog()
                 if let idx = messages.firstIndex(where: { $0.id == assistantId }),
                    messages[idx].isStreaming {
                     messages[idx].isStreaming = false
@@ -270,6 +261,32 @@ class ChatViewModel: ObservableObject {
                 }
             }
             var sawContent = false
+
+            // Delta coalescing (spec 029 R6): snapshots can arrive far faster
+            // than 30Hz, and every application replaces the message value and
+            // re-diffs the transcript. Bodies are cumulative, so intermediate
+            // snapshots are safely superseded — apply at most every 33ms, with
+            // a trailing flush so a stream stall can't leave the bubble stale.
+            let deltaClock = ContinuousClock()
+            let minDeltaInterval: Duration = .milliseconds(33)
+            var lastDeltaApply = deltaClock.now - minDeltaInterval
+            var pendingDelta: (body: String, heading1: String?, heading2: String?,
+                               citations: [JournalCitation]?)?
+            // Mapped once per turn — the reviewed set is constant across deltas.
+            var reviewedCitations: [JournalCitation]?
+            var deltaFlushTask: Task<Void, Never>?
+            defer { deltaFlushTask?.cancel() }
+
+            @MainActor func applyPendingDelta() {
+                guard let d = pendingDelta else { return }
+                pendingDelta = nil
+                lastDeltaApply = deltaClock.now
+                updateStreamingMessage(id: assistantId, body: d.body,
+                                       heading1: d.heading1, heading2: d.heading2,
+                                       citations: d.citations,
+                                       isStreaming: true)
+            }
+
             do {
                 for try await event in chatService.sendMessageStream(text, sessionId: currentSessionId) {
                     // Cancelled or superseded mid-flight (user left / switched
@@ -283,14 +300,33 @@ class ChatViewModel: ObservableObject {
                         sawContent = sawContent || !body.isEmpty
                         // Reviewed-journals citations arrive from the first delta on
                         // grounded turns, so the "Reviewed your journals" link shows
-                        // right away rather than waiting for `.final`.
-                        let reviewed = mapSourcesToCitations(sources)
-                        updateStreamingMessage(id: assistantId, body: body,
-                                               heading1: heading1, heading2: heading2,
-                                               citations: reviewed.isEmpty ? nil : reviewed,
-                                               isStreaming: true)
+                        // right away rather than waiting for `.final`. The set is
+                        // constant for the whole turn (computed before the model's
+                        // first token), so map it once, not per delta
+                        // (spec 029 Amendment A: this ran per snapshot on main).
+                        if reviewedCitations == nil {
+                            let mapped = mapSourcesToCitations(sources)
+                            reviewedCitations = mapped.isEmpty ? nil : mapped
+                        }
+                        pendingDelta = (body, heading1, heading2, reviewedCitations)
+                        if deltaClock.now - lastDeltaApply >= minDeltaInterval {
+                            deltaFlushTask?.cancel()
+                            deltaFlushTask = nil
+                            applyPendingDelta()
+                        } else if deltaFlushTask == nil {
+                            deltaFlushTask = Task { [weak self] in
+                                try? await Task.sleep(for: minDeltaInterval)
+                                guard !Task.isCancelled, let self,
+                                      generation == self.sendGeneration else { return }
+                                applyPendingDelta()
+                                deltaFlushTask = nil
+                            }
+                        }
 
                     case .final(let response):
+                        deltaFlushTask?.cancel()
+                        deltaFlushTask = nil
+                        pendingDelta = nil
                         // Handle new-session creation (first message of a chat).
                         if let newSessionId = UUID(uuidString: response.sessionId), currentSessionId == nil {
                             currentSessionId = newSessionId
@@ -308,6 +344,10 @@ class ChatViewModel: ObservableObject {
                                                isStreaming: false)
                         sawContent = sawContent || !response.reply.isEmpty
                         if let sessionId = currentSessionId { messageCache[sessionId] = messages }
+                        // Next-turn prefill while the user reads / the typewriter
+                        // settles — history now includes this turn (persisted
+                        // before `.final`).
+                        prewarmNextTurn()
                     }
                 }
             } catch {
@@ -409,6 +449,7 @@ class ChatViewModel: ObservableObject {
             messages = cached
             // Still load feedback for cached messages
             await loadFeedbackForMessages()
+            prewarmNextTurn()
             return
         }
 
@@ -419,7 +460,13 @@ class ChatViewModel: ObservableObject {
         do {
             let messageDTOs = try await chatService.loadSessionMessages(sessionId: session.id)
             let loadedMessages = messageDTOs.map { dto -> ChatMessage in
-                let (body, aiContent, citations) = extractBodyContent(from: dto.content, role: dto.role)
+                // One parse per message: body, headings, citations, and the
+                // spec 026 safety presentation (restored so reopening a saved
+                // conversation re-renders the crisis card rather than
+                // silently downgrading it to prose) all come from the same
+                // extraction (spec 029 Amendment A — this used to parse the
+                // JSON twice per assistant message).
+                let (body, aiContent, citations, safety) = extractBodyContent(from: dto.content, role: dto.role)
 
                 if dto.role == "assistant", let aiContent = aiContent {
                     // Loaded messages: isNew = false (default) - no animation
@@ -429,10 +476,7 @@ class ChatViewModel: ObservableObject {
                         heading2: aiContent.heading2,
                         body: body,
                         citations: citations,
-                        // Spec 026: restore the Safety route so reopening a saved
-                        // conversation re-renders the crisis card rather than
-                        // silently downgrading it to prose.
-                        safetyPresentation: Self.storedSafetyPresentation(from: dto.content)
+                        safetyPresentation: safety
                     )
                 }
 
@@ -444,6 +488,7 @@ class ChatViewModel: ObservableObject {
             messageCache[session.id] = loadedMessages
             // Load feedback state for the messages
             await loadFeedbackForMessages()
+            prewarmNextTurn()
         } catch {
             AppLogger.log("[ChatViewModel] loadSession error: \(error)", type: .error)
             errorMessage = "Failed to load conversation history."
@@ -462,6 +507,7 @@ class ChatViewModel: ObservableObject {
         inputText = ""
         thumbsUpMessages = []
         thumbsDownMessages = []
+        prewarmNextTurn()
     }
 
     /// Deletes a session and refreshes the sessions list
@@ -687,23 +733,27 @@ class ChatViewModel: ObservableObject {
     /// user could not act on and that misdescribed every real failure.
     private static let genericFailureMessage = "I couldn't put a reply together just now. Please try again."
 
+    /// Static and reused (spec 029 Amendment A): this used to allocate 1–2
+    /// fresh formatters per source, and it ran per streamed delta on the main
+    /// actor. ISO8601DateFormatter is thread-safe.
+    private static let isoPlain = ISO8601DateFormatter()
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    static func parseISODate(_ string: String) -> Date? {
+        isoPlain.date(from: string) ?? isoFractional.date(from: string)
+    }
+
     private func mapSourcesToCitations(_ sources: [ChatSource]) -> [JournalCitation] {
         sources.compactMap { source in
             guard let entryId = UUID(uuidString: source.id) else { return nil }
-
-            let date: Date
-            if let parsed = ISO8601DateFormatter().date(from: source.createdAt) {
-                date = parsed
-            } else {
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                date = formatter.date(from: source.createdAt) ?? Date()
-            }
-
             return JournalCitation(
                 entryId: entryId,
                 entryTitle: "",
-                entryDate: date,
+                entryDate: Self.parseISODate(source.createdAt) ?? Date(),
                 excerpt: source.preview
             )
         }

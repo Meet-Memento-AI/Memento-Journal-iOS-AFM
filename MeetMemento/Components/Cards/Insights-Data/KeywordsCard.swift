@@ -24,12 +24,12 @@ struct KeywordsCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(type.body2Bold)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.accent)
 
                 Text("KEYWORDS")
                     .font(type.captionBold)
                     .tracking(0.5)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
 
                 Spacer()
             }
@@ -42,30 +42,11 @@ struct KeywordsCard: View {
             }
         }
         .padding(24)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    PrimaryScale.primary700,
-                    PrimaryScale.primary800
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            PrimaryScale.primary400,
-                            PrimaryScale.primary800
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+                .stroke(theme.border, lineWidth: 1)
         )
     }
 }

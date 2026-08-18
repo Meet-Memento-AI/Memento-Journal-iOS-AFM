@@ -43,7 +43,7 @@ public struct EditAboutYourselfView: View {
                 if isLoading {
                     Spacer()
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: theme.primary))
+                        .progressViewStyle(CircularProgressViewStyle(tint: theme.foreground))
                     Spacer()
                 } else {
                     // Content area
@@ -219,7 +219,7 @@ public struct EditAboutYourselfView: View {
             Text("\(characterCount) / 100 min")
                 .font(type.caption)
                 .foregroundStyle(
-                    characterCount >= 100 ? theme.primary :
+                    characterCount >= 100 ? theme.accent :
                     theme.mutedForeground.opacity(0.6)
                 )
         }

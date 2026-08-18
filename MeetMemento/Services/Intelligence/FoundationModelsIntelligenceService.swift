@@ -35,6 +35,7 @@
 
 import Foundation
 import FoundationModels
+import os
 
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
@@ -43,14 +44,18 @@ import FoundationModels
 /// the provided set so a citation can never be fabricated.
 @Generable
 struct AskAnswer {
+    // Field order is decode order for guided generation (spec 029 Amendment A):
+    // `body` leads so the first visible token never waits on the two optional
+    // heading decisions; `citedRefs` trails so a token-cap truncation can only
+    // cost citations (which reconcile falls back for), never body text.
+    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. Match the user's length: one or two sentences for casual turns, three to five for journal questions. Never pad to ten sentences.")
+    let body: String
+
     @Guide(description: "Optional short heading for analytical, multi-part answers. Empty for casual replies.")
     let heading1: String?
 
     @Guide(description: "Optional rare subheading. Usually empty.")
     let heading2: String?
-
-    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. Three to ten sentences.")
-    let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
     let citedRefs: [Int]
@@ -97,12 +102,82 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
     private var cachedAvailability: IntelligenceAvailability?
 
-    /// A prewarmed session held so the first send doesn't pay the cold model
-    /// load. Prewarming any session loads the shared on-device model weights,
-    /// which benefits the next `respond` regardless of which session runs it.
-    /// (Phase 3 extends this into a per-conversation persistent session.)
-    private var warmSession: LanguageModelSession?
-    private var warmInstructions: String?
+    /// The speculatively prewarmed next-turn session (spec 029 Amendment A).
+    /// Built ahead of time from an `AskTranscriptPlan` — instructions PLUS the
+    /// history tail as real transcript turns — so a matching turn pays neither
+    /// model load, instruction prefill, nor history prefill; only evidence +
+    /// question remain on the live call. Adopted only on exact fingerprint
+    /// match and used exactly once; misses (degraded route, personalization
+    /// change, history drift) fall back to an inline build. Stateless
+    /// architecture unchanged (spec 017 R9): every session is fresh and the
+    /// store owns the history both sides derive from.
+    private var speculativeSession: LanguageModelSession?
+    private var speculativeFingerprint: String?
+
+    /// Consumes the speculative session iff its plan fingerprint matches.
+    private func takeSpeculativeSession(matching fingerprint: String) -> LanguageModelSession? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        guard speculativeFingerprint == fingerprint, let session = speculativeSession else { return nil }
+        speculativeSession = nil
+        speculativeFingerprint = nil
+        return session
+    }
+
+    /// Maps the pure plan 1:1 onto a FoundationModels transcript session.
+    private static func makeSession(from plan: AskTranscriptPlan) -> LanguageModelSession {
+        var entries: [Transcript.Entry] = []
+        entries.reserveCapacity(plan.entries.count)
+        for entry in plan.entries {
+            switch entry {
+            case .instructions(let text):
+                entries.append(.instructions(Transcript.Instructions(
+                    segments: [.text(Transcript.TextSegment(content: text))],
+                    toolDefinitions: []
+                )))
+            case .userPrompt(let text):
+                entries.append(.prompt(Transcript.Prompt(
+                    segments: [.text(Transcript.TextSegment(content: text))]
+                )))
+            case .assistantResponse(let text):
+                entries.append(.response(Transcript.Response(
+                    assetIDs: [],
+                    segments: [.text(Transcript.TextSegment(content: text))]
+                )))
+            }
+        }
+        return LanguageModelSession(transcript: Transcript(entries: entries))
+    }
+
+    /// Speculatively builds and prefills the session for the NEXT turn of a
+    /// conversation with this history. Callers time it for idle windows —
+    /// after `.final` in typed chat, after TTS drains in narration (while the
+    /// user is speaking), and on conversation open. Deduped by fingerprint so
+    /// overlapping triggers are harmless.
+    func prewarmConversation(history: [ChatTurn]) {
+        Task.detached(priority: .utility) { [weak self] in
+            guard let self else { return }
+            let instructions = PromptRegistry.instructions(
+                for: .ask,
+                personalization: PromptPersonalization.fromLocalProfile()
+            ).text
+            let budget = ContextBudget(window: Self.currentWindow())
+            let plan = AskTranscriptPlan.build(
+                instructions: instructions, history: history, budget: budget
+            )
+            self.stateLock.lock()
+            let alreadyWarm = self.speculativeFingerprint == plan.fingerprint
+                && self.speculativeSession != nil
+            self.stateLock.unlock()
+            guard !alreadyWarm else { return }
+
+            let session = Self.makeSession(from: plan)
+            self.stateLock.lock()
+            self.speculativeSession = session
+            self.speculativeFingerprint = plan.fingerprint
+            self.stateLock.unlock()
+            session.prewarm()
+        }
+    }
 
     // MARK: Availability
 
@@ -140,24 +215,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Warms the on-device model ahead of the first send (call when the chat
     /// view appears / the input gains focus). Cheap and idempotent; safe to
     /// call when the model is unavailable (the session simply can't run).
+    /// Now a speculative empty-history warm — the first turn of a fresh
+    /// conversation adopts it by fingerprint (spec 029 Amendment A).
     func prewarm() {
-        let instructions = PromptRegistry.instructions(
-            for: .ask,
-            personalization: PromptPersonalization.fromLocalProfile()
-        ).text
-        stateLock.lock()
-        let needsNew = (warmSession == nil || warmInstructions != instructions)
-        if needsNew {
-            let session = LanguageModelSession(instructions: instructions)
-            warmSession = session
-            warmInstructions = instructions
-            stateLock.unlock()
-            session.prewarm()
-        } else {
-            let session = warmSession
-            stateLock.unlock()
-            session?.prewarm()
-        }
+        prewarmConversation(history: [])
     }
 
     private static func map(_ reason: SystemLanguageModel.Availability.UnavailableReason) -> IntelligenceUnavailableReason {
@@ -223,11 +284,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .reported(let tokens): windowDescription = "\(tokens)"
         case .unavailable: windowDescription = "unreported"
         }
-        AppLogger.log(
-            "[Intelligence] intent=\(intent) requested=\(route.requestedZone.identifier) "
-            + "ran=\(route.executionZone.identifier) reason=\(route.reason.rawValue) "
-            + "degraded=\(route.wasDegraded) prompt=\(promptVersion) "
-            + "latency=\(ms)ms window=\(windowDescription) entries=\(entryCount)"
+        // os.Logger, not the DEBUG-only print: this is the one per-turn
+        // latency record (spec 029 R1) and it is content-free by construction,
+        // so it is safe as public metadata and useful in release traces.
+        PerfSignposts.perfLog.info(
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount)"
         )
     }
 
@@ -247,6 +308,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt: String
         let resolved: ResolvedPrompt
         let budget: ContextBudget
+        /// The session transcript (instructions + history tail) this turn
+        /// runs against — and the adoption key for speculative sessions.
+        let plan: AskTranscriptPlan
 
         var zone: TrustZone { request.zone }
     }
@@ -260,9 +324,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
         }
 
+        let signposter = PerfSignposts.chatTurn
+        let spid = signposter.makeSignpostID()
+
+        // Route is an await (quota / PCC). Overlap it with the sync safety
+        // and classify work so a pinned-to-device ask doesn't pay the hop
+        // after those have already finished (spec 029 P5).
+        async let routeTask = resolveRoute(for: .ask)
+
         // Spec 026: deterministic Safety layer BEFORE retrieval so crisis /
         // violence / CSAM turns never pull journal evidence into the model.
+        LiveTurnClock.shared.start(.prepSafety)
+        let safetyState = signposter.beginInterval("prep.safety", id: spid)
         let safety = SafetyRouter.decide(question)
+        signposter.endInterval("prep.safety", safetyState)
+        LiveTurnClock.shared.end(.prepSafety)
         SafetyMetrics.record(safety)
         switch safety.action {
         case .showCrisisCard:
@@ -273,18 +349,26 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             break
         }
 
-        let route = await resolveRoute(for: .ask)
         let budget = ContextBudget(window: Self.currentWindow())
+
+        // Conversational turn architecture: classify the current message,
+        // decide retrieval by policy, then hand the model an explicit stance —
+        // logic decides the stance, the prompt obeys it.
+        LiveTurnClock.shared.start(.prepClassify)
+        let classifyState = signposter.beginInterval("prep.classify", id: spid)
+        let turn = TurnClassifier.classify(question, hasHistory: !history.isEmpty)
+        signposter.endInterval("prep.classify", classifyState)
+        LiveTurnClock.shared.end(.prepClassify)
+
+        let route = await routeTask
         // A degraded route narrows the evidence: the smaller model grounds a
         // reply better from less context than from more (technology/02 §8).
         let limits = route.useDegradedPrompt
             ? RetrievalLimits(budget: budget).narrowed()
             : RetrievalLimits(budget: budget)
 
-        // Conversational turn architecture: classify the current message,
-        // decide retrieval by policy, then hand the model an explicit stance —
-        // logic decides the stance, the prompt obeys it.
-        let turn = TurnClassifier.classify(question, hasHistory: !history.isEmpty)
+        LiveTurnClock.shared.start(.prepRetrieve)
+        let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
         let retrieval: RetrievalResult
         switch RetrievalPolicy.mode(for: turn) {
         case .none:
@@ -310,6 +394,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 entries: entries, limits: limits
             )
         }
+        signposter.endInterval("prep.retrieve", retrieveState)
+        LiveTurnClock.shared.end(.prepRetrieve)
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
         let prompt = Self.buildAskPrompt(
             question: question,
@@ -334,8 +420,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: resolved.version,
             toolsEnabled: false
         )
+        let plan = AskTranscriptPlan.build(
+            instructions: resolved.text, history: history, budget: budget
+        )
         return AskPreparation(request: request, route: route, retrieval: retrieval, stance: stance,
-                              prompt: prompt, resolved: resolved, budget: budget)
+                              prompt: prompt, resolved: resolved, budget: budget, plan: plan)
     }
 
     /// Builds the final `AskResult` (citations reconciled, reference markers
@@ -377,17 +466,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let clock = ContinuousClock()
         let started = clock.now
         let prep = try await prepareAsk(question: question, history: history, entries: entries)
-        let session = LanguageModelSession(instructions: prep.resolved.text)
+        let session = takeSpeculativeSession(matching: prep.plan.fingerprint)
+            ?? Self.makeSession(from: prep.plan)
         do {
             let response = try await session.respond(
                 to: prep.prompt,
                 generating: AskAnswer.self,
-                options: GenerationOptions(temperature: 0.7)
+                options: Self.askOptions
             )
             let answer = response.content
-            return try makeResult(heading1: answer.heading1, heading2: answer.heading2,
+            let result = try makeResult(heading1: answer.heading1, heading2: answer.heading2,
                               body: answer.body, citedRefs: answer.citedRefs,
                               prep: prep, question: question, latency: clock.now - started)
+            return result
         } catch let error as IntelligenceError {
             throw error
         } catch let error as LanguageModelSession.GenerationError {
@@ -397,18 +488,63 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
+    /// Ask generation options (spec 029 Amendment A). Temperature stays 0.7 —
+    /// per-token sampling cost is negligible against prefill/decode, and
+    /// greedy would flatten the companion's voice for determinism nobody
+    /// asked for. `maximumResponseTokens` is a pure runaway guard: ten
+    /// sentences ≈ 250 output tokens; 512 is ~2× headroom including headings,
+    /// citedRefs, and structure tokens. Truncation can only clip trailing
+    /// fields (see AskAnswer's field-order comment).
+    private static let askOptions = GenerationOptions(temperature: 0.7, maximumResponseTokens: 512)
+
+    /// A stream with no new snapshot for this long is stalled (spec 029 R7).
+    static let generationWatchdogTimeout: Duration = .seconds(30)
+    /// How far the incremental output-safety scan re-reads behind its
+    /// watermark. An unsafe phrase either lies in already-scanned text, in the
+    /// new suffix, or spans the boundary — and no scanner pattern matches more
+    /// than this many characters, so re-reading the overlap makes the
+    /// suffix-only scan exactly equivalent to a full scan (spec 029 R3).
+    static let outputScanOverlapChars = 128
+
+    /// The last streamed snapshot's tail, carried out of the task group.
+    private struct StreamTail: Sendable {
+        var heading1: String?
+        var heading2: String?
+        var body = ""
+        var citedRefs: [Int] = []
+    }
+
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let clock = ContinuousClock()
                 let started = clock.now
+                let signposter = PerfSignposts.chatTurn
+                let spid = signposter.makeSignpostID()
                 do {
+                    let prepState = signposter.beginInterval("prep", id: spid)
                     let prep = try await prepareAsk(question: question, history: history, entries: entries)
-                    let session = LanguageModelSession(instructions: prep.resolved.text)
+                    signposter.endInterval("prep", prepState)
+
+                    // Spec 029 Amendment A: adopt the speculative session when
+                    // its transcript fingerprint matches — weights, instruction
+                    // prefill, AND history prefill are then already paid;
+                    // only evidence + question remain on this call.
+                    LiveTurnClock.shared.start(.sessionCreate)
+                    let sessionState = signposter.beginInterval("session.create", id: spid)
+                    let adopted = takeSpeculativeSession(matching: prep.plan.fingerprint)
+                    signposter.emitEvent(adopted != nil ? "speculative.hit" : "speculative.miss", id: spid)
+                    let session = adopted ?? Self.makeSession(from: prep.plan)
+                    signposter.endInterval("session.create", sessionState)
+                    LiveTurnClock.shared.end(.sessionCreate)
+
+                    LiveTurnClock.shared.start(.modelFirstToken)
+                    let ttftState = signposter.beginInterval("model.ttft", id: spid)
+
                     let stream = session.streamResponse(
                         to: prep.prompt,
                         generating: AskAnswer.self,
-                        options: GenerationOptions(temperature: 0.7)
+                        options: Self.askOptions
                     )
                     // The journals retrieval surfaced for a grounded turn — known
                     // now, before the first token. Emitting them on every delta
@@ -419,51 +555,125 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let reviewed = Self.reconcileCitations(
                         [], retrieval: prep.retrieval, question: question
                     )
-                    var lastHeading1: String?
-                    var lastHeading2: String?
-                    var lastBody = ""
-                    var lastCitedRefs: [Int] = []
-                    for try await snapshot in stream {
-                        let content = snapshot.content
-                        lastBody = content.body ?? ""
-                        lastHeading1 = content.heading1 ?? nil
-                        lastHeading2 = content.heading2 ?? nil
-                        if let refs = content.citedRefs { lastCitedRefs = refs }
-                        // Emit the cleaned body-so-far so the live reply matches
-                        // exactly what gets persisted at the end.
-                        let cleaned = Self.strippingReferenceMarkers(lastBody)
 
-                        // Spec 026 R7: scan the partial body BEFORE showing it.
-                        // The end-of-stream scan in makeResult is too late for the
-                        // UI — every token has already been yielded and rendered,
-                        // so an unsafe reply would be read before being replaced.
-                        // Scanning each snapshot means offending text never reaches
-                        // the bubble at all.
-                        if let hit = OutputSafetyScanner.scan(cleaned) {
-                            SafetyMetrics.record(
-                                SafetyDecision(category: hit.category, action: hit.action, confidence: 1)
-                            )
-                            switch hit.action {
-                            case .showCrisisCard:
-                                throw IntelligenceError.crisisResource
-                            case .hardRefuse, .continueConstrained, .continue:
-                                throw IntelligenceError.safetyRefusal(hit.category)
+                    // Watchdog clock, shared with the watchdog child task.
+                    let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
+
+                    let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
+                        group.addTask {
+                            var tail = StreamTail()
+                            // Strip memo: snapshots frequently repeat the body while
+                            // headings/citedRefs settle — skip the (linear, cached-
+                            // regex) re-strip when the raw body is unchanged.
+                            var lastRawBody = ""
+                            var lastCleaned = ""
+                            // Character count cached alongside — `String.count`
+                            // is an O(n) walk and ran twice per snapshot.
+                            var lastCleanedCount = 0
+                            // Incremental scan watermark: characters of the cleaned
+                            // body already proven safe.
+                            var scannedCount = 0
+                            var sawFirstSnapshot = false
+                            var streamState: OSSignpostIntervalState?
+                            defer {
+                                if let streamState {
+                                    signposter.endInterval("model.stream", streamState)
+                                    LiveTurnClock.shared.end(.modelStream)
+                                } else {
+                                    signposter.endInterval("model.ttft", ttftState)
+                                    LiveTurnClock.shared.end(.modelFirstToken)
+                                }
+                            }
+                            for try await snapshot in stream {
+                                lastProgress.withLock { $0 = clock.now }
+                                if !sawFirstSnapshot {
+                                    sawFirstSnapshot = true
+                                    signposter.endInterval("model.ttft", ttftState)
+                                    LiveTurnClock.shared.end(.modelFirstToken)
+                                    LiveTurnClock.shared.mark(.modelFirstToken)
+                                    signposter.emitEvent("model.firstSnapshot", id: spid)
+                                    LiveTurnClock.shared.start(.modelStream)
+                                    streamState = signposter.beginInterval("model.stream", id: spid)
+                                }
+                                let content = snapshot.content
+                                tail.body = content.body ?? ""
+                                tail.heading1 = content.heading1 ?? nil
+                                tail.heading2 = content.heading2 ?? nil
+                                if let refs = content.citedRefs { tail.citedRefs = refs }
+
+                                // Emit the cleaned body-so-far so the live reply
+                                // matches exactly what gets persisted at the end.
+                                let cleaned: String
+                                if tail.body == lastRawBody {
+                                    cleaned = lastCleaned
+                                } else {
+                                    cleaned = Self.strippingReferenceMarkers(tail.body)
+                                    lastRawBody = tail.body
+                                    lastCleaned = cleaned
+                                }
+
+                                // Spec 026 R7: scan the partial body BEFORE showing
+                                // it — offending text must never reach the bubble.
+                                // Incremental and exact: only the new suffix plus the
+                                // overlap window needs scanning (see
+                                // outputScanOverlapChars). Stripping can shrink the
+                                // cleaned body; a shrink resets the watermark.
+                                if cleaned.count < scannedCount { scannedCount = 0 }
+                                let scanStart = max(0, scannedCount - Self.outputScanOverlapChars)
+                                if let hit = OutputSafetyScanner.scan(String(cleaned.dropFirst(scanStart))) {
+                                    SafetyMetrics.record(
+                                        SafetyDecision(category: hit.category, action: hit.action, confidence: 1)
+                                    )
+                                    switch hit.action {
+                                    case .showCrisisCard:
+                                        throw IntelligenceError.crisisResource
+                                    case .hardRefuse, .continueConstrained, .continue:
+                                        throw IntelligenceError.safetyRefusal(hit.category)
+                                    }
+                                }
+                                scannedCount = cleaned.count
+
+                                continuation.yield(.delta(
+                                    bodySoFar: cleaned,
+                                    heading1: tail.heading1?.isEmpty == true ? nil : tail.heading1,
+                                    heading2: tail.heading2?.isEmpty == true ? nil : tail.heading2,
+                                    reviewedCitations: reviewed
+                                ))
+                            }
+                            return tail
+                        }
+                        // Watchdog (spec 029 R7): a stream that stops producing
+                        // snapshots for the timeout window is stalled — fail the
+                        // turn with a designed error instead of hanging forever.
+                        group.addTask {
+                            while !Task.isCancelled {
+                                do { try await Task.sleep(for: .seconds(5)) } catch { return nil }
+                                let idle = lastProgress.withLock { clock.now - $0 }
+                                if idle >= Self.generationWatchdogTimeout {
+                                    throw IntelligenceError.generationTimedOut
+                                }
+                            }
+                            return nil
+                        }
+                        while let next = try await group.next() {
+                            if let tail = next {
+                                group.cancelAll()
+                                return tail
                             }
                         }
-
-                        continuation.yield(.delta(
-                            bodySoFar: cleaned,
-                            heading1: lastHeading1?.isEmpty == true ? nil : lastHeading1,
-                            heading2: lastHeading2?.isEmpty == true ? nil : lastHeading2,
-                            reviewedCitations: reviewed
-                        ))
+                        throw IntelligenceError.generationFailed("Stream ended without a result.")
                     }
-                    let result = try makeResult(heading1: lastHeading1, heading2: lastHeading2,
-                                            body: lastBody, citedRefs: lastCitedRefs,
+
+                    let result = try makeResult(heading1: tail.heading1, heading2: tail.heading2,
+                                            body: tail.body, citedRefs: tail.citedRefs,
                                             prep: prep, question: question,
                                             latency: clock.now - started)
                     continuation.yield(.final(result))
                     continuation.finish()
+                    // Next-turn warming is caller-driven now (spec 029 Am. A):
+                    // ChatViewModel/.final, narration's post-drain listen, and
+                    // conversation open all call prewarmNextTurn with the
+                    // just-updated history.
                 } catch let error as IntelligenceError {
                     continuation.finish(throwing: error)
                 } catch let error as LanguageModelSession.GenerationError {
@@ -676,18 +886,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
-        // History depth comes from the runtime window rather than a fixed count,
-        // so a larger-window device carries more thread context without anyone
-        // retuning a constant (CONSTITUTION §4 rule 5's corollary).
-        let recent = history.suffix(budget.maxHistoryTurns)
-        if !recent.isEmpty {
-            let convo = recent
-                .map { ($0.role == .user ? "You: " : "Memento: ")
-                    + String($0.text.prefix(budget.maxHistoryCharsPerTurn)) }
-                .joined(separator: "\n")
-            parts.append("Conversation so far (most recent last):\n\(convo)")
+        // History no longer renders here (spec 029 Amendment A): it rides the
+        // session transcript as real turns (AskTranscriptPlan), where its
+        // prefill can be paid speculatively. Only the anti-repeat rule stays
+        // per-turn — it must not fire on turn one.
+        if !history.isEmpty {
             parts.append(
-                "Do not reuse openings, questions, or entry summaries already present in Conversation so far."
+                "Do not reuse openings, questions, or entry summaries you already used earlier in this conversation."
             )
         }
         parts.append("The person's latest message: \(question)")
@@ -707,42 +912,49 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ///
     /// Inline citations return in a later release; this whole function goes
     /// away then, along with the prompt bans.
-    static func strippingReferenceMarkers(_ body: String) -> String {
-        // Ordered: bracketed/parenthesised ref forms, then bare square-bracket
-        // numbers, then a bare "ref 2". Each tolerates lists ("ref 1 and 2").
+    /// Compiled once (spec 029 R3): these ran fresh on every streamed snapshot,
+    /// which multiplied ~6 regex compiles by the snapshot count of every reply.
+    /// Ordered: bracketed/parenthesised ref forms, then bare square-bracket
+    /// numbers, then a bare "ref 2". Each tolerates lists ("ref 1 and 2").
+    private static let markerRegexes: [NSRegularExpression] = {
         let numberList = #"\d+(?:\s*(?:,|and|&)\s*\d+)*"#
         let patterns = [
             #"\s*[\[(]\s*refs?\.?\s*#?"# + numberList + #"\s*[\])]"#,
             #"\s*\[\s*"# + numberList + #"\s*\]"#,
             #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#
         ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
+    }()
 
+    /// Tidy what removal left behind: a space before punctuation, doubled
+    /// spaces, and an emptied parenthesis pair.
+    private static let cleanupRegexes: [(regex: NSRegularExpression, template: String)] = {
+        let cleanups: [(String, String)] = [
+            (#"\s+([,.;:!?])"#, "$1"),
+            (#"[ \t]{2,}"#, " "),
+            (#"\(\s*\)"#, "")
+        ]
+        return cleanups.compactMap { pattern, template in
+            (try? NSRegularExpression(pattern: pattern)).map { ($0, template) }
+        }
+    }()
+
+    static func strippingReferenceMarkers(_ body: String) -> String {
         var out = body
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+        for regex in markerRegexes {
             out = regex.stringByReplacingMatches(
                 in: out,
                 range: NSRange(out.startIndex..., in: out),
                 withTemplate: ""
             )
         }
-
-        // Tidy what removal left behind: a space before punctuation, doubled
-        // spaces, and a space before a closing bracket.
-        let cleanups: [(String, String)] = [
-            (#"\s+([,.;:!?])"#, "$1"),
-            (#"[ \t]{2,}"#, " "),
-            (#"\(\s*\)"#, "")
-        ]
-        for (pattern, template) in cleanups {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+        for (regex, template) in cleanupRegexes {
             out = regex.stringByReplacingMatches(
                 in: out,
                 range: NSRange(out.startIndex..., in: out),
                 withTemplate: template
             )
         }
-
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

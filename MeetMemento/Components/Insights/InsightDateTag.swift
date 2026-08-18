@@ -45,7 +45,7 @@ public struct InsightDateTag: View {
         .padding(.vertical, 6)
         .background(
             Capsule()
-                .fill(InsightDateTag.purpleBackground)
+                .fill(InsightDateTag.brandBackground)
         )
     }
 
@@ -111,8 +111,11 @@ public extension InsightDateTag {
 // MARK: - Colors
 
 private extension InsightDateTag {
-    static let purpleBackground = PrimaryScale.primary500  // #7B3EC9
-    static let lightText = PrimaryScale.primary50  // #F2EEFC
+    /// 600, not 500 — `lightText` is drawn on this, and cordovan-500 is light
+    /// enough that the pair falls to 3.41:1. 600 gives 5.17:1.
+    /// Hexes deliberately not repeated here; they live in `PrimaryScale`.
+    static let brandBackground = PrimaryScale.primary900
+    static let lightText = BaseColors.white
 }
 
 // MARK: - Previews

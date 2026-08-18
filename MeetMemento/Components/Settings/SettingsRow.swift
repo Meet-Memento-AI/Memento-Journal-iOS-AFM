@@ -67,7 +67,7 @@ struct SettingsRow: View {
             // Icon — fixed 20pt to match toggle/selectable/info rows
             Image(systemName: icon)
                 .font(.system(size: 20)) // icon-size: not user text
-                .foregroundStyle(isDestructive ? theme.destructive : theme.primary)
+                .foregroundStyle(isDestructive ? theme.destructive : theme.foreground)
                 .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
 
@@ -90,7 +90,7 @@ struct SettingsRow: View {
             // Trailing element
             if showProgress {
                 ProgressView()
-                    .tint(theme.primary)
+                    .tint(theme.foreground)
             } else if showChevron {
                 Image(systemName: "chevron.right")
                     .font(type.body2Bold)

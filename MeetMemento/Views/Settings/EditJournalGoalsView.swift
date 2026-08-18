@@ -31,7 +31,7 @@ public struct EditJournalGoalsView: View {
                 if isLoading {
                     Spacer()
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: theme.primary))
+                        .progressViewStyle(CircularProgressViewStyle(tint: theme.foreground))
                     Spacer()
                 } else {
                     ScrollView {
@@ -181,11 +181,11 @@ public struct EditJournalGoalsView: View {
             HStack {
                 if isRebuilding {
                     ProgressView()
-                        .tint(theme.primary)
+                        .tint(theme.foreground)
                 }
                 Text(isRebuilding ? "Rebuilding…" : "Rebuild lens")
                     .font(type.body2Bold)
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)

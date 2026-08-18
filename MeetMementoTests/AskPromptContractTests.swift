@@ -5,7 +5,7 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask@6")
+        XCTAssertEqual(resolved.version, "ask@8")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@6+p2")
+        XCTAssertEqual(resolved.version, "ask@8+p2")
         XCTAssertTrue(resolved.text.contains("Themes they chose: Stress, Clarity"))
         XCTAssertTrue(resolved.text.contains("Personalization lens:"))
         // With themes/lens present, raw reflection must not be quoted into L1.
@@ -59,7 +59,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@6+p2")
+        XCTAssertEqual(resolved.version, "ask@8+p2")
         XCTAssertTrue(resolved.text.contains("I want to understand my stress patterns more deeply"))
     }
 
@@ -71,8 +71,19 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@6+p2")
+        XCTAssertEqual(resolved.version, "ask-degraded@8+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
+    }
+
+    func test_ask8_matchesUserLength_onFullAndDegraded() {
+        for degraded in [false, true] {
+            let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
+            XCTAssertTrue(text.contains("Never pad"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("one or two"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("three to five"), "degraded=\(degraded)")
+            XCTAssertFalse(text.contains("Three to ten"), "degraded=\(degraded)")
+            XCTAssertFalse(text.contains("Three to six"), "degraded=\(degraded)")
+        }
     }
 
     func test_ask6_safetyHardBans_onFullAndDegraded() {

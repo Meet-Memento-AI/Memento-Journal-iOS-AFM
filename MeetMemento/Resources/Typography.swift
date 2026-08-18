@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Typography
-// Default app typography uses Manrope for all text (headings, body, caption, micro).
-// Use Typography.onboarding for onboarding screens (Lora Serif).
+// Default app typography uses Lora for h1/h2 (display) and Figtree for
+// h3–h6, body, caption, and micro. Use Typography.onboarding for
+// onboarding screens (Lora throughout).
 // All sizes support Dynamic Type scaling via @ScaledMetric.
 
 public struct Typography {
@@ -43,16 +45,16 @@ public struct Typography {
     // MARK: - Configurable Properties
     public let headingWeight: Font.Weight
 
-    /// Default app typography: Lora for the h1/h2 display sizes, Manrope for
-    /// everything else.
+    /// Default app typography: Lora for the h1/h2 display sizes, Figtree for
+    /// everything else (h3–h6, body, caption).
     public init(headingWeight: Font.Weight = .semibold) {
         self.headingWeight = headingWeight
-        self.displayFontName = "Lora-SemiBold"
-        self.headingFontName = "Manrope-Bold"
-        self.bodyRegularFontName = "Manrope-Regular"
-        self.bodyMediumFontName = "Manrope-Medium"
-        self.bodySemiBoldFontName = "Manrope-SemiBold"
-        self.bodyBoldFontName = "Manrope-Bold"
+        self.displayFontName = "Lora-Bold"
+        self.headingFontName = "Figtree-Bold"
+        self.bodyRegularFontName = "Figtree-Regular"
+        self.bodyMediumFontName = "Figtree-Medium"
+        self.bodySemiBoldFontName = "Figtree-SemiBold"
+        self.bodyBoldFontName = "Figtree-Bold"
     }
 
     /// Internal init for custom font families (e.g. onboarding with Lora).
@@ -76,7 +78,7 @@ public struct Typography {
 
     /// Typography for onboarding screens: Lora Serif for headings and body.
     public static let onboarding: Typography = Typography(
-        displayFontName: "Lora-SemiBold",
+        displayFontName: "Lora-Bold",
         headingFontName: "Lora-SemiBold",
         bodyRegularFontName: "Lora-Regular",
         bodyMediumFontName: "Lora-Medium",
@@ -96,8 +98,17 @@ public struct Typography {
     /// Line spacing for h6 (16pt) — 2px smaller than default heading spacing.
     public var h6LineSpacing: CGFloat { max(0, headingLineSpacing(for: sizeLG) - 2) }
 
-    // Body text line spacing for body1/body2
-    public var bodyLineSpacing: CGFloat { 4 }
+    /// Extra SwiftUI `.lineSpacing` so the line box is 150% of `size`
+    /// (`size * 1.5 - UIFont.lineHeight`). SwiftUI's value is the gap
+    /// *above* the font's built-in line height, not CSS `line-height`.
+    public func bodyLineSpacing(for size: CGFloat) -> CGFloat {
+        let font = UIFont(name: bodyMediumFontName, size: size)
+            ?? .systemFont(ofSize: size)
+        return max(0, size * 1.5 - font.lineHeight)
+    }
+
+    /// Body1 (16pt) line spacing — 24pt line box.
+    public var bodyLineSpacing: CGFloat { bodyLineSpacing(for: sizeLG) }
 
     // MARK: - Font Helpers
     /// h1/h2 only — the serif display face.
@@ -123,7 +134,7 @@ public struct Typography {
     }
 
     // MARK: - Headings (h1-h6)
-    // h1/h2 are Lora SemiBold (the display face); h3-h5 are Manrope Bold, or
+    // h1/h2 are Lora Bold (the display face); h3-h5 are Figtree Bold, or
     // Lora SemiBold throughout in the onboarding scale.
     /// 40pt - Major display heading
     public var h1: Font { displayFont(size: size4XL) }

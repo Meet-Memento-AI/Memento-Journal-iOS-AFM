@@ -20,11 +20,11 @@ public struct AISummarySection: View {
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 10, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.accent)
 
                 Text("YOUR AI SUMMARY")
                     .font(type.h6)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
             }
 
             // Main content
@@ -32,14 +32,14 @@ public struct AISummarySection: View {
                 // Title (max 4 lines)
                 Text(title)
                     .font(type.h2)
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
                     .lineLimit(5)
                     .multilineTextAlignment(.leading)
 
                 // Body paragraph (max 300 words)
                 Text(bodyText)
                     .font(type.body1)
-                    .foregroundStyle(theme.overlayTextSecondary)
+                    .foregroundStyle(theme.mutedForeground)
                     .multilineTextAlignment(.leading)
             }
         }
@@ -53,8 +53,8 @@ public struct AISummarySection: View {
         // Purple gradient background to match Insights view
         LinearGradient(
             gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
+                GrayScale.gray50,
+                GrayScale.gray50
             ]),
             startPoint: .topLeading,
             endPoint: .bottomTrailing

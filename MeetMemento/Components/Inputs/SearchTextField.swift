@@ -22,7 +22,7 @@ struct SearchTextField: View {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: "magnifyingglass")
                     .font(type.body1)
-                    .foregroundStyle(isFocused ? theme.primary : theme.mutedForeground)
+                    .foregroundStyle(isFocused ? theme.accent : theme.mutedForeground)
 
                 TextField(placeholder, text: $text)
                     .font(type.input)
@@ -51,7 +51,7 @@ struct SearchTextField: View {
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous)
-                    .stroke(isFocused ? theme.primary : .clear, lineWidth: 2)
+                    .stroke(isFocused ? theme.accent : .clear, lineWidth: 2)
             )
 
             // Cancel button
@@ -60,7 +60,7 @@ struct SearchTextField: View {
             } label: {
                 Text("Cancel")
                     .typographyBody2()
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
             }
             .accessibilityLabel("Cancel search")
         }

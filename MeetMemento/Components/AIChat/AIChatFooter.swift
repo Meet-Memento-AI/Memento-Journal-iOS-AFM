@@ -35,9 +35,9 @@ struct AIChatFooter: View {
             onNarrate: onNarrate,
             isInteractive: !isSending
         )
-        // 16pt sides and 16pt above the field. Bottom offset is
-        // `windowBottom + 16`, applied by AIChatView's scaffold.
-        .padding(.horizontal, 16)
+        // 16pt above the field. Horizontal inset is `rootEdgeInset()` on the
+        // capsule, applied before glass. Bottom offset is `windowBottom + 16`,
+        // applied by AIChatView's scaffold.
         .padding(.top, 16)
         .opacity(isSending ? 0.7 : 1.0)
     }

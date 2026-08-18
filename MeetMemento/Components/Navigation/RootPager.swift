@@ -111,7 +111,7 @@ private struct RootPagerPreview: View {
     var body: some View {
         RootPager(selection: $page) { page in
             ZStack {
-                (page == .journal ? Color.blue : Color.purple).opacity(0.2)
+                GrayScale.gray100
                 VStack(spacing: 16) {
                     Text(page == .journal ? "Journal" : "Chat").font(.largeTitle)
                     Button("Go to the other page") {

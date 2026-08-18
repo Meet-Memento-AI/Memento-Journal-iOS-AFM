@@ -19,13 +19,13 @@ enum SafetyClassifier {
 
         var hits: [SafetyCategory] = []
 
-        if matches(normalized, any: csamPatterns) { hits.append(.csam) }
-        if matches(normalized, any: terrorismPatterns) { hits.append(.terrorismMassViolence) }
-        if matches(normalized, any: violencePatterns) { hits.append(.violenceOthers) }
-        if matches(normalized, any: crisisPatterns) { hits.append(.selfHarmCrisis) }
-        if matches(normalized, any: hatePatterns) { hits.append(.hateHarassment) }
-        if matches(normalized, any: jailbreakPatterns) { hits.append(.jailbreak) }
-        if matches(normalized, any: regulatedAdvicePatterns) { hits.append(.regulatedAdvice) }
+        if matches(normalized, anyOf: csamRegexes) { hits.append(.csam) }
+        if matches(normalized, anyOf: terrorismRegexes) { hits.append(.terrorismMassViolence) }
+        if matches(normalized, anyOf: violenceRegexes) { hits.append(.violenceOthers) }
+        if matches(normalized, anyOf: crisisRegexes) { hits.append(.selfHarmCrisis) }
+        if matches(normalized, anyOf: hateRegexes) { hits.append(.hateHarassment) }
+        if matches(normalized, anyOf: jailbreakRegexes) { hits.append(.jailbreak) }
+        if matches(normalized, anyOf: regulatedAdviceRegexes) { hits.append(.regulatedAdvice) }
 
         guard let top = hits.min(by: { $0.precedence < $1.precedence }) else {
             return .clear
@@ -103,18 +103,58 @@ enum SafetyClassifier {
         #"\b(invest(ment)? advice|which stock|guaranteed return)\b"#
     ]
 
-    // MARK: - Helpers
+    // MARK: - Precompiled packs (spec 029 Amendment A)
+    //
+    // Each pack is compiled once at first touch of the static — a plain array
+    // walk on the hot path, no lock and no long-pattern-string hash per call
+    // (the dictionary cache below cost up to ~24 lock+hash round trips per
+    // classification, and OutputSafetyScanner re-runs classification per
+    // streamed snapshot). `compactMap` drops an invalid pattern, the same
+    // silent no-match the `try?` compile gave. Options stay `.caseInsensitive`,
+    // exactly like the per-call compile these packs always used.
 
-    static func normalize(_ text: String) -> String {
-        text
-            .lowercased()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+    static let csamRegexes = compile(csamPatterns)
+    static let terrorismRegexes = compile(terrorismPatterns)
+    static let violenceRegexes = compile(violencePatterns)
+    static let crisisRegexes = compile(crisisPatterns)
+    static let hateRegexes = compile(hatePatterns)
+    static let jailbreakRegexes = compile(jailbreakPatterns)
+    static let regulatedAdviceRegexes = compile(regulatedAdvicePatterns)
+
+    static func compile(_ patterns: [String]) -> [NSRegularExpression] {
+        patterns.compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
     }
 
+    // MARK: - Helpers
+
+    /// Collapses runs of whitespace (same `\s+` the old inline regex used).
+    private static let whitespaceRunRegex = try? NSRegularExpression(pattern: #"\s+"#, options: [.caseInsensitive])
+
+    static func normalize(_ text: String) -> String {
+        let lowered = text
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let regex = whitespaceRunRegex else { return lowered }
+        let range = NSRange(lowered.startIndex..<lowered.endIndex, in: lowered)
+        return regex.stringByReplacingMatches(in: lowered, options: [], range: range, withTemplate: " ")
+    }
+
+    static func matches(_ text: String, anyOf regexes: [NSRegularExpression]) -> Bool {
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        for regex in regexes {
+            if regex.firstMatch(in: text, options: [], range: range) != nil {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// String-pattern entry point, kept for OutputSafetyScanner's packs and the
+    /// parity tests. Off the classify() hot path — that walks the precompiled
+    /// arrays above.
     static func matches(_ text: String, any patterns: [String]) -> Bool {
         for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+            if let regex = cachedRegex(pattern) {
                 let range = NSRange(text.startIndex..<text.endIndex, in: text)
                 if regex.firstMatch(in: text, options: [], range: range) != nil {
                     return true
@@ -122,5 +162,28 @@ enum SafetyClassifier {
             }
         }
         return false
+    }
+
+    // MARK: - Regex cache
+
+    /// Compile-once cache for callers that hold string patterns
+    /// (OutputSafetyScanner). Compiled regexes are immutable and thread-safe;
+    /// the lock only guards the dictionary. Same `.caseInsensitive` semantics
+    /// as the precompiled packs above.
+    private static let regexLock = NSLock()
+    private static var regexCache: [String: NSRegularExpression] = [:]
+
+    /// Internal (not private) so tests can assert the cache returns the same
+    /// compiled instance. Returns nil only for an invalid pattern — the same
+    /// silent no-match the old `try?` gave.
+    static func cachedRegex(_ pattern: String) -> NSRegularExpression? {
+        regexLock.lock()
+        defer { regexLock.unlock() }
+        if let cached = regexCache[pattern] { return cached }
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        regexCache[pattern] = regex
+        return regex
     }
 }

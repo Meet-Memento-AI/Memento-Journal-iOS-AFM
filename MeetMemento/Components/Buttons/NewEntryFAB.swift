@@ -104,7 +104,7 @@ public struct PositionedNewEntryFAB: View {
 
 #Preview("Light") {
     ZStack {
-        LinearGradient(colors: [.blue.opacity(0.3), .purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: [GrayScale.gray100, GrayScale.gray50], startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
         VStack { Spacer(); HStack { Spacer(); NewEntryFAB { }.padding(20) } }
     }

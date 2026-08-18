@@ -90,6 +90,40 @@ final class EntryRetrieverConfidenceTests: XCTestCase {
         XCTAssertTrue(EntryRetriever.retrieve(RetrievalQuery(currentMessage: "   "), entries: gibberishCorpus()).isEmpty)
     }
 
+    // MARK: - Cached keyword text (spec 029: no per-turn lowercasing)
+
+    func test_retrieve_isStableAcrossRepeatedCalls() {
+        // The lowercased-text and vector caches must not change what a second
+        // identical call returns.
+        var entries = gibberishCorpus()
+        entries.append(entry("marathon training", "long marathon run this morning, legs sore"))
+        let query = RetrievalQuery(currentMessage: "how did marathon prep go")
+        let first = EntryRetriever.retrieve(query, entries: entries)
+        let second = EntryRetriever.retrieve(query, entries: entries)
+        XCTAssertEqual(first, second)
+        XCTAssertFalse(second.isAmbient)
+    }
+
+    func test_editedEntry_sameId_invalidatesCachedKeywordText() {
+        let editedId = UUID()
+        var entries = gibberishCorpus()
+        // First pass caches the entry's (gibberish) lowercased text under its
+        // content hash.
+        entries.append(Entry(id: editedId, title: "vontrel", text: "quibbins darnop weffle nurmid",
+                             createdAt: Date().addingTimeInterval(-86_400), updatedAt: Date()))
+        let query = RetrievalQuery(currentMessage: "how did marathon training go")
+        XCTAssertTrue(EntryRetriever.retrieve(query, entries: entries).isAmbient)
+
+        // Same id, new content — a stale cache would still score the old text
+        // and miss the now-obvious match.
+        entries[entries.count - 1] = Entry(id: editedId, title: "marathon training",
+                                           text: "long marathon run this morning",
+                                           createdAt: Date().addingTimeInterval(-86_400), updatedAt: Date())
+        let after = EntryRetriever.retrieve(query, entries: entries)
+        XCTAssertFalse(after.isAmbient)
+        XCTAssertTrue(after.entries.contains { $0.id == editedId })
+    }
+
     func test_ambientContextBlock_usesBackgroundHeader() {
         let result = EntryRetriever.retrieve(
             RetrievalQuery(currentMessage: "nothing in common here at all"),

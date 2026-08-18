@@ -253,7 +253,8 @@ struct RichTextParser {
                 result.append(boldAttr)
 
             } else if matchedText.hasPrefix("*") && matchedText.hasSuffix("*") {
-                // Italic text - emphasize with medium weight since Manrope doesn't have italic
+                // Italic text - emphasize with medium weight since the bundled
+                // Figtree files do not include italic
                 let innerText = String(matchedText.dropFirst(1).dropLast(1))
                 var italicAttr = AttributedString(innerText)
                 // Use oblique text transform as fallback for italic

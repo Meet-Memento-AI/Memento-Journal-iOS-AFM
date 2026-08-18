@@ -364,7 +364,7 @@ public struct JournalView: View {
                     Button("Cancel") {
                         showMonthPicker = false
                     }
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -372,7 +372,7 @@ public struct JournalView: View {
                         updateSelectedDate()
                         showMonthPicker = false
                     }
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                     .fontWeight(.semibold)
                 }
             }

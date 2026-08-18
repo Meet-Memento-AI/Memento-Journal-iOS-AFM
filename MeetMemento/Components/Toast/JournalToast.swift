@@ -18,7 +18,7 @@ struct JournalToast: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 20)) // icon-size: not user text
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(theme.accent)
 
             Text(message)
                 .font(type.body2)

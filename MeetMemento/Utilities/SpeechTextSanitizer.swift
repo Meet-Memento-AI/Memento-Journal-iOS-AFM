@@ -27,21 +27,10 @@ enum SpeechTextSanitizer {
         // 2. Citation/reference markers: [2], [ref 3], "ref 1 and 2"…
         out = FoundationModelsIntelligenceService.strippingReferenceMarkers(out)
 
-        // 3a. Markdown links: keep the text, drop the URL.
-        out = replacing(out, pattern: #"\[([^\]]+)\]\(\s*[^)]*\)"#, template: "$1")
-        // 3b. Bare URLs: nothing worth speaking.
-        out = replacing(out, pattern: #"https?://\S+"#, template: "")
-
-        // 4. Emphasis wrappers, innermost text kept. ** before * so the bold
-        //    fence isn't consumed as two italics.
-        out = replacing(out, pattern: #"\*\*([^*]+)\*\*"#, template: "$1")
-        out = replacing(out, pattern: #"\*([^*\n]+)\*"#, template: "$1")
-        out = replacing(out, pattern: #"(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])"#, template: "$1")
-        out = replacing(out, pattern: #"`([^`\n]*)`"#, template: "$1")
-
-        // 5. Line-start structure: headings, bullets, ordered-list numbers.
-        out = replacing(out, pattern: #"(?m)^\s*#{1,6}\s+"#, template: "")
-        out = replacing(out, pattern: #"(?m)^\s*(?:[-*•]\s+|\d+\.\s+)"#, template: "")
+        // 3–5 + 7. Links, emphasis, structure, whitespace — cached regexes.
+        for step in replacements {
+            out = apply(step.regex, to: out, template: step.template)
+        }
 
         // 6. Emoji — mirrors scripts/ci/speakability_lint.py in spirit. The
         //    value floor keeps digits/#/* (which report isEmoji for keycaps).
@@ -51,9 +40,10 @@ enum SpeechTextSanitizer {
         }))
 
         // 7. Whitespace: collapse blank-line runs and space runs, trim.
-        out = replacing(out, pattern: #"\n{3,}"#, template: "\n\n")
-        out = replacing(out, pattern: #"[ \t]{2,}"#, template: " ")
-        out = replacing(out, pattern: #"(?m)[ \t]+$"#, template: "")
+        // After emoji so removed glyphs don't leave double spaces behind.
+        for step in whitespaceReplacements {
+            out = apply(step.regex, to: out, template: step.template)
+        }
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -74,9 +64,54 @@ enum SpeechTextSanitizer {
 
     // MARK: - Helpers
 
+    private struct CachedReplace {
+        let regex: NSRegularExpression
+        let template: String
+    }
+
+    /// Compiled once (spec 029 R3 / latency sweep P3). Order matches `sanitize`.
+    private static let replacements: [CachedReplace] = {
+        let patterns: [(String, String)] = [
+            (#"\[([^\]]+)\]\(\s*[^)]*\)"#, "$1"),
+            (#"https?://\S+"#, ""),
+            (#"\*\*([^*]+)\*\*"#, "$1"),
+            (#"\*([^*\n]+)\*"#, "$1"),
+            (#"(?<![A-Za-z0-9])_([^_\n]+)_(?![A-Za-z0-9])"#, "$1"),
+            (#"`([^`\n]*)`"#, "$1"),
+            (#"(?m)^\s*#{1,6}\s+"#, ""),
+            (#"(?m)^\s*(?:[-*•]\s+|\d+\.\s+)"#, "")
+        ]
+        return patterns.compactMap { pattern, template in
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            return CachedReplace(regex: regex, template: template)
+        }
+    }()
+
+    private static let whitespaceReplacements: [CachedReplace] = {
+        let patterns: [(String, String)] = [
+            (#"\n{3,}"#, "\n\n"),
+            (#"[ \t]{2,}"#, " "),
+            (#"(?m)[ \t]+$"#, "")
+        ]
+        return patterns.compactMap { pattern, template in
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            return CachedReplace(regex: regex, template: template)
+        }
+    }()
+
     private static func replacing(_ text: String, pattern: String, template: String) -> String {
+        // sanitize() uses the cached table; this overload stays for any
+        // leftover call site and still compiles the pattern once per unique
+        // string via the table lookup.
+        if let cached = replacements.first(where: { $0.template == template && $0.regex.pattern == pattern }) {
+            return apply(cached.regex, to: text, template: cached.template)
+        }
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
-        return regex.stringByReplacingMatches(
+        return apply(regex, to: text, template: template)
+    }
+
+    private static func apply(_ regex: NSRegularExpression, to text: String, template: String) -> String {
+        regex.stringByReplacingMatches(
             in: text,
             range: NSRange(text.startIndex..., in: text),
             withTemplate: template

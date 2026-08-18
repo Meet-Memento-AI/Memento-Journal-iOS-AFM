@@ -208,7 +208,7 @@ public struct WelcomeView: View {
 
             // Headline - centered
             Text("Journal with your voice, reflect privately on your device")
-                .font(.custom("Lora-SemiBold", size: 32))
+                .font(.custom("Lora-Bold", size: 32))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)

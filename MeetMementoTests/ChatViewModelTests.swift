@@ -35,6 +35,8 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.messages.count, 2)
         XCTAssertTrue(vm.messages[0].isFromUser)
         XCTAssertFalse(vm.messages[1].isFromUser)
+        XCTAssertEqual(mock.prewarmConversationSessionIds, [sessionId],
+                       "next-turn prewarm must run after .final with the new session")
     }
 
     func test_ChatViewModel_sendMessage_genericError() async throws {

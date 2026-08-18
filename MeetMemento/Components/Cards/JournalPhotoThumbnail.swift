@@ -48,9 +48,9 @@ struct JournalPhotoThumbnail: View {
                 .font(.system(size: 12, weight: .bold)) // icon-size: not user text
                 .foregroundStyle(theme.foreground)
                 .frame(width: 28, height: 28)
-                .background(Circle().fill(theme.cardBackground))
-                .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                .glassEffect(.regular.interactive(), in: .circle)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Remove photo")
         .accessibilityHint("Double-tap to remove the attached photo")
     }

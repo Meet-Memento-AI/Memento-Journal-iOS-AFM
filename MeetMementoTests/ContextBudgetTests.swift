@@ -32,23 +32,25 @@ final class ContextBudgetTests: XCTestCase {
 
     // MARK: Scaling
 
-    /// A bigger window must buy more depth. On a 4096-token device the app
-    /// should behave roughly as it always has; at 8192 it should reach further
-    /// into the journal without anyone retuning a constant.
-    func test_largerWindow_buysMoreDepth() {
-        let small = ContextBudget(window: .reported(tokens: 4096))
-        let large = ContextBudget(window: .reported(tokens: 8192))
+    /// A bigger window buys more depth — below the latency clamp (spec 029
+    /// Amendment A). Past the clamp, prefill time is what a bigger payload
+    /// buys, so growth is deliberately flat; the growth assertion therefore
+    /// uses windows on the growing side of the curve.
+    func test_largerWindow_buysMoreDepth_belowTheClamp() {
+        let small = ContextBudget(window: .reported(tokens: 2048))
+        let large = ContextBudget(window: .reported(tokens: 4096))
 
         XCTAssertGreaterThan(large.maxRetrievedEntries, small.maxRetrievedEntries)
         XCTAssertGreaterThanOrEqual(large.maxHistoryTurns, small.maxHistoryTurns)
         XCTAssertGreaterThan(large.totalAllocatedChars, small.totalAllocatedChars)
     }
 
-    /// Monotonic across the whole range the platform can report — 4096 on iOS 26
-    /// devices, 8192 on newer iOS 27 hardware, 32768 on PCC. None of those
-    /// numbers appear in the module; they are inputs here because a test is
-    /// exactly where a concrete window belongs.
-    func test_budget_isMonotonicInWindowSize() {
+    /// Monotonic (non-decreasing) across the whole range the platform can
+    /// report — 4096 on iOS 26 devices, 8192 on newer iOS 27 hardware, 32768 on
+    /// PCC. None of those numbers appear in the module; they are inputs here
+    /// because a test is exactly where a concrete window belongs. Growth up to
+    /// the latency clamp, then flat — never a regression.
+    func test_budget_isMonotonicUpToTheClamp() {
         let windows = [1024, 2048, 4096, 8192, 16384, 32768]
         let budgets = windows.map { ContextBudget(window: .reported(tokens: $0)) }
 
@@ -56,6 +58,41 @@ final class ContextBudgetTests: XCTestCase {
             XCTAssertLessThanOrEqual(smaller.maxRetrievedEntries, larger.maxRetrievedEntries)
             XCTAssertLessThanOrEqual(smaller.maxHistoryTurns, larger.maxHistoryTurns)
             XCTAssertLessThanOrEqual(smaller.totalAllocatedChars, larger.totalAllocatedChars)
+        }
+    }
+
+    // MARK: Latency clamp (spec 029 Amendment A)
+
+    /// The clamp is a prefill-latency budget, not a window constant: however
+    /// large the reported window, evidence stays within 3 500 chars and history
+    /// within 2 000, because payload past that buys time-to-first-token, not
+    /// answer quality.
+    func test_reportedWindows_respectTheLatencyBudgets() {
+        for tokens in [4096, 8192, 16384] {
+            let budget = ContextBudget(window: .reported(tokens: tokens))
+
+            XCTAssertLessThanOrEqual(
+                budget.maxRetrievedEntries * budget.maxEntryChars, 3_500,
+                "evidence payload for \(tokens) exceeds the prefill-latency budget"
+            )
+            XCTAssertLessThanOrEqual(
+                budget.maxHistoryTurns * budget.maxHistoryCharsPerTurn, 2_000,
+                "history payload for \(tokens) exceeds the prefill-latency budget"
+            )
+        }
+    }
+
+    /// Once the clamp binds, a bigger window changes nothing: the budget is
+    /// flat by design, so window growth can never smuggle latency back in.
+    func test_beyondTheClamp_budgetIsFlat() {
+        let clamped = ContextBudget(window: .reported(tokens: 4096))
+        for tokens in [8192, 16384, 32768] {
+            let larger = ContextBudget(window: .reported(tokens: tokens))
+
+            XCTAssertEqual(larger.maxRetrievedEntries, clamped.maxRetrievedEntries)
+            XCTAssertEqual(larger.maxEntryChars, clamped.maxEntryChars)
+            XCTAssertEqual(larger.maxHistoryTurns, clamped.maxHistoryTurns)
+            XCTAssertEqual(larger.maxHistoryCharsPerTurn, clamped.maxHistoryCharsPerTurn)
         }
     }
 

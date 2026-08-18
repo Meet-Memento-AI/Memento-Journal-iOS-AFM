@@ -145,17 +145,19 @@ struct SettingsView: View {
             default: return "\(chosen.name) — compact; a downloaded Enhanced voice sounds better"
             }
         }
-        let language = AVSpeechSynthesisVoice.currentLanguageCode()
-        let prefix = (language.split(separator: "-").first.map(String.init) ?? language) + "-"
-        let hasNatural = AVSpeechSynthesisVoice.speechVoices().contains {
-            $0.language.hasPrefix(prefix)
-                && ($0.quality == .enhanced || $0.quality == .premium)
-                && !$0.voiceTraits.contains(.isNoveltyVoice)
-                && !$0.voiceTraits.contains(.isPersonalVoice)
+        // Automatic: read the warmed resolution instead of enumerating the
+        // whole voice catalog during a body render — the first speechVoices()
+        // call is slow and this computed property runs on every Settings
+        // render (spec 029 R5). ChatService.prewarm warms the cache; if
+        // Settings opens first, warm it here and show a neutral label until
+        // the next render.
+        if let quality = VoicePlaybackService.shared.resolvedVoiceQuality {
+            return quality == .enhanced || quality == .premium
+                ? "Automatic — best voice on this device"
+                : "Compact voice — download an Enhanced voice for natural speech"
         }
-        return hasNatural
-            ? "Automatic — best voice on this device"
-            : "Compact voice — download an Enhanced voice for natural speech"
+        Task { await VoicePlaybackService.shared.warmVoiceCatalog() }
+        return "Automatic"
     }
 
     /// The app lock, controllable after onboarding. `SecuritySettingsView`

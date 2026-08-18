@@ -144,8 +144,16 @@ bypass note is mandatory** per guideline 2.1).
       empty dark slot and the byte-identical fake "tinted" entry **removed** from
       `Contents.json` (R2 allows removal; iOS falls back to the light icon). Real
       dark/tinted artwork can be added later as a design task. (R2)
-- [x] 3. `AccentColor` set to brand primary: light `#7B3EC9` (primary500), dark
-      `#9869D5` (primary400) — mirrors `Theme.swift`'s per-scheme `theme.primary`. (R3)
+- [x] 3. `AccentColor` set to brand primary — mirrors `Theme.swift`'s per-scheme
+      `theme.primary`. (R3) **Re-pointed 2026-08-17 (B&W canvas):** light
+      `#2C1E19` (ink / `PrimaryScale.primary900`), dark `#FFFFFF`. Previously
+      `#A87549` / `#C89A6E` (mid-brown). Mid-brown is now `theme.accent` only.
+      Note the colorset is a hand-maintained duplicate of the theme value —
+      nothing derives it, so it must be changed by hand whenever `theme.primary`
+      moves.
+      **Still open:** the brand purple remains baked into the `Memento-Logo`,
+      `Memento-Logo-White-Text`, `LaunchLogo` and `AppIcon` artwork; those need
+      re-exporting from Figma before the rebrand is complete in the store listing.
 - [x] 4. All four sample targets removed via `xcodeproj` gem (targets, build phases,
       configs, product refs, `TargetAttributes`, groups). **Notable finding during
       re-verify:** the app target *depended on and embedded* `Sign In with Apple.appex`

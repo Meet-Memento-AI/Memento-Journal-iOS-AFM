@@ -104,7 +104,7 @@ enum RetrievalPolicy {
         for turn in history.reversed() where turn.role == .user {
             checked += 1
             if checked > maxWalkback { return nil }
-            let type = TurnClassifier.classify(turn.text, hasHistory: true)
+            let type = classifyHistoryTurn(turn.text)
             switch type {
             case .followup, .acknowledgement, .social, .meta:
                 continue
@@ -113,6 +113,32 @@ enum RetrievalPolicy {
             }
         }
         return nil
+    }
+
+    // MARK: - History classification memo
+
+    /// `followupAnchor` re-classifies up to `maxWalkback` prior user turns on
+    /// every follow-up send, and the same history repeats send after send.
+    /// Small bounded memo (FIFO eviction at `memoLimit`) keyed by turn text —
+    /// classify(_:hasHistory: true) is deterministic, so the cached answer is
+    /// exactly what a fresh call would return. NSLock-guarded; internal (not
+    /// private) so tests can hit it directly.
+    private static let memoLock = NSLock()
+    private static var memo: [String: TurnType] = [:]
+    private static var memoOrder: [String] = []
+    private static let memoLimit = 32
+
+    static func classifyHistoryTurn(_ text: String) -> TurnType {
+        memoLock.lock()
+        defer { memoLock.unlock() }
+        if let cached = memo[text] { return cached }
+        let type = TurnClassifier.classify(text, hasHistory: true)
+        memo[text] = type
+        memoOrder.append(text)
+        if memoOrder.count > memoLimit {
+            memo.removeValue(forKey: memoOrder.removeFirst())
+        }
+        return type
     }
 
     /// Resolves the final stance from the turn type and what retrieval

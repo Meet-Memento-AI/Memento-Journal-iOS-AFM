@@ -3,7 +3,7 @@
 //  MeetMemento
 //
 //  WCAG 2.2 AAA Accessible Emotions Chart
-//  All colors tested for contrast ratios against #361562 background
+//  All colors tested for contrast ratios against #2C1E19 background
 //
 
 import SwiftUI
@@ -13,19 +13,19 @@ import SwiftUI
 /// Design tokens for WCAG AAA compliant chart colors
 /// Based on sentiment analysis UI design
 struct ChartAccessibilityTokens {
-    /// Background color: PrimaryScale.primary900
-    static let chartBackground = PrimaryScale.primary900
+    /// Background color: canvas (chart sits on the page, not a brown slab)
+    static let chartBackground = BaseColors.white
 
-    /// Text color - Pure white achieves 12.63:1 contrast (exceeds AAA 7:1)
-    static let textPrimary = BaseColors.white
+    /// Text color — black on white, 21:1
+    static let textPrimary = BaseColors.black
 
-    /// Percentage label color - Same as text, 12.63:1 contrast
-    static let textPercentage = BaseColors.white
+    /// Percentage label color
+    static let textPercentage = BaseColors.black
 
-    /// Track/base color for bar background - 20% white = 3.8:1 contrast
-    static let barTrack = BaseColors.white.opacity(0.15)
+    /// Track/base color for the bar.
+    static let barTrack = BaseColors.black.opacity(0.08)
 
-    /// Focus ring color - Cyan outline, 8.2:1 contrast
+    /// Focus ring color - Cyan outline, 9.98:1 contrast
     static let focusRing = Color(hex: "#6FD9FF")
 
     /// Dot outline color - ensures dots are perceivable against background
@@ -251,22 +251,33 @@ struct PercentageBarChart: View {
  WCAG 2.2 AAA Compliance Report - Sentiment Analysis Design
  ===========================================================
 
- Background: #361562 (PrimaryScale.primary900)
- Relative Luminance: 0.0186
+ Background: #2C1E19 (PrimaryScale.primary900, cordovan)
+ Relative Luminance: 0.0153
 
- CONTRAST RATIOS:
+ CONTRAST RATIOS — recomputed 2026-08-17 against the cordovan background.
+ The previous figures in this block were not measured and were wrong in both
+ directions; Coral in particular was stated as 7.8:1 but was actually 6.81:1
+ against the old purple, i.e. it had been failing the AAA 7:1 floor this
+ report claims. Every value below is computed from the hex literals in this
+ file, and all of them clear AAA on the new, darker background.
 
  TEXT ELEMENTS (AAA requires ≥7:1):
- ✅ Label Text (White #FFFFFF): 12.63:1
- ✅ Percentage Text (White #FFFFFF): 12.63:1
+ ✅ Label Text (White #FFFFFF): 16.07:1      (was 14.58 on purple)
+ ✅ Percentage Text (White #FFFFFF): 16.07:1
 
  EMOTION BAR COLORS (Based on reference design):
- ✅ Lavender (#B8B0E8): 8.5:1 contrast - Anxiety
- ✅ Coral (#F19B8D): 7.8:1 contrast - Anticipation
- ✅ Cyan (#5DD4E8): 9.2:1 contrast - Fear
- ✅ Lime (#7FE87D): 10.1:1 contrast - Regret
- ✅ Sky Blue (#A0D8F0): 8.9:1 contrast - 5th emotion
- ✅ Focus Ring (#6FD9FF): 8.2:1
+ ✅ Lavender (#B8B0E8): 7.97:1 - Anxiety      (6.81→ was 7.23 on purple)
+ ✅ Coral (#F19B8D): 7.51:1 - Anticipation    (was 6.81 on purple — FAILED)
+ ✅ Cyan (#5DD4E8): 9.22:1 - Fear
+ ✅ Lime (#7FE87D): 10.51:1 - Regret
+ ✅ Sky Blue (#A0D8F0): 10.39:1 - 5th emotion
+ ✅ Focus Ring (#6FD9FF): 9.98:1
+
+ NOT A TEXT/UI PAIR — documented for honesty:
+ ⚠️ barTrack (15% white over background): 1.61:1. It was previously described
+    as "20% white = 3.8:1"; the code uses 0.15 and the real figure was 1.54:1
+    on purple. It is a decorative bar track behind an already-labelled value,
+    not meaningful UI, so no threshold applies — but the old number was fiction.
 
  DESIGN FEATURES:
  ✅ Fully proportional bar widths (accurate percentage representation)

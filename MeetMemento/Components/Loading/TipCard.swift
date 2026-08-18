@@ -20,12 +20,12 @@ struct TipCard: View {
             // Icon container
             ZStack {
                 Circle()
-                    .fill(theme.primary.opacity(0.12))
+                    .fill(theme.accent.opacity(0.12))
                     .frame(width: 44, height: 44)
 
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.accent)
             }
 
             // Content

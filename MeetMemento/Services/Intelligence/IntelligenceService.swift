@@ -189,6 +189,10 @@ enum IntelligenceError: Error, LocalizedError {
     /// Hard policy refuse (violence, terrorism, CSAM, jailbreak, etc.).
     case safetyRefusal(SafetyCategory)
     case generationFailed(String)
+    /// The model produced no snapshot for the watchdog window (spec 029 R7) —
+    /// surfaced like any failed send: retry affordance in chat, silent
+    /// return-to-listening in narration.
+    case generationTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -197,6 +201,7 @@ enum IntelligenceError: Error, LocalizedError {
         case .crisisResource: return SafetyRouter.crisisAcknowledgment
         case .safetyRefusal(let category): return SafetyRouter.refuseMessage(for: category)
         case .generationFailed: return "I couldn't put a reflection together just now. Please try again."
+        case .generationTimedOut: return "That reply took too long to generate. Please try again."
         }
     }
 }
@@ -232,12 +237,19 @@ protocol IntelligenceService: Sendable {
     /// Warm the model ahead of the first request (e.g. when the chat view
     /// appears). Fire-and-forget; no-op where unsupported.
     func prewarm()
+
+    /// Speculatively prefill the next turn of a conversation with this history
+    /// (spec 029 Amendment A). Call after `.final`, on conversation open, and
+    /// on narration listen re-arm. Default no-op.
+    func prewarmConversation(history: [ChatTurn])
 }
 
 extension IntelligenceService {
     // Default no-op so non-model implementations (mocks/tests) opt in only if
     // they want to.
     func prewarm() {}
+
+    func prewarmConversation(history: [ChatTurn]) {}
 
     /// Default streaming implementation: run the one-shot `ask` and emit a
     /// single delta + final. Mocks and any non-streaming implementation get

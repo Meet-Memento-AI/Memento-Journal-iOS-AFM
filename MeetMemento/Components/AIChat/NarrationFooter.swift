@@ -19,17 +19,21 @@ struct NarrationFooter: View {
     @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
 
-    private var accentBrown: Color {
-        colorScheme == .dark ? theme.foreground : Color(hex: "#724B31")
+    /// Brown as text: `brandOnText` in light (AA), `theme.accent` in dark.
+    private var transcriptColor: Color {
+        colorScheme == .dark ? theme.accent : BrandColors.brandOnText
     }
 
-    private static let buttonShadow = Color(hex: "#333333").opacity(0.08)
+    private var buttonShadow: Color {
+        theme.foreground.opacity(0.08)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
             transcriptCard
             footerBar
         }
+        .rootEdgeInset()
     }
 
     @ViewBuilder
@@ -39,7 +43,7 @@ struct NarrationFooter: View {
            coordinator.phase == .listening || coordinator.phase == .finalizing {
             Text(transcript)
                 .font(type.body1)
-                .foregroundStyle(accentBrown)
+                .foregroundStyle(transcriptColor)
                 .lineLimit(4)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,9 +51,8 @@ struct NarrationFooter: View {
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(theme.cardBackground)
-                        .shadow(color: Self.buttonShadow, radius: 16, y: 4)
+                        .shadow(color: buttonShadow, radius: 16, y: 4)
                 )
-                .padding(.horizontal, 16)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .accessibilityLabel("Transcription: \(transcript)")
         }
@@ -69,7 +72,7 @@ struct NarrationFooter: View {
             NarrationCircleButton(
                 systemName: "mic",
                 size: AppHeaderMetrics.footerButtonSize,
-                shadow: Self.buttonShadow,
+                shadow: buttonShadow,
                 accessibilityLabel: coordinator.phase == .speaking ? "Interrupt" : "Send now",
                 accessibilityHint: coordinator.phase == .speaking
                     ? "Double-tap to stop Memento speaking and talk"
@@ -87,19 +90,18 @@ struct NarrationFooter: View {
             NarrationCircleButton(
                 systemName: "xmark",
                 size: AppHeaderMetrics.footerButtonSize,
-                shadow: Self.buttonShadow,
+                shadow: buttonShadow,
                 accessibilityLabel: "End voice conversation",
                 accessibilityHint: "Double-tap to return to typing"
             ) {
                 onExit()
             }
         }
-        .padding(.horizontal, 16)
         .animation(.easeInOut(duration: 0.2), value: statusText)
     }
 }
 
-/// Figma: 64pt translucent circle, soft `#333333`@8% shadow, 24pt glyph.
+/// Figma: 64pt translucent circle, soft foreground@8% shadow, 24pt glyph.
 /// Glass on the glyph's container, same reasoning as `HeaderIconButton`.
 private struct NarrationCircleButton: View {
     let systemName: String

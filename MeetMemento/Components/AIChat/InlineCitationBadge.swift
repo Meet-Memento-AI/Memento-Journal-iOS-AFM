@@ -19,7 +19,7 @@ struct InlineCitationBadge: View {
             .font(type.microBold)
             .foregroundStyle(.white)
             .frame(width: 20, height: 20)
-            .background(theme.primary)
+            .background(BrandColors.brandOnText)
             .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
@@ -41,7 +41,7 @@ struct InlineCitationPillBadge: View {
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: theme.radius.button) // 16px
-                    .fill(theme.primary)
+                    .fill(BrandColors.brandOnText)
             )
     }
 }
@@ -67,12 +67,12 @@ struct InlineCitationDateBadge: View {
         Button(action: onTap) {
             Text(formattedDate)
                 .font(type.captionMedium)
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(BrandColors.brandOnText)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(
                     Capsule()
-                        .fill(theme.primary.opacity(0.12))
+                        .fill(theme.accent.opacity(0.12))
                 )
         }
         .buttonStyle(.plain)

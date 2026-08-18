@@ -23,7 +23,7 @@ public struct SummaryCard: View {
             // Header + Pages
             VStack(alignment: .leading, spacing: 16) {
                 HeaderLabel()
-                    .foregroundStyle(theme.overlayText)
+                    .foregroundStyle(theme.foreground)
 
                 // Swipeable pages
                 TabView(selection: $page) {
@@ -45,7 +45,7 @@ public struct SummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            theme.backgroundGradient
+            theme.card
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
         )
         .overlay(
@@ -67,15 +67,17 @@ public struct SummaryCard: View {
 
 private struct HeaderLabel: View {
     @Environment(\.typography) private var type
+    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "sparkles")
                 .font(.system(size: 20, weight: .bold)) // icon-size: not user text
                 .imageScale(.small)
+                .foregroundStyle(theme.accent)
 
             Text("AI SUMMARY")
-                .font(type.labelBold) // Manrope Bold (caption/bold) per your tokens
+                .font(type.labelBold)
                 .modifier(type.lineSpacingModifier(for: type.sizeSM))
                 .textCase(.uppercase)
                 .kerning(0.6)
@@ -83,17 +85,18 @@ private struct HeaderLabel: View {
     }
 }
 
-// MARK: - Page (H3 using Manrope-SemiBold with line height of 1)
+// MARK: - Page (H3 with line height of 1)
 
 private struct InsightPage: View {
     let text: String
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     var body: some View {
         Text(text)
-            .font(.custom("Manrope-SemiBold", size: 24, relativeTo: .title))
+            .font(type.h3)
             .lineSpacing(0) // Line height of 1 (no extra spacing)
-            .foregroundStyle(theme.overlayText)
+            .foregroundStyle(theme.foreground)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -110,7 +113,7 @@ private struct ProgressSegments: View {
         HStack(spacing: 16) {
             ForEach(0..<max(total, 1), id: \.self) { i in
                 Capsule(style: .continuous)
-                    .fill(i == current ? theme.overlayText : theme.overlayTextSecondary.opacity(0.5))
+                    .fill(i == current ? theme.foreground : theme.mutedForeground.opacity(0.35))
                     .frame(height: 6)
                     .overlay(
                         Capsule(style: .continuous)
@@ -135,7 +138,6 @@ private struct ProgressSegments: View {
         }
         .padding(.vertical, 24)
     }
-    // To render Manrope **SemiBold** for all headings inside:
     .useTypography(Typography(headingWeight: .semibold))
     .useTheme()
     .background(Color(.systemGroupedBackground))

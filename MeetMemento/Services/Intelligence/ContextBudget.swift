@@ -45,6 +45,13 @@ enum ContextWindow: Equatable, Sendable {
 /// model's own output, so retrieved evidence and history get a bounded slice
 /// each. Reasoning tokens count against the window too (technology/02 §5), which
 /// is why the shares are conservative rather than filling the space.
+///
+/// **Latency clamp (spec 029 Amendment A).** Window-derived growth is further
+/// clamped by prefill-latency budgets: prefill time scales with prompt tokens,
+/// so past a point a bigger window buys time-to-first-token, not answer
+/// quality. Confidence-conditional expansion ("spend more only when retrieval
+/// is confident") was considered and rejected — the budget is computed before
+/// retrieval runs, so no confidence signal exists yet to condition on.
 struct ContextBudget: Equatable, Sendable {
     /// How many retrieved journal entries may enter the prompt.
     let maxRetrievedEntries: Int
@@ -84,6 +91,19 @@ struct ContextBudget: Equatable, Sendable {
     private static let minHistoryCharsPerTurn = 160
     private static let maxHistoryCharsPerTurnCeiling = 800
 
+    // MARK: Latency clamps
+    //
+    // These are PREFILL LATENCY budgets, not window constants (CONSTITUTION §4
+    // rule 5 forbids the latter; nothing here encodes a window size). They cap
+    // the total characters the derivation may hand to the prompt regardless of
+    // how large the reported window is.
+
+    /// Prefill-latency budget, not a window: prefill time scales with prompt
+    /// tokens, and evidence beyond this buys TTFT, not answer quality
+    /// (user decision, spec 029 Amendment A: clamp for speed).
+    private static let maxEvidenceLatencyChars = 3_500   // = baseline 7 × 500
+    private static let maxHistoryLatencyChars  = 2_000   // ≈ baseline 6 × 320
+
     // MARK: Baseline (window unreadable)
     //
     // The caps this module shipped before it could read a window. Empirically
@@ -114,17 +134,39 @@ struct ContextBudget: Equatable, Sendable {
 
             // Entry count grows with the window; per-entry depth grows with what
             // is left after the count. Splitting it this way means a bigger
-            // window buys both more evidence and more of each piece, rather than
-            // one at the other's expense.
+            // window buys both more evidence and more of each piece — up to the
+            // latency clamp, past which growth is flat by design.
+            //
+            // The clamp is applied count-first (fewer, baseline-depth entries
+            // beat many shallow ones), then per-entry chars are recomputed so
+            // the product stays inside the latency budget. The grounding floors
+            // always win over the clamp: a slow grounded reply beats a fast
+            // ungrounded one.
             let entries = Int((retrievalChars / Double(Self.baselineEntryChars)).rounded(.down))
-            maxRetrievedEntries = min(max(entries, Self.minRetrievedEntries), Self.maxRetrievedEntriesCeiling)
+            let latencyEntryCap = Self.maxEvidenceLatencyChars / Self.baselineEntryChars
+            maxRetrievedEntries = max(
+                min(entries, Self.maxRetrievedEntriesCeiling, latencyEntryCap),
+                Self.minRetrievedEntries
+            )
             let perEntry = Int((retrievalChars / Double(maxRetrievedEntries)).rounded(.down))
-            maxEntryChars = min(max(perEntry, Self.minEntryChars), Self.maxEntryCharsCeiling)
+            let latencyPerEntryCap = Self.maxEvidenceLatencyChars / maxRetrievedEntries
+            maxEntryChars = max(
+                min(perEntry, Self.maxEntryCharsCeiling, latencyPerEntryCap),
+                Self.minEntryChars
+            )
 
             let turns = Int((historyChars / Double(Self.baselineHistoryCharsPerTurn)).rounded(.down))
-            maxHistoryTurns = min(max(turns, Self.minHistoryTurns), Self.maxHistoryTurnsCeiling)
+            let latencyTurnCap = Self.maxHistoryLatencyChars / Self.baselineHistoryCharsPerTurn
+            maxHistoryTurns = max(
+                min(turns, Self.maxHistoryTurnsCeiling, latencyTurnCap),
+                Self.minHistoryTurns
+            )
             let perTurn = Int((historyChars / Double(maxHistoryTurns)).rounded(.down))
-            maxHistoryCharsPerTurn = min(max(perTurn, Self.minHistoryCharsPerTurn), Self.maxHistoryCharsPerTurnCeiling)
+            let latencyPerTurnCap = Self.maxHistoryLatencyChars / maxHistoryTurns
+            maxHistoryCharsPerTurn = max(
+                min(perTurn, Self.maxHistoryCharsPerTurnCeiling, latencyPerTurnCap),
+                Self.minHistoryCharsPerTurn
+            )
         }
     }
 

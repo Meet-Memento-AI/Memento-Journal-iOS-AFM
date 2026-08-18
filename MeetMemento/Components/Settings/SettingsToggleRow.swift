@@ -23,7 +23,7 @@ struct SettingsToggleRow: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: icon)
                     .font(.system(size: 20)) // icon-size: not user text
-                    .foregroundStyle(theme.primary)
+                    .foregroundStyle(theme.foreground)
                     .frame(width: 28, height: 28)
                     .accessibilityHidden(true)
 

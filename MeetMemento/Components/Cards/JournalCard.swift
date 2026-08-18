@@ -23,7 +23,6 @@ struct JournalCard: View {
     // MARK: - Environment
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
      
     // MARK: - State
     @State private var isPressed = false
@@ -86,17 +85,11 @@ struct JournalCard: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [theme.secondary, theme.card], // Use semantic tokens
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(journalCardGradient)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 1.5)
+                .stroke(theme.border, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
     }
@@ -139,19 +132,23 @@ struct JournalCard: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [theme.secondary, theme.card], // same tokens as the plain card
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(journalCardGradient)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(colorScheme == .dark ? GrayScale.gray900 : .white, lineWidth: 2)
+                .stroke(theme.border, lineWidth: 1)
         )
         .shadow(color: Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255).opacity(0.16), radius: 8, x: 0, y: 4)
+    }
+
+    /// Vertical wash: gray100 at the top into gray50 at the bottom.
+    /// Shared by the plain and photo cards so they stay the same surface.
+    private var journalCardGradient: LinearGradient {
+        LinearGradient(
+            colors: [GrayScale.gray100, GrayScale.gray50],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     /// Even inset around the cover photo. Shared with the composer's preview
@@ -173,7 +170,7 @@ struct JournalCard: View {
             Image(systemName: "calendar")
                 .font(type.body2)
                 .fontWeight(.bold)
-                .foregroundStyle(theme.primary)
+                .foregroundStyle(theme.foreground)
                 .cornerRadius(16)
             Text(formattedDate)
                 .typographyCaptionBold()

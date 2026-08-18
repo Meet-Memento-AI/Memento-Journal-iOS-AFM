@@ -14,9 +14,12 @@ struct AppLogger {
     static let network = "network"
     static let persistent = "persistent"
 
-    static func log(_ message: String, category: String = general, type: OSLogType = .default) {
+    /// `@autoclosure` so the interpolated message string is never built in
+    /// release, where the body is a no-op (spec 029 Amendment A). Transparent
+    /// to callers — every call site keeps passing a plain string expression.
+    static func log(_ message: @autoclosure () -> String, category: String = general, type: OSLogType = .default) {
         #if DEBUG
-        print("[\(category)] \(message)")
+        print("[\(category)] \(message())")
         #endif
     }
 }

@@ -17,6 +17,8 @@ struct AvatarInitialButton: View {
     var accessibilityLabel: String = "Menu"
     var onTap: (() -> Void)?
 
+    @Environment(\.theme) private var theme
+
     private var resolvedFontSize: CGFloat {
         fontSize ?? size * 0.4
     }
@@ -32,11 +34,11 @@ struct AvatarInitialButton: View {
                 if let initial, !initial.isEmpty {
                     Text(initial.uppercased())
                         .font(.system(size: resolvedFontSize, weight: .semibold)) // icon-size: not user text (avatar initial glyph scales with button size)
-                        .foregroundStyle(PrimaryScale.primary600)
+                        .foregroundStyle(theme.foreground)
                 } else {
                     Image(systemName: "person.fill")
                         .font(.system(size: resolvedFontSize, weight: .medium)) // icon-size: not user text
-                        .foregroundStyle(PrimaryScale.primary600)
+                        .foregroundStyle(theme.foreground)
                 }
             }
             .frame(width: size, height: size)

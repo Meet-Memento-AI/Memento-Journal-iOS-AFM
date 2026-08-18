@@ -26,7 +26,7 @@ struct LaunchLoadingView: View {
 
                 // Subtle loading indicator
                 ProgressView()
-                    .tint(theme.primary)
+                    .tint(theme.foreground)
                     .scaleEffect(1.2)
                 Text("Starting…")
                     .foregroundColor(theme.mutedForeground)
