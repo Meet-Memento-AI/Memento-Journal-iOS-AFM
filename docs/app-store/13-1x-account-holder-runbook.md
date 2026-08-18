@@ -150,6 +150,17 @@ xcodebuild \
 Then Organizer → Distribute App → App Store Connect → Upload, or
 `xcodebuild -exportArchive` + `xcrun altool --validate-app` per `07`.
 
+**Evidence 2026-08-17:** `xcodebuild -version` → **Xcode 26.0.1 (17A400)**.
+`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/MeetMemento.xcarchive`.
+Product contains no `.xcconfig`, `.storekit`, or `.md` files.
+
+**Export is blocked on signing, not the binary.**
+`xcodebuild -exportArchive` failed with:
+
+> Provisioning profile "iOS Team Store Provisioning Profile: com.sebastianmendo.MeetMemento" doesn't include signing certificate "Apple Distribution: Sebastian Mendo (F3NM4HTMW8)".
+
+That is the A1 / certificate-refresh step: accept the Program License Agreement, then in Xcode → Settings → Accounts → Manage Certificates, create or download a current **Apple Distribution** certificate and let automatic signing regenerate the App Store profile. Re-run export from `07`. Validate/upload still need an App Store Connect API key (`ASC_KEY_ID` / `ASC_ISSUER_ID`) or Organizer.
+
 Internal TestFlight on a physical Apple Intelligence iPhone: Welcome →
 onboarding (skip lock) → Load Sample Entries → write one entry → Chat one
 question → airplane-mode journal still saves → Delete Everything returns to
