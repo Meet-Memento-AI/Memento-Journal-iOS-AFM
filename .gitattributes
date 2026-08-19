@@ -1,0 +1,9 @@
+# Neural voice model weights — spec 030 (bundled, not downloaded).
+# These are large binary artifacts reproducible from scripts/build_voice_pack.sh.
+# Tracked with Git LFS so clones and CI do not pay for them in every pack file.
+#
+# NOTE: CI checkout must set `lfs: true` or the build receives pointer files
+# and fails at runtime rather than at build time.
+MeetMemento/Resources/Voices/**/weights/*.bin  filter=lfs diff=lfs merge=lfs -text
+MeetMemento/Resources/Voices/**/*.mil          filter=lfs diff=lfs merge=lfs -text
+MeetMemento/Resources/Voices/**/coremldata.bin filter=lfs diff=lfs merge=lfs -text

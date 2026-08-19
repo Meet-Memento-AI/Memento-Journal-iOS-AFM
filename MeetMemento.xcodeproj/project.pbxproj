@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A5D0E1A22F0000010000AA03 /* SupertonicTTS in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0E1A12F0000010000AA02 /* SupertonicTTS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A52968752E8CCF13004F65BE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -77,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A5D0E1A22F0000010000AA03 /* SupertonicTTS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -157,6 +162,7 @@
 			);
 			name = MeetMemento;
 			packageProductDependencies = (
+				A5D0E1A12F0000010000AA02 /* SupertonicTTS */,
 			);
 			productName = MeetMemento;
 			productReference = A52968642E8CCF12004F65BE /* MeetMemento.app */;
@@ -237,7 +243,7 @@
 			mainGroup = A529685B2E8CCF12004F65BE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */,
+				A5D0E1A02F0000010000AA01 /* XCLocalSwiftPackageReference "Packages/SupertonicTTS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A52968652E8CCF12004F65BE /* Products */;
@@ -613,16 +619,20 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		A5296C822E8D7B45004F65BE /* XCRemoteSwiftPackageReference "SVGKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SVGKit/SVGKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.0.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		A5D0E1A02F0000010000AA01 /* XCLocalSwiftPackageReference "Packages/SupertonicTTS" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SupertonicTTS;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A5D0E1A12F0000010000AA02 /* SupertonicTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5D0E1A02F0000010000AA01 /* XCLocalSwiftPackageReference "Packages/SupertonicTTS" */;
+			productName = SupertonicTTS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A529685C2E8CCF12004F65BE /* Project object */;
 }

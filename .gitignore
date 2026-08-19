@@ -47,6 +47,10 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+# Xcode's per-package scratch state. Created inside a local package when it is
+# opened or built; never source. An empty .swiftpm/xcode/ left behind by a CLI
+# `swift build` makes Xcode fail with "Couldn't load project" — see the plan.
+.swiftpm/
 
 # CocoaPods
 #
