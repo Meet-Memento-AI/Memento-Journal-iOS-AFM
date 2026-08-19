@@ -31,6 +31,14 @@ public enum RootPage: String, CaseIterable, Identifiable, Hashable {
     case chat
 
     public var id: String { rawValue }
+
+    /// Programmatic pager navigation — same horizontal slide as a swipe.
+    public static func select(_ page: RootPage, in selection: Binding<RootPage>) {
+        guard selection.wrappedValue != page else { return }
+        withAnimation(.default) {
+            selection.wrappedValue = page
+        }
+    }
 }
 
 // MARK: - RootPager
@@ -115,7 +123,7 @@ private struct RootPagerPreview: View {
                 VStack(spacing: 16) {
                     Text(page == .journal ? "Journal" : "Chat").font(.largeTitle)
                     Button("Go to the other page") {
-                        withAnimation { self.page = page == .journal ? .chat : .journal }
+                        RootPage.select(page == .journal ? .chat : .journal, in: $page)
                     }
                 }
             }

@@ -156,7 +156,7 @@ public struct ContentView: View {
                     JournalView(
                         isEmbedded: true,
                         externalNavigationPath: $navigationPath,
-                        onOpenChat: { selectedPage = .chat },
+                        onOpenChat: { RootPage.select(.chat, in: $selectedPage) },
                         onPresentEntry: { route in
                             activeEntryRoute = route
                         }
@@ -166,7 +166,7 @@ public struct ContentView: View {
                         viewModel: chatViewModel,
                         isEmbedded: true,
                         hasEntries: !entryViewModel.entries.isEmpty,
-                        onOpenJournal: { selectedPage = .journal },
+                        onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
                         onPresentEntry: { route in
                             activeEntryRoute = route
                         }
@@ -218,7 +218,7 @@ public struct ContentView: View {
         .useTypography()
         .onAppear {
             if let tab = previewInitialTab, !didSetPreviewTab {
-                selectedPage = tab
+                RootPage.select(tab, in: $selectedPage)
                 didSetPreviewTab = true
             }
             // Update activity timestamp when ContentView appears

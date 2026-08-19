@@ -56,6 +56,7 @@ struct ChatMessagesView: View {
                         }
                         .padding(.top, AppHeaderMetrics.contentTopPadding)
                     }
+                    .scrollIndicators(.hidden)
                     // Same 16pt gutter as header/footer. Padding is ignored
                     // under RootPageScaffold's `.ignoresSafeArea()`.
                     .rootEdgeInset()

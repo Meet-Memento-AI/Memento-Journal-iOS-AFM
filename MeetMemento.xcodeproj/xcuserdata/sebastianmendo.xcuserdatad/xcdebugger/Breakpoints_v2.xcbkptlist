@@ -46,9 +46,9 @@
             filePath = "MeetMemento/Views/Journal/JournalView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "13"
-            endingLineNumber = "13"
-            landmarkName = "JournalView"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "MonthHeaderPositionEntry"
             landmarkType = "14">
          </BreakpointContent>
       </BreakpointProxy>
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "105"
             endingLineNumber = "105"
-            landmarkName = "topContentInset"
-            landmarkType = "24">
+            landmarkName = "init(viewModel:isEmbedded:hasEntries:onOpenJournal:onPresentEntry:narrationPreview:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -80,7 +80,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "298"
             endingLineNumber = "298"
-            landmarkName = "chatActiveView"
+            landmarkName = "leadingContent"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
