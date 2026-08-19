@@ -39,9 +39,24 @@ final class VoiceSettingsUITests: XCTestCase {
         XCTAssertTrue(voiceRow.waitForExistence(timeout: 10), "settings.voice row not found")
         voiceRow.tap()
 
-        // The Automatic voice row proves VoiceSettingsView rendered.
-        let automatic = app.descendants(matching: .any)["settings.voice.automatic"].firstMatch
-        XCTAssertTrue(automatic.waitForExistence(timeout: 10), "voice settings did not open")
+        // A catalog voice row proves VoiceSettingsView rendered. The old
+        // "Automatic" row is gone: the roster is four bundled neural voices with
+        // nothing to resolve between (specs 030 R4, 033 R1; DEC-011/DEC-012).
+        let firstVoice = app.descendants(matching: .any)["settings.voice.option.F1"].firstMatch
+        XCTAssertTrue(firstVoice.waitForExistence(timeout: 10), "voice settings did not open")
+
+        // Exactly four voices, no more — the roster is fixed and enforced by
+        // which style vectors are vendored at all (spec 030 R4).
+        for id in ["F1", "F2", "M1", "M3"] {
+            XCTAssertTrue(
+                app.descendants(matching: .any)["settings.voice.option.\(id)"].firstMatch.exists,
+                "expected voice \(id) in the picker"
+            )
+        }
+        XCTAssertFalse(
+            app.descendants(matching: .any)["settings.voice.automatic"].firstMatch.exists,
+            "the Automatic row should be gone"
+        )
 
         // Pick a non-default speed and verify it sticks across a relaunch.
         let fastRow = app.descendants(matching: .any)["settings.voice.rate.fast"].firstMatch

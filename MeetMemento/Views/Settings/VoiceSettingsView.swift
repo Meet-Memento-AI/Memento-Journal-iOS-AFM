@@ -2,76 +2,51 @@
 //  VoiceSettingsView.swift
 //  MeetMemento
 //
-//  Read-aloud voice and speed (spec 018 R7 chat amendment; REQ-VOX-001's
-//  "voice-asset download surfaced in Settings — never a silent fallback").
+//  Read-aloud voice and speed. Exactly four voices, bundled in the app
+//  (specs 030 R4, 033 R1/R5; DEC-011/DEC-012).
+//
+//  This screen used to enumerate AVSpeechSynthesisVoice.speechVoices() and list
+//  the user's whole language family — 30-45 rows on a typical en-US device,
+//  including en-AU/GB/IE/IN/NZ/ZA — plus an "Automatic" row and a "How to
+//  download a voice" path into iOS Settings. All of that is gone. The voices
+//  ship with the app, there is nothing to download, and the roster is fixed.
+//
 //  Modeled on AppearanceSettingsView: hand-built SettingsSection cards with
 //  SettingsSelectableRow choices, persisted via PreferencesService.
 //
 
 import SwiftUI
-import AVFoundation
 
 public struct VoiceSettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    /// Non-novelty, non-personal voices for the user's language family:
-    /// exact locale first, then same-prefix siblings (en-GB for en-US…),
-    /// best quality first within each group.
-    @State private var voices: [AVSpeechSynthesisVoice] = []
-    @State private var selectedIdentifier: String?
+    @State private var selectedVoiceID: String = VoiceCatalog.default.id
     @State private var selectedRate: SpeechRatePreset = .brisk
-    @State private var showDownloadHelp = false
+
+    /// Previews own their audio session — they are one-shot and do not touch
+    /// the conversation path's `.playAndRecord` negotiation (spec 028 R2).
+    private static let playback = TTSPlayback(managesAudioSession: true)
 
     public init() {}
-
-    /// True when nothing installed beats the compact default — the exact
-    /// state R7's acceptance criterion says must never pass silently.
-    private var onlyCompactAvailable: Bool {
-        !voices.contains { $0.quality == .enhanced || $0.quality == .premium }
-    }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 SettingsSection(title: "Voice") {
-                    if onlyCompactAvailable {
-                        SettingsInfoRow(
-                            icon: "waveform.badge.exclamationmark",
-                            title: "Compact voice",
-                            description: "Download an Enhanced voice for natural speech. It's free, works offline, and Memento picks it up automatically."
-                        )
-                        SettingsRowDivider()
-                        SettingsRow(
-                            icon: "arrow.down.circle",
-                            title: "How to download a voice",
-                            subtitle: "Settings > Accessibility > Spoken Content > Voices",
-                            showChevron: true,
-                            accessibilityIdentifier: "settings.voice.downloadHelp",
-                            action: { showDownloadHelp = true }
-                        )
-                        SettingsRowDivider()
-                    }
-
-                    SettingsSelectableRow(
-                        icon: "wand.and.stars",
-                        title: "Automatic",
-                        subtitle: "The best voice on this device",
-                        isSelected: selectedIdentifier == nil,
-                        action: { select(identifier: nil) }
-                    )
-                    .accessibilityIdentifier("settings.voice.automatic")
-
-                    ForEach(voices, id: \.identifier) { voice in
-                        SettingsRowDivider()
+                    ForEach(Array(VoiceCatalog.all.enumerated()), id: \.element.id) { index, voice in
                         SettingsSelectableRow(
-                            icon: "person.wave.2",
-                            title: voice.name,
-                            subtitle: subtitle(for: voice),
-                            isSelected: selectedIdentifier == voice.identifier,
-                            action: { select(identifier: voice.identifier) }
+                            icon: voice.symbol,
+                            title: voice.displayName,
+                            subtitle: voice.descriptor,
+                            isSelected: selectedVoiceID == voice.id,
+                            action: { select(voice: voice) }
                         )
-                        .accessibilityIdentifier("settings.voice.option.\(voice.identifier)")
+                        .accessibilityIdentifier("settings.voice.option.\(voice.id)")
+
+                        if index < VoiceCatalog.all.count - 1 {
+                            SettingsRowDivider()
+                        }
                     }
                 }
 
@@ -100,78 +75,90 @@ public struct VoiceSettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Read Aloud")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { loadCurrent() }
-        // A voice downloaded in the Settings app appears when the user
-        // returns — no restart (R7 acceptance: picked up automatically).
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIApplication.willEnterForegroundNotification
-        )) { _ in
+        .onAppear {
             loadCurrent()
-            VoicePlaybackService.shared.invalidateVoiceCache()
+            // Warm on appearance, not on first tap: opening this screen is a
+            // voice-intent signal in exactly the sense spec 031 R3 means, and
+            // ANE specialization on first load must not land on the first
+            // preview the user asks to hear.
+            Task { try? await SupertonicEngine.shared.prepare() }
         }
-        .alert("Download a Voice", isPresented: $showDownloadHelp) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Download a natural voice in Settings > Accessibility > Spoken Content > Voices, then come back — Memento picks it up automatically.")
-        }
+        // No willEnterForeground refresh: a fixed, bundled roster cannot change
+        // while the app is backgrounded. The old screen needed it because a
+        // voice downloaded in iOS Settings had to appear on return.
     }
 
     // MARK: - Actions
 
     private func loadCurrent() {
-        selectedIdentifier = PreferencesService.shared.selectedVoiceIdentifier
+        // Resolves legacy AVSpeechSynthesisVoice identifiers, nil (the old
+        // "Automatic"), and retired style ids — all silently (spec 033 R3).
+        let resolved = VoiceCatalog.resolve(persistedID: PreferencesService.shared.selectedVoiceIdentifier)
+        selectedVoiceID = resolved.id
         selectedRate = SpeechRatePreset.nearest(to: PreferencesService.shared.speechRate)
 
-        // First speechVoices() call can be slow — keep it out of `body`.
-        let language = AVSpeechSynthesisVoice.currentLanguageCode()
-        let prefix = (language.split(separator: "-").first.map(String.init) ?? language) + "-"
-        let family = AVSpeechSynthesisVoice.speechVoices().filter {
-            $0.language.hasPrefix(prefix)
-                && !$0.voiceTraits.contains(.isNoveltyVoice)
-                // Personal Voice stays unlisted until spec 018 R8's gate clears.
-                && !$0.voiceTraits.contains(.isPersonalVoice)
-        }
-        voices = family.sorted { a, b in
-            if (a.language == language) != (b.language == language) {
-                return a.language == language
-            }
-            if a.quality != b.quality {
-                return a.quality.rawValue > b.quality.rawValue
-            }
-            return a.name < b.name
+        // Write the resolved id back so the migration happens once, on first
+        // sight, rather than being recomputed on every load.
+        if PreferencesService.shared.selectedVoiceIdentifier != resolved.id {
+            PreferencesService.shared.selectedVoiceIdentifier = resolved.id
         }
     }
 
-    private func select(identifier: String?) {
-        selectedIdentifier = identifier
-        PreferencesService.shared.selectedVoiceIdentifier = identifier
-        VoicePlaybackService.shared.speakPreview()
+    private func select(voice: VoiceOption) {
+        selectedVoiceID = voice.id
+        PreferencesService.shared.selectedVoiceIdentifier = voice.id
+        preview(styleID: voice.id, speed: selectedRate.neuralSpeed)
     }
 
+    /// Synthesizes the preview live in the selected voice (spec 033 R2).
+    ///
+    /// Live rather than a pre-rendered clip because the model is bundled — there
+    /// is nothing to wait for — and because a build-time render is frozen at
+    /// whatever rate it was made with, so it drifts the moment Speaking Speed
+    /// changes. The preview's whole job is "what will this sound like for me".
+    ///
+    private func preview(styleID: String, speed: Float) {
+        // Inherited from the `speakPreview()` this replaced: never talk over an
+        // open mic. Settings is not reachable mid-dictation today, but the guard
+        // is cheap and its absence would be a silent half-duplex violation
+        // (spec 028 R2) rather than a visible bug.
+        guard !SpeechService.shared.isRecording, !SpeechService.shared.isProcessing else { return }
+
+        Task {
+            do {
+                let buffer = try await SupertonicEngine.shared.synthesize(
+                    text: Self.previewSentence, styleID: styleID, speed: speed)
+                Self.playback.flushAndStop()   // a new tap replaces the last preview
+                try Self.playback.enqueue(buffer, onPlayed: {})
+            } catch {
+                // Silent in Release (spec 030 R5: the fallback is invisible),
+                // loud in Debug. A silent voice swap is exactly how a Vocoder/MPS
+                // prediction failure presented as "the system voice is talking"
+                // rather than as an error, and cost hours to find.
+                AppLogger.log("neural preview failed for \(styleID): \(error)", type: .error)
+                #if DEBUG
+                assertionFailure("neural preview failed for \(styleID): \(error)")
+                #endif
+            }
+        }
+    }
+
+    /// Journaling register, deliberately — a voice auditioned on "the quick brown
+    /// fox" tells you nothing about how it will read back a hard week.
+    private static let previewSentence =
+        "This is how I'll sound when I read your journal back to you."
+
+    /// Picking a speed previews it — in the **selected voice**, at the **new
+    /// rate** (spec 033 R2). This used to call `VoicePlaybackService.speakPreview()`,
+    /// which was still `AVSpeechSynthesizer`: the four neural voices shipped, and
+    /// this one row kept answering in the system voice.
     private func select(rate: SpeechRatePreset) {
         selectedRate = rate
         PreferencesService.shared.speechRate = rate.rawValue
-        VoicePlaybackService.shared.speakPreview()
+        preview(styleID: selectedVoiceID, speed: rate.neuralSpeed)
     }
 
     // MARK: - Row copy
-
-    private func subtitle(for voice: AVSpeechSynthesisVoice) -> String {
-        let quality: String
-        switch voice.quality {
-        case .premium: quality = "Premium"
-        case .enhanced: quality = "Enhanced"
-        default: quality = "Compact"
-        }
-        let region = Locale.current.localizedString(forIdentifier: voice.language)
-            ?? voice.language
-        return "\(quality) · \(region)"
-    }
 
     private func iconForPreset(_ preset: SpeechRatePreset) -> String {
         switch preset {

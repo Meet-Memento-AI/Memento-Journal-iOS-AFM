@@ -31,9 +31,36 @@ enum SpeechRatePreset: Float, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .slower: return "Relaxed, easy to follow"
-        case .normal: return "The system reading speed"
+        case .normal: return "The model's natural pace"
         case .brisk: return "Natural conversational pace"
         case .fast: return "Quick review"
+        }
+    }
+
+    /// The same preset expressed for the neural engine (`SupertonicOptions.speed`).
+    ///
+    /// `rawValue` above is an `AVSpeechUtteranceRate` and stays that way — it is
+    /// what `PreferencesService.speechRate` persists, and the fallback path still
+    /// speaks in that scale. This is the translation, not a replacement.
+    ///
+    /// Both scales normalise to "1x = the engine's default", but the defaults
+    /// differ: AVSpeech's is 0.5, Supertonic's is 1.0. So the conversion is
+    /// `rawValue / 0.5`, which is where these numbers come from. Written out
+    /// case by case rather than as arithmetic so they can be tuned by ear
+    /// without the derivation pretending to still hold.
+    ///
+    /// Note `.brisk` lands on 1.06, within a rounding error of the model's own
+    /// 1.05 default — so the shipping default preserves the voices as auditioned.
+    ///
+    /// Supertonic applies this as `duration /= speed` against the
+    /// DurationPredictor's output, so the model genuinely re-synthesises at the
+    /// new pace. It is not resampling, and the pitch does not shift.
+    var neuralSpeed: Float {
+        switch self {
+        case .slower: return 0.90
+        case .normal: return 1.00
+        case .brisk: return 1.06
+        case .fast: return 1.16
         }
     }
 

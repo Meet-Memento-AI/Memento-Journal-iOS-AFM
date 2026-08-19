@@ -131,33 +131,16 @@ struct SettingsView: View {
         }
     }
 
-    /// Live device state, `securitySubtitle`-style: names the effective voice,
-    /// and — per R7's acceptance criterion — surfaces the Enhanced-voice
-    /// download whenever playback would fall back to a compact voice. Never a
-    /// silent fallback.
+    /// Names the selected voice. One of exactly four bundled neural voices
+    /// (specs 030 R4, 033 R1) — there is no device state to reflect and nothing
+    /// to download, so unlike `securitySubtitle` this is a pure lookup.
     private var voiceSubtitle: String {
-        let chosen = PreferencesService.shared.selectedVoiceIdentifier
-            .flatMap { AVSpeechSynthesisVoice(identifier: $0) }
-        if let chosen {
-            switch chosen.quality {
-            case .premium: return "\(chosen.name) — Premium"
-            case .enhanced: return "\(chosen.name) — Enhanced"
-            default: return "\(chosen.name) — compact; a downloaded Enhanced voice sounds better"
-            }
-        }
-        // Automatic: read the warmed resolution instead of enumerating the
-        // whole voice catalog during a body render — the first speechVoices()
-        // call is slow and this computed property runs on every Settings
-        // render (spec 029 R5). ChatService.prewarm warms the cache; if
-        // Settings opens first, warm it here and show a neutral label until
-        // the next render.
-        if let quality = VoicePlaybackService.shared.resolvedVoiceQuality {
-            return quality == .enhanced || quality == .premium
-                ? "Automatic — best voice on this device"
-                : "Compact voice — download an Enhanced voice for natural speech"
-        }
-        Task { await VoicePlaybackService.shared.warmVoiceCatalog() }
-        return "Automatic"
+        // Four bundled voices, resolved through the catalog (spec 033 R1/R3).
+        // Everything this used to do — AVSpeechSynthesisVoice lookup, a quality
+        // switch, the resolvedVoiceQuality read, "download an Enhanced voice"
+        // copy, and a warmVoiceCatalog() side-effect fired from inside a
+        // computed property — is gone with the download it described.
+        VoiceCatalog.resolve(persistedID: PreferencesService.shared.selectedVoiceIdentifier).displayName
     }
 
     /// The app lock, controllable after onboarding. `SecuritySettingsView`

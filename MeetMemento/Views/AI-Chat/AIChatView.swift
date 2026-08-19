@@ -40,7 +40,6 @@ public struct AIChatView: View {
     @State private var isNarrating = false
     /// Compact-voice tip (spec 029 R8): shown when narration starts with a
     /// compact voice; the X persists dismissal so it never reappears.
-    @State private var showVoiceNudge = false
     @State private var selectedCitations: CitationsWrapper? = nil
     /// Measured footer height (composer or narration stack), excluding the
     /// scaffold's `windowBottom + 16` pad.
@@ -104,7 +103,6 @@ public struct AIChatView: View {
         self.onPresentEntry = onPresentEntry
         self.narrationPreview = narrationPreview
         _isNarrating = State(initialValue: narrationPreview != nil)
-        _showVoiceNudge = State(initialValue: narrationPreview?.showVoiceNudge ?? false)
     }
 
     private var footerBottomPadding: CGFloat {
@@ -163,12 +161,6 @@ public struct AIChatView: View {
                             .accessibilityHidden(true)
                     }
 
-                    if showVoiceNudge && isNarrating {
-                        voiceNudgeBanner
-                            .frame(maxHeight: .infinity, alignment: .top)
-                            .padding(.top, AppHeaderMetrics.contentTopPadding)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
                 } else {
                     aiDisabledView
                 }
@@ -352,36 +344,6 @@ public struct AIChatView: View {
 
     /// One-time compact-voice tip (spec 029 R8). Informational, non-blocking;
     /// the X persists dismissal via PreferencesService.
-    private var voiceNudgeBanner: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "waveform.badge.magnifyingglass")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(theme.mutedForeground)
-                .padding(.top, 2)
-            Text("A more natural voice is available — download an Enhanced voice in Settings → Voice.")
-                .font(type.body2)
-                .foregroundStyle(theme.foreground)
-                .fixedSize(horizontal: false, vertical: true)
-            Button {
-                preferences.compactVoiceNudgeDismissed = true
-                withAnimation(.easeInOut(duration: 0.25)) { showVoiceNudge = false }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.mutedForeground)
-                    .frame(width: 28, height: 28)
-            }
-            .accessibilityLabel("Dismiss voice tip")
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(theme.card)
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-        )
-        .rootEdgeInset()
-    }
 
     private var aiDisabledView: some View {
         VStack(spacing: 24) {
@@ -424,7 +386,6 @@ public struct AIChatView: View {
     private func applyNarrationPreviewIfNeeded() {
         guard let preview = narrationPreview else { return }
         isNarrating = true
-        showVoiceNudge = preview.showVoiceNudge
         narrationCoordinator.seedPreview(
             phase: preview.phase,
             liveTranscript: preview.liveTranscript
@@ -445,11 +406,6 @@ public struct AIChatView: View {
         // speak with a robotic compact voice and a better one is a download
         // away. Reads the warmed cache only — never triggers the slow
         // catalog enumeration.
-        if !preferences.compactVoiceNudgeDismissed,
-           let quality = voiceService.resolvedVoiceQuality,
-           quality != .enhanced, quality != .premium {
-            showVoiceNudge = true
-        }
         Task { await voiceService.warmVoiceCatalog() }
         narrationCoordinator.start(chatViewModel: viewModel)
     }
@@ -464,7 +420,6 @@ public struct AIChatView: View {
         withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
             isNarrating = false
             // Hide without persisting: only the explicit X commits dismissal.
-            showVoiceNudge = false
         }
     }
 
@@ -572,7 +527,6 @@ private struct ChatFooterHeightKey: PreferenceKey {
     AIChatNarrationPreview(
         configuration: AIChatNarrationPreviewConfiguration(
             phase: .listening,
-            showVoiceNudge: true
         )
     )
 }
@@ -591,7 +545,6 @@ private struct ChatFooterHeightKey: PreferenceKey {
 struct AIChatNarrationPreviewConfiguration {
     var phase: NarrationCoordinator.Phase = .listening
     var liveTranscript: String = ""
-    var showVoiceNudge: Bool = false
     var isLoading: Bool = false
     var messages: [ChatMessage] = []
 

@@ -54,7 +54,9 @@ final class VoicePlaybackService: NSObject, ObservableObject {
 
     // MARK: Internals
 
-    private let synthesizer: SpeechSynthesizing
+    /// The engine actually producing speech — neural or system (spec 031 R2).
+    /// This service does not know which, and must not learn.
+    private let engine: UtteranceEngine
     /// When false (unit tests), never touches AVAudioSession.
     private let managesAudioSession: Bool
     /// Injected so tests can simulate an active dictation without SpeechService.
@@ -67,9 +69,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     /// another speaks, the old utterances' didCancel callbacks arrive *after*
     /// the new session enqueued — a count would decrement the new session's
     /// bookkeeping and end it prematurely.
-    private var activeUtteranceIDs = Set<ObjectIdentifier>()
-    /// Zero-volume warmup utterance — ignored by session bookkeeping.
-    private var warmupUtteranceID: ObjectIdentifier?
+    private var activeUtteranceIDs = Set<UtteranceID>()
     /// Set by `finishEnqueueing()`: when the queue drains after this, the
     /// session ends. Without it, `didFinish` of the last *currently queued*
     /// utterance would prematurely end a streaming session.
@@ -121,7 +121,22 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         // synthesizer flipping a private session under SpeechService's feet.
         synthesizer.usesApplicationAudioSession = true
         self.init(
-            synthesizer: synthesizer,
+            engineFactory: { voiceProvider in
+                let system = SystemUtteranceEngine(synthesizer: synthesizer,
+                                                   voiceProvider: voiceProvider)
+                // Neural is the only path the shipping roster can take: every
+                // voice in VoiceCatalog is a Supertonic style, and the system
+                // engine survives solely as the fallback inside it (030 R5).
+                return NeuralUtteranceEngine(
+                    playback: TTSPlayback(managesAudioSession: false),
+                    fallback: system,
+                    styleIDProvider: {
+                        VoiceCatalog.resolve(
+                            persistedID: PreferencesService.shared.selectedVoiceIdentifier
+                        ).id
+                    }
+                )
+            },
             managesAudioSession: true,
             isRecordingProvider: {
                 SpeechService.shared.isRecording || SpeechService.shared.isProcessing
@@ -159,19 +174,29 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         registerRemoteCommands()
     }
 
-    /// Test seam.
+    /// Test seam. The factory receives the voice resolver so the engine can be
+    /// built during `init` without capturing a not-yet-initialised `self`.
     init(
-        synthesizer: SpeechSynthesizing,
+        engineFactory: (@escaping () -> AVSpeechSynthesisVoice?) -> UtteranceEngine,
         managesAudioSession: Bool,
         isRecordingProvider: @escaping () -> Bool = { false },
         rateProvider: @escaping () -> Float = { SpeechRatePreset.brisk.rawValue }
     ) {
-        self.synthesizer = synthesizer
+        let voiceBox = VoiceBox()
+        self.engine = engineFactory({ voiceBox.resolve?() })
         self.managesAudioSession = managesAudioSession
         self.isRecordingProvider = isRecordingProvider
         self.rateProvider = rateProvider
         super.init()
-        synthesizer.synthesizerDelegate = self
+        voiceBox.resolve = { [weak self] in self?.voice }
+        engine.engineDelegate = self
+    }
+
+    /// Breaks the initialisation cycle between the service (which owns the
+    /// AVSpeech voice cache, because three other screens warm it) and the engine
+    /// (which needs to read it).
+    private final class VoiceBox {
+        var resolve: (() -> AVSpeechSynthesisVoice?)?
     }
 
     // MARK: - Public API (step 1)
@@ -205,7 +230,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func stop() {
         guard speakingMessageID != nil else { return }
         sessionGeneration &+= 1
-        synthesizer.stopSpeaking(at: .immediate)
+        engine.stopAll()
         clearSession()
     }
 
@@ -221,7 +246,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func pauseSpeaking() {
         guard speakingMessageID != nil, !isPaused else { return }
         isPaused = true
-        synthesizer.pauseSpeaking(at: .word)
+        engine.pause()
         updateNowPlayingRate(0.0)
     }
 
@@ -229,7 +254,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func continueSpeaking() {
         guard speakingMessageID != nil, isPaused else { return }
         isPaused = false
-        synthesizer.continueSpeaking()
+        engine.resume()
         updateNowPlayingRate(1.0)
     }
 
@@ -243,7 +268,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func beginUtteranceSession(for messageID: UUID, title: String? = nil) {
         sessionGeneration &+= 1
         if speakingMessageID != nil {
-            synthesizer.stopSpeaking(at: .immediate)
+            engine.stopAll()
         }
         speakingMessageID = messageID
         isSpeaking = false
@@ -273,22 +298,25 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         let text = SpeechTextSanitizer.sanitize(sentence)
         guard !text.isEmpty else { return }
 
-        let utterance = AVSpeechUtterance(string: text)
-        if let voice { utterance.voice = voice }
-        // User preference (SpeechRatePreset); default Brisk 0.53 — system 0.5
-        // reads slightly slow for conversational AI.
-        utterance.rate = min(max(rateProvider(), AVSpeechUtteranceMinimumSpeechRate),
-                             AVSpeechUtteranceMaximumSpeechRate)
-        // A short breath between parts (heading → body, sentence → sentence).
-        // Was 0.25 — measurably dead air across a multi-sentence reply
-        // (spec 029 R4); the synthesizer's own inter-utterance latency already
-        // provides part of the pause.
-        utterance.postUtteranceDelay = 0.1
-        activeUtteranceIDs.insert(ObjectIdentifier(utterance))
+        // Voice, rate clamping and utterance construction now belong to the
+        // engine. What stays here is the rate *preference* and the pacing
+        // decision, because both are the app's, not the synthesizer's.
+        let request = UtteranceRequest(
+            id: UtteranceID(),
+            text: text,
+            // User preference (SpeechRatePreset); default Brisk 0.53 — system 0.5
+            // reads slightly slow for conversational AI.
+            rate: rateProvider(),
+            // A short breath between parts (heading → body, sentence → sentence).
+            // Was 0.25 — measurably dead air across a multi-sentence reply
+            // (spec 029 R4).
+            postDelay: 0.1
+        )
+        activeUtteranceIDs.insert(request.id)
         if activationComplete {
-            synthesizer.speak(utterance)
+            engine.speak(request)
         } else {
-            pendingUtterances.append(utterance)
+            pendingUtterances.append(request)
         }
     }
 
@@ -300,20 +328,10 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         endSessionIfDrained()
     }
 
-    // MARK: - Settings preview
-
-    /// Session ID for voice/rate previews from Settings — a fixed UUID so a
-    /// preview never matches any chat message's `speakingMessageID`.
-    static let previewSessionID = UUID(uuidString: "D19A7E55-0000-4000-8000-5E77E5501D01")!
-
-    /// Speaks a one-line sample with the current voice/rate preferences.
-    /// Used by VoiceSettingsView so a picked voice is audible immediately.
-    func speakPreview() {
-        guard !isRecordingProvider() else { return }
-        beginUtteranceSession(for: Self.previewSessionID, title: "Voice preview")
-        enqueue(sentence: "Hi, I'm Memento. This is how I'll sound.")
-        finishEnqueueing()
-    }
+    // Settings previews are no longer served here. They render through
+    // SupertonicEngine directly (spec 033 R2), so this service no longer needs a
+    // synthetic preview session id or a second preview sentence — one sentence,
+    // owned by VoiceSettingsView, is now the only one.
 
     // MARK: - Session activation (spec 029 R4)
 
@@ -322,7 +340,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     /// unit tests). While false, `enqueue` buffers into `pendingUtterances`.
     private var activationComplete = true
     /// Utterances enqueued before activation landed, spoken in order once it does.
-    private var pendingUtterances: [AVSpeechUtterance] = []
+    private var pendingUtterances: [UtteranceRequest] = []
     /// The in-flight `setActive(true)` (nil error = success). Shared between
     /// pre-activation and session begin so narration can pay this cost while
     /// the model is still thinking.
@@ -410,13 +428,13 @@ final class VoicePlaybackService: NSObject, ObservableObject {
             self.activationTask = nil
             if let failure {
                 self.errorMessage = "Audio playback unavailable: \(failure.localizedDescription)"
-                self.synthesizer.stopSpeaking(at: .immediate)
+                self.engine.stopAll()
                 self.clearSession()
             } else {
                 self.activationComplete = true
                 let queued = self.pendingUtterances
                 self.pendingUtterances.removeAll()
-                queued.forEach { self.synthesizer.speak($0) }
+                queued.forEach { self.engine.speak($0) }
             }
         }
     }
@@ -428,9 +446,10 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         await warmVoiceCatalog()
     }
 
-    /// Speaks a zero-volume space so the synthesizer engine is live before
-    /// the first real sentence. Generation-guarded: a barge-in or cancel
-    /// that bumps `sessionGeneration` drops the utterance unused.
+    /// Spins the engine up so the first real sentence is not the one that pays
+    /// load cost — a silent utterance for the system engine, graph loading for
+    /// the neural one. Generation-guarded: a barge-in or cancel that bumps
+    /// `sessionGeneration` drops the warm-up unused.
     func warmSynthesizer() {
         let generation = sessionGeneration
         Task { @MainActor [weak self] in
@@ -441,12 +460,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
                 _ = await pending.value
             }
             guard self.sessionGeneration == generation, self.speakingMessageID == nil else { return }
-            let utterance = AVSpeechUtterance(string: " ")
-            utterance.volume = 0
-            utterance.rate = AVSpeechUtteranceMaximumSpeechRate
-            if let voice = self.voice { utterance.voice = voice }
-            self.warmupUtteranceID = ObjectIdentifier(utterance)
-            self.synthesizer.speak(utterance)
+            self.engine.warm()
         }
     }
 
@@ -753,69 +767,45 @@ final class VoicePlaybackService: NSObject, ObservableObject {
 
 // MARK: - AVSpeechSynthesizerDelegate
 
-extension VoicePlaybackService: AVSpeechSynthesizerDelegate {
-    // Delegate callbacks may arrive off-main; hop and guard the generation so
-    // callbacks from a stopped/replaced session can't revive stale state.
+extension VoicePlaybackService: UtteranceEngineDelegate {
+    // The engine reports on the main actor and the ids it reports are the ones
+    // handed to it, so these no longer hop threads or unwrap object identity.
+    // Staleness is still handled the same way it always was: an id that is not
+    // in `activeUtteranceIDs` belongs to a session that has already ended, and
+    // is ignored.
 
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor in
-            guard self.activeUtteranceIDs.contains(ObjectIdentifier(utterance)) else { return }
-            if !self.isSpeaking {
-                // First audio of the session — the moment the user hears the
-                // reply begin (spec 029 R1 `tts.firstAudio`).
-                PerfSignposts.speechLoop.emitEvent("tts.firstAudio")
-                LiveTurnClock.shared.mark(.ttsFirstAudio)
-            }
-            self.isSpeaking = true
+    func utteranceDidStart(_ id: UtteranceID) {
+        guard activeUtteranceIDs.contains(id) else { return }
+        if !isSpeaking {
+            // First audio of the session — the moment the user hears the
+            // reply begin (spec 029 R1 `tts.firstAudio`).
+            PerfSignposts.speechLoop.emitEvent("tts.firstAudio")
+            LiveTurnClock.shared.mark(.ttsFirstAudio)
         }
+        isSpeaking = true
     }
 
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor in self.utteranceEnded(utterance) }
+    /// Spoken to completion, or cancelled — the session only tracks whether an
+    /// utterance is still outstanding, so both mean the same thing here.
+    ///
+    /// Internal (not private) so unit tests can drive the state machine directly
+    /// instead of racing a real engine.
+    func utteranceDidEnd(_ id: UtteranceID) {
+        guard activeUtteranceIDs.remove(id) != nil else { return }
+        endSessionIfDrained()
     }
 
     // isPaused flips eagerly in pauseSpeaking()/continueSpeaking() for snappy
-    // UI; these delegate callbacks are confirmation, and they matter when the
-    // pause originated outside the app (e.g. a future system-initiated pause).
+    // UI; these are confirmation, and they matter when the pause originated
+    // outside the app.
 
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor in
-            guard self.activeUtteranceIDs.contains(ObjectIdentifier(utterance)) else { return }
-            self.isPaused = true
-        }
+    func utteranceDidPause(_ id: UtteranceID) {
+        guard activeUtteranceIDs.contains(id) else { return }
+        isPaused = true
     }
 
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance
-    ) {
-        Task { @MainActor in
-            guard self.activeUtteranceIDs.contains(ObjectIdentifier(utterance)) else { return }
-            self.isPaused = false
-        }
-    }
-
-    nonisolated func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance
-    ) {
-        // After stop() state is already cleared; a didCancel for an old
-        // session's utterance won't be in activeUtteranceIDs and is ignored.
-        Task { @MainActor in self.utteranceEnded(utterance) }
-    }
-
-    /// Internal (not fileprivate) so unit tests can drive the state machine
-    /// synchronously instead of racing the delegate's main-actor hop.
-    func utteranceEnded(_ utterance: AVSpeechUtterance) {
-        if warmupUtteranceID == ObjectIdentifier(utterance) {
-            warmupUtteranceID = nil
-            return
-        }
-        guard activeUtteranceIDs.remove(ObjectIdentifier(utterance)) != nil else { return }
-        endSessionIfDrained()
+    func utteranceDidResume(_ id: UtteranceID) {
+        guard activeUtteranceIDs.contains(id) else { return }
+        isPaused = false
     }
 }

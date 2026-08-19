@@ -21,7 +21,6 @@ class PreferencesService: ObservableObject {
         static let processOnDeviceOnly = "processOnDeviceOnly"
         static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
         static let speechRate = "speechRate"
-        static let compactVoiceNudgeDismissed = "compactVoiceNudgeDismissed"
     }
 
     // MARK: - Published Properties
@@ -73,15 +72,6 @@ class PreferencesService: ObservableObject {
         }
     }
 
-    /// One-time compact-voice tip (spec 029 R8): when narration would use a
-    /// compact voice, a dismissible nudge points at the enhanced-voice
-    /// guidance. Once dismissed it never reappears.
-    @Published var compactVoiceNudgeDismissed: Bool {
-        didSet {
-            defaults.set(compactVoiceNudgeDismissed, forKey: Keys.compactVoiceNudgeDismissed)
-        }
-    }
-
     // MARK: - Theme Preference
     var themePreference: AppThemePreference {
         get {
@@ -102,7 +92,6 @@ class PreferencesService: ObservableObject {
         self.selectedVoiceIdentifier = defaults.string(forKey: Keys.selectedVoiceIdentifier)
         self.speechRate = defaults.object(forKey: Keys.speechRate) as? Float
             ?? SpeechRatePreset.brisk.rawValue
-        self.compactVoiceNudgeDismissed = defaults.bool(forKey: Keys.compactVoiceNudgeDismissed)
     }
 
     /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
@@ -112,6 +101,10 @@ class PreferencesService: ObservableObject {
         defaults.removeObject(forKey: Keys.processOnDeviceOnly)
         defaults.removeObject(forKey: Keys.selectedVoiceIdentifier)
         defaults.removeObject(forKey: Keys.speechRate)
+        // Retired 2026-08-18 with the compact-voice nudge (spec 033 R6). Removed
+        // here as well so "delete everything" does not leave an orphan behind —
+        // resetToDefaults() never cleared this key even when it was live.
+        defaults.removeObject(forKey: "compactVoiceNudgeDismissed")
         aiEnabled = true
         processOnDeviceOnly = false
         selectedVoiceIdentifier = nil

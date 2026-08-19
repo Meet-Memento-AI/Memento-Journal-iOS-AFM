@@ -2,12 +2,33 @@ import XCTest
 import AVFoundation
 @testable import MeetMemento
 
-/// Drives VoicePlaybackService's state machine through the SpeechSynthesizing
-/// seam — no real audio (simulator TTS is unreliable; CI is headless). Delegate
-/// transitions are exercised via the internal `utteranceEnded(_:)` hook so
-/// tests stay synchronous instead of racing the delegate's main-actor hop.
+/// Drives VoicePlaybackService's state machine through the `UtteranceEngine`
+/// seam — no real audio (simulator TTS is unreliable; CI is headless).
+/// Completion is driven via `utteranceDidEnd(_:)` so tests stay synchronous
+/// instead of racing a real engine.
+///
+/// The seam moved here from `SpeechSynthesizing` when the neural engine landed:
+/// spec 031 R2 requires a narrow protocol *above* it rather than pretending
+/// Supertonic is an AVSpeechSynthesizer. `SpeechSynthesizing` is still faked
+/// below, one layer down, for the tests that cover AVSpeech translation itself.
 @MainActor
 final class VoicePlaybackServiceTests: XCTestCase {
+
+    /// Records what the service asked to be spoken.
+    private final class MockUtteranceEngine: UtteranceEngine {
+        weak var engineDelegate: UtteranceEngineDelegate?
+        var spokenUtterances: [UtteranceRequest] = []
+        var stopCount = 0
+        var pauseCount = 0
+        var continueCount = 0
+        var warmCount = 0
+
+        func speak(_ request: UtteranceRequest) { spokenUtterances.append(request) }
+        func stopAll() { stopCount += 1 }
+        func pause() { pauseCount += 1 }
+        func resume() { continueCount += 1 }
+        func warm() { warmCount += 1 }
+    }
 
     private final class MockSpeechSynthesizer: SpeechSynthesizing {
         var synthesizerDelegate: AVSpeechSynthesizerDelegate?
@@ -39,25 +60,27 @@ final class VoicePlaybackServiceTests: XCTestCase {
         }
     }
 
-    private var mock: MockSpeechSynthesizer!
+    private var mock: MockUtteranceEngine!
     private var service: VoicePlaybackService!
     private var isRecording = false
 
     override func setUp() {
         super.setUp()
-        mock = MockSpeechSynthesizer()
+        mock = MockUtteranceEngine()
         isRecording = false
         service = VoicePlaybackService(
-            synthesizer: mock,
+            engineFactory: { [unowned self] _ in self.mock },
             managesAudioSession: false,
             isRecordingProvider: { [unowned self] in self.isRecording }
         )
     }
 
+    private func end(_ request: UtteranceRequest) {
+        service.utteranceDidEnd(request.id)
+    }
+
     private func finishAll() {
-        for utterance in mock.spokenUtterances {
-            service.utteranceEnded(utterance)
-        }
+        for request in mock.spokenUtterances { end(request) }
     }
 
     // MARK: - Toggle
@@ -136,10 +159,10 @@ final class VoicePlaybackServiceTests: XCTestCase {
         service.enqueue(sentence: "Second.")
         service.finishEnqueueing()
 
-        service.utteranceEnded(mock.spokenUtterances[0])
+        end(mock.spokenUtterances[0])
         XCTAssertEqual(service.speakingMessageID, id, "session must survive a mid-queue finish")
 
-        service.utteranceEnded(mock.spokenUtterances[1])
+        end(mock.spokenUtterances[1])
         XCTAssertNil(service.speakingMessageID)
     }
 
@@ -148,14 +171,14 @@ final class VoicePlaybackServiceTests: XCTestCase {
         let id = UUID()
         service.beginUtteranceSession(for: id)
         service.enqueue(sentence: "First sentence.")
-        service.utteranceEnded(mock.spokenUtterances[0])
+        end(mock.spokenUtterances[0])
 
         XCTAssertEqual(service.speakingMessageID, id,
                        "drained queue without finishEnqueueing must not end the session")
 
         service.enqueue(sentence: "Late-arriving sentence.")
         service.finishEnqueueing()
-        service.utteranceEnded(mock.spokenUtterances[1])
+        end(mock.spokenUtterances[1])
         XCTAssertNil(service.speakingMessageID)
     }
 
@@ -170,10 +193,10 @@ final class VoicePlaybackServiceTests: XCTestCase {
 
         // didCancel for the old session's utterance arrives after the new
         // session already enqueued — it must not touch the new bookkeeping.
-        service.utteranceEnded(oldUtterance)
+        end(oldUtterance)
         XCTAssertEqual(service.speakingMessageID, newID)
 
-        service.utteranceEnded(mock.spokenUtterances[1])
+        end(mock.spokenUtterances[1])
         XCTAssertNil(service.speakingMessageID)
     }
 
@@ -182,7 +205,7 @@ final class VoicePlaybackServiceTests: XCTestCase {
         let utterance = mock.spokenUtterances[0]
         service.stop()
 
-        service.utteranceEnded(utterance)
+        end(utterance)
         XCTAssertNil(service.speakingMessageID)
         XCTAssertFalse(service.isSpeaking)
     }
@@ -274,9 +297,9 @@ final class VoicePlaybackServiceTests: XCTestCase {
 
     func test_enqueueAppliesInjectedRate() {
         var rate: Float = 0.45
-        let localMock = MockSpeechSynthesizer()
+        let localMock = MockUtteranceEngine()
         let localService = VoicePlaybackService(
-            synthesizer: localMock, managesAudioSession: false,
+            engineFactory: { _ in localMock }, managesAudioSession: false,
             rateProvider: { rate }
         )
         localService.toggleSpeech(messageID: UUID(), heading1: nil, heading2: nil, body: "One.")
@@ -288,15 +311,28 @@ final class VoicePlaybackServiceTests: XCTestCase {
         XCTAssertEqual(localMock.spokenUtterances[1].rate, 0.58, "rate must be read per utterance")
     }
 
-    func test_enqueueClampsOutOfRangeRate() {
-        let localMock = MockSpeechSynthesizer()
+    /// The clamp moved with the utterance construction it belongs to: the
+    /// service now carries the raw preference and `SystemUtteranceEngine`
+    /// applies AVSpeech's own bounds. Tested where it lives.
+    func test_systemEngineClampsOutOfRangeRate() {
+        let synth = MockSpeechSynthesizer()
+        let engine = SystemUtteranceEngine(synthesizer: synth)
+        engine.speak(UtteranceRequest(id: UtteranceID(), text: "Hi.",
+                                      rate: 9.9, postDelay: 0.1))
+        XCTAssertLessThanOrEqual(synth.spokenUtterances[0].rate,
+                                 AVSpeechUtteranceMaximumSpeechRate)
+    }
+
+    /// The service passes the preference through untouched — clamping is not
+    /// its job, and doing it in both places would hide a disagreement.
+    func test_serviceForwardsRawRate() {
+        let localMock = MockUtteranceEngine()
         let localService = VoicePlaybackService(
-            synthesizer: localMock, managesAudioSession: false,
-            rateProvider: { 9.9 }
+            engineFactory: { _ in localMock }, managesAudioSession: false,
+            rateProvider: { 0.45 }
         )
         localService.toggleSpeech(messageID: UUID(), heading1: nil, heading2: nil, body: "Hi.")
-        XCTAssertLessThanOrEqual(localMock.spokenUtterances[0].rate,
-                                 AVSpeechUtteranceMaximumSpeechRate)
+        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45)
     }
 
     // MARK: - shouldReleaseAudioSession decision table (spec 028 R3b)
@@ -332,4 +368,10 @@ final class VoicePlaybackServiceTests: XCTestCase {
             isRecording: false, speakingMessageID: UUID()
         ))
     }
+}
+
+/// Test-local sugar: the old assertions read `.speechString` because the seam
+/// spoke `AVSpeechUtterance`. The text is the same text.
+extension UtteranceRequest {
+    var speechString: String { text }
 }
