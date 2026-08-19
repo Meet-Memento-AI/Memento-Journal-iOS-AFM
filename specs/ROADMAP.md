@@ -31,6 +31,8 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 | 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | in-progress (spec-writing only) — 020 Requirements written; `DEC-005` (Watch) open, `REQ-SYS-002` gated on `DEC-002` |
 | 5 — Study | [021](021-monetization-and-store-compliance.md), [022](022-evaluation-and-quality-study.md) | Re-baselined 30-day quality study running | in-progress (spec-writing only) — 021 and 022 Requirements written; `DEC-001`/`DEC-004` and the LLM-as-judge decision open |
 | **S — Ship** | [`docs/app-store/`](../docs/app-store/), [025](025-ci-online-ios-build-gates.md) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence; merge CI proves online-testable iOS build specs (not on-device FM generation) | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below; **025 done (2026-08-10)** — `ios-tests.yml` replaced by `ios-build-online.yml` + optional `ios-device-eval.yml` (CI-live / branch-protection rename is a user action) |
+| 6 — Experience (added 2026-08-18) | [026](026-behavioral-safety-guardrails.md), [027](027-navigation-redesign.md), [028](028-conversational-narration.md), [029](029-performance-and-speech-excellence.md) | Narration is a reliable multi-turn conversation inside Chat, at budget | in-progress — 027 shipped with the nav redesign; 028 and 029 landed their first passes 2026-08-17/18. These four post-date the original phase plan and were previously untracked here |
+| 7 — Voice (added 2026-08-18) | [030](030-neural-tts-model-assets.md), [031](031-neural-synthesis-engine.md), [032](032-tts-streaming-and-latency.md), [033](033-neural-voice-catalog.md), [035](035-spoken-form-formatter.md), [036](036-neural-voice-verification.md); [034](034-full-duplex-conversation-audio.md) off the critical path | **Gate V — Voice**: 036's release gates pass on physical devices, with a proxy-verified zero-egress artifact archived | in-progress (2026-08-18) — model **vendored and bundled** (148 MB, builds clean); V31 **withdrawn** (`DEC-012` — nothing is hosted). Blocked on **V29/V30** per CONSTITUTION rule 10; `DEC-008`/`DEC-009` open, `DEC-010`/`DEC-011`/`DEC-012` resolved |
 
 **Gate S — Ship (added 2026-08-07).** Store readiness is not a spec, because it
 is mostly *not* code: it is App Store Connect fields, Apple-side filings with
@@ -81,6 +83,11 @@ resolving each:
 | `DEC-005` — Watch companion in 2.0 or 2.1? | 020 | P2 | `technology/07-app-intents-and-surfaces.md` |
 | `DEC-001` — ship on non-Apple-Intelligence devices? | 021 | P1 | `technology/10-monetization-and-privacy.md` §1 |
 | `DEC-004` — final pricing and trial length | 021 | P1 | `technology/10-monetization-and-privacy.md` §7 |
+| `DEC-008` — ANE placement with dynamic shapes, or fixed-shape buckets? | 031 | P1 | `technology/11-verification-queue.md` V29; `technology/13-neural-tts-coreml.md` §2–§3 |
+| `DEC-009` — is the provisional voice roster the shipping roster, under AEC? | 033 | P1 | `technology/11-verification-queue.md` V30; `technology/13-neural-tts-coreml.md` §5 |
+| `DEC-010` — model-weight attribution placement | 030 | ✅ resolved 2026-08-18 — Settings → Acknowledgments (a license condition) | `technology/13-neural-tts-coreml.md` §7 |
+| `DEC-011` — does the neural catalog replace the system-voice picker? | 033 | ✅ resolved 2026-08-18 — yes; amends `REQ-VOX-001`'s user-facing half | `technology/13-neural-tts-coreml.md`; `018` R7 |
+| `DEC-012` — bundle the model in the binary, or download it? | 030 | ✅ resolved 2026-08-18 — **bundle**; palettized to clear the 200 MB install prompt | `technology/13-neural-tts-coreml.md` §6/§6a (superseded) |
 
 **2.0 constitutional gate ladder (partial, landed 2026-08-02).** The SDK-free,
 decision-free CI gates that can run before the Swift rewrite exist and are wired

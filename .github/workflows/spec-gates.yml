@@ -61,17 +61,19 @@ jobs:
       #   python3 scripts/ci/speakability_lint.py <generation files...>
 
   dependency-allowlist:
-    name: Dependency allowlist (spec 021 R6 / REQ-MON-005) [report-only]
+    name: Dependency allowlist (spec 021 R6 / REQ-MON-005)
     runs-on: [self-hosted, Linux, x64]
     steps:
       - uses: actions/checkout@v6
-      - name: Check SPM deps against allowlist (report-only)
-        # The product is on-device only. Still report-only ONLY because the two UI
-        # packages (ProgressiveBlurHeader, SVGKit) need a REQ-MON-005 decision
-        # record or removal; flip to ALLOWLIST_ENFORCE=1 once that lands. Must be
-        # enforcing before spec 021 closes.
+      - name: Check SPM deps against allowlist
+        # ENFORCING since 2026-08-18. The last off-allowlist package (SVGKit) was
+        # linked to no target and imported by no Swift file, so it was removed
+        # outright rather than granted a REQ-MON-005 record; CocoaLumberjack and
+        # swift-log went with it as its transitive pins. The resolved third-party
+        # SPM set is now empty. Per spec 030's ordering constraint, the neural
+        # voice dependency may only be added with this gate enforcing.
         env:
-          ALLOWLIST_ENFORCE: "0"
+          ALLOWLIST_ENFORCE: "1"
         run: scripts/ci/check_dependency_allowlist.sh
 
   privacy-manifest:

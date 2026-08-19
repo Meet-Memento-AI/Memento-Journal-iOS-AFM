@@ -194,6 +194,150 @@ SDK findings (iOS 27.0 SDK, 27A5228h), see `01-foundation-models.md` §3: `Syste
 
 ---
 
+## P1 — Neural voice (specs 030–036, added 2026-08-18)
+
+All three are device or policy questions. **None resolves from the SDK** — the
+framework surface for all of them was swept against iOS 27.0 (27A5228h) on
+2026-08-18 and recorded in `13-neural-tts-coreml.md`.
+
+### V29. Is the Supertonic `VectorEstimator` graph ANE-resident with dynamic latent length?
+🟡 **Owning spec: 031. Shapes RESOLVED 2026-08-18; placement still open.**
+
+**Verified by compiling the bundle** (`xcrun coremlcompiler`, all four graphs
+compile clean) and reading each `model.mil`: `TextEncoder` and
+`DurationPredictor` are **fully fixed** at 128 text tokens; `VectorEstimator`
+(`[1,144,?]`, RangeDims **17…512**) and `Vocoder` (`[1,144,?]`, RangeDims
+**4…512**) are dynamic on **one bounded axis only**. That is a much better
+starting position than open-ended dynamic shapes, and it makes `DEC-008`'s
+contingency *enumerated shapes* rather than triplicated graphs — the ~730 MB
+worst case is withdrawn.
+
+**Also discovered, and it belongs to spec 032:** text is hard-capped at **128
+tokens per synthesis call**. Longer text must be split by the app.
+
+**What remains 🔴:** actual compute-unit placement, which no amount of file
+reading answers. Variable-length inputs silently falling off the Neural
+Engine onto GPU/CPU is a known Core ML failure mode, and `MLComputeUnitsAll` is a
+request rather than a guarantee (`13-neural-tts-coreml.md` §2 — enum ✅ VERIFIED).
+**How to check:** load the FP16 bundle in a scratch project and run Xcode's Core ML
+performance report **on a physical device**; it prints per-layer compute-unit
+placement. **Corrected 2026-08-18:** the graph is **`VectorEstimator`** (the flow-matching
+estimator, 243 MB of a 331 MB bundle, run iteratively), not "text_to_latent" —
+that name does not exist in the export. Check `TextEncoder` as well, but
+`VectorEstimator` decides latency. **If negative:** activate `DEC-008` — export
+fixed-shape variants, pad inputs, chunk above the largest bucket, and switch
+`MLOptimizationHints.reshapeFrequency` to `.infrequent`. Weigh the cost
+honestly: 3× a 243 MB graph is ~730 MB on a bundle already over spec 030 R7's
+threshold, so bucketing may be infeasible rather than merely expensive. **Blocks:** all of spec 031's engine code (CONSTITUTION rule 10).
+**Reference:** `13-neural-tts-coreml.md` §2–§3.
+
+**Partial answer, measured on device 2026-08-18** (iPhone 16 Pro, iOS 26,
+Xcode 26.0.1). The dynamic axis is **not** merely a theoretical placement risk —
+it is a hard incompatibility with **at least one** non-CPU backend, reproducibly:
+under `MLComputeUnits.all`, `Vocoder` is dispatched to the **GPU via MPSGraph**,
+which requires static shapes and fails outright (`invalid axis: -1258641855`,
+`'shape for TensorData is not static'`). So the "variable-length inputs silently
+fall off the ANE" concern above understates it for the GPU path, where the
+failure is loud rather than silent.
+
+Resolution shipped: `SupertonicCompute.cpuAndNeuralEngine` — **exclude the GPU,
+keep the ANE**. With that, the engine runs end-to-end on device at **RTF 0.254**
+(1.162 s wall for 4.568 s of 44.1 kHz audio, warm), all four voices render and
+differ, and the log is clean.
+
+**Still 🔴, and this is the part the measurement above does not answer:** whether
+`VectorEstimator` is actually *ANE-resident* or is silently running on CPU inside
+`.cpuAndNeuralEngine`. RTF 0.254 is comfortable but does not discriminate between
+the two — an 8-bit-palettized graph on a fast CPU could plausibly produce it. The
+Core ML performance report on device remains the only thing that closes V29.
+Note the correction it must resolve: `DEC-008`'s enumerated-shapes contingency was
+scoped to the *ANE* rejecting the dynamic axis, and the ANE is not what failed
+here, so **`DEC-008` is not activated by this finding**.
+
+### V30. Do all four candidate voices survive the voice-processing (AEC) path?
+🔴 **Owning spec: 033.** `setVoiceProcessingEnabled:error:` is ✅ VERIFIED
+(`AVAudioIONode.h`, ios 13.0) — the API is not in question. The **timbre cost**
+is: voice-processing I/O is tuned for telephony intelligibility and audibly thins
+and nasalizes output. **How to check:** render three real journal-reflection
+passages in each candidate voice through an `AVAudioSession` `.playAndRecord`
+graph with voice processing enabled, on a physical device, and listen. **If any
+voice degrades:** swap the roster now and update spec 033's catalog — `DEC-009`.
+A voice users bond with cannot be swapped cheaply after release, which is why
+this is auditioned through the *degraded* path rather than the hi-fi one.
+**Reference:** `13-neural-tts-coreml.md` §5.
+
+### V31. Background Assets delivery — ⛔ WITHDRAWN 2026-08-18
+
+**Withdrawn, not resolved.** `DEC-012` bundles the model in the app binary, so
+every question this item existed to answer — App Review posture for a self-hosted
+model pack, TLS/availability/CDN requirements, hosting ownership — is moot.
+Nothing is hosted. The size half was answered anyway: 148 MB vendored, ~156 MB
+app, under the 200 MB cellular-prompt threshold (spec `030` R7).
+
+The API findings below remain accurate and are retained for provenance; they are
+not a description of how the app ships.
+
+<details><summary>Original entry</summary>
+
+### V31 (original). Background Assets delivery — hosting model, App Review posture, size
+🟡 **Owning spec: 030. Hosting half RESOLVED 2026-08-18; size measurement still open.**
+
+**Finding that changes the design: Apple will host the assets for us.** The spec
+assumed self-hosting because the SDK sweep found the self-hosted manifest API
+first. App Store Connect documentation (fetched 2026-08-18) confirms
+**Apple-hosted asset packs** as a first-class option for apps targeting iOS 26+
+— which this app does (`IPHONEOS_DEPLOYMENT_TARGET = 26.0`):
+
+| Limit | Value |
+|---|---|
+| Asset pack total | **200 GB**, included in the Developer Program membership |
+| Maximum asset packs per app | **200** |
+| Scope | Shared across all platforms the app offers |
+
+A ~250 MB model bundle is **0.125%** of that quota, so size is not a constraint
+on the hosting decision. Apple-hosted packs are uploaded from Xcode's packaging
+tool, versioned in App Store Connect, testable through TestFlight, and submitted
+through App Review alongside the build.
+
+**Why this is likely the better answer than self-hosting:** it removes the CDN,
+TLS, and availability workstream entirely; availability becomes Apple's problem
+rather than a single-developer operational risk; and it keeps asset delivery
+inside the Apple trust boundary rather than introducing a Memento-operated
+endpoint — which the product otherwise does not have at all
+(`REQ-PRIV-001`, "no developer-operated server"). It does not weaken
+`REQ-TTS-001`: delivery happens outside synthesis, model-load, and
+voice-selection time either way.
+
+**Consequence for spec 030 R2, which currently mandates self-hosting:** the
+client API differs — Apple-hosted uses managed asset packs rather than
+`BAAssetPackManifest.init(contentsOf:appGroupID:)` over a manifest we serve.
+This is a **product/architecture decision for the owner**, recorded here rather
+than taken unilaterally. Note that `REQ-TTS-002`'s compiled-in SHA-256 manifest
+remains implementable and desirable under either model.
+
+**Still open:** measured total bundle size (spec 030 R7's 250 MB escalation
+threshold), and whether App Review treats a model-weight asset pack differently
+from a content asset pack. Neither blocks the hosting decision.
+
+---
+
+<details><summary>Original entry, retained for provenance</summary>
+
+🔴 **Owning spec: 030.** The **API half is ✅ RESOLVED** (2026-08-18): developer-
+hosted "unmanaged" asset packs are supported — `BAAssetPackManifest.init(contentsOf:appGroupID:)`
+(ios 26) over a developer-served JSON manifest, `BAAssetPackManager.ensureLocalAvailabilityOfAssetPack:`,
+per-pack integer `version` plus `checkForUpdatesWithCompletionHandler:`, and
+`URLForPath:` to hand Core ML a file URL (off the main thread — the header
+requires it). **Still open (policy/infrastructure):** whether App Review treats a
+self-hosted model-asset pack of this size differently from self-hosted content
+assets; the measured total FP16 bundle size (spec 030 escalates above 250 MB);
+and the TLS/availability/CDN requirements for Memento-controlled hosting.
+**Reference:** `13-neural-tts-coreml.md` §6.
+
+</details>
+
+---
+
 ## How to work this list
 
 1. **Download Xcode 27 beta.** Most of P2 resolves in an afternoon of autocomplete and header reading.

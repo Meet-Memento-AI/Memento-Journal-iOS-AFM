@@ -2,12 +2,12 @@
 id: 018
 title: Capture and Voice Output
 tier: P1
-status: in-progress (2026-07-24) — Requirements derived; Personal Voice/iOS-27 speech API verification gated on Xcode 27 beta and device testing
+status: in-progress (2026-08-18) — Requirements derived; R7 rewritten and R12 added for the neural-voice family (specs 030–036); Personal Voice/AirPods verification still gated on device testing
 effort: 3 sessions
 depends_on: [013, 015, 017]
-findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first]
-source_refs: [REQ-CAP-001, REQ-CAP-002, REQ-CAP-003, REQ-CAP-004, REQ-CAP-005, REQ-CAP-006, REQ-CAP-007, REQ-CAP-008, REQ-CAP-009, REQ-CAP-010, REQ-CAP-011, REQ-CAP-012, REQ-VOX-001, REQ-VOX-002, REQ-VOX-003, REQ-VOX-004, REQ-VOX-005, REQ-VOX-006, REQ-VOX-007]
-tech_refs: [technology/06-speech-and-audio.md, technology/08-context-frameworks.md]
+findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first, tts-vendor-rule-was-a-privacy-rule, phonemizer-gpl-contamination-gate]
+source_refs: [REQ-CAP-001, REQ-CAP-002, REQ-CAP-003, REQ-CAP-004, REQ-CAP-005, REQ-CAP-006, REQ-CAP-007, REQ-CAP-008, REQ-CAP-009, REQ-CAP-010, REQ-CAP-011, REQ-CAP-012, REQ-VOX-001, REQ-VOX-002, REQ-VOX-003, REQ-VOX-004, REQ-VOX-005, REQ-VOX-006, REQ-VOX-007, REQ-TTS-001, REQ-TTS-003, REQ-TTS-009]
+tech_refs: [technology/06-speech-and-audio.md, technology/08-context-frameworks.md, technology/13-neural-tts-coreml.md]
 ---
 
 # 018 — Capture and Voice Output
@@ -310,23 +310,51 @@ Rules (`REQ-CAP-012` + `technology/08` §6, all normative here):
   inspected in 017's tests, then it contains only Z0-computed summaries,
   never raw place/weather values.
 
-### R7. TTS rendering — the complete-text constraint, cache, and audio-app behavior
-Every `Reflection` MUST be renderable as audio via `AVSpeechSynthesizer`
-using an **Enhanced or Premium** system voice, with the voice-asset download
-surfaced in Settings — never a silent fallback to a compact robotic voice
-(`REQ-VOX-001`, `technology/06` B2). Zone: `.z0Device`.
+### R7. TTS rendering — synthesis is on-device, not single-vendor; cache and audio-app behavior
+Every `Reflection` MUST be renderable as audio. Zone: `.z0Device`.
 
-**The load-bearing constraint** (`technology/06` B1, 🟡): the synthesizer
-cannot consume a token stream — it needs complete text. That is why
-reflections arrive complete while chat streams (`REQ-INT-014`, spec 017 R6 —
-cited, not re-decided here). Reflection surfaces remain the primary TTS home;
-**chat additionally offers post-stream, per-message playback** (amended
+**The rule, restated (amended 2026-08-18 — `REQ-TTS-001`):** *TTS synthesis MUST
+execute entirely on-device. The TTS path MUST make zero network calls at
+synthesis time, model-load time, or voice-selection time. Third-party engines are
+permitted where fully local, license-cleared per the dependency allowlist
+(`REQ-MON-005`, and see R12), and free of network egress. Cloud or hybrid TTS
+remains forbidden.* This replaces the vendor-shaped phrasing that stood here
+before — "no third-party streaming TTS SDK, ever" was a privacy rule wearing a
+vendor rule's clothes, and it forbade the one class of engine that satisfies the
+privacy rule completely. What the product actually cares about is that no word of
+a user's journal crosses a network to be spoken. Specs `030`–`036` own the
+resulting neural-voice path; this requirement now owns the boundary rule and the
+fallback.
+
+**The `AVSpeechSynthesizer` path (`REQ-VOX-001`, `technology/06` B2) remains
+permanently** as the degradation target (`REQ-TTS-003`) — it is what makes the
+app work on a fresh install in airplane mode before any model asset exists. When
+it is serving, it MUST still resolve the best available **Enhanced or Premium**
+system voice and never degrade silently to a compact robotic one
+(`VoicePlaybackService.bestVoiceIdentifier(from:currentLanguage:)` already
+implements this ranking — cited, not redesigned). What changed on 2026-08-18 is
+that this is no longer a *user-facing* voice choice: per `DEC-011`, spec `033`
+replaces the Settings picker with the neural catalog, and the system voice
+becomes an invisible fallback rather than a menu.
+
+**The load-bearing constraint** (`technology/06` B1, ✅ VERIFIED against iOS 27.0
+SDK): the synthesizer cannot consume a token stream — it needs complete text.
+That is why reflections arrive complete while chat streams (`REQ-INT-014`, spec
+017 R6 — cited, not re-decided here). Reflection surfaces remain the primary TTS
+home; **chat additionally offers post-stream, per-message playback** (amended
 2026-08-16: early validation of the voice-output pillar ahead of reflection
 surfaces shipping). The complete-text constraint is upheld, not waived — chat
 playback is only offered once a message's stream has ended (the action bar,
-speak button included, is gated on `!isStreaming`); mid-stream playback and
-any third-party streaming TTS SDK remain forbidden (P1 and the privacy story
-both forbid it). Chat playback is `.z0Device`, synthesized on demand via
+speak button included, is gated on `!isStreaming`); mid-stream playback on this
+path remains forbidden.
+
+**Scope correction (2026-08-18):** the constraint is a property of
+`AVSpeechSynthesizer`, not of speech synthesis — the SDK evidence in
+`technology/06` B1 is entirely about `AVSpeechUtterance` initializers. An engine
+that accepts arbitrary text per call is not bound by it and may be driven
+chunk-by-chunk from a live stream; spec `032` owns that pipeline. Two paths, two
+rules: system voice waits for the full message, neural voice does not.
+Chat playback is `.z0Device`, synthesized on demand via
 `VoicePlaybackService` and **not cached** (`REQ-VOX-004` caching remains
 reflection-only); chat prose is markdown-bearing by design, so it passes
 through a runtime `SpeechTextSanitizer` before synthesis — a transformer,
@@ -352,15 +380,30 @@ system signals `.shouldResume` — resume in place. AirPlay/CarPlay validation
 and render caching remain reflection-only. This satisfies "a play button
 without lock-screen presence is a half-built feature" for chat.
 
-- **Caching (`REQ-VOX-004`):** render once to an audio file, reference it via
-  `Reflection.audioAssetID` (spec 015 R1's field; file storage, protection
-  class, and five-store deletion of cached renders are 015 R5/R6's — cited,
-  not duplicated). Invalidate when the voice selection changes.
+- **Caching (`REQ-VOX-004`) — verdict 2026-08-18: do not build it.** The design
+  was: render once to an audio file, reference it via `Reflection.audioAssetID`
+  (spec 015 R1's field), invalidate on voice change. It was never implemented,
+  and the neural path removes its premise — synthesis at the target real-time
+  factor produces audio faster than the cache saves, while a cache invalidated
+  on every voice change is cold exactly when a user is trying voices out. The
+  cost was never the synthesis; it was the model load, and `031` R3's warm-up
+  addresses that directly. **`REQ-VOX-004` is retired**, `Reflection.audioAssetID`
+  is not to be populated, and any future revival must first show a measurement
+  that a warm engine is too slow — not an assumption that it is. If it is
+  revived, storage, protection class, and five-store deletion remain 015 R5/R6's.
 - **Audio-app behavior (`REQ-VOX-005`):** background-audio capability,
   lock-screen controls via `MPRemoteCommandCenter`, `MPNowPlayingInfoCenter`
   metadata (title, date, duration), AirPlay, CarPlay-safe session
   configuration, correct ducking. A play button without lock-screen presence
   is a half-built feature (`technology/06` B5).
+  **Duration unblocked (2026-08-18):** the standing exception — no duration or
+  elapsed time, because "an estimated scrubber would lie" — was a consequence of
+  `AVSpeechSynthesizer` exposing no natural duration. A rendered PCM buffer's
+  frame count over its sample rate *is* the duration, exactly, so on the neural
+  path the honest scrubber this requirement always wanted becomes buildable
+  (`technology/13` §4). Not required by `030`–`036`; recorded here so it is
+  claimed by this bullet rather than rediscovered later. The system-voice
+  fallback keeps the no-duration behavior — there, the old reasoning still holds.
 - **Reuse ledger (ATTACH-05, updated 2026-08-16):** the orphaned
   `NarrateButton`/`ListeningPanel` components were consciously superseded by
   the composer rework (`DictationWaveform` replaced `ListeningDotsView`; the
@@ -398,20 +441,30 @@ chat/reflection split and is recorded in V18 first, not preempted here.
 - Given a weekly reflection opened, when audio is requested, then playback is
   available within 5 seconds (source doc §9.3 exit criterion), in airplane
   mode.
-- Given a previously played reflection, when replayed, then no re-synthesis
-  occurs (cache hit asserted via `audioAssetID` stability).
-- Given a voice-selection change, when the reflection is next played, then
-  the cached render was invalidated and re-rendered with the new voice.
+- Given any TTS path — system voice or neural — when synthesis, model load, and
+  voice selection are exercised behind a capturing proxy, then **zero outbound
+  requests** originate from TTS code (`REQ-TTS-001`; the archived artifact is
+  spec 036's).
+- Given the neural assets are absent, corrupt, or mid-download, when a read-aloud
+  or narration turn is requested, then speech is produced by the
+  `AVSpeechSynthesizer` fallback on the best available Enhanced/Premium voice —
+  no hang, no error dialog, no silence (`REQ-TTS-003`).
+  *(Superseded 2026-08-18: the two cache-hit / cache-invalidation criteria that
+  stood here are retired with `REQ-VOX-004`.)*
 - Given playback started and the device locked, when the lock screen is
   inspected, then transport controls and Now Playing metadata (title, date,
   duration) are present and functional — real-device check.
-- Given no Enhanced/Premium voice downloaded, when the user visits Settings,
-  then the download is offered with clear copy — and playback before download
-  uses the best available voice with the upgrade surfaced, never silently.
+- Given no Enhanced/Premium voice downloaded **and the neural assets absent**,
+  when playback runs, then it uses the best available system voice rather than
+  failing — and the user is not asked to go download a system voice, because
+  per `DEC-011` system voices are no longer a choice they make (spec 033 owns
+  what the picker says while assets are pending; the old Settings download-help
+  copy is retired with the picker).
 - Given a completed assistant chat message, when Read Aloud is tapped, then
-  playback uses the best Enhanced/Premium system voice, exactly one message
-  speaks at a time, and starting dictation stops playback (chat amendment,
-  2026-08-16).
+  playback uses the user's selected voice — neural when assets are ready, the
+  best system voice otherwise — exactly one message speaks at a time, and
+  starting dictation stops playback (chat amendment 2026-08-16, voice source
+  amended 2026-08-18).
 
 ### R8. Personal Voice — delighter tier, verify posture before building
 `REQ-VOX-002`: request authorization via
@@ -549,6 +602,48 @@ spec.
 **Acceptance:** V6, V17, V18 (and V15/V16) entries in
 `technology/11-verification-queue.md` updated — closed with findings, or
 still-open with what was attempted — before this spec's status moves to done.
+
+### R12. Text-front-end licensing — the gate no one thinks to check (`REQ-TTS-009`)
+*Added 2026-08-18 alongside R7's rewrite. R7 opened the door to local
+third-party engines; this is the lock on it.*
+
+**No GPL or GPL-contaminated component may appear anywhere in the text-processing
+(G2P / phonemizer / normalizer) path of any TTS engine shipped in this app.** Any
+candidate engine MUST document its **full text-front-end dependency chain**
+before it enters evaluation — not after a prototype exists and the sunk cost
+starts arguing.
+
+This is a real trap, not a hypothetical one. espeak-ng is **GPL-3**, and it sits
+inside the grapheme-to-phoneme path of Kokoro, sherpa-onnx, and Piper alike. The
+contamination is invisible from the top of the dependency tree: it lives two
+levels down, inside a component nobody classifies as "the model," in an app that
+is otherwise closed-source. An engine qualifies here only by being **G2P-free**
+or by having a demonstrably permissive front end — the property is structural,
+and it is the single most load-bearing reason a given engine is admissible
+(`technology/13` §7).
+
+Model **weights** are governed separately from code. Where a weight license
+carries an attribution condition, **the attribution ships in the app** — it is a
+license term, not a courtesy (`DEC-010`; spec `030` owns the Acknowledgments
+screen, which does not exist today). Where a weight license carries use-based
+restrictions, those restrictions are reviewed against what the app actually does
+and the verdict is written down; any future feature that lets a user generate
+audio in **someone else's** voice re-opens that review from scratch.
+
+**Zone:** unchanged — `.z0Device`. Licensing does not move data; it decides what
+may run.
+
+**Acceptance (Given/When/Then):**
+- Given the shipped dependency tree, when it is scanned in CI, then no GPL-family
+  license text and no espeak/phonemizer component appears in any TTS path — the
+  gate fails naming `REQ-TTS-009` and this requirement, and is demonstrated once
+  against a planted violation.
+- Given a candidate TTS engine proposed in future, when it is evaluated, then its
+  full text-front-end dependency chain is recorded in its spec **before** any
+  integration commit — absence of the record blocks the evaluation, not the merge.
+- Given weights whose license requires attribution, when the app ships, then the
+  attribution string is present in Settings → Acknowledgments and is reachable in
+  a UI test.
 
 ## Out of Scope
 

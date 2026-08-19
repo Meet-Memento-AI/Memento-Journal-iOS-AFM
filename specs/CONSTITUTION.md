@@ -130,6 +130,22 @@ only sanctioned changes are account removal (spec 023) and the contract's own
   12 traits) via shared `MeetMemento/Utilities/AccessibilityHelpers.swift`.
 - Retry-with-backoff on network calls in `JournalService` and `ChatService`.
 - Bundle media modest (`Resources/welcome-bg.mp4` ≈ 2.5 MB).
+- **Audio-session ordering machinery (added 2026-08-18, spec 028 R3).** The
+  half-duplex handoff between `VoicePlaybackService` and `SpeechService` is
+  correct and was expensive to make correct: `sessionGeneration` staleness
+  counters, `waitForSessionRelease()`, the pure `shouldReleaseAudioSession`
+  decision, and utterance buffering until activation lands. Every one of those
+  exists because a specific silent failure was traced to its absence — a
+  late-landing `setActive(false)` that dead-mics the next turn without throwing.
+  A new engine (specs 030–036) or a dual-path audio controller (spec 034) MUST
+  **subsume** this machinery, never bypass it. Rewriting the session layer
+  "more cleanly" without reproducing these guarantees reintroduces a class of
+  bug that produces no error, no crash, and no log line — only a conversation
+  that stops after one turn.
+- **Utterance-session seam (added 2026-08-18).** `beginUtteranceSession` /
+  `enqueue(sentence:)` / `finishEnqueueing` is the boundary every caller speaks
+  through. It survived an engine change precisely because callers never knew
+  which synthesizer was behind it. Keep it that way.
 
 ### Backend (superseded — historical record of the pre-2.0 app, 2026-07-13)
 - Main `chat` function: JSON-schema-constrained LLM output; cited entry ids
@@ -216,3 +232,23 @@ These outlive the specs. Every future change follows them:
     of these APIs shipped at WWDC26 and behave differently from anything in a
     model's pre-2026 training data — when the library and an agent's prior
     knowledge disagree, the library wins.
+11. **Exactly one Swift module imports `CoreML`** (`REQ-TTS-004`), for the same
+    reason as rule 5 and enforced the same way — a named CI gate. That module is
+    the neural speech engine; every other module talks to it through the existing
+    utterance-session primitives and cannot tell which engine is serving. This is
+    what keeps a model swap, an ANE-bucketing contingency (`DEC-008`), or an
+    outright engine replacement contained to one file — which matters for any
+    third-party model the product does not control. Corollary, and the reason this is a constitutional rule
+    rather than a spec detail: **the `AVSpeechSynthesizer` path is never
+    removed.** It is the permanent degradation target (`REQ-TTS-003`) that makes
+    the app speak on a fresh install, in airplane mode, before any model asset
+    exists — and the insurance against an OS release breaking a frozen
+    third-party model. Owned by specs 030–031.
+12. **Speech synthesis is on-device or it does not ship** (`REQ-TTS-001`). Zero
+    network calls at synthesis time, model-load time, or voice-selection time.
+    A third-party engine is admissible only where it is fully local,
+    license-cleared with a documented text-front-end dependency chain (`018` R12
+    / `REQ-TTS-009`), and on the dependency allowlist. Cloud and hybrid TTS are
+    forbidden. *(Restates, in checkable form, what the withdrawn "no third-party
+    streaming TTS SDK, ever" rule was actually protecting — see
+    `technology/06` §B1 and `018` R7, both amended 2026-08-18.)*

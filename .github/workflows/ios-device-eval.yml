@@ -35,6 +35,10 @@ jobs:
       TEST_RUNNER_SPIKE_A_FIXTURES: ${{ github.workspace }}/Fixtures
     steps:
       - uses: actions/checkout@v6
+        # Model weights are Git LFS (spec 030 R3). Without this the build
+        # receives pointer files and fails at RUNTIME as a model-load error.
+        with:
+          lfs: true
 
       - name: Show toolchain
         run: |

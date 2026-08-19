@@ -36,6 +36,7 @@ Anything marked 🔴 that blocks work goes to `11-verification-queue.md`.
 | `10-monetization-and-privacy.md` | StoreKit 2, RevenueCat, Small Business Program, privacy labels, entitlements | Paywall, App Store, compliance |
 | `11-verification-queue.md` | Every 🔴 item, consolidated, with how to check | Before starting any phase |
 | `12-liquid-glass.md` | `glassEffect(_:in:)`, `Glass` variants/tint/interactive, `GlassEffectContainer`, `glassEffectID`/`glassEffectUnion`, `.buttonStyle(.glass/.glassProminent)`, accessibility, simulator caveat | Any Liquid Glass surface work |
+| `13-neural-tts-coreml.md` | `MLComputeUnits`/`MLOptimizationHints`, ANE placement, `AVAudioPlayerNode.scheduleBuffer` + completion-callback types, `setVoiceProcessingEnabled` (AEC), self-hosted Background Assets (`BAAssetPackManifest`/`BAAssetPackManager`), OpenRAIL-M and GPL-in-phonemizer licensing | Neural voice work (specs 030–036) |
 
 ---
 
@@ -56,7 +57,7 @@ Exactly one module may import it (architecture principle P3). Every other module
 PCC is inside the trust boundary. It requires no API key, costs the developer nothing, and stores nothing. But it **has a per-user daily quota** and **requires a network connection**, so every PCC call needs a designed on-device fallback. Silent degradation is a spec violation.
 
 **5. Generating markdown in user-facing prose.**
-Every reflection Memento produces is also spoken aloud by `AVSpeechSynthesizer`. Bullet points, headers, asterisks, and emoji all read terribly. Prompts forbid them and a linter enforces it. See `06-speech-and-audio.md` §Speakability.
+Every reflection Memento produces is also spoken aloud. Bullet points, headers, asterisks, and emoji all read terribly — in `AVSpeechSynthesizer` and in the neural voice alike, so a better engine does not retire this rule. Prompts forbid them and a linter enforces it. See `06-speech-and-audio.md` §Speakability.
 
 ---
 
@@ -65,8 +66,8 @@ Every reflection Memento produces is also spoken aloud by `AVSpeechSynthesizer`.
 These come from the architecture spec and are not open for an agent to relitigate:
 
 - **No developer-operated server.** No API endpoint holding user content, ever.
-- **No third-party AI.** Only Apple's models. The provider-swap seam exists for survivability, not convenience.
-- **One third-party SDK** (RevenueCat), and it never receives content.
+- **No third-party AI *for understanding*.** Every model that reads, interprets, or generates from the user's words is Apple's. The provider-swap seam exists for survivability, not convenience. **Amended 2026-08-18 (specs 030–036):** speech *synthesis* is the one carve-out — a fully-local, license-cleared neural voice is permitted because it reads text back rather than reasoning about it, and because it makes zero network calls. The rule was always about where content goes, not whose logo is on the binary. See `13-neural-tts-coreml.md` and the rewritten `018` R7.
+- **Two third-party SDKs** (RevenueCat; the neural-voice integration surface), and **neither ever receives content over a network** — the voice engine receives text only in-process, on-device.
 - **Device is the system of record.** SwiftData is authoritative; CloudKit replicates.
 - **Trust zones are typed.** Every generation request declares Z0 (device) or Z1 (Apple/PCC). Z2 (third party) does not exist for content.
 - **Citations are mandatory.** Any claim about the user's history traces to an `Entry.id`.

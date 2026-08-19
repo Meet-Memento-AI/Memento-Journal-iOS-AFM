@@ -17,11 +17,14 @@ specs/
 ├── 001…012-*.md       ← the original twelve specs (pre-2.0 app; 003/004/007/008/010
 │                        obsolete, 002 paused — see ROADMAP.md's Status board)
 ├── 013…025-*.md       ← Memento 2.0 rewrite + Ship CI specs (see below)
+├── 026…029-*.md       ← post-2.0 experience work (safety, navigation, narration, performance)
+├── 030…036-*.md       ← on-device neural voice (assets → engine → streaming → catalog →
+│                        full-duplex audio → spoken form → verification); mints REQ-TTS-
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
     └── technology/                           ← Apple-framework API reference library
-        └── 00…11-*.md                        ← cited by tech_refs in specs 013–023
+        └── 00…13-*.md                        ← cited by tech_refs in specs 013–036
 ```
 
 Specs 013+ implement the Memento 2.0 rewrite described in

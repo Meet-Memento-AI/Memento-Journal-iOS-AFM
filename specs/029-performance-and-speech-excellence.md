@@ -99,6 +99,15 @@ Foundation Models instrument (022:268). Hot-path logging migrates from
 `AppLogger`/print to `os.Logger` with privacy annotations; no plaintext in
 any signpost or perf log.
 
+> **Extended 2026-08-18 (spec 032).** The neural path adds stages this list has
+> no name for, and spec `032`'s latency requirement is unmeasurable without them:
+> `tts.synth` (per-chunk synthesis interval, from which real-time factor is
+> derived), `tts.mask` (turn-start acknowledgment clip started / suppressed), and
+> an underrun counter for the playback queue. They belong to `speech.loop` and to
+> the same `TurnTimings` aggregate — `032` extends this instrumentation, it does
+> not build a parallel one. The privacy rule is unchanged and applies to the new
+> stages identically: durations and counts only, never text.
+
 ### R2. Budgets (`REQ-PERF-002`)
 
 Measured p50 on the minimum Apple Intelligence device unless noted:
@@ -116,6 +125,17 @@ Measured p50 on the minimum Apple Intelligence device unless noted:
 | `.final` → UI settled | < 50 ms | `persist.turn` off critical path |
 | Full generation, short reply | < 2 s | FM instrument (019:138) |
 | Typewriter catch-up after stream end | ≤ 1 s | HUD summary |
+
+> **Amended 2026-08-18.** These budgets were set against `AVSpeechSynthesizer`,
+> where "send → first spoken word" is dominated by waiting for a complete first
+> sentence. On the neural path the shape of the problem changes: synthesis
+> becomes a measurable cost that did not exist (`tts.synth`), model load becomes
+> the dominant cold cost, and the turn-start mask makes *perceived* start
+> diverge from instrumented start. Spec `032` owns the neural-path budgets and
+> spec `036` owns the release gates; **both must be reported alongside the
+> instrumented numbers above, never instead of them.** A mask that hides a
+> regression in `tts.firstAudio` is a mask doing harm — the unmasked figure stays
+> a gate in its own right.
 
 ### R3. Turn-path efficiency (`REQ-PERF-003`)
 
@@ -184,7 +204,21 @@ returns to listening (028's no-modal rule).
 
 Retrieval-quality voice ranking is unchanged; on a device where resolution
 lands on a compact voice, narration shows a **one-time, dismissible** tip
-linking to the enhanced-voice guidance (dismissal persisted). Embedding
+linking to the enhanced-voice guidance (dismissal persisted).
+
+> **Amended 2026-08-18 — the compact-voice nudge retires with the picker.** The
+> tip exists to route a user toward a better *system* voice. Once the neural
+> catalog is the voice (`DEC-011`, spec `033`), that advice is wrong: the user
+> cannot act on it, and the voice they hear on the fallback path is transient by
+> construction. Spec `033` removes the banner and
+> `PreferencesService.compactVoiceNudgeDismissed` along with it. The **ranking**
+> in this requirement stays — it is what picks the fallback voice — as does the
+> rule that `AVSpeechSynthesisVoice.speechVoices()` never blocks the main thread.
+> If the neural assets are unavailable the user is told nothing about voices;
+> they simply hear the best system voice, which is the correct behavior for a
+> degradation path nobody chose to be on.
+
+Embedding
 disk cache (R3 companion): entry vectors + norms + token sets persist
 under Application Support with `.completeFileProtection`, keyed
 `entryID + textHash`, purged on entry delete and delete-everything; cosine

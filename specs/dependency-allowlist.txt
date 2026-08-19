@@ -12,8 +12,53 @@
 # --- TARGET (2.0 end state) ---
 revenuecat/purchases-ios
 #
-# --- LEGACY, pending removal (do NOT add more; these fail once enforcement is on) ---
-# The product is on-device only. The check stays REPORT-ONLY only until the two
-# UI packages below get a REQ-MON-005 decision record or are removed:
-#   dominikmartn/progressiveblurheader -> needs a REQ-MON-005 decision record or removal
-#   svgkit/svgkit                -> needs a REQ-MON-005 decision record or removal
+# --- NEURAL VOICE (spec 030; decision record: spec 021 R6 amendment 2026-08-18) ---
+# The on-device TTS integration surface. Admitted under REQ-TTS-001 (runs entirely
+# on-device; zero network calls at synthesis, model-load, or voice-selection time)
+# and REQ-TTS-009 (no GPL-contaminated component anywhere in the text-processing
+# path — the engine is G2P-free, which is the structural reason it qualifies).
+#
+# Both identities are listed because spec 030 vendors a fork as survivability
+# insurance for a load-bearing third-party dependency; EXACTLY ONE ships. Pin an exact
+# commit — do not track a branch.
+#
+# ORDERING CONSTRAINT (spec 021 R6, 2026-08-18): spec 030 MUST NOT link this
+# package unless this check is ENFORCING. SATISFIED 2026-08-18 — the gate now
+# runs with ALLOWLIST_ENFORCE=1 (see below), so the dependency may be added.
+soniqo/speech-swift
+meet-memento-ai/speech-swift
+#
+# --- VENDORED NON-SPM ASSETS (NOT governed by this file) ---
+# This check reads SPM package identities out of project.pbxproj. Model weights
+# are not packages, so they pass through it invisibly — recorded here so the gap
+# is visible rather than silent.
+#
+# UPDATED 2026-08-18 (DEC-012): the neural TTS weights are no longer downloaded
+# at all. They are vendored at MeetMemento/Resources/Voices/ (~148 MB, Git LFS)
+# and ship INSIDE the app binary. Governed instead by:
+#   - integrity  -> build-time: scripts/build_voice_pack.sh pins the source
+#                   checksum; the bundle is code-signed with the app (REQ-TTS-002)
+#   - licensing  -> spec 018 R12 (REQ-TTS-009); weights are OpenRAIL-M, NOT
+#                   MIT-equivalent: attribution is a license condition (DEC-010),
+#                   and use-based restrictions were reviewed as inapplicable to
+#                   reading a user their own journal. Any feature that generates
+#                   audio in someone else's voice re-opens that review.
+#   - versioning -> pinned in the manifest. NOTE 2026-08-18: upstream is NOT
+#                   archived (supertone-inc/supertonic pushed 2026-07-24, MIT;
+#                   soniqo/speech-swift pushed 2026-08-17, Apache-2.0 — not MIT
+#                   as first recorded). Pin commits as ordinary hygiene.
+#
+# --- LEGACY: CLEARED 2026-08-18 ---
+# Nothing pending. The resolved third-party SPM set is now EMPTY and this check
+# runs ENFORCING (ALLOWLIST_ENFORCE=1 in .github/workflows/spec-gates.yml).
+#
+# svgkit/svgkit was removed rather than granted a REQ-MON-005 record: it was
+# declared as a package reference but linked to NO target
+# (packageProductDependencies was empty, zero XCSwiftPackageProductDependency
+# entries) and imported by no Swift file. The asset-catalog SVGs use Xcode's
+# native support, not SVGKit. Its transitive pins — cocoalumberjack and
+# swift-log — went with it, and Package.resolved was removed entirely because no
+# packages remain. Verified: BUILD SUCCEEDED after removal.
+#
+# supabase/supabase-swift (spec 015 decommission) and
+# dominikmartn/progressiveblurheader were already gone before this.

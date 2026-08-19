@@ -541,19 +541,67 @@ This is the long-term differentiator and it must be designed for now, in v2.0, e
 
 **Constraint:** `AVSpeechSynthesizer` requires complete text before it begins generating audio; it cannot consume a token stream. This is why §7.6 specifies that reflections do not stream and chat does. **TTS belongs on reflection surfaces, not on chat.** Fighting this constraint means adding a third-party streaming TTS SDK, which violates P1 and the privacy story. Do not.
 
-**REQ-VOX-001** — Every `Reflection` MUST be renderable as audio via `AVSpeechSynthesizer` using an Enhanced or Premium system voice, with the required voice asset download surfaced in Settings.
+> **Amended 2026-08-18 (specs 030–036).** The constraint above is a true statement
+> about `AVSpeechSynthesizer` and remains binding on that path, which the app keeps
+> permanently as its degradation target. It is **not** a statement about speech
+> synthesis. The final sentence was a vendor rule standing in for a privacy rule,
+> and it accidentally forbade fully-local engines — the only kind that can satisfy
+> the privacy rule completely. The test is now stated directly in `REQ-TTS-001`:
+> local execution, zero network egress, license-cleared. Cloud and hybrid TTS
+> remain forbidden. Chat has been speakable since `StreamingSentenceChunker`
+> shipped; see §8.6.
+
+**REQ-VOX-001** — Every `Reflection` MUST be renderable as audio via `AVSpeechSynthesizer` using an Enhanced or Premium system voice, with the required voice asset download surfaced in Settings. **Amended 2026-08-18 (`DEC-011`):** the neural catalog (§8.6) replaces the system-voice picker as the user-facing choice; this requirement now governs the **fallback path only** — when `AVSpeechSynthesizer` is serving, it MUST still resolve the best available Enhanced/Premium voice rather than degrading silently to a compact one.
 
 **REQ-VOX-002** — Personal Voice support: request authorization via `AVSpeechSynthesizer.requestPersonalVoiceAuthorization()`; when granted, enumerate available personal voices and offer them for reflection playback. Generation is on-device (Z0). ⚠️ VERIFY current third-party access rules and any App Review restrictions on Personal Voice usage outside accessibility contexts.
 
 **REQ-VOX-003** — Personal Voice is a **delighter tier**, never a default and never a gate. Training requires roughly fifteen minutes of the user reading phrases aloud; most users will not do it, and the ones who do will care deeply. Onboarding MUST NOT introduce it. It is discovered later, at a moment of demonstrated engagement — after a user's third or fourth weekly reflection.
 
-**REQ-VOX-004** — Rendered audio for a reflection is cached (`Reflection.audioAssetID`) so replay is instant and does not re-synthesize.
+**REQ-VOX-004** — Rendered audio for a reflection is cached (`Reflection.audioAssetID`) so replay is instant and does not re-synthesize. **Amended 2026-08-18:** never implemented, and the premise is now weak — a neural engine at the target real-time factor synthesizes a reflection faster than reading a cached file avoids doing so, and a cache invalidated on every voice change is mostly cold in practice. Spec `018` R7 carries the written verdict; do not build the cache on the strength of this line alone.
 
 **REQ-VOX-005** — Playback MUST support background audio, lock screen controls, `MPNowPlayingInfoCenter` metadata, AirPlay, and CarPlay-safe audio session configuration. A Sunday reflection listened to on a walk is the intended use, and that means it must behave like a proper audio app, not like a button that makes noise.
 
 **REQ-VOX-006 — Speakable output is a prompt contract.** Every prompt producing user-facing prose MUST forbid markdown, bullet points, headings, emoji, parentheticals, and numerals-as-digits where words read better. Reflection body text is validated against a `SpeakabilityLinter` in tests: no `#`, `*`, `-` list markers, no URLs, no `\n\n` runs greater than one. Violations fail the build.
 
-**REQ-VOX-007** — ⚠️ VERIFY whether iOS 27 introduced any newer speech synthesis API beyond `AVSpeechSynthesizer`; WWDC26 material reviewed for this document did not surface one, and the assumption is that it did not.
+**REQ-VOX-007** — ⚠️ VERIFY whether iOS 27 introduced any newer speech synthesis API beyond `AVSpeechSynthesizer`; WWDC26 material reviewed for this document did not surface one, and the assumption is that it did not. **Resolved 2026-07-25 (V18): none shipped.** §8.6 is the answer to the question this was really asking — the way past `AVSpeechSynthesizer`'s limits is not a newer Apple API, it is a local model.
+
+### 8.6 On-device neural voice
+
+*Added 2026-08-18. Mints the `REQ-TTS-` series. Owned by specs `030`–`036`; API truth in `technology/13-neural-tts-coreml.md`.*
+
+`AVSpeechSynthesizer` gave the product a voice it does not control: it cannot be streamed into, its character is whatever the user happened to download, and it caps the ceiling on the one feature §8.5 calls the long-term differentiator. A local neural engine — one shared model plus per-voice style vectors, running on the Neural Engine, emitting PCM buffers the app schedules itself — removes all three limits without moving a single word off the device. The `AVSpeechSynthesizer` path stays permanently as the degradation target, which is also what keeps §8.5 true.
+
+**REQ-TTS-001 — On-device only, zero egress.** TTS synthesis MUST execute entirely on-device. The TTS path MUST make **zero network calls** at synthesis time, model-load time, or voice-selection time. Third-party engines are permitted where fully local, license-cleared per the dependency allowlist (`REQ-MON-005`), and free of network egress. Cloud or hybrid TTS remains forbidden. This supersedes the vendor-shaped phrasing in §8.5.
+
+**REQ-TTS-002 — Assets ship in the binary.** Model assets MUST be vendored into the repository and **bundled in the app**, not downloaded. Integrity is a **build-time** property: the recipe that produced the shipped artifact is committed alongside it and pins the source's checksum. There is no runtime download, no manifest served anywhere, and therefore no partial or corrupt state to design around — the bundle is code-signed with the app or it does not launch. *(Rewritten 2026-08-18, `DEC-012`; supersedes two earlier designs — self-hosted, then Apple-hosted, Background Assets.)*
+
+**REQ-TTS-003 — Degradation is a permanent path, not a stopgap.** While assets are absent, downloading, or unusable, every voice feature MUST fall back to `AVSpeechSynthesizer` (`REQ-VOX-001`). No feature may hard-block on a model download, and no engine failure may surface as silence or a crash.
+
+**REQ-TTS-004 — One engine boundary.** Exactly one module may import `CoreML`. It owns every model object, is warmed on user-intent signals rather than on the play action, accepts cooperative cancellation, and releases its models under memory pressure. This is the same containment rule as P3 (`FoundationModels`), for the same reason: it keeps a future model swap to one file.
+
+**REQ-TTS-005 — Perceived latency is the metric.** Synthesis is pipelined against playback so audio starts before generation finishes, and a turn's perceived start is measured from end-of-user-speech to first audible sample. Instrumented, unmasked latency is recorded alongside it; masking must never be allowed to hide a regression in the real number.
+
+**REQ-TTS-006 — Voices are data.** A voice is a style vector, not a model. Switching voices MUST NOT reload, recompile, or re-warm anything, and the UI MUST NOT fake a loading state for it. Voices are presented to the user by character, not by gender.
+
+**REQ-TTS-007 — Two audio paths, named and explicit.** Read-back uses a high-fidelity playback configuration. Hands-free conversation uses a voice-processing configuration with echo cancellation. Transitions between them are explicit state-machine events; no playback code changes the session category implicitly.
+
+**REQ-TTS-008 — Spoken form is a transform, and tags are an allowlist.** Text bound for synthesis passes through a spoken-form normalizer for cases where spoken register differs from display register. Expression tags come from a closed allowlist; arbitrary tag pass-through MUST be impossible by construction.
+
+**REQ-TTS-009 — Licensing is a gate, not a footnote.** No GPL or GPL-contaminated component may appear anywhere in the text-processing (G2P / phonemizer / normalizer) path of any TTS engine. Any candidate engine MUST document its full text-front-end dependency chain before entering evaluation. Where model weights carry attribution conditions, the attribution ships in the app.
+
+**REQ-TTS-010 — The privacy claim is substantiated, not asserted.** The zero-egress result of `REQ-TTS-001` MUST be demonstrated by proxy capture and archived as a release artifact. Public copy about the voice feature MUST NOT exceed what that artifact proves, and MUST stay inside `REQ-POS-001` and the forbidden-phrase rule.
+
+#### Decisions this section opens
+
+**DEC-008** — Does the flow-matching graph stay on the Neural Engine with dynamic latent length, or must it be exported as fixed-shape buckets? Dynamic shapes keep one graph and arbitrary input lengths; bucketing costs roughly 3× storage for the text-to-latent module, forces input padding, and caps a single synthesis call at the largest bucket. **Blocking for:** the engine spec's whole interior. **Owning spec:** 031. **Resolves on:** V29 (Core ML performance report, physical device). **Recommendation:** write nothing until measured — the failure mode is silent, and guessing wrong costs a rewrite rather than a tweak.
+
+**DEC-009** — Is the provisional four-voice roster the shipping roster, once auditioned **through** the echo-cancelled conversation path rather than a clean playback path? **Blocking for:** the voice catalog, the pre-rendered previews, and the per-voice turn-start clips. **Owning spec:** 033. **Resolves on:** V30 (device audition). **Recommendation:** audition before the picker is built, not after. A voice users have bonded with cannot be swapped cheaply, and voice processing is where a warm voice turns thin.
+
+**DEC-010** — Where does model-weight attribution live? The weights ship under a license with an attribution condition, which makes this a compliance obligation rather than a courtesy. **Owning spec:** 030. **Recommendation — RESOLVED 2026-08-18:** a dedicated Acknowledgments screen under Settings → About, shipping in the first release that includes the engine. The app has no such screen today; it also has an unreferenced font license sitting in `Resources/Fonts/OFL.txt` that belongs there.
+
+**DEC-012** — Ship the voice model **inside the app binary**, or deliver it as a downloadable asset pack? Bundling costs app size — the binary goes from ~8.5 MB to ~156 MB, paid by every user at install whether or not they use voice — and constrains precision, since FP16 would push past the App Store's "Ask If Over 200 MB" cellular prompt. Downloading keeps the binary small but requires delivery machinery, a partial-state UX, integrity verification, and hosting that someone has to own. **Blocking for:** spec 030 in its entirety. **RESOLVED 2026-08-18 (owner): bundle.** The voice then works on first launch, in airplane mode, forever, with no state in between; the privacy claim becomes structural rather than verified; and the delivery, hosting and verification workstreams disappear. The size cost is met by palettizing `VectorEstimator` to 8-bit, which lands the app near 156 MB — under the prompt threshold with the vocoder untouched.
+
+**DEC-011** — Does the neural catalog **replace** the system-voice picker, or sit alongside it? Replacing gives one coherent voice story and a roster the product controls; keeping both preserves user access to Enhanced/Premium and Personal Voice as *selectable* options. **Owning spec:** 033. **RESOLVED 2026-08-18 (user):** replace. The four neural voices become the only user-facing choice; `AVSpeechSynthesizer` remains as the invisible fallback (`REQ-TTS-003`), which amends `REQ-VOX-001`'s user-facing half. Personal Voice (`REQ-VOX-002`/`003`) is unaffected in principle but its discovery flow is still gated on V6, so nothing is lost today — spec 033 records how it re-enters the picker if V6 ever closes positive.
 
 ---
 
@@ -703,7 +751,10 @@ Current plan: $9.99/mo, $79/yr. Slate: $7.99/mo, $59.99/yr with a one-month tria
 | Dependency | Justification | Reviewable |
 |---|---|---|
 | RevenueCat | Receipt validation, subscription state | Yes — see REQ-MON-004 |
+| Neural TTS integration surface | The one voice engine the product controls; fully local, zero network egress at synthesis, model-load, or voice-selection time | Yes — see REQ-TTS-001, REQ-TTS-009, and spec 030 |
 | *(nothing else)* | | |
+
+**Added 2026-08-18 (specs 030–036).** Model *weights* are not an SPM package and are not governed by this table — their integrity is governed by spec 030's compiled-in manifest (`REQ-TTS-002`) and their licensing by `REQ-TTS-009`. The distinction matters because the CI check enforcing this table reads package identities only; weights would pass it invisibly.
 
 **REQ-MON-005** — Any addition to this table requires an explicit decision record. The near-zero third-party surface is a marketing asset and a security posture simultaneously.
 
@@ -805,6 +856,10 @@ The 90-hour / 4-week estimate from the 1.3 checklist is approximately preserved.
 | DEC-005 | Watch companion in 2.0 or 2.1? | Scope | P2 |
 | DEC-006 | Does HealthKit-derived context enter Z1 prompts at all? | Health spec, App Review | P1 |
 | DEC-007 | Audio retention default — is "discard after transcription" right? | Data spec, onboarding | P2 |
+| DEC-008 | ANE placement with dynamic latent length, or fixed-shape buckets? | Neural engine interior (spec 031) | P1 |
+| DEC-009 | Is the provisional voice roster the shipping roster, auditioned through AEC? | Voice catalog, previews, turn-start clips (spec 033) | P1 |
+| DEC-010 | Model-weight attribution placement | Acknowledgments screen (spec 030) | ✅ resolved 2026-08-18 |
+| DEC-011 | Does the neural catalog replace the system-voice picker? | Voice picker, `REQ-VOX-001` (spec 033) | ✅ resolved 2026-08-18 |
 
 ---
 

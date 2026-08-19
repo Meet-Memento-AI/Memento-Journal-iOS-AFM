@@ -256,7 +256,22 @@ The third-party dependency allowlist, verbatim from §12.4:
 | Dependency | Justification | Reviewable |
 |---|---|---|
 | RevenueCat | Receipt validation, subscription state | Yes — see `REQ-MON-004` |
+| Neural TTS integration surface (spec 030) | The one voice engine the product controls; fully local, zero network egress at synthesis, model-load, or voice-selection time (`REQ-TTS-001`) | Yes — see spec 030 and `018` R12 |
 | *(nothing else)* | | |
+
+**Added 2026-08-18 — two things this table cannot see, and one it must not be
+asked to.** (a) **Model weights are not a package.** The neural voice ships
+weights whose integrity is governed by spec 030's compiled-in SHA-256 manifest
+(`REQ-TTS-002`) and whose licensing is governed by `018` R12 (`REQ-TTS-009`) —
+*not* by this table, because the CI check below reads SPM package identities and
+would wave a 200 MB model through without noticing it. The allowlist file
+records them under a separate banner so the gap is visible rather than silent.
+(b) **License class is not justification.** This table's second column asks *why*
+a dependency exists; it has never asked *under what license*, which was safe
+while the answer was uniformly permissive. It no longer is: the weights carry an
+attribution condition and use-based restrictions. That is tracked in `018` R12
+rather than by widening this table, so there stays exactly one place that
+adjudicates TTS licensing.
 
 Any addition requires an explicit decision record. The near-zero third-party
 surface is a marketing asset and a security posture simultaneously — and per
@@ -296,6 +311,52 @@ demonstrated once with a throwaway fixture branch/package and recorded here.
 > Verified: `ALLOWLIST_ENFORCE=1` fails on the current tree, confirming the
 > gate works. Flip to enforcing after spec 015's decommission — must be a hard
 > gate before this spec closes.
+
+> **Amended 2026-08-18 (spec 030) — adding a dependency to a report-only gate is
+> a governance regression, and this is the decision record saying so out loud.**
+> The neural-voice integration surface is the first *new* third-party package
+> admitted since this rule was written, and it would land while the check still
+> runs with `ALLOWLIST_ENFORCE=0`. Report-only means the allowlist would be
+> documenting the addition rather than governing it.
+>
+> **Re-verified 2026-08-18 — the cost of fixing this has collapsed.** The partial
+> note above lists three off-allowlist packages. Only **one** remains:
+> `grep -oE 'repositoryURL = "[^"]+"' MeetMemento.xcodeproj/project.pbxproj`
+> now returns `SVGKit/SVGKit` alone. `supabase/supabase-swift` went with spec
+> 015's decommission and `dominikmartn/progressiveblurheader` is gone too —
+> neither this spec nor `ROADMAP.md` records when. Update this partial note when
+> R6 is next worked.
+>
+> **Requirement:** spec 030 MUST NOT link its dependency while the gate is
+> report-only. Either enforcement is flipped on first — which now means resolving
+> or removing exactly one UI package — or spec 030 is blocked. This is a
+> deliberate ordering constraint, not a nice-to-have: the whole value of
+> `REQ-MON-005` is that the *first* unreviewed package is the one it catches, and
+> a gate that has been off long enough to accumulate exceptions is a gate nobody
+> believes. One SVG renderer in an on-device-only journal is a cheaper thing to
+> resolve than the precedent of skipping this.
+
+> **RESOLVED 2026-08-18 — the gate is ENFORCING and the third-party SPM set is
+> empty.** `svgkit/svgkit` was not granted a `REQ-MON-005` record; it was
+> **removed**, because inspection showed it was never actually a dependency in
+> any meaningful sense: declared as an `XCRemoteSwiftPackageReference` but with
+> `packageProductDependencies = ()` empty, **zero** `XCSwiftPackageProductDependency`
+> entries, and no `import SVGKit` in any Swift file. The SVGs in
+> `Assets.xcassets` are rendered by Xcode's native asset-catalog support. Its
+> transitive pins, `cocoalumberjack` and `swift-log`, went with it, and
+> `Package.resolved` was deleted because no packages remain.
+>
+> Evidence: `** BUILD SUCCEEDED **` on the iPhone 17 simulator after removal;
+> `ALLOWLIST_ENFORCE=1 scripts/ci/check_dependency_allowlist.sh` exits 0 with an
+> empty resolved set; the gate was re-proven against a planted `Alamofire`
+> reference, failing with exit 1 and naming `REQ-MON-005`.
+> `.github/workflows/spec-gates.yml` now sets `ALLOWLIST_ENFORCE: "1"` and the
+> job name has dropped its `[report-only]` suffix.
+>
+> **This closes spec 030's ordering constraint** — the neural-voice dependency
+> may now be added. It also means R6's own "must be a hard gate before this spec
+> closes" condition is met, and the 2026-08-02 partial note above is superseded
+> in full: its three named packages are all gone.
 
 ### R7. `REQ-MON-002` — Small Business Program + PCC access, an operational requirement
 SBP enrollment is **mandatory** — it is the eligibility condition for free

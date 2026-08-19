@@ -7,7 +7,7 @@ effort: 1 session
 depends_on: [017, 018, 027]
 findings: [tts-stt-session-handoff-ordering, stale-teardown-generation-guard, listening-liveness-watchdog, premature-final-placeholder, half-duplex-invariant]
 source_refs: [REQ-NAR-001, REQ-NAR-002, REQ-NAR-003, REQ-NAR-004, REQ-NAR-005, REQ-NAR-006, REQ-NAR-007]
-tech_refs: [technology/06-speech-and-audio.md]
+tech_refs: [technology/06-speech-and-audio.md, technology/13-neural-tts-coreml.md]
 ---
 
 # 028 — Conversational Narration Mode
@@ -17,9 +17,10 @@ tech_refs: [technology/06-speech-and-audio.md]
 voice-output surface from `specs/018-capture-and-voice-output.md`
 (`REQ-VOX-001`–`007`) and the chat pipeline from
 `specs/017-intelligence-boundary-and-prompt-architecture.md`. Mints the
-`REQ-NAR-` series. The half-duplex constraint and the deferred full-duplex
-(`.playAndRecord` + `.voiceChat`) mode are per
-`specs/reference/technology/06-speech-and-audio.md` §B1.
+`REQ-NAR-` series. The half-duplex constraint is this spec's own (R2); the
+deferred full-duplex (`.playAndRecord` + voice-processing I/O) mode is
+`specs/034-full-duplex-conversation-audio.md`, with its API surface in
+`specs/reference/technology/13-neural-tts-coreml.md` §5.
 
 ## Why
 
@@ -35,8 +36,10 @@ session ordering defects that break turn two, with their fixes.
 ## Technology References
 
 - `specs/reference/technology/06-speech-and-audio.md` — `AVAudioSession`
-  durability patterns; §B1 half-duplex constraint (`.playAndRecord` +
-  `.voiceChat` voice-processing I/O reserved for a future full-duplex mode).
+  durability patterns; §B1 complete-text constraint (amended 2026-08-18).
+- `specs/reference/technology/13-neural-tts-coreml.md` §5 — the
+  `setVoiceProcessingEnabled` surface this spec defers to spec `034`, and why
+  its timbre cost is why the deferral is not merely scheduling.
 
 ## Current State (evidence)
 
@@ -122,7 +125,30 @@ The loop is strictly half-duplex: never `.playAndRecord`, never
 activates, and the TTS session is fully released before the mic re-arms.
 Full-duplex voice barge-in — and any global `AudioSessionArbiter` actor
 serializing session transitions across services — is **explicitly deferred**
-to the future full-duplex mode (06 §B1).
+to the future full-duplex mode.
+
+> **Amended 2026-08-18 — this invariant has a named successor, and remains in
+> force until that successor is claimed.** `specs/034-full-duplex-conversation-audio.md`
+> is the full-duplex mode this requirement defers to: a `ConversationAudioController`
+> owning two named audio paths, with `.playAndRecord` plus voice-processing I/O
+> (AEC) on the conversation path. `034` supersedes this requirement **on the
+> conversation path only** when its status moves off `not-started`; the read-back
+> path stays exactly as specified here, permanently.
+>
+> Until then, every word above binds. Two reasons this is a deferral and not a
+> hedge: (a) acoustic barge-in needs a voice-activity source, and the app has
+> none — `SpeechService` is still legacy `SFSpeechRecognizer` and
+> `SpeechDetector` arrives with **R1's `SpeechAnalyzer` migration in spec 018**,
+> which is not done; (b) voice processing measurably degrades voice character, so
+> the roster must be auditioned through it first (V30 / `DEC-009`). Neither is a
+> reason to write half-duplex ordering code differently today — R3's
+> `waitForSessionRelease()` / `shouldReleaseAudioSession` machinery is what `034`
+> builds *on*, not what it replaces.
+>
+> The stale citation "(06 §B1)" is dropped: `technology/06` §B1 is about the
+> complete-text constraint and never contained a half-duplex rule. The
+> voice-processing API surface and its timbre cost are in
+> `technology/13-neural-tts-coreml.md` §5.
 
 ### R3. Ordered, guarded session handoff (`REQ-NAR-003`)
 
@@ -190,7 +216,7 @@ convention. Ordering (R3a), liveness (R4), barge-in (R5), and loop-close
 ## Non-goals
 
 - Full-duplex voice barge-in (speak-over-the-agent) and voice-processing
-  I/O — deferred per 06 §B1.
+  I/O — **spec 034 owns it** (deferral restated 2026-08-18).
 - A global audio-session arbiter actor — right shape for full-duplex,
   wrong risk profile for a two-edge ordering fix.
 - Changing the history model — voice and typed turns share one log per
