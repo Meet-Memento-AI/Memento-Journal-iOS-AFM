@@ -57,7 +57,9 @@ public struct ThemeConfirmationView: View {
             onBack: onBack,
             scrolls: true
         ) {
-            VStack(alignment: .leading, spacing: 0) {
+            // Uniform 32pt rhythm between every block: title → spinner/first
+            // section, and section → section.
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
                 titleSection
 
                 if isEstimating {
@@ -68,7 +70,6 @@ public struct ThemeConfirmationView: View {
                             .font(type.body2)
                             .foregroundStyle(theme.mutedForeground)
                     }
-                    .padding(.top, OnboardingLayout.sectionSpacing)
                     .accessibilityIdentifier("onboarding.themeEstimating")
                 } else {
                     // All categories render immediately (Figma 618:3691 /
@@ -76,10 +77,10 @@ public struct ThemeConfirmationView: View {
                     ForEach(ThemeFamily.allCases) { family in
                         let themes = ThemeCatalog.themes(in: family)
                         if !themes.isEmpty {
-                            sectionLabel(family.title)
-                                .padding(.top, OnboardingLayout.titleBodySpacing)
-                            themeChipFlow(themes)
-                                .padding(.top, Spacing.xs)
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                sectionLabel(family.title)
+                                themeChipFlow(themes)
+                            }
                         }
                     }
                 }
@@ -139,10 +140,16 @@ public struct ThemeConfirmationView: View {
 
     private func toggle(_ id: String) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        if selectedIds.contains(id) {
-            selectedIds.remove(id)
-        } else if selectedIds.count < ThemeCatalog.maxConfirmedThemes {
-            selectedIds.insert(id)
+        // The animated transaction is what makes the surrounding pills glide:
+        // a toggled pill changes width (plus icon + weight), and ThemeFlowLayout
+        // re-places its neighbors — without withAnimation that reflow snaps.
+        // Same spring as SelectableThemeTag so the two never fight.
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            if selectedIds.contains(id) {
+                selectedIds.remove(id)
+            } else if selectedIds.count < ThemeCatalog.maxConfirmedThemes {
+                selectedIds.insert(id)
+            }
         }
     }
 
@@ -169,7 +176,7 @@ public struct ThemeConfirmationView: View {
 
         // Empty reflection → browse-only, no preselection.
         guard !reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            isEstimating = false
+            withAnimation(.easeInOut(duration: 0.25)) { isEstimating = false }
             usedFallback = true
             return
         }
@@ -198,7 +205,9 @@ public struct ThemeConfirmationView: View {
             AppLogger.log("⚠️ Theme estimate fell back to keywords: \(error.localizedDescription)")
         }
 
-        isEstimating = false
+        // Animated swap: spinner eases out, sections (with suggested pills
+        // already copper) ease in — no hard pop when the estimate lands.
+        withAnimation(.easeInOut(duration: 0.25)) { isEstimating = false }
     }
 }
 
