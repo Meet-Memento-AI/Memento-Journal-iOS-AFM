@@ -41,19 +41,23 @@ public struct YourNameView: View {
             onBack: onBack,
             scrolls: true
         ) {
-            VStack(alignment: .leading, spacing: OnboardingLayout.sectionSpacing) {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
                 titleSection
                 inputFieldsSection
             }
         } footer: {
-            PrimaryButton(title: "Continue") {
+            PrimaryButton(
+                title: "Next step",
+                systemImage: "arrow.right",
+                imagePlacement: .trailing
+            ) {
                 saveAndContinue()
             }
             .opacity(canContinue ? 1.0 : 0.5)
             .disabled(!canContinue)
-            // Stable UI-test target: label-based queries ("Continue")
-            // collide with iOS 27's keyboard swipe-to-type intro overlay,
-            // which has its own Continue button.
+            // Stable UI-test target: do not query by visible title —
+            // iOS 27's keyboard swipe-to-type intro overlay has its own
+            // Continue button, and this CTA copy is design-owned.
             .accessibilityIdentifier("onboarding.continueName")
         }
         .opacity(contentOpacity)
@@ -73,29 +77,33 @@ public struct YourNameView: View {
     // MARK: - Subviews
 
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: OnboardingLayout.titleBodySpacing) {
-            Text("What's your name")
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text("Let’s get you started")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
 
-            Text("We’d like to know more about you. This shouldn’t take more than 5 minutes.")
-                .font(type.body1)
+            Text("What should Memento call you?")
+                .font(type.body1Medium)
                 .foregroundStyle(theme.mutedForeground)
         }
     }
 
     private var inputFieldsSection: some View {
-        VStack(spacing: OnboardingLayout.fieldSpacing) {
+        VStack(spacing: Spacing.md) {
             AppTextField(
                 placeholder: "First name",
                 text: $firstName,
-                textInputAutocapitalization: .words
+                textInputAutocapitalization: .words,
+                label: "First name",
+                isFilled: true
             )
 
             AppTextField(
                 placeholder: "Last name",
                 text: $lastName,
-                textInputAutocapitalization: .words
+                textInputAutocapitalization: .words,
+                label: "Last name",
+                isFilled: true
             )
         }
     }

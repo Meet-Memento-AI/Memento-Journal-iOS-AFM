@@ -140,7 +140,7 @@ public struct EditJournalGoalsView: View {
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
 
-            Text("Update the one-word themes that quietly shape your journaling experience. Choose up to \(ThemeCatalog.maxConfirmedThemes).")
+            Text("Update the themes that quietly shape your journaling experience. Choose up to \(ThemeCatalog.maxConfirmedThemes).")
                 .font(type.body2)
                 .lineSpacing(3)
                 .foregroundStyle(theme.mutedForeground)

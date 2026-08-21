@@ -130,7 +130,7 @@ public struct LearnAboutYourselfView: View {
 
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: OnboardingLayout.fieldSpacing) {
-            Text("What would you like to learn about yourself?")
+            Text("What are your journal goals?")
                 .font(type.h3)
                 .foregroundStyle(theme.foreground)
         }

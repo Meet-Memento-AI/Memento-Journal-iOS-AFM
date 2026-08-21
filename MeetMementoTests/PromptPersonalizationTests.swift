@@ -77,8 +77,8 @@ final class PromptPersonalizationTests: XCTestCase {
         UserDefaults.standard.set("  Sebastian ", forKey: "memento_first_name")
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "understand myself better",
-            confirmedThemeIds: ["awareness"],
-            suggestedThemeIds: ["awareness", "stress"],
+            confirmedThemeIds: ["mindfulness"],
+            suggestedThemeIds: ["mindfulness", "stress"],
             promptLens: "Lean toward self-awareness questions.",
             catalogVersion: ThemeCatalog.catalogVersion,
             builtAt: Date(),
@@ -88,7 +88,7 @@ final class PromptPersonalizationTests: XCTestCase {
         let p = PromptPersonalization.fromLocalProfile()
         XCTAssertEqual(p.firstName, "Sebastian")
         XCTAssertEqual(p.reflection, "understand myself better")
-        XCTAssertEqual(p.goals, ["Awareness"])
+        XCTAssertEqual(p.goals, ["Mindfulness"])
         XCTAssertEqual(p.promptLens, "Lean toward self-awareness questions.")
         XCTAssertFalse(p.isEmpty)
     }

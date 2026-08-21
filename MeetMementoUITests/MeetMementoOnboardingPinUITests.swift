@@ -38,7 +38,7 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         XCTAssertTrue(getStarted.waitForExistence(timeout: 15))
         getStarted.tap()
 
-        // YourNameView — Continue is disabled until both fields are filled.
+        // YourNameView — Next step is disabled until both fields are filled.
         let firstNameField = app.textFields["First name"]
         XCTAssertTrue(firstNameField.waitForExistence(timeout: 10))
         firstNameField.tap()
@@ -56,9 +56,9 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         XCTAssertTrue(learnContinue.waitForExistence(timeout: 10))
         learnContinue.tap()
 
-        // ThemeConfirmationView — empty reflection opens the full catalog;
-        // pick one theme to enable Continue.
-        let themeChip = app.buttons["onboarding.theme.awareness"]
+        // ThemeConfirmationView — all categories render; empty reflection means
+        // nothing is preselected, so pick one theme to enable the CTA.
+        let themeChip = app.buttons["onboarding.theme.anxiety"]
         XCTAssertTrue(themeChip.waitForExistence(timeout: 15))
         themeChip.tap()
         app.buttons["onboarding.continueThemes"].tap()

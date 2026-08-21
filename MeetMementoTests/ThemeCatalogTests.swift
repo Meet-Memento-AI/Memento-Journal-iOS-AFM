@@ -3,17 +3,19 @@ import XCTest
 
 final class ThemeCatalogTests: XCTestCase {
 
-    func test_catalog_hasUniqueIdsAndOneWordDisplayNames() {
+    func test_catalog_hasUniqueIdsAndFiveFamiliesOfEight() {
         let ids = ThemeCatalog.all.map(\.id)
         XCTAssertEqual(ids.count, Set(ids).count, "theme ids must be unique")
-        XCTAssertEqual(ThemeCatalog.all.count, 164, "themes@1 ships 164 one-word themes")
-        XCTAssertEqual(ThemeCatalog.catalogVersion, "themes@1")
+        XCTAssertEqual(ThemeCatalog.all.count, 40, "themes@2 ships 5 categories x 8 topics")
+        XCTAssertEqual(ThemeCatalog.catalogVersion, "themes@2")
         XCTAssertEqual(ThemeCatalog.maxConfirmedThemes, 6)
         XCTAssertEqual(ThemeCatalog.defaultSuggestionCount, 4)
 
+        for family in ThemeFamily.allCases {
+            XCTAssertEqual(ThemeCatalog.themes(in: family).count, 8, "\(family.rawValue) should hold 8 topics")
+        }
+
         for theme in ThemeCatalog.all {
-            XCTAssertFalse(theme.displayName.contains(" "), "\(theme.id) displayName should be one word")
-            XCTAssertFalse(theme.displayName.contains("-"), "\(theme.id) displayName should not use hyphens")
             XCTAssertFalse(theme.displayName.isEmpty)
             XCTAssertEqual(ThemeCatalog.theme(id: theme.id)?.id, theme.id)
         }
@@ -21,31 +23,31 @@ final class ThemeCatalogTests: XCTestCase {
 
     func test_validate_stripsUnknownsCapsAndDedupes() {
         let result = ThemeCatalog.validate(
-            ["awareness", "not_a_real_theme", "awareness", "stress", "joy", "calm", "hope", "fear", "love"],
+            ["anxiety", "not_a_real_theme", "anxiety", "stress", "goals", "writing", "trust", "rest", "sleep"],
             max: 6
         )
-        XCTAssertEqual(result, ["awareness", "stress", "joy", "calm", "hope", "fear"])
+        XCTAssertEqual(result, ["anxiety", "stress", "goals", "writing", "trust", "rest"])
         XCTAssertFalse(result.contains("not_a_real_theme"))
     }
 
     func test_legacyGoalMapping_mapsOriginalEight() {
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Self awareness"), "awareness")
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Emotion mapping"), "emotion")
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Calming control"), "regulation")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Self awareness"), "mindfulness")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Emotion mapping"), "therapy")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Calming control"), "stress")
         XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Stress relief"), "stress")
         XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Thoughtful responses"), "communication")
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Self-kindness"), "nurture")
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Honesty"), "honesty")
-        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Compassion"), "compassion")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Self-kindness"), "self_esteem")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Honesty"), "trust")
+        XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Compassion"), "support")
     }
 
     func test_suggestFromKeywords_findsOverlaps() {
         let ids = ThemeCatalog.suggestFromKeywords(
-            "I want less stress and more clarity around work burnout",
+            "I want less stress and more balance around work burnout",
             limit: 4
         )
         XCTAssertFalse(ids.isEmpty)
-        XCTAssertTrue(ids.contains("stress") || ids.contains("clarity") || ids.contains("burnout") || ids.contains("work"))
+        XCTAssertTrue(ids.contains("stress") || ids.contains("work_life_balance"))
     }
 
     func test_localProfileStore_migratesLegacyGoals() {
@@ -55,8 +57,8 @@ final class ThemeCatalogTests: XCTestCase {
 
         let profile = LocalProfileStore.ensureMigratedProfile()
         XCTAssertEqual(profile.reflection, "understand myself")
-        XCTAssertEqual(Set(profile.confirmedThemeIds), Set(["awareness", "stress"]))
-        XCTAssertEqual(LocalProfileStore.selectedGoals, ["Awareness", "Stress"])
+        XCTAssertEqual(Set(profile.confirmedThemeIds), Set(["mindfulness", "stress"]))
+        XCTAssertEqual(LocalProfileStore.selectedGoals, ["Mindfulness", "Stress"])
 
         LocalProfileStore.clearAll()
     }

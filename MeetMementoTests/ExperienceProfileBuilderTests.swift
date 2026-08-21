@@ -12,7 +12,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
     func test_rebuildLens_stripsUnknownThemeIdsAndPreservesConfirmed() async throws {
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "I want less stress and more clarity about my work",
-            confirmedThemeIds: ["boundaries", "work"],
+            confirmedThemeIds: ["boundaries", "work_life_balance"],
             suggestedThemeIds: [],
             promptLens: nil,
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -22,9 +22,9 @@ final class ExperienceProfileBuilderTests: XCTestCase {
 
         let mock = MockIntelligenceService()
         mock.estimateResult = ProfileEstimateResult(
-            themeIds: ["stress", "clarity", "invented_theme"],
-            secondaryThemeIds: ["burnout", "also_fake"],
-            promptLens: "Lean toward stress and clarity.",
+            themeIds: ["stress", "goals", "invented_theme"],
+            secondaryThemeIds: ["sleep", "also_fake"],
+            promptLens: "Lean toward stress and goals.",
             zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
@@ -37,17 +37,17 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         )
 
         XCTAssertEqual(mock.estimateCallCount, 1)
-        XCTAssertEqual(profile.confirmedThemeIds, ["boundaries", "work"])
+        XCTAssertEqual(profile.confirmedThemeIds, ["boundaries", "work_life_balance"])
         XCTAssertFalse(profile.suggestedThemeIds.contains("invented_theme"))
         XCTAssertFalse(profile.suggestedThemeIds.contains("also_fake"))
         XCTAssertTrue(profile.suggestedThemeIds.contains("stress"))
-        XCTAssertEqual(profile.promptLens, "Lean toward stress and clarity.")
+        XCTAssertEqual(profile.promptLens, "Lean toward stress and goals.")
     }
 
     func test_rebuildLens_emptyReflection_clearsLensWithoutCallingModel() async throws {
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "   ",
-            confirmedThemeIds: ["awareness"],
+            confirmedThemeIds: ["mindfulness"],
             suggestedThemeIds: [],
             promptLens: "stale lens",
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -60,13 +60,13 @@ final class ExperienceProfileBuilderTests: XCTestCase {
 
         XCTAssertEqual(mock.estimateCallCount, 0)
         XCTAssertNil(profile.promptLens)
-        XCTAssertEqual(profile.confirmedThemeIds, ["awareness"])
+        XCTAssertEqual(profile.confirmedThemeIds, ["mindfulness"])
     }
 
     func test_rebuildLens_fallsBackToKeywordsWhenUnavailable() async throws {
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "I feel a lot of stress and burnout at work",
-            confirmedThemeIds: ["awareness"],
+            confirmedThemeIds: ["mindfulness"],
             suggestedThemeIds: [],
             promptLens: nil,
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -80,7 +80,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         let profile = try await ExperienceProfileBuilder.rebuildLens(intelligence: mock)
 
         XCTAssertEqual(profile.modelIdentifier, "keyword-fallback")
-        XCTAssertEqual(profile.confirmedThemeIds, ["awareness"])
+        XCTAssertEqual(profile.confirmedThemeIds, ["mindfulness"])
         XCTAssertNotNil(profile.promptLens)
         XCTAssertFalse(profile.suggestedThemeIds.isEmpty)
     }
@@ -89,9 +89,9 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         LocalProfileStore.personalizationText = "I want more calm and better sleep"
         let mock = MockIntelligenceService()
         mock.estimateResult = ProfileEstimateResult(
-            themeIds: ["calm", "sleep"],
+            themeIds: ["mindfulness", "sleep"],
             secondaryThemeIds: [],
-            promptLens: "Lean toward calm and sleep.",
+            promptLens: "Lean toward mindfulness and sleep.",
             zoneUsed: .z0Device,
             wasDegraded: false,
             promptVersion: "profile-estimate@1",
@@ -99,19 +99,19 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         )
 
         let profile = try await ExperienceProfileBuilder.rebuildLensPreservingThemes(
-            confirmedThemeIds: ["calm", "sleep", "rest"],
+            confirmedThemeIds: ["mindfulness", "sleep", "rest"],
             reflection: "I want more calm and better sleep",
             intelligence: mock
         )
 
-        XCTAssertEqual(Set(profile.confirmedThemeIds), Set(["calm", "sleep", "rest"]))
-        XCTAssertEqual(profile.promptLens, "Lean toward calm and sleep.")
+        XCTAssertEqual(Set(profile.confirmedThemeIds), Set(["mindfulness", "sleep", "rest"]))
+        XCTAssertEqual(profile.promptLens, "Lean toward mindfulness and sleep.")
     }
 
     func test_themeAwareChatStarters_preferConfirmedThemes() {
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "stress",
-            confirmedThemeIds: ["stress", "clarity"],
+            confirmedThemeIds: ["stress", "goals"],
             suggestedThemeIds: [],
             promptLens: nil,
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -122,7 +122,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         let starters = ThemeAwareChatStarters.starters(limit: 3)
         XCTAssertEqual(starters.count, 3)
         let joined = starters.joined(separator: " ").lowercased()
-        XCTAssertTrue(joined.contains("stress") || joined.contains("clarity"))
+        XCTAssertTrue(joined.contains("stress") || joined.contains("goals"))
     }
 
     func test_themeAwareChatStarters_fallbackWhenNoThemes() {
@@ -139,7 +139,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         UserDefaults.standard.set("Ada", forKey: "memento_first_name")
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "keep me",
-            confirmedThemeIds: ["awareness"],
+            confirmedThemeIds: ["mindfulness"],
             suggestedThemeIds: ["stress"],
             promptLens: "lens",
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -160,15 +160,15 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         let vm = OnboardingViewModel()
         vm.personalizationText = "I want creative play"
         try await vm.saveExperienceProfile(
-            themeIds: ["creativity", "play"],
+            themeIds: ["writing", "inspiration"],
             promptLens: "Lean toward stress patterns.", // stale AFM lens from different themes
-            suggestedIds: ["stress", "burnout"]
+            suggestedIds: ["stress", "sleep"]
         )
         let profile = LocalProfileStore.experienceProfile
-        XCTAssertEqual(Set(profile?.confirmedThemeIds ?? []), Set(["creativity", "play"]))
+        XCTAssertEqual(Set(profile?.confirmedThemeIds ?? []), Set(["writing", "inspiration"]))
         XCTAssertEqual(
             profile?.promptLens,
-            ExperienceProfileBuilder.deterministicLens(themes: ["creativity", "play"])
+            ExperienceProfileBuilder.deterministicLens(themes: ["writing", "inspiration"])
         )
         XCTAssertFalse(profile?.promptLens?.lowercased().contains("stress") == true)
     }
@@ -177,7 +177,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         // Profile A — stress lean
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "I want to understand my stress",
-            confirmedThemeIds: ["stress", "burnout"],
+            confirmedThemeIds: ["stress", "anxiety"],
             suggestedThemeIds: [],
             promptLens: "Lean toward stress patterns.",
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -193,7 +193,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         // Profile B — creativity lean
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "I want to explore creativity",
-            confirmedThemeIds: ["creativity", "play"],
+            confirmedThemeIds: ["creative_blocks", "inspiration"],
             suggestedThemeIds: [],
             promptLens: "Lean toward creative expression.",
             catalogVersion: ThemeCatalog.catalogVersion,
@@ -209,15 +209,16 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         XCTAssertTrue(askA.version.hasSuffix("+p2"))
         XCTAssertTrue(askB.version.hasSuffix("+p2"))
         XCTAssertTrue(askA.text.contains("Stress") || askA.text.contains("stress"))
-        XCTAssertTrue(askB.text.contains("Creativity") || askB.text.contains("creative"))
+        XCTAssertTrue(askB.text.contains("Creative") || askB.text.contains("Inspiration"))
         XCTAssertNotEqual(askA.text, askB.text)
         // Facts/constitution stay shared — L0 phrase present in both.
-        XCTAssertTrue(askA.text.contains("mirror, not a therapist"))
-        XCTAssertTrue(askB.text.contains("mirror, not a therapist"))
+        // (ask@10 wording: "a quiet companion, not a search engine and not a therapist")
+        XCTAssertTrue(askA.text.contains("not a search engine and not a therapist"))
+        XCTAssertTrue(askB.text.contains("not a search engine and not a therapist"))
 
         let aJoined = startersA.joined().lowercased()
         let bJoined = startersB.joined().lowercased()
-        XCTAssertTrue(aJoined.contains("stress") || aJoined.contains("burnout"))
-        XCTAssertTrue(bJoined.contains("creativity") || bJoined.contains("play"))
+        XCTAssertTrue(aJoined.contains("stress") || aJoined.contains("anxiety"))
+        XCTAssertTrue(bJoined.contains("creative") || bJoined.contains("inspiration"))
     }
 }

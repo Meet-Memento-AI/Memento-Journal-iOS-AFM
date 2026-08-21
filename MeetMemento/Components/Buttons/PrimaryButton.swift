@@ -1,19 +1,27 @@
 import SwiftUI
 
 public struct PrimaryButton: View {
+    public enum ImagePlacement {
+        case leading
+        case trailing
+    }
+
     @Environment(\.theme) private var theme
 
     let title: String
     var systemImage: String? = nil
+    var imagePlacement: ImagePlacement = .leading
     var isLoading: Bool = false
     var action: () -> Void
 
     public init(title: String,
                 systemImage: String? = nil,
+                imagePlacement: ImagePlacement = .leading,
                 isLoading: Bool = false,
                 action: @escaping () -> Void) {
         self.title = title
         self.systemImage = systemImage
+        self.imagePlacement = imagePlacement
         self.isLoading = isLoading
         self.action = action
     }
@@ -23,10 +31,15 @@ public struct PrimaryButton: View {
             guard !isLoading else { return }
             action()
         } label: {
-            HStack(spacing: 8) {
-                if let systemImage { Image(systemName: systemImage) }
+            HStack(spacing: Spacing.xxs) {
+                if let systemImage, imagePlacement == .leading {
+                    Image(systemName: systemImage)
+                }
                 Text(title)
                     .typographyH5()
+                if let systemImage, imagePlacement == .trailing {
+                    Image(systemName: systemImage)
+                }
                 if isLoading { ProgressView().tint(theme.primaryForeground) }
             }
             .frame(height: 48)
@@ -55,6 +68,7 @@ struct PrimaryButtonPressStyle: ButtonStyle {
 #Preview("Light") {
     VStack(spacing: 12) {
         PrimaryButton(title: "Reflect", systemImage: "sparkles") {}
+        PrimaryButton(title: "Next step", systemImage: "arrow.right", imagePlacement: .trailing) {}
         PrimaryButton(title: "Save", isLoading: true) {}
     }
     .padding()
@@ -65,6 +79,7 @@ struct PrimaryButtonPressStyle: ButtonStyle {
 #Preview("Dark") {
     VStack(spacing: 12) {
         PrimaryButton(title: "Reflect", systemImage: "sparkles") {}
+        PrimaryButton(title: "Next step", systemImage: "arrow.right", imagePlacement: .trailing) {}
         PrimaryButton(title: "Save", isLoading: true) {}
     }
     .padding()

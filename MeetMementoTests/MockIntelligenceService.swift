@@ -33,8 +33,8 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
         if let estimateError { throw estimateError }
         if let estimateResult { return estimateResult }
         return ProfileEstimateResult(
-            themeIds: ["awareness", "stress", "not_a_real_theme", "clarity"],
-            secondaryThemeIds: ["hope", "fake_secondary"],
+            themeIds: ["mindfulness", "stress", "not_a_real_theme", "goals"],
+            secondaryThemeIds: ["gratitude", "fake_secondary"],
             promptLens: "Lean toward noticing stress and clarity without prescribing fixes.",
             zoneUsed: .z0Device,
             wasDegraded: false,

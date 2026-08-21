@@ -41,7 +41,6 @@ public struct ThemeConfirmationView: View {
     @State private var estimatePromptVersion: String?
     @State private var isEstimating = true
     @State private var usedFallback = false
-    @State private var showAllThemes = false
 
     init(
         intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared,
@@ -62,7 +61,7 @@ public struct ThemeConfirmationView: View {
                 titleSection
 
                 if isEstimating {
-                    HStack(spacing: 12) {
+                    HStack(spacing: Spacing.sm) {
                         ProgressView()
                             .tint(theme.foreground)
                         Text("Finding themes that fit…")
@@ -72,47 +71,21 @@ public struct ThemeConfirmationView: View {
                     .padding(.top, OnboardingLayout.sectionSpacing)
                     .accessibilityIdentifier("onboarding.themeEstimating")
                 } else {
-                    if usedFallback {
-                        Text("Pick the themes that feel right — you can change these anytime.")
-                            .font(type.body2)
-                            .foregroundStyle(theme.mutedForeground)
-                            .padding(.top, OnboardingLayout.titleBodySpacing)
-                    }
-
-                    if !suggestedThemes.isEmpty {
-                        sectionLabel("Suggested for you")
-                            .padding(.top, OnboardingLayout.sectionSpacing)
-                        themeChipFlow(suggestedThemes)
-                            .padding(.top, OnboardingLayout.titleBodySpacing)
-                    }
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showAllThemes.toggle()
-                        }
-                    } label: {
-                        Text(showAllThemes ? "Hide full catalog" : "Browse all themes")
-                            .font(type.body2Bold)
-                            .foregroundStyle(theme.foreground)
-                    }
-                    .padding(.top, 20)
-                    .accessibilityIdentifier("onboarding.browseThemes")
-
-                    if showAllThemes {
-                        ForEach(ThemeFamily.allCases) { family in
-                            let themes = ThemeCatalog.themes(in: family)
-                            if !themes.isEmpty {
-                                sectionLabel(family.title)
-                                    .padding(.top, 20)
-                                themeChipFlow(themes)
-                                    .padding(.top, OnboardingLayout.titleBodySpacing)
-                            }
+                    // All categories render immediately (Figma 618:3691 /
+                    // 608:2240) — suggested themes just start selected in place.
+                    ForEach(ThemeFamily.allCases) { family in
+                        let themes = ThemeCatalog.themes(in: family)
+                        if !themes.isEmpty {
+                            sectionLabel(family.title)
+                                .padding(.top, OnboardingLayout.titleBodySpacing)
+                            themeChipFlow(themes)
+                                .padding(.top, Spacing.xs)
                         }
                     }
                 }
             }
         } footer: {
-            PrimaryButton(title: "Continue") {
+            PrimaryButton(title: "Next step", systemImage: "arrow.right", imagePlacement: .trailing) {
                 saveAndContinue()
             }
             .opacity(canContinue ? 1.0 : 0.5)
@@ -127,27 +100,28 @@ public struct ThemeConfirmationView: View {
     // MARK: - Subviews
 
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: OnboardingLayout.titleBodySpacing) {
-            Text("Themes for your journal")
-                .font(type.h3)
+        // Figma: title 20pt bold (h4), subtitle muted semibold.
+        VStack(alignment: .leading, spacing: OnboardingLayout.fieldSpacing) {
+            Text("Fine-tune your journal themes")
+                .font(type.h4)
                 .foregroundStyle(theme.foreground)
 
-            Text("Based on what you shared, here are one-word themes to shape your experience. Select up to \(ThemeCatalog.maxConfirmedThemes).")
-                .font(type.body1)
+            Text("You can change this anytime")
+                .font(type.body1Medium)
                 .foregroundStyle(theme.mutedForeground)
         }
     }
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(type.body2Bold)
+            .font(type.body1Medium)
             .foregroundStyle(theme.foreground)
     }
 
     private func themeChipFlow(_ themes: [JournalTheme]) -> some View {
-        ThemeFlowLayout(spacing: OnboardingLayout.titleBodySpacing) {
+        ThemeFlowLayout(spacing: Spacing.xs) {
             ForEach(themes) { themeItem in
-                Chip(
+                SelectableThemeTag(
                     text: themeItem.displayName,
                     isSelected: selectedIds.contains(themeItem.id),
                     onTap: { toggle(themeItem.id) }
@@ -155,10 +129,6 @@ public struct ThemeConfirmationView: View {
                 .accessibilityIdentifier("onboarding.theme.\(themeItem.id)")
             }
         }
-    }
-
-    private var suggestedThemes: [JournalTheme] {
-        ThemeCatalog.themes(ids: suggestedIds)
     }
 
     private var canContinue: Bool {
@@ -200,7 +170,6 @@ public struct ThemeConfirmationView: View {
         // Empty reflection → browse-only, no preselection.
         guard !reflection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             isEstimating = false
-            showAllThemes = true
             usedFallback = true
             return
         }
@@ -226,9 +195,6 @@ public struct ThemeConfirmationView: View {
             estimateModelIdentifier = nil
             estimatePromptVersion = nil
             usedFallback = true
-            if suggestedIds.isEmpty {
-                showAllThemes = true
-            }
             AppLogger.log("⚠️ Theme estimate fell back to keywords: \(error.localizedDescription)")
         }
 

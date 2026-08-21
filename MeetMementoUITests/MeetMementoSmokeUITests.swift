@@ -46,5 +46,9 @@ final class MeetMementoSmokeUITests: XCTestCase {
 
         let firstNameField = app.textFields["First name"]
         XCTAssertTrue(firstNameField.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Let’s get you started"].exists)
+        XCTAssertTrue(app.staticTexts["What should Memento call you?"].exists)
+        XCTAssertTrue(app.textFields["Last name"].exists)
+        XCTAssertTrue(app.buttons["onboarding.continueName"].exists)
     }
 }

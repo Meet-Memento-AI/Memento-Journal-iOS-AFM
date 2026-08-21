@@ -198,6 +198,11 @@ struct Theme {
     let followUpGradientEnd: Color
     let followUpTagBackground: Color
 
+    // Selected theme tag (onboarding theme picker) — brand copper tint pair.
+    // High-contrast (~13:1); safe for small text unlike `accent`.
+    let themeTagSelectedBackground: Color
+    let themeTagSelectedForeground: Color
+
     // FAB (Floating Action Button) gradient
     let fabGradientStart: Color
     let fabGradientEnd: Color
@@ -290,6 +295,9 @@ struct Theme {
         followUpGradientEnd: BaseColors.white,
         followUpTagBackground: GrayScale.gray100,
 
+        themeTagSelectedBackground: Color(hex: "#F2E7DB"),
+        themeTagSelectedForeground: Color(hex: "#362112"),
+
         fabGradientStart: PrimaryScale.primary900,
         fabGradientEnd: PrimaryScale.primary900,
 
@@ -355,6 +363,9 @@ struct Theme {
         followUpGradientStart: Color(hex: "#111111"),
         followUpGradientEnd: Color(hex: "#111111"),
         followUpTagBackground: Color(hex: "#1A1A1A"),
+
+        themeTagSelectedBackground: Color(hex: "#3A2A1B"),
+        themeTagSelectedForeground: Color(hex: "#F2E7DB"),
 
         fabGradientStart: BaseColors.white,
         fabGradientEnd: BaseColors.white,
