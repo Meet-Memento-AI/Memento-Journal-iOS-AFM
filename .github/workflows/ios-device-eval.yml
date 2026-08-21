@@ -34,7 +34,7 @@ jobs:
       TEST_RUNNER_SPIKE_C: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
       TEST_RUNNER_SPIKE_A_FIXTURES: ${{ github.workspace }}/Fixtures
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # Model weights are Git LFS (spec 030 R3). Without this the build
         # receives pointer files and fails at RUNTIME as a model-load error.
         with:
