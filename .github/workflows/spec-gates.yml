@@ -24,7 +24,7 @@ jobs:
     name: Single FoundationModels importer (spec 017 R1 / P3)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce exactly-one FoundationModels importer
         run: scripts/ci/check_single_intelligence_importer.sh
 
@@ -32,7 +32,7 @@ jobs:
     name: No hardcoded context budgets (spec 017 R9 / CONSTITUTION §4 rule 5)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce runtime-derived context budgets
         # Rule 5's corollary: the window is a runtime value. R9 states the
         # acceptance as a grep for 4096/8192/32768, but that alone is worthless
@@ -46,7 +46,7 @@ jobs:
     name: Positioning-claim lint (spec 014 R3 / REQ-POS-001)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Lint forbidden absolute-privacy phrasing
         run: python3 scripts/ci/lint_forbidden_phrases.py
 
@@ -54,7 +54,7 @@ jobs:
     name: Speakability linter selftest (spec 018 R9 / REQ-VOX-006)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run speakability pattern selftest
         run: python3 scripts/ci/speakability_lint.py --selftest
       # Once spec 022's harness produces fixture-corpus generations, add:
@@ -64,7 +64,7 @@ jobs:
     name: Dependency allowlist (spec 021 R6 / REQ-MON-005)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check SPM deps against allowlist
         # ENFORCING since 2026-08-18. The last off-allowlist package (SVGKit) was
         # linked to no target and imported by no Swift file, so it was removed
@@ -80,7 +80,7 @@ jobs:
     name: Privacy manifest matches the code (docs/app-store/03)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check PrivacyInfo.xcprivacy in both directions
         # Under-declared -> ITMS-91053 at upload. Over-declared -> an inaccuracy
         # in exactly the metadata class Apple rejected this app on in Nov 2025
@@ -92,7 +92,7 @@ jobs:
     name: Info.plist + build-number hygiene (docs/app-store/02, /07)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check export compliance, purpose strings, build-number floor
         # 1.0(2) was uploaded and rejected in Nov 2025; build numbers are
         # consumed permanently per version string. The floor lives in
@@ -103,7 +103,7 @@ jobs:
     name: Nothing internal ships in the bundle (docs/app-store/07)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check synchronized-group membership exceptions
         # The MeetMemento/ group is a synchronized root group: every file is a
         # target member unless listed INDIVIDUALLY (directory-level exceptions
@@ -117,7 +117,7 @@ jobs:
     name: App Store copy limits + claims (docs/app-store/04, /08)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check field limits, REQ-POS-001, pricing, clinical framing
         # Holds the App Store Connect copy in docs/app-store/metadata/ to the
         # same standard as the app's own strings.
@@ -127,7 +127,7 @@ jobs:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate corpus structure + honesty scrub + gold set
         # sys.exit(1) on any structural error, missing gold entry id, or
         # honesty-scrub leak. Guards the one real 2.0 asset that specs 016 R8's
@@ -149,7 +149,7 @@ jobs:
     name: CoreML stays in the TTS package (spec 031)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce package-only CoreML importer
         run: scripts/ci/check_single_coreml_importer.sh
 
@@ -157,7 +157,7 @@ jobs:
     name: Neural TTS has no huggingface fetch (spec 030 / 036)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Grep TTS path for weight hosts
         run: scripts/ci/check_tts_zero_egress.sh
 
@@ -165,6 +165,6 @@ jobs:
     name: No SiriKit (spec 020 R1)
     runs-on: [self-hosted, Linux, x64]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Forbid Intents.framework
         run: scripts/ci/check_no_sirikit.sh

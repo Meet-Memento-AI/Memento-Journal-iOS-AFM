@@ -25,7 +25,7 @@ jobs:
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
       IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         # Model weights are Git LFS (spec 030 R3). Without this the build
         # receives pointer files and fails at RUNTIME as a model-load error.
         with:
