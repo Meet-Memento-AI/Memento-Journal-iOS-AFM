@@ -2,7 +2,7 @@
 id: 015
 title: Data Layer — SwiftData and CloudKit
 tier: P0
-status: in-progress (2026-07-24) — Requirements derived; implementation blocked on Xcode 27 beta for the deployment-target bump, unblocked portions noted per-requirement
+status: in-progress (2026-08-19) — SwiftData schema + CloudKit private config + five-store deletion landed; DEC-006 never-Z1; DEC-007 discard-after-STT; deployment target stays 26.0 until the archive Mac runs Xcode 27
 effort: 3 sessions
 depends_on: [013, 014, 023]
 findings: [schema-mirroring-deltas, cloudkit-error-taxonomy, health-z0-statistics, audio-as-files, five-store-deletion-test, capability-tier-at-launch]

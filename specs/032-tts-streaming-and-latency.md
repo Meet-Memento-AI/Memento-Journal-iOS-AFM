@@ -2,7 +2,7 @@
 id: 032
 title: TTS Streaming Pipeline and Perceived Latency
 tier: P1
-status: not-started
+status: in-progress (2026-08-19) — First-chunk fast path + TurnStartMask skip-if-missing; unmasked latency probe for 036
 effort: 1 session
 depends_on: [028, 029, 031]
 findings: [snapshot-streaming-not-token-streaming, engine-128-token-input-ceiling, first-chunk-shorter-than-steady, turn-start-mask-in-selected-voice, mask-must-not-hide-regression, bounded-lookahead-beats-buffer-depth]

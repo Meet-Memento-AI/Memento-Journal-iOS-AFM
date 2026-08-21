@@ -47,6 +47,13 @@ struct ChatInputField: View {
     var onNarrate: (() -> Void)?
     /// When false, input is disabled (e.g. while a send is in flight)
     var isInteractive: Bool
+    /// Reports the capsule's frame in `ChatSpace.page` after every layout.
+    ///
+    /// The send choreography reads the last reported value at send time, which
+    /// is necessarily the *pre-send* geometry: `sendMessage()` fires `onSend()`
+    /// before it clears the text and collapses the field, and geometry
+    /// callbacks are post-layout.
+    var onComposerFrame: ((CGRect) -> Void)?
     /// For preview purposes - allows setting initial state
     var initialState: InputState
 
@@ -116,7 +123,8 @@ struct ChatInputField: View {
         onDismiss: (() -> Void)? = nil,
         onNarrate: (() -> Void)? = nil,
         isInteractive: Bool = true,
-        initialState: InputState = .defaultState
+        initialState: InputState = .defaultState,
+        onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
         self._text = text
         self.onSend = onSend
@@ -124,6 +132,7 @@ struct ChatInputField: View {
         self.onNarrate = onNarrate
         self.isInteractive = isInteractive
         self.initialState = initialState
+        self.onComposerFrame = onComposerFrame
         self._inputState = State(initialValue: initialState)
     }
 
@@ -274,6 +283,8 @@ struct ChatInputField: View {
         // field grows to five lines, and the capsule's corners would swell with
         // it. Pinning the token keeps the silhouette constant while typing.
         .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xxl, style: .continuous))
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
+            action: { onComposerFrame?($0) }
     }
 
     // MARK: - Leading Content
@@ -642,7 +653,13 @@ struct ChatInputField: View {
         // rather than silently carried into the next message.
         attachedPhoto = nil
         inputState = .defaultState
-        isFocused = false
+        // Focus is deliberately NOT dropped here. Dismissing the keyboard on
+        // send dragged the footer ~300pt during the send flight and forced the
+        // flight onto an ease curve to avoid fighting the system's keyboard
+        // timing. Keeping it up matches ChatGPT/Grok, makes consecutive sends
+        // possible without the bar flapping, and frees the flight to use a
+        // spring. `onDismissKeyboard` and interactive scroll dismissal are
+        // still the ways out.
     }
 
     /// Consume the transcript at most once per recording session, so multiple

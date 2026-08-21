@@ -11,7 +11,7 @@ final class PromptPersonalizationTests: XCTestCase {
 
     func test_emptyPersonalization_keepsBasePromptAndVersion() {
         let resolved = PromptRegistry.instructions(for: .ask, personalization: .none)
-        XCTAssertEqual(resolved.version, "ask@8")
+        XCTAssertEqual(resolved.version, "ask@10")
         // Assert on the section HEADER, not the bare phrase. ask@4 added
         // `Never recite … the "About this person" section` to the Hard bans, so
         // the base prompt legitimately contains that phrase and the old
@@ -29,7 +29,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: "Lean toward noticing stress patterns without prescribing fixes."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@8+p2")
+        XCTAssertEqual(resolved.version, "ask@10+p2")
         XCTAssertTrue(resolved.text.contains("About this person"))
         XCTAssertTrue(resolved.text.contains("Sebastian"))
         // Themes/lens present → raw reflection is not quoted (anti-loop).
@@ -55,7 +55,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@8+p2")
+        XCTAssertEqual(resolved.version, "ask-degraded@10+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
         XCTAssertTrue(resolved.text.contains("Honesty"))
     }

@@ -101,7 +101,9 @@ struct ContextBudget: Equatable, Sendable {
     /// Prefill-latency budget, not a window: prefill time scales with prompt
     /// tokens, and evidence beyond this buys TTFT, not answer quality
     /// (user decision, spec 029 Amendment A: clamp for speed).
-    private static let maxEvidenceLatencyChars = 3_500   // = baseline 7 × 500
+    /// Spec 037 then caps how many of those entries enter the Ask prompt
+    /// (`EntryRetriever.maxEntries` = 5); this character budget is unchanged.
+    private static let maxEvidenceLatencyChars = 3_500   // historically 7 × 500
     private static let maxHistoryLatencyChars  = 2_000   // ≈ baseline 6 × 320
 
     // MARK: Baseline (window unreadable)

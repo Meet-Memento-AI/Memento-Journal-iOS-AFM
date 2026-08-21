@@ -144,6 +144,8 @@ struct YourEntriesView: View {
             ) {
                 onNavigateToEntry(.create)
             }
+            .entryZoomSource(EntryRoute.createZoomSourceID)
+            .accessibilityIdentifier("journal.emptyCreateCTA")
             .padding(.top, 24)
             .padding(.horizontal, 32)
 
@@ -208,6 +210,7 @@ struct YourEntriesView: View {
                                         showDeleteConfirmation = true
                                     }
                                 )
+                                .entryZoomSource(EntryRoute.edit(entry).zoomSourceID)
                                 .frame(maxWidth: .infinity) // Stretch to full width
                                 .id(entry.id) // Explicit ID for better diffing
                                 // Keyed on updatedAt as well as id: replacing an

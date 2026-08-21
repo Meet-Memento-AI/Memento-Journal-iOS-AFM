@@ -30,11 +30,6 @@ public struct AddEntryView: View {
     private let speechOwnerId = "AddEntryView"
 
     @StateObject private var keyboardObserver = KeyboardObserver()
-    /// Home-indicator inset cached while the keyboard is hidden — same reason
-    /// as `AIChatView.restingHomeIndicator`: live `safeAreaInsets.bottom` is
-    /// usually 0 in this sheet's GeometryReader (or becomes the keyboard), so
-    /// subtracting it left the FABs floating well above the keys.
-    @State private var restingHomeIndicator: CGFloat = 0
 
     @State private var title: String
     @State private var text: String
@@ -106,32 +101,23 @@ public struct AddEntryView: View {
         return .removed
     }
 
+    /// Idle mic diameter and attachment-pill height. The mic expands to fit
+    /// the duration timer while recording; the attachment cluster stays this tall.
+    private static let chromeFABHeight: CGFloat = 56
+
     /// 56pt idle matches Figma's trailing FAB (and the attachment pill's
     /// height); it expands to fit the duration timer while recording.
     private var fabWidth: CGFloat {
-        speechService.isRecording ? 112 : 56
+        speechService.isRecording ? 112 : Self.chromeFABHeight
     }
 
-    private func keyboardBottomPadding(geometry: GeometryProxy) -> CGFloat {
+    /// Resting: `windowBottom + 16`, same contract as Journal FAB / Chat composer.
+    /// Keyboard up: 16pt above the keys so the pills stay tappable.
+    private var keyboardBottomPadding: CGFloat {
         guard keyboardObserver.isKeyboardVisible else {
-            // Resting: FABs sit on the sheet's bottom frame edge (16pt air,
-            // matching `PositionedNewEntryFAB.edgeInset` / chat composer).
-            return PositionedNewEntryFAB.edgeInset
+            return AppHeaderMetrics.windowBottom + AppHeaderMetrics.rowBottomPadding
         }
-
-        let home = restingHomeIndicator > 0
-            ? restingHomeIndicator
-            : max(geometry.safeAreaInsets.bottom, Self.windowBottomSafeArea())
-        // Flush to the keyboard — no extra +8 gap.
-        return max(keyboardObserver.keyboardHeight - home, 0)
-    }
-
-    private static func windowBottomSafeArea() -> CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.bottom ?? 0
+        return keyboardObserver.keyboardHeight + AppHeaderMetrics.rowBottomPadding
     }
 
     private var formattedDate: String {
@@ -158,10 +144,13 @@ public struct AddEntryView: View {
     }
 
     public var body: some View {
-        GeometryReader { geometry in
+        // GeometryReader is the size: a plain VStack in a zooming
+        // NavigationStack destination is proposed the source rect first (the
+        // 64pt FAB) and can collapse to an empty white page. The reader
+        // always fills whatever size the transition offers, then the screen.
+        GeometryReader { _ in
             VStack(spacing: 0) {
-                // Custom sheet header
-                sheetHeader
+                pageHeader
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -177,55 +166,50 @@ public struct AddEntryView: View {
                                     self.photoDidChange = true
                                 }
                             )
-                            .padding(.top, 8)
+                            .padding(.top, AppHeaderMetrics.contentGap)
                         }
 
                         // Notion-style title field
                         titleField
-                            .padding(.top, 16)
+                            .padding(.top, AppHeaderMetrics.contentGap)
 
                         // Spacious body editor
                         bodyField
-                            .padding(.top, 16)
+                            .padding(.top, AppHeaderMetrics.contentGap)
 
                         // Reserves the bottom chrome band so body text can never
-                        // crowd the FABs. Matches resting overlay:
-                        // edgeInset + 56 FAB + edgeInset.
-                        Spacer(minLength: PositionedNewEntryFAB.edgeInset
-                               + 56
-                               + PositionedNewEntryFAB.edgeInset)
+                        // crowd the FABs: home indicator + 16pt air + pill height + 16pt.
+                        Spacer(minLength: AppHeaderMetrics.windowBottom
+                               + AppHeaderMetrics.rowBottomPadding
+                               + Self.chromeFABHeight
+                               + AppHeaderMetrics.contentGap)
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, AppHeaderMetrics.edgeInset)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .overlay(alignment: .bottom) {
                 // One sampling region for the footer cluster. Glass cannot
-                // sample glass, and the attachment circles sit next to the
-                // mic pill — migrating them without a shared container is
-                // what reads as stacked/double glass (PRES-092).
-                GlassEffectContainer(spacing: Self.optionSpacing) {
+                // sample glass, and the attachment pill sits next to the
+                // mic pill — they must share a container (PRES-092).
+                GlassEffectContainer(spacing: Self.footerGlassSpacing) {
                     HStack {
                         attachmentFAB
-                        Spacer(minLength: Self.optionSpacing)
+                        Spacer(minLength: Self.footerGlassSpacing)
                         microphoneFAB
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, keyboardBottomPadding(geometry: geometry))
+                    .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                    .padding(.bottom, keyboardBottomPadding)
                 }
             }
         }
-        .ignoresSafeArea(.keyboard)
-        .background(theme.background.ignoresSafeArea())
-        .onAppear {
-            restingHomeIndicator = Self.windowBottomSafeArea()
-            setupInitialFocus()
-        }
-        .onChange(of: keyboardObserver.isKeyboardVisible) { _, visible in
-            if !visible {
-                restingHomeIndicator = Self.windowBottomSafeArea()
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.background)
+        .ignoresSafeArea()
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
+        .accessibilityIdentifier("journal.entryEditor")
         .task {
             await preloadExistingPhotoIfNeeded()
         }
@@ -316,29 +300,31 @@ public struct AddEntryView: View {
     
     // MARK: - Subviews
 
-    private var sheetHeader: some View {
-        VStack(spacing: 12) {
-            // Drag handle indicator
-            Capsule()
-                .fill(theme.border)
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
+    private var pageHeader: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: AppHeaderMetrics.windowTop)
+                .frame(maxWidth: .infinity)
+                .background {
+                    ProgressiveBlurEdge(
+                        edge: .top,
+                        height: AppHeaderMetrics.windowTop
+                    )
+                }
+                .clipped()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
 
-            // One sampling region for back, date pill, and save. Glass on the
-            // view containing the glyph — never a sibling fill underneath
-            // (PRES-092).
             GlassEffectContainer(spacing: 12) {
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                            .foregroundStyle(theme.foreground)
-                            .frame(width: 44, height: 44)
-                            .glassEffect(.regular.interactive(), in: .circle)
+                HStack(spacing: 12) {
+                    HeaderIconButton(
+                        systemName: "chevron.left",
+                        accessibilityLabel: "Back",
+                        accessibilityHint: "Double-tap to close without saving"
+                    ) {
+                        closeEditor()
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Back")
-                    .accessibilityHint("Double-tap to close without saving")
+                    .accessibilityIdentifier("journal.entryEditor.back")
 
                     Spacer(minLength: 12)
 
@@ -352,36 +338,41 @@ public struct AddEntryView: View {
                     .padding(.horizontal, 14)
                     // AX5: minHeight (not fixed height) lets the pill grow instead of
                     // clipping/overlapping when the date text scales up at large Dynamic Type sizes.
-                    .frame(minHeight: 44)
+                    .frame(minHeight: AppHeaderMetrics.controlSize)
                     .glassEffect(.regular, in: .capsule)
 
                     Spacer(minLength: 12)
 
-                    Button { save() } label: {
-                        Group {
-                            if isSaving {
-                                ProgressView()
-                                    .tint(theme.foreground)
-                            } else {
-                                Image(systemName: "arrow.up")
-                                    .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                                    .foregroundStyle(theme.foreground)
-                            }
-                        }
-                        .frame(width: 44, height: 44)
-                        .glassEffect(.regular.interactive(), in: .circle)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isSaving || !hasSaveableContent)
-                    .opacity(isSaving || !hasSaveableContent ? 0.4 : 1)
-                    .accessibilityLabel(isSaving ? "Saving entry" : "Save entry")
-                    .accessibilityHint("Double-tap to save your journal entry")
+                    saveHeaderButton
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+                .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
+                .rootEdgeInset()
             }
         }
-        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var saveHeaderButton: some View {
+        if isSaving {
+            ProgressView()
+                .tint(theme.foreground)
+                .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
+                .glassEffect(.regular, in: .circle)
+                .accessibilityLabel("Saving entry")
+                .accessibilityIdentifier("journal.entryEditor.save")
+        } else {
+            HeaderIconButton(
+                systemName: "arrow.up",
+                accessibilityLabel: "Save entry",
+                accessibilityHint: "Double-tap to save your journal entry"
+            ) {
+                save()
+            }
+            .disabled(!hasSaveableContent)
+            .opacity(hasSaveableContent ? 1 : 0.4)
+            .accessibilityIdentifier("journal.entryEditor.save")
+        }
     }
 
     private var titleField: some View {
@@ -399,6 +390,7 @@ public struct AddEntryView: View {
                     .font(type.h3)
                     .foregroundStyle(theme.mutedForeground.opacity(0.4))
             }
+            .accessibilityIdentifier("journal.entryEditor.title")
     }
     
     private var bodyField: some View {
@@ -419,6 +411,7 @@ public struct AddEntryView: View {
                 .focused($focusedField, equals: .body)
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 300)
+                .accessibilityIdentifier("journal.entryEditor.body")
         }
     }
     
@@ -460,7 +453,7 @@ public struct AddEntryView: View {
             }
             // AX5: minHeight lets the pill grow instead of clipping the duration
             // timer text, which scales with Dynamic Type, when recording.
-            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: 56)
+            .frame(minWidth: fabWidth, maxWidth: fabWidth, minHeight: Self.chromeFABHeight)
             .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
@@ -469,64 +462,56 @@ public struct AddEntryView: View {
         .accessibilityHint(speechService.isRecording ? "Double-tap to stop and insert text" : "Double-tap to record your voice")
     }
 
-    /// Leading attachment cluster: camera, photo library, and a non-interactive
-    /// location placeholder. Each icon is its own glass circle; they share the
-    /// footer `GlassEffectContainer`. Drawn 32pt with 14pt glyphs, spaced 28pt
-    /// apart — smaller and more open than the old 26pt-in-44pt packed capsule.
-    /// Hit targets still clear Apple's 44pt minimum.
-    private static let optionButtonSize: CGFloat = 32
-    private static let optionIconSize: CGFloat = 14
-    private static let optionSpacing: CGFloat = 28
+    /// Gap between the attachment pill and the mic pill (and the matching
+    /// `GlassEffectContainer` spacing so neighbouring glass can share a sample).
+    private static let footerGlassSpacing: CGFloat = 16
+    private static let optionIconSize: CGFloat = 20
+    private static let clusterGlyphSlot: CGFloat = 44
+    /// Extra air between the three 44pt glyph slots inside the attachment pill.
+    private static let clusterIconSpacing: CGFloat = 12
 
+    /// Camera, library, and a non-interactive location placeholder in one
+    /// capsule — same 56pt height as the idle microphone FAB. Glass lives on
+    /// this surface, not on each glyph; the bar holds buttons rather than
+    /// being pressed as a whole, so it is not `.interactive()`.
     private var attachmentFAB: some View {
-        HStack(spacing: Self.optionSpacing) {
+        HStack(spacing: Self.clusterIconSpacing) {
             Button {
                 presentCameraOrHandleUnavailable()
             } label: {
-                Image(systemName: "camera")
-                    .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
-                    .foregroundStyle(theme.foreground)
-                    .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
-                    .glassEffect(.regular.interactive(), in: .circle)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Circle())
+                clusterGlyph("camera")
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Take photo")
             .accessibilityHint(photoData == nil ? "Double-tap to capture a photo with the camera" : "Double-tap to replace the current photo with a new one")
 
             PhotosPicker(selection: $photoPickerItem, matching: .images) {
-                Image(systemName: "photo.on.rectangle")
-                    .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
-                    .foregroundStyle(theme.foreground)
-                    .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
-                    .glassEffect(.regular.interactive(), in: .circle)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Circle())
+                clusterGlyph("photo.on.rectangle")
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Choose photo from library")
             .accessibilityHint(photoData == nil ? "Double-tap to choose a photo from your library" : "Double-tap to replace the current photo with one from your library")
 
             // Visible-but-disabled placeholder for Figma parity (boxicons:location).
             // A plain Image, not a disabled Button — that's what makes "disabled"
             // structurally true for VoiceOver instead of announcing an inert control.
-            Image(systemName: "location")
-                .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
-                .foregroundStyle(theme.foreground.opacity(0.3))
-                .frame(width: Self.optionButtonSize, height: Self.optionButtonSize)
-                .glassEffect(.regular, in: .circle)
-                .frame(minWidth: 44, minHeight: 44)
+            clusterGlyph("location", opacity: 0.3)
                 .accessibilityHidden(true)
         }
+        .padding(.horizontal, 16)
+        .frame(height: Self.chromeFABHeight)
+        .glassEffect(.regular, in: .capsule)
+    }
+
+    private func clusterGlyph(_ systemName: String, opacity: Double = 1) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
+            .foregroundStyle(theme.foreground.opacity(opacity))
+            .frame(width: Self.clusterGlyphSlot, height: Self.clusterGlyphSlot)
+            .contentShape(Rectangle())
     }
 
     // MARK: - Actions
-
-    private func setupInitialFocus() {
-        // Focus immediately for instant writing experience
-        // Focus title if empty, otherwise focus body
-        focusedField = title.isEmpty ? .title : .body
-    }
 
     private func save() {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -541,8 +526,19 @@ public struct AddEntryView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
         onSave(trimmedTitle, trimmedText, photoAction)
+        closeEditor()
+    }
 
-        isSaving = false
+    /// Pop the overlay stack so the system can reverse the zoom into the
+    /// matched source (FAB or card). Keyboard down first so it does not
+    /// cover the shrink.
+    private func closeEditor() {
+        focusedField = nil
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil, from: nil, for: nil
+        )
+        dismiss()
     }
 
     /// Whether there's anything worth saving: body text or an attached photo.
@@ -680,15 +676,10 @@ public struct AddEntryView: View {
         .preferredColorScheme(.dark)
 }
 
-#Preview("Sheet Presentation") {
-    Color.gray.opacity(0.3)
-        .ignoresSafeArea()
-        .sheet(isPresented: .constant(true)) {
-            AddEntryView(state: .create) { _, _, _ in }
-                .presentationDetents([.fraction(0.95)])
-                .presentationDragIndicator(.hidden)
-                .presentationCornerRadius(32)
-        }
-        .useTheme()
-        .useTypography()
+#Preview("Page Presentation") {
+    NavigationStack {
+        AddEntryView(state: .create) { _, _, _ in }
+    }
+    .useTheme()
+    .useTypography()
 }

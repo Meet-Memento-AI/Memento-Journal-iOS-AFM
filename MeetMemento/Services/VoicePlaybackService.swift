@@ -85,6 +85,9 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     private var sessionReleaseTask: Task<Void, Never>?
 
     private var cancellables = Set<AnyCancellable>()
+    /// Spec 035: conversation vs tap-to-read. Narration sets `.conversation`
+    /// before the session; tap-to-read uses `.readBack` (breaths + 0.95× rate).
+    var deliveryMode: SpeechDeliveryMode = .readBack
 
     /// Resolved voice, cached until the preference changes or the app returns
     /// from the foreground with new voices installed. The user's explicit
@@ -219,6 +222,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         )
         guard !text.isEmpty else { return }
 
+        deliveryMode = .readBack
         beginUtteranceSession(for: messageID, title: heading1)
         enqueue(sentence: text)
         finishEnqueueing()
@@ -287,30 +291,30 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         }
     }
 
-    /// Enqueue one sentence/paragraph as its own utterance. Sanitizes
-    /// internally — the single choke point, so every caller (tap today, the
-    /// chunker later) produces clean speech. AVSpeechSynthesizer queues
-    /// utterances FIFO natively. Until the audio session activation lands,
-    /// utterances buffer in `pendingUtterances` (spec 029 R4: speaking before
-    /// `setActive(true)` completes clips the first word).
+    /// Enqueue one sentence/paragraph as its own utterance. Sanitizes, then
+    /// spoken-form formats (spec 035: sanitizer → formatter → engine).
     func enqueue(sentence: String) {
         guard speakingMessageID != nil else { return }
-        let text = SpeechTextSanitizer.sanitize(sentence)
+        let cleaned = SpeechTextSanitizer.sanitize(sentence)
+        let text = SpokenFormFormatter.format(cleaned, mode: deliveryMode)
         guard !text.isEmpty else { return }
 
         // Voice, rate clamping and utterance construction now belong to the
         // engine. What stays here is the rate *preference* and the pacing
         // decision, because both are the app's, not the synthesizer's.
+        let multiplier = deliveryMode == .readBack
+            ? SpokenFormFormatter.readBackRateMultiplier
+            : SpokenFormFormatter.conversationRateMultiplier
         let request = UtteranceRequest(
             id: UtteranceID(),
             text: text,
             // User preference (SpeechRatePreset); default Brisk 0.53 — system 0.5
-            // reads slightly slow for conversational AI.
-            rate: rateProvider(),
+            // reads slightly slow for conversational AI. Read-back is 0.95×.
+            rate: rateProvider() * multiplier,
             // A short breath between parts (heading → body, sentence → sentence).
             // Was 0.25 — measurably dead air across a multi-sentence reply
             // (spec 029 R4).
-            postDelay: 0.1
+            postDelay: deliveryMode == .readBack ? 0.12 : 0.1
         )
         activeUtteranceIDs.insert(request.id)
         if activationComplete {

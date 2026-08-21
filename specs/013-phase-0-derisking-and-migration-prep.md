@@ -2,7 +2,7 @@
 id: 013
 title: Phase 0 — De-risking Spikes and Migration Prep
 tier: P0
-status: in-progress (2026-07-23)
+status: DEC-002 written 2026-08-19 — Plan B (not hidden). Gate α device UI + recall@5 still pending
 effort: 2 sessions
 depends_on: []
 findings: [dec-002-spotlight-visibility, pcc-application-lead-time, journaling-suggestions-entitlement, fixture-corpus-missing, spike-a-spotlight-retrieval, spike-b-reflection-quality, legacy-spec-reaudit]
@@ -50,7 +50,7 @@ prevent.
 | 2 | No fixture corpus exists for retrieval evaluation | no `≥250 entries / ≥8 months / ≥40 gold questions` fixture set found anywhere in the repo | Blocking — REQ-IDX-010's recall@5 gate cannot be measured without one |
 | 3 | Journaling Suggestions entitlement not requested | no evidence of a filed request; `REQ-CAP-009` requires filing "in week 1" | Time-sensitive — Apple review lead time is unknown and must be measured |
 | 4 | PCC / Small Business Program eligibility unconfirmed | no evidence of enrollment or application in the repo or given context | Blocking — Phase 2's Z1 routing has no fallback if PCC access is denied |
-| 5 | `DEC-002` (system-search visibility) is unresolved | flagged P0-blocking in the source document itself, §6.3 and §15 | Blocking — the entire retrieval architecture (§6) depends on the answer |
+| 5 | `DEC-002` (system-search visibility) | **WRITTEN 2026-08-19 — not hidden / Plan B.** `SearchSource` has only `.coreSpotlight` and `.files`. `CoreSpotlightSource` has no named-index, `CSSearchableIndex`, or protection-class parameter (`technology/03` §2, V-queue V1 SDK note). Default indexing is opt-in off (`REQ-IDX-006`); retrieval is `EntryRetriever` (`REQ-IDX-007`). Physical Gate α (system Spotlight UI + recall@5) still to be recorded; it cannot invent a hiding API the SDK lacks. | Blocking — closed as Plan B |
 
 ## Requirements
 

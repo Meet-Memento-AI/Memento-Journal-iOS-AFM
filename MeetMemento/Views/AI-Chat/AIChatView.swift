@@ -31,6 +31,7 @@ public struct AIChatView: View {
     @ObservedObject private var voiceService = VoicePlaybackService.shared
     @ObservedObject private var preferences = PreferencesService.shared
     @StateObject private var keyboardObserver = KeyboardObserver()
+    @StateObject private var choreographer = ChatSendChoreographer()
 
     private struct CitationsWrapper: Identifiable {
         let id = UUID()
@@ -128,44 +129,12 @@ public struct AIChatView: View {
     }
 
     public var body: some View {
-        RootPageScaffold(
-            footerBottomPadding: footerBottomPadding,
-            header: { if isEmbedded { chatHeader } },
-            footer: { chatFooter },
-            backgroundOverlay: {
-                NarrationGlow(
-                    isActive: isNarrating,
-                    audioLevel: speechService.audioLevel,
-                    isAutonomous: narrationCoordinator.phase == .speaking
-                        || narrationCoordinator.phase == .awaitingResponse
-                )
-            }
-        ) {
-            ZStack {
-                if preferences.aiEnabled {
-                    ChatMessagesView(
-                        viewModel: viewModel,
-                        voiceService: voiceService,
-                        hasEntries: hasEntries,
-                        bottomReserve: bottomReserve,
-                        followTail: followTail,
-                        isKeyboardVisible: keyboardObserver.isKeyboardVisible,
-                        onCitations: { selectedCitations = CitationsWrapper(citations: $0) },
-                        onDismissKeyboard: dismissKeyboard
-                    )
-
-                    if keyboardObserver.isKeyboardVisible && !isNarrating {
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture { dismissKeyboard() }
-                            .accessibilityHidden(true)
-                    }
-
-                } else {
-                    aiDisabledView
-                }
-            }
-        }
+        scaffold
+        .overlay { flightOverlay }
+        // Outermost, and after `.overlay`, so the composer capsule, the
+        // transcript column, and the ghost all resolve into the same space and
+        // their rects are directly comparable.
+        .coordinateSpace(.named(ChatSpace.page))
         .onPreferenceChange(ChatFooterHeightKey.self) { height in
             guard height > 0 else { return }
             footerHeight = height
@@ -295,6 +264,7 @@ public struct AIChatView: View {
                     dismissKeyboard()
                     showSummarySheet = true
                 }
+                .entryZoomSource(EntryRoute.createFromChatZoomSourceID)
                 HeaderIconButton(
                     systemName: "list.bullet",
                     accessibilityLabel: "Chat history"
@@ -303,6 +273,71 @@ public struct AIChatView: View {
                     showChatHistorySheet = true
                 }
             }
+        }
+    }
+
+    // MARK: - Scaffold
+
+    /// The page itself. Split out of `body` so the modifier chain below it
+    /// and this stack are type-checked as two expressions rather than one —
+    /// together they exceed the solver's budget.
+    private var scaffold: some View {
+        RootPageScaffold(
+            footerBottomPadding: footerBottomPadding,
+            elevated: true,
+            header: { if isEmbedded { chatHeader } },
+            footer: { chatFooter },
+            backgroundOverlay: {
+                NarrationGlow(
+                    isActive: isNarrating,
+                    audioLevel: speechService.audioLevel,
+                    isAutonomous: narrationCoordinator.phase == .speaking
+                        || narrationCoordinator.phase == .awaitingResponse
+                )
+            }
+        ) {
+            ZStack {
+                if preferences.aiEnabled {
+                    ChatMessagesView(
+                        viewModel: viewModel,
+                        voiceService: voiceService,
+                        choreographer: choreographer,
+                        hasEntries: hasEntries,
+                        bottomReserve: bottomReserve,
+                        followTail: followTail,
+                        onCitations: { selectedCitations = CitationsWrapper(citations: $0) },
+                        onDismissKeyboard: dismissKeyboard
+                    )
+
+                    if keyboardObserver.isKeyboardVisible && !isNarrating {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { dismissKeyboard() }
+                            .accessibilityHidden(true)
+                    }
+
+                } else {
+                    aiDisabledView
+                }
+            }
+        }
+    }
+
+    // MARK: - Send Flight
+
+    /// The travelling bubble, hosted above the transcript and below nothing.
+    /// Extracted from `body` — inlined, it pushed the scaffold's already large
+    /// expression past the type-checker's budget.
+    @ViewBuilder
+    private var flightOverlay: some View {
+        if let flight = choreographer.flight {
+            SendFlightGhost(
+                flight: flight,
+                pinTopInset: AppHeaderMetrics.chatPinTopInset,
+                animation: Motion.sendFlight,
+                onLanded: { choreographer.land(messageID: flight.id) }
+            )
+            .onAppear { choreographer.markFlying(messageID: flight.id) }
         }
     }
 
@@ -315,8 +350,16 @@ public struct AIChatView: View {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
                     isSending: viewModel.isLoading,
-                    onSend: { viewModel.sendMessage() },
-                    onNarrate: startNarration
+                    onSend: {
+                        // Synchronous, and it must run first: ChatInputField
+                        // fires `onSend()` before it clears the text, so this
+                        // is the last moment the composer's pre-send frame is
+                        // the one on screen.
+                        choreographer.captureOrigin()
+                        viewModel.sendMessage()
+                    },
+                    onNarrate: startNarration,
+                    onComposerFrame: { choreographer.composerFrame = $0 }
                 )
                 .opacity(isNarrating ? 0 : 1)
                 .allowsHitTesting(!isNarrating)
@@ -402,10 +445,7 @@ public struct AIChatView: View {
         withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
             isNarrating = true
         }
-        // One-time compact-voice tip (spec 029 R8): narration is about to
-        // speak with a robotic compact voice and a better one is a download
-        // away. Reads the warmed cache only — never triggers the slow
-        // catalog enumeration.
+        // Neural catalog is the only voice path (DEC-011); no compact-voice tip.
         Task { await voiceService.warmVoiceCatalog() }
         narrationCoordinator.start(chatViewModel: viewModel)
     }

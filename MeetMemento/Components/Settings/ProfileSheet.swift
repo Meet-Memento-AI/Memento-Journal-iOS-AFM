@@ -60,6 +60,30 @@ struct ProfileSheet: View {
                                 )
                             }
                             .buttonStyle(.plain)
+
+                            SettingsRowDivider()
+
+                            NavigationLink(value: SettingsRoute.weekly) {
+                                SettingsRow(
+                                    icon: "calendar",
+                                    title: "Weekly",
+                                    subtitle: "This week's reflection",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            SettingsRowDivider()
+
+                            NavigationLink(value: SettingsRoute.patterns) {
+                                SettingsRow(
+                                    icon: "chart.bar",
+                                    title: "Patterns",
+                                    subtitle: "Counts stay in the app, not the model",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
 
                         SettingsSection(title: "App") {
@@ -166,6 +190,14 @@ struct ProfileSheet: View {
                 .environmentObject(entryViewModel)
         case .about:
             AboutSettingsView()
+        case .acknowledgments:
+            AcknowledgmentsView()
+        case .weekly:
+            WeeklyReflectionView()
+                .environmentObject(entryViewModel)
+        case .patterns:
+            PatternsView()
+                .environmentObject(entryViewModel)
         }
     }
 

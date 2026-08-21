@@ -2,7 +2,7 @@
 id: 025
 title: CI Focused on Online-Testable iOS Build Gates
 tier: P1
-status: done (2026-08-10) — CI-live verification is a user action
+status: done (2026-08-10) — operators must set required check **iOS build (online)** (`docs/BRANCH_PROTECTION_SETUP.md`); that rename is a user action
 effort: 1-2 sessions
 depends_on: [006]
 findings: [ci-couples-merge-to-on-device-model, ios-workflow-monolith, device-gated-suites-in-pr-path, no-online-build-matrix, runner-fallback-undocumented]

@@ -2,7 +2,7 @@
 id: 020
 title: System Integration and Accessibility
 tier: P2
-status: in-progress (2026-07-24) — Requirements derived; DEC-005 open, REQ-SYS-002 gated on DEC-002, per-intent privacy manifest verification outstanding
+status: in-progress (2026-08-19) — Four App Intents + AppShortcutsProvider landed; DEC-005 = 2.0 Watch via those intents; REQ-SYS-002 IndexedEntity follows DEC-002 Plan B (opt-in)
 effort: 3 sessions
 depends_on: [019]
 findings: [entry-points-not-new-surfaces, indexed-entity-shares-dec-002-gate, widget-redaction-lock-contract, watch-decision-framed-not-made, a11y-conventions-already-in-tree]

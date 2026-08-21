@@ -2,7 +2,7 @@
 id: 030
 title: Neural TTS Model Assets — Bundled In-App
 tier: P1
-status: not-started
+status: in-progress (2026-08-19) — Weights bundled; Acknowledgments UI landed (DEC-010); CI blocks huggingface.co on the TTS path
 effort: 2 sessions
 depends_on: [018]
 findings: [bundled-not-downloaded-dec-012, synchronized-group-flattens-to-bundle-root, huggingface-autodownload-in-tts-path, upstream-not-archived-premise-corrected, no-acknowledgments-screen-ofl-unattributed, model-weights-invisible-to-dependency-gate, asset-size-escalation-threshold]

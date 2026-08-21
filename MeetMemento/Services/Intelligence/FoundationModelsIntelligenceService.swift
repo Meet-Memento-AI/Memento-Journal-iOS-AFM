@@ -48,17 +48,25 @@ struct AskAnswer {
     // `body` leads so the first visible token never waits on the two optional
     // heading decisions; `citedRefs` trails so a token-cap truncation can only
     // cost citations (which reconcile falls back for), never body text.
-    @Guide(description: "The reply, in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. Match the user's length: one or two sentences for casual turns, three to five for journal questions. Never pad to ten sentences.")
+    @Guide(description: "The complete spoken reply in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
-    @Guide(description: "Optional short heading for analytical, multi-part answers. Empty for casual replies.")
+    @Guide(description: "Always empty on conversational Ask. Titles steal decode and delay the visible body.")
     let heading1: String?
 
-    @Guide(description: "Optional rare subheading. Usually empty.")
+    @Guide(description: "Always empty on conversational Ask.")
     let heading2: String?
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
     let citedRefs: [Int]
+}
+
+/// Testable twin of `AskAnswer`'s `@Guide` copy (spec 037 R8). Keep in sync
+/// with the descriptions above — the macro takes string literals.
+enum AskAnswerGuides {
+    static let body = "The complete spoken reply in plain spoken prose — no markdown, no bullet points, no headings, no emoji, and no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. Do not name their emotions, give advice, or state a count of entries."
+    static let heading1 = "Always empty on conversational Ask. Titles steal decode and delay the visible body."
+    static let heading2 = "Always empty on conversational Ask."
 }
 
 /// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
@@ -96,6 +104,59 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private let stateLock = NSLock()
+    private let cadenceLock = NSLock()
+    /// Spec 037 R3: last journal shape for this process's live Ask thread.
+    /// Reset when history is empty (new chat).
+    private var turnShapeCadence = TurnShapeCadence()
+    private let poolLock = NSLock()
+    /// Spec 037 follow-on: wide candidate pool, narrow prompt slice.
+    private var candidatePool = SessionCandidatePool()
+    /// Identifies the conversation the pool and cadence belong to.
+    ///
+    /// Both used to reset only on `history.isEmpty`, i.e. a brand-new chat.
+    /// Opening a *different existing* conversation has non-empty history, so
+    /// neither reset — and the previous thread's surfaced-ID denylist went on
+    /// suppressing this one's best evidence for the life of the process.
+    /// `ask`/`askStream` carry no conversation id, so identity is derived from
+    /// the history itself.
+    private var conversationAnchor: ConversationAnchor?
+
+    /// A cheap, order-sensitive fingerprint of a conversation.
+    ///
+    /// A continuing thread keeps its opening turn and only grows; a switch
+    /// changes the opener, and a truncation shrinks the count. Either is a
+    /// different conversation as far as the pool is concerned.
+    struct ConversationAnchor: Equatable {
+        let opening: String
+        let turnCount: Int
+
+        init?(history: [ChatTurn]) {
+            guard let first = history.first else { return nil }
+            opening = first.text
+            turnCount = history.count
+        }
+
+        /// True when `other` is this same thread, one or more turns later.
+        func continues(into other: ConversationAnchor) -> Bool {
+            opening == other.opening && other.turnCount >= turnCount
+        }
+    }
+
+    /// Whether this turn belongs to a different conversation than the last one,
+    /// and therefore must start from a clean pool and cadence.
+    private func startsNewConversation(history: [ChatTurn]) -> Bool {
+        poolLock.lock()
+        defer { poolLock.unlock() }
+
+        guard let incoming = ConversationAnchor(history: history) else {
+            // No history at all: a brand-new chat.
+            conversationAnchor = nil
+            return true
+        }
+        let isNew = conversationAnchor.map { !$0.continues(into: incoming) } ?? true
+        conversationAnchor = incoming
+        return isNew
+    }
 
     /// Cached availability. Once the model reports `.available` it stays
     /// available for the process, so we resolve it once instead of querying
@@ -367,41 +428,59 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             ? RetrievalLimits(budget: budget).narrowed()
             : RetrievalLimits(budget: budget)
 
+        let promptCap = limits.maxEntries
+        let poolLimits = RetrievalLimits(
+            maxEntries: SessionCandidatePool.capacity,
+            maxContentChars: limits.maxContentChars
+        )
+
         LiveTurnClock.shared.start(.prepRetrieve)
         let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
-        let retrieval: RetrievalResult
+        let wideRetrieval: RetrievalResult
         switch RetrievalPolicy.mode(for: turn) {
         case .none:
-            retrieval = .empty
+            wideRetrieval = .empty
         case .reusePrevious:
             if let anchor = RetrievalPolicy.followupAnchor(history: history) {
-                retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
-                                                    entries: entries, limits: limits)
+                wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
+                                                    entries: entries, limits: poolLimits)
             } else {
-                retrieval = EntryRetriever.retrieve(
+                wideRetrieval = EntryRetriever.retrieve(
                     RetrievalQuery(currentMessage: question,
                                    historyContext: Self.historyContext(history, budget: budget)),
-                    entries: entries, limits: limits
+                    entries: entries, limits: poolLimits
                 )
             }
         case .currentOnly(let highBar):
-            retrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar),
-                                                entries: entries, limits: limits)
+            wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar),
+                                                entries: entries, limits: poolLimits)
         case .currentWeighted:
-            retrieval = EntryRetriever.retrieve(
+            wideRetrieval = EntryRetriever.retrieve(
                 RetrievalQuery(currentMessage: question,
                                historyContext: Self.historyContext(history, budget: budget)),
-                entries: entries, limits: limits
+                entries: entries, limits: poolLimits
             )
         }
         signposter.endInterval("prep.retrieve", retrieveState)
         LiveTurnClock.shared.end(.prepRetrieve)
+        // Computed once: it mutates the anchor, so calling it twice would report
+        // "same conversation" the second time and skip the cadence reset.
+        let isNewConversation = startsNewConversation(history: history)
+        let retrieval = sliceRetrieval(wideRetrieval, promptCap: promptCap, resetPool: isNewConversation)
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
+        let shape: RecallTurnShape = {
+            cadenceLock.lock()
+            defer { cadenceLock.unlock() }
+            if isNewConversation { turnShapeCadence.reset() }
+            return turnShapeCadence.resolve(for: stance)
+        }()
         let prompt = Self.buildAskPrompt(
             question: question,
             history: history,
             retrieval: retrieval,
             stance: stance,
+            shape: shape,
+            archiveEmpty: entries.isEmpty,
             budget: budget,
             safetyConstrained: safety.action == .continueConstrained
         )
@@ -425,6 +504,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskPreparation(request: request, route: route, retrieval: retrieval, stance: stance,
                               prompt: prompt, resolved: resolved, budget: budget, plan: plan)
+    }
+
+    /// Spec 037 follow-on: retrieve up to 20, reveal 3–5. Session-scoped denylist
+    /// of already-surfaced IDs so follow-ups can rotate evidence.
+    private func sliceRetrieval(_ retrieval: RetrievalResult, promptCap: Int, resetPool: Bool) -> RetrievalResult {
+        poolLock.lock()
+        defer { poolLock.unlock() }
+        if resetPool { candidatePool.reset() }
+        guard !retrieval.isEmpty else { return retrieval }
+        candidatePool.ingest(retrieval.entries)
+        let sliced = candidatePool.sliceForPrompt(retrieval.entries, cap: promptCap)
+        candidatePool.markSurfaced(sliced.map(\.id))
+        return RetrievalResult(
+            entries: sliced,
+            contextBlock: EntryRetriever.contextBlock(for: sliced, ambient: retrieval.isAmbient),
+            isAmbient: retrieval.isAmbient
+        )
     }
 
     /// Builds the final `AskResult` (citations reconciled, reference markers
@@ -865,12 +961,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
-                                       stance: TurnStance, budget: ContextBudget,
+                                       stance: TurnStance, shape: RecallTurnShape,
+                                       archiveEmpty: Bool, budget _: ContextBudget,
                                        safetyConstrained: Bool = false) -> String {
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
-        // conversation in journal entries.
+        // conversation in journal entries. Spec 037: [Shape:] overlays A/B
+        // on journal-grounded turns only.
         var parts: [String] = [stance.promptLine]
+        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance) {
+            parts.append(overlay)
+        }
         if safetyConstrained {
             parts.insert(SafetyRouter.constrainedStanceLine, at: 0)
         }
@@ -882,7 +983,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 + retrieval.contextBlock
             )
         } else if stance == .noMatch || stance.isGrounded {
-            parts.append("[No journal entries matched this topic]")
+            if archiveEmpty {
+                parts.append("[No journal entries in the archive]")
+            } else {
+                parts.append("[No journal entries matched this topic]")
+            }
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
@@ -892,7 +997,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // per-turn — it must not fire on turn one.
         if !history.isEmpty {
             parts.append(
-                "Do not reuse openings, questions, or entry summaries you already used earlier in this conversation."
+                "Do not reuse openings, questions, or entry summaries you already used "
+                    + "earlier in this conversation. Do not reopen an entry you already used "
+                    + "in this thread."
             )
         }
         parts.append("The person's latest message: \(question)")

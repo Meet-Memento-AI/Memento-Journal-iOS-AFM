@@ -101,7 +101,7 @@ public struct RootPager<Content: View>: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
         }
-        .background(theme.background.ignoresSafeArea())
+        .background(theme.secondaryBackground.ignoresSafeArea())
     }
 }
 

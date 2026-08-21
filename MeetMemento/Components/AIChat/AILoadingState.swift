@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct AILoadingState: View {
+    var phrase: String = LoadingStatus.fallback
     @Environment(\.theme) private var theme
     @State private var isAnimating = false
     
@@ -45,7 +46,7 @@ struct AILoadingState: View {
                     )
             }
         }
-        .accessibilityLabel("Memento is thinking. Please wait.")
+        .accessibilityLabel(phrase)
         .accessibilityAddTraits(.updatesFrequently)
         .onAppear {
             DispatchQueue.main.async {
@@ -57,8 +58,8 @@ struct AILoadingState: View {
     }
     
     private var loadingText: some View {
-        Text("Memento is thinking...")
-            .typographyBody1()
+        Text(phrase)
+            .typographyLoadingHeading()
     }
 }
 
@@ -67,5 +68,6 @@ struct AILoadingState: View {
         Color(uiColor: .systemBackground).ignoresSafeArea()
         AILoadingState()
             .useTheme()
+            .useTypography()
     }
 }

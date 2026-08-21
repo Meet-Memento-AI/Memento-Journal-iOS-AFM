@@ -24,6 +24,8 @@ If journal entries donated to Core Spotlight surface in system-wide search, some
 
 **If negative:** activate Fallback A (opt-in indexing, default off) or Fallback B (hand-rolled SwiftData retrieval tool). Both are specified in `03-spotlight-retrieval.md` §8.
 
+**Written verdict 2026-08-19 (DEC-002): negative / Plan B.** SDK enumeration found no named-index source on `SpotlightSearchTool`. Default-off donation + `EntryRetriever`. Device Gate α still fills the system-UI and recall@5 rows; it does not reopen the hiding question.
+
 ---
 
 ## P1 — Calendar dependencies (file in week 1)

@@ -2,7 +2,7 @@
 id: 019
 title: Surfaces — Capture, Reflection, Weekly, Patterns, Ask
 tier: P1
-status: in-progress (2026-07-24) — Requirements derived; implementation gated on specs 015-018 landing and the Xcode 27 toolchain
+status: in-progress (2026-08-19) — Weekly + Patterns surfaces landed; counts computed in Swift UI only; Ask already shipping
 effort: 4 sessions
 depends_on: [016, 017, 018]
 findings: [surface-state-machines, ask-contract-restoration, computed-answer-rendering, crisis-static-card, background-honest-retry]

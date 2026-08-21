@@ -144,3 +144,27 @@ jobs:
             exit 1
           fi
           echo "OK: resolved gold set is in sync with the corpus."
+
+  single-coreml-importer:
+    name: CoreML stays in the TTS package (spec 031)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enforce package-only CoreML importer
+        run: scripts/ci/check_single_coreml_importer.sh
+
+  tts-zero-egress:
+    name: Neural TTS has no huggingface fetch (spec 030 / 036)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Grep TTS path for weight hosts
+        run: scripts/ci/check_tts_zero_egress.sh
+
+  no-sirikit:
+    name: No SiriKit (spec 020 R1)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Forbid Intents.framework
+        run: scripts/ci/check_no_sirikit.sh

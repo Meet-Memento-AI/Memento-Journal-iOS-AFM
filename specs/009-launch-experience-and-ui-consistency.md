@@ -2,7 +2,7 @@
 id: 009
 title: Launch Experience and UI System Consistency
 tier: P2
-status: not-started
+status: in-progress (2026-08-19) — NavigationView gone after 027; launch-flash device re-verify remaining
 effort: 1-2 sessions
 depends_on: []
 findings: [launch-white-flash-dark-mode, triple-startup-failsafe, dual-glass-systems, deprecated-navigationview]

@@ -191,6 +191,11 @@ public struct Typography {
     /// that asks for it, so it lives here rather than in the size scale.
     public var inputLarge: Font { bodyFont(size: 18, weight: .medium) }
 
+    /// 16pt Figtree Medium — loading-state heading (chat thinking row).
+    public var loadingHeading: Font {
+        bodyFont(size: sizeLG, weight: .medium)
+    }
+
     // MARK: - Deprecated Aliases (for backward compatibility)
     @available(*, deprecated, renamed: "body1")
     public var body: Font { body1 }

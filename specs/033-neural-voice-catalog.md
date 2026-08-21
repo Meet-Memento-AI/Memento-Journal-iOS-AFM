@@ -2,7 +2,7 @@
 id: 033
 title: Neural Voice Catalog and Picker
 tier: P1
-status: not-started — roster fixed at four by owner decision 2026-08-18 (DEC-011/DEC-012); descriptors pending the V30 audition
+status: in-progress (2026-08-19) — Four-voice picker shipping (DEC-011); DEC-009 roster is F1/F2/M1/M3 pending V30 AEC freeze
 effort: 1 session
 depends_on: [030, 031]
 findings: [picker-replacement-migration-path, character-not-gender-presentation, live-previews-replace-prerendered-clips, three-settings-route-resolution-sites, compact-voice-nudge-retirement]

@@ -129,6 +129,20 @@ public struct AboutSettingsView: View {
                     UIApplication.shared.open(Constants.Legal.privacyPolicyURL)
                 }
             )
+
+            SettingsRowDivider()
+
+            NavigationLink(value: SettingsRoute.acknowledgments) {
+                SettingsRow(
+                    icon: "heart.fill",
+                    title: "Acknowledgments",
+                    subtitle: "Fonts and voice model licenses",
+                    showChevron: true,
+                    accessibilityIdentifier: "about.acknowledgments",
+                    action: nil
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 

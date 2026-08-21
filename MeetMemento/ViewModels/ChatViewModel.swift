@@ -6,11 +6,31 @@ class ChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
     @Published var isLoading: Bool = false
+    @Published var loadingPhrase: String = LoadingStatus.fallback
     @Published var errorMessage: String?
     @Published var showingError: Bool = false
 
     // Session management
     @Published var currentSessionId: UUID?
+
+    /// Bumped exactly once per *transcript replacement*: a different
+    /// conversation loaded, or a new one started. The chat view watches this to
+    /// decide when to drop its send pin and open at the bottom of the thread.
+    ///
+    /// Deliberately not `currentSessionId`, which the view used to watch. A
+    /// brand new chat has no id until the first reply's `.final` mints one — so
+    /// `currentSessionId` changes MID-CONVERSATION, and the view read that as
+    /// "the user opened a different conversation": on every new chat's first
+    /// send, the reply completing scrolled the transcript to the bottom and
+    /// destroyed the pin, leaving the reader on the last line of an answer they
+    /// had just watched arrive.
+    ///
+    /// The rule for any new call site: bump only if `messages` is being
+    /// replaced with a different conversation's contents in the same update.
+    /// Cancelling in-flight work is not that — `cancelActiveTasks()` runs on
+    /// every swipe back to Journal and leaves the transcript exactly as it is.
+    /// Giving the conversation already on screen an id is not that either.
+    @Published private(set) var transcriptGeneration = 0
     @Published var sessions: [ChatSession] = []
     @Published var isLoadingSessions: Bool = false
 
@@ -22,6 +42,29 @@ class ChatViewModel: ObservableObject {
     /// this to know which message to read aloud as it arrives; ordinary chat
     /// UI ignores it (bubbles already track their own `isStreaming`).
     @Published private(set) var streamingAssistantMessageID: UUID?
+
+    /// Where a send came from.
+    ///
+    /// Four entry points reach `performSend` — the composer, narration,
+    /// regenerate, and retry — and only the composer one has an on-screen
+    /// composer to fly a bubble out of. The view layer cannot tell them apart
+    /// from `messages` alone, so the origin has to travel with the send.
+    enum SendOrigin: Equatable { case composer, narration, regenerate, retry }
+
+    /// Published once per send, *after* both appends, so the view observes a
+    /// consistent `messages` array rather than the half-mutated state between
+    /// the user message and the assistant placeholder.
+    ///
+    /// `seq` keeps consecutive retries of the same message id distinguishable —
+    /// without it `Equatable` would collapse them and `onChange` would not fire.
+    struct SendTicket: Equatable {
+        let userMessageID: UUID
+        let origin: SendOrigin
+        let seq: Int
+    }
+
+    @Published private(set) var lastSend: SendTicket?
+    private var sendSeq = 0
 
     // Feedback state per message (thumbs up/down) - using Sets for boolean-like behavior
     @Published var thumbsUpMessages: Set<UUID> = []
@@ -54,6 +97,12 @@ class ChatViewModel: ObservableObject {
     /// stomp the conversation that's now on screen.
     private var sendGeneration = 0
 
+    /// Announces that `messages` is being replaced wholesale.
+    /// See `transcriptGeneration` for the rule.
+    private func beginNewTranscript() {
+        transcriptGeneration += 1
+    }
+
     private func track(_ task: Task<Void, Never>) {
         activeTasks.append(task)
     }
@@ -62,6 +111,7 @@ class ChatViewModel: ObservableObject {
     /// even with nothing in flight.
     func cancelActiveTasks() {
         sendGeneration += 1
+        lastSend = nil
         activeTasks.forEach { $0.cancel() }
         activeTasks.removeAll()
         // Cancelled work can no longer finish, so don't leave the input
@@ -73,7 +123,40 @@ class ChatViewModel: ObservableObject {
 
     init(chatService: ChatServiceProtocol = ChatService.shared) {
         self.chatService = chatService
+        seedUITestTranscriptIfRequested()
     }
+
+    /// Seeds one tall completed turn when launched with `-SeedChatTranscript`.
+    ///
+    /// Exists for `ChatSendPinUITests`. The send choreography's pin is only
+    /// exercised when the transcript is already taller than the viewport — with
+    /// an empty thread the first row sits at content offset 0 and needs no
+    /// scrolling at all, which is how a clamped scroll went unnoticed. Seeding
+    /// the precondition makes that regression test hermetic and fast instead of
+    /// waiting ~60s on live on-device generation.
+    ///
+    /// Compiled out of release builds entirely, so the flag cannot fire in a
+    /// shipped app. It is deliberately NOT gated on `-UITesting` as well —
+    /// that flag forces the Welcome screen, and this test needs the real
+    /// post-onboarding app (same launch posture as `TTSReadAloudUITests`).
+    private func seedUITestTranscriptIfRequested() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("-SeedChatTranscript") else { return }
+
+        messages = [
+            ChatMessage(content: Self.uiTestSeedPrompt, isFromUser: true),
+            ChatMessage.aiMessage(body: Self.uiTestSeedReply)
+        ]
+        #endif
+    }
+
+    /// Verbatim in `ChatSendPinUITests` — it queries the bubble by this text.
+    static let uiTestSeedPrompt = "What have I been writing about?"
+    /// Deliberately long: the seeded turn has to exceed one viewport for the
+    /// second send to require a real scroll.
+    static let uiTestSeedReply = String(
+        repeating: "You have been circling the same few themes for a while now. ", count: 40
+    )
 
     /// Warm the on-device model so the first send doesn't pay cold model load.
     /// Call when the chat view appears / the input gains focus.
@@ -193,7 +276,7 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Send Message
 
-    func sendMessage(prompt: String? = nil) {
+    func sendMessage(prompt: String? = nil, origin: SendOrigin = .composer) {
         let text: String
         if let prompt = prompt {
             text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -209,7 +292,7 @@ class ChatViewModel: ObservableObject {
         let userMessage = ChatMessage(content: text, isFromUser: true, isNew: true)
         appendMessage(userMessage)
 
-        performSend(text: text, userMessageId: userMessage.id)
+        performSend(text: text, userMessageId: userMessage.id, origin: origin)
     }
 
     /// Retries a user message that previously failed to send (spec-010),
@@ -217,7 +300,7 @@ class ChatViewModel: ObservableObject {
     func retryMessage(_ message: ChatMessage) {
         guard message.isFromUser, message.sendFailed, !isLoading else { return }
         setSendFailed(false, forMessageId: message.id)
-        performSend(text: message.content, userMessageId: message.id)
+        performSend(text: message.content, userMessageId: message.id, origin: .retry)
     }
 
     private func setSendFailed(_ failed: Bool, forMessageId id: UUID) {
@@ -229,9 +312,18 @@ class ChatViewModel: ObservableObject {
     /// one. On failure, the user's message stays in the transcript marked
     /// `sendFailed` — never rolled back — so retrying doesn't require
     /// retyping.
-    private func performSend(text: String, userMessageId: UUID) {
+    private func performSend(text: String, userMessageId: UUID, origin: SendOrigin) {
         isLoading = true
         let generation = sendGeneration
+        let turn = TurnClassifier.classify(text, hasHistory: messages.count > 1)
+        loadingPhrase = LoadingStatus.phrase(for: turn)
+        if let second = LoadingStatus.followUpPhrase(for: turn) {
+            track(Task { [weak self] in
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, generation == self.sendGeneration, !Task.isCancelled, self.isLoading else { return }
+                self.loadingPhrase = second
+            })
+        }
 
         // Empty assistant bubble appended immediately; it fills as the model
         // streams so text appears the moment generation starts (no waiting for
@@ -239,6 +331,13 @@ class ChatViewModel: ObservableObject {
         let assistantId = UUID()
         appendMessage(ChatMessage.aiMessage(id: assistantId, body: "", isNew: true))
         streamingAssistantMessageID = assistantId
+
+        // Both appends have landed, so the transcript is consistent. This is
+        // the signal the send choreography drives off — never `messages.count`,
+        // which fires twice per send and whose second firing points at the
+        // empty assistant placeholder rather than the user's message.
+        sendSeq += 1
+        lastSend = SendTicket(userMessageID: userMessageId, origin: origin, seq: sendSeq)
 
         track(Task { [weak self] in
             guard let self else { return }
@@ -328,6 +427,9 @@ class ChatViewModel: ObservableObject {
                         deltaFlushTask = nil
                         pendingDelta = nil
                         // Handle new-session creation (first message of a chat).
+                        // This deliberately does NOT bump `transcriptGeneration`:
+                        // it is the conversation already on screen getting a
+                        // name, not a different one being loaded.
                         if let newSessionId = UUID(uuidString: response.sessionId), currentSessionId == nil {
                             currentSessionId = newSessionId
                             await fetchSessions()
@@ -420,6 +522,7 @@ class ChatViewModel: ObservableObject {
     // MARK: - Clear Conversation
 
     func clearConversation() {
+        beginNewTranscript()
         messages = []
         currentSessionId = nil
     }
@@ -442,6 +545,9 @@ class ChatViewModel: ObservableObject {
         // Stop any in-flight send from the previous conversation so its
         // reply can't land in this one.
         cancelActiveTasks()
+        // Above the cached early-return below: that path replaces `messages`
+        // just as completely as the fetched one.
+        beginNewTranscript()
         currentSessionId = session.id
 
         // Check cache first - if cached, show instantly without loading state
@@ -456,6 +562,7 @@ class ChatViewModel: ObservableObject {
         // Not cached - show loading state and fetch from database
         messages = []
         isLoading = true
+        loadingPhrase = LoadingStatus.sessionLoad
 
         do {
             let messageDTOs = try await chatService.loadSessionMessages(sessionId: session.id)
@@ -502,7 +609,11 @@ class ChatViewModel: ObservableObject {
         // Stop any in-flight send so a stale reply can't appear in the
         // fresh conversation.
         cancelActiveTasks()
+        // `deleteSession` reaches here when the deleted conversation is the one
+        // on screen, so it inherits this bump rather than adding its own.
+        beginNewTranscript()
         messages = []
+        lastSend = nil
         currentSessionId = nil
         inputText = ""
         thumbsUpMessages = []
@@ -568,7 +679,7 @@ class ChatViewModel: ObservableObject {
         let userContent = precedingUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userContent.isEmpty else { return }
         messages.removeSubrange((index - 1)...index)
-        sendMessage(prompt: userContent)
+        sendMessage(prompt: userContent, origin: .regenerate)
     }
 
     // MARK: - Feedback

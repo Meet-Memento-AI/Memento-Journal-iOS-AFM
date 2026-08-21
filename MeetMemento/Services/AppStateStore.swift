@@ -232,6 +232,10 @@ class AppStateStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.migratedFromAccountKey)
         UserDefaults.standard.removeObject(forKey: SampleContentService.seededIdsDefaultsKey)
         PreferencesService.shared.resetToDefaults()
+        WeeklyReflectionStore.clear()
+        AudioAssetStore.deleteAll()
+        TTSRenderCache.deleteAll()
+        Task { await FiveStoreDeletion.run() }
 
         firstName = nil
         hasCompletedOnboarding = false

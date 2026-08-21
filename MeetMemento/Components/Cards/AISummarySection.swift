@@ -32,7 +32,8 @@ public struct AISummarySection: View {
                 // Title (max 4 lines)
                 Text(title)
                     .font(type.h2)
-                    .foregroundStyle(theme.foreground)
+                    // h2 display headings carry primary/600.
+                    .foregroundStyle(PrimaryScale.primary600)
                     .lineLimit(5)
                     .multilineTextAlignment(.leading)
 

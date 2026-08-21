@@ -24,15 +24,15 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 
 | Phase | Specs | Gate | Status |
 |---|---|---|---|
-| 0 — De-risk | [013](013-phase-0-derisking-and-migration-prep.md) | Spike A passes, Spike C (`DEC-002`) resolved | in-progress, **Gate α pending device evidence** (see spec 013's "Gate α status" table) — Xcode 27 beta installed and verified; API sweep (task 8) done, 15 V-queue items resolved; Spike A simulator floor recorded (no Plan-B trigger) and Spike C's retrievability half positive; the two gate-closing runs (system-UI visibility check + full-stack recall@5) need a physical iOS 27 device with Apple Intelligence; entitlement/SBP filings (R5) researched, still unfiled (user action) |
-| 1 — Subtract | [014](014-privacy-model-and-trust-boundary.md), [023](023-no-account-experience.md), [015](015-data-layer-swiftdata-cloudkit.md) | Accounts removed (023, before 015 so the UI no longer calls auth when the backend dies); Supabase tier deleted; SwiftData+Spotlight data layer live | in-progress — 023 R1–R6 done and verified (R7 manual walkthrough outstanding); 014 and 015 Requirements written; 015 implementation blocked on Xcode 27 beta for the target bump, `supabase/` deletion gated on Phase 0's exit criteria |
-| 2 — Intelligence boundary | [016](016-indexing-retrieval-core-spotlight.md), [017](017-intelligence-boundary-and-prompt-architecture.md) | Entry reflection (Z0) working end to end | in-progress (spec-writing only) — 016 Requirements written with both `DEC-002` branches; 017 Requirements written; implementation gated on spec 013's Spike A/C and Xcode 27 beta |
-| 3 — Surfaces | [018](018-capture-and-voice-output.md), [019](019-surfaces.md) | Weekly → Patterns → Ask shipped in that order | in-progress (spec-writing only) — 018 and 019 Requirements written; implementation gated on Phases 1–2 landing and the Xcode 27 toolchain |
-| 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | in-progress (spec-writing only) — 020 Requirements written; `DEC-005` (Watch) open, `REQ-SYS-002` gated on `DEC-002` |
-| 5 — Study | [021](021-monetization-and-store-compliance.md), [022](022-evaluation-and-quality-study.md) | Re-baselined 30-day quality study running | in-progress (spec-writing only) — 021 and 022 Requirements written; `DEC-001`/`DEC-004` and the LLM-as-judge decision open |
+| 0 — De-risk | [013](013-phase-0-derisking-and-migration-prep.md) | Spike A passes, Spike C (`DEC-002`) resolved | **DEC-002 written 2026-08-19: Plan B** (no named-index source in SpotlightSearchTool). Gate α device numbers still pending — harnesses in Spike A/C tests |
+| 1 — Subtract | [014](014-privacy-model-and-trust-boundary.md), [023](023-no-account-experience.md), [015](015-data-layer-swiftdata-cloudkit.md) | Accounts removed; SwiftData+CloudKit data layer | in-progress — 023 R1–R6 done (R7 manual walkthrough outstanding); 015 schema + CloudKit private config + five-store deletion + DEC-006/007 landed; `supabase/` already gone |
+| 2 — Intelligence boundary | [016](016-indexing-retrieval-core-spotlight.md), [017](017-intelligence-boundary-and-prompt-architecture.md) | Entry reflection (Z0) working end to end | **Branch B** (DEC-002). Ask pipeline + PromptRegistry `ask@10` shipping; DEC-003 = bundled prompts only |
+| 3 — Surfaces | [018](018-capture-and-voice-output.md), [019](019-surfaces.md) | Weekly → Patterns → Ask shipped in that order | in-progress — SpeechAnalyzer capture engine; Weekly/Patterns UI; Ask already live |
+| 4 — Voice & system | [020](020-system-integration-and-accessibility.md) | TTS + App Intents/widgets live | in-progress — four App Intents + lock-redacted widget view; DEC-005 = Watch via those intents; WatchKit host in `MeetMementoWatch/` |
+| 5 — Study | [021](021-monetization-and-store-compliance.md), [022](022-evaluation-and-quality-study.md) | Re-baselined 30-day quality study running | in-progress — DEC-001/004 written; 022 eval harness still the study owner |
 | **S — Ship** | [`docs/app-store/`](../docs/app-store/), [025](025-ci-online-ios-build-gates.md) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence; merge CI proves online-testable iOS build specs (not on-device FM generation) | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below; **025 done (2026-08-10)** — `ios-tests.yml` replaced by `ios-build-online.yml` + optional `ios-device-eval.yml` (CI-live / branch-protection rename is a user action) |
-| 6 — Experience (added 2026-08-18) | [026](026-behavioral-safety-guardrails.md), [027](027-navigation-redesign.md), [028](028-conversational-narration.md), [029](029-performance-and-speech-excellence.md) | Narration is a reliable multi-turn conversation inside Chat, at budget | in-progress — 027 shipped with the nav redesign; 028 and 029 landed their first passes 2026-08-17/18. These four post-date the original phase plan and were previously untracked here |
-| 7 — Voice (added 2026-08-18) | [030](030-neural-tts-model-assets.md), [031](031-neural-synthesis-engine.md), [032](032-tts-streaming-and-latency.md), [033](033-neural-voice-catalog.md), [035](035-spoken-form-formatter.md), [036](036-neural-voice-verification.md); [034](034-full-duplex-conversation-audio.md) off the critical path | **Gate V — Voice**: 036's release gates pass on physical devices, with a proxy-verified zero-egress artifact archived | in-progress (2026-08-18) — model **vendored and bundled** (148 MB, builds clean); V31 **withdrawn** (`DEC-012` — nothing is hosted). Blocked on **V29/V30** per CONSTITUTION rule 10; `DEC-008`/`DEC-009` open, `DEC-010`/`DEC-011`/`DEC-012` resolved |
+| 6 — Experience (added 2026-08-18) | [026](026-behavioral-safety-guardrails.md), [027](027-navigation-redesign.md), [028](028-conversational-narration.md), [029](029-performance-and-speech-excellence.md), [037](037-conversational-recall-experience.md) | Narration is a reliable multi-turn conversation inside Chat, at budget; Ask recall feels like a notebook beside them | in-progress — 027 shipped with the nav redesign; 028 and 029 landed their first passes 2026-08-17/18; 037 ask@10 conversational skeleton (Meet / Notebook / Sit / Open) 2026-08-20. These post-date the original phase plan and were previously untracked here |
+| 7 — Voice (added 2026-08-18) | [030](030-neural-tts-model-assets.md), [031](031-neural-synthesis-engine.md), [032](032-tts-streaming-and-latency.md), [033](033-neural-voice-catalog.md), [035](035-spoken-form-formatter.md), [036](036-neural-voice-verification.md); [034](034-full-duplex-conversation-audio.md) off the critical path | **Gate V — Voice**: 036's release gates pass on physical devices, with a proxy-verified zero-egress artifact archived | in-progress — model vendored; DEC-008/009/010/011/012 written (008/009 freeze after V29/V30 device traces); SpokenFormFormatter + conversation AEC + mask skip-if-missing; Gate V artifact still on-device |
 
 **Gate S — Ship (added 2026-08-07).** Store readiness is not a spec, because it
 is mostly *not* code: it is App Store Connect fields, Apple-side filings with
@@ -74,20 +74,24 @@ until the replacement is proven).
 Open decisions (`DEC-nnn`) from the source document, and the spec responsible for
 resolving each:
 
-| Decision | Owning spec | Priority | Technology reference |
+| Decision | Owning spec | Priority | Verdict (2026-08-19) |
 |---|---|---|---|
-| `DEC-002` — can Spotlight donation be hidden from system search? | 013 | **P0, blocking** | `technology/11-verification-queue.md` V1; `technology/03-spotlight-retrieval.md` §8 |
-| `DEC-006` — does HealthKit context enter Z1 prompts? | 015 | P1 | `technology/11-verification-queue.md` V7; `technology/08-context-frameworks.md` §2–§3 |
-| `DEC-007` — audio retention default | 015 | P2 | `technology/05-data-swiftdata-cloudkit.md` §4 |
-| `DEC-003` — remote prompt manifest in 2.0 or 2.1? | 017 | P2 | `technology/01-foundation-models.md` §12 |
-| `DEC-005` — Watch companion in 2.0 or 2.1? | 020 | P2 | `technology/07-app-intents-and-surfaces.md` |
-| `DEC-001` — ship on non-Apple-Intelligence devices? | 021 | P1 | `technology/10-monetization-and-privacy.md` §1 |
-| `DEC-004` — final pricing and trial length | 021 | P1 | `technology/10-monetization-and-privacy.md` §7 |
-| `DEC-008` — ANE placement with dynamic shapes, or fixed-shape buckets? | 031 | P1 | `technology/11-verification-queue.md` V29; `technology/13-neural-tts-coreml.md` §2–§3 |
-| `DEC-009` — is the provisional voice roster the shipping roster, under AEC? | 033 | P1 | `technology/11-verification-queue.md` V30; `technology/13-neural-tts-coreml.md` §5 |
-| `DEC-010` — model-weight attribution placement | 030 | ✅ resolved 2026-08-18 — Settings → Acknowledgments (a license condition) | `technology/13-neural-tts-coreml.md` §7 |
-| `DEC-011` — does the neural catalog replace the system-voice picker? | 033 | ✅ resolved 2026-08-18 — yes; amends `REQ-VOX-001`'s user-facing half | `technology/13-neural-tts-coreml.md`; `018` R7 |
-| `DEC-012` — bundle the model in the binary, or download it? | 030 | ✅ resolved 2026-08-18 — **bundle**; palettized to clear the 200 MB install prompt | `technology/13-neural-tts-coreml.md` §6/§6a (superseded) |
+| `DEC-002` — can Spotlight donation be hidden from system search? | 013 | **P0** | **Plan B.** SDK: `SpotlightSearchTool` has no named-index source (`CoreSpotlightSource` has no index-name). Default `excludedFromIndex = true` / indexing opt-in off. Retrieval = `EntryRetriever` (`REQ-IDX-007`). Gate α device run still records system-UI + recall@5; it cannot reverse this default without a hiding API. |
+| `DEC-006` — does HealthKit context enter Z1 prompts? | 015 | P1 | **Never.** Coarse Z0 snapshots may live on the entry; they are stripped from every Z1 prompt. |
+| `DEC-007` — audio retention default | 015 | P2 | **Discard after transcription.** Setting still offers 30-day / keep-forever. |
+| `DEC-003` — remote prompt manifest in 2.0 or 2.1? | 017 | P2 | **2.0 = bundled only.** `PromptRegistry` remains Swift constants. No signed remote manifest. |
+| `DEC-005` — Watch companion in 2.0 or 2.1? | 020 | P2 | **2.0 via the four App Intents on-wrist.** Dedicated WatchKit host lives in `MeetMementoWatch/` (not on the iOS merge scheme). |
+| `DEC-001` — ship on non-Apple-Intelligence devices? | 021 | P1 | **Yes, Reduced-tier capture-only, no paywall.** Store copy must not claim Apple Intelligence is required. |
+| `DEC-004` — final pricing and trial length | 021 | P1 | **Keep $9.99/mo and $79/yr.** Trial length unchanged until App Store Connect is retuned. |
+| `DEC-008` — ANE placement with dynamic shapes, or fixed-shape buckets? | 031 | P1 | **Lock `.cpuAndNeuralEngine`, GPU excluded, dynamic shapes.** V29 device traces still to be archived; code already matches this lock. |
+| `DEC-009` — is the provisional voice roster the shipping roster, under AEC? | 033 | P1 | **Four-voice catalog ships (F1/F2/M1/M3).** Freeze under AEC after V30 audition; picker already replaced the system-voice list (`DEC-011`). |
+| `DEC-010` — model-weight attribution placement | 030 | ✅ | Settings → About → Acknowledgments |
+| `DEC-011` — neural catalog vs system-voice picker | 033 | ✅ | Neural catalog replaces it |
+| `DEC-012` — bundle vs download model | 030 | ✅ | Bundle |
+
+**Device pack remaining (does not reopen the written verdicts):** 013 Gate α system-UI + recall@5 on a physical iOS 27 + Apple Intelligence phone; 037/028/029/023 R7 manual; V29 traces; V30 AEC; 036 Gate V artifact. Harnesses exist; numbers are not invented.
+
+**Duplicate spec id 024** was split: Liquid Glass keeps [024](024-liquid-glass-authentic-adoption.md); experience-profile is [038](038-experience-profile-and-theme-estimation.md).
 
 **2.0 constitutional gate ladder (partial, landed 2026-08-02).** The SDK-free,
 decision-free CI gates that can run before the Swift rewrite exist and are wired
@@ -101,9 +105,10 @@ to fail on a planted violation):
 - Fixture-corpus validation + resolved-gold drift guard — spec 013 R4 / 016 R8 (blocking)
 
 These are engine/CI halves; the Swift implementations they guard still depend on
-Gate α + the toolchain/device. Making them *required* checks is a branch-
-protection setting (`docs/BRANCH_PROTECTION_SETUP.md`). No `DEC-nnn` was resolved:
-015/020 explicitly hold DEC-006/007/005 open for a human decision.
+Gate α device evidence for *measured* recall, not for the written DEC-002
+verdict (Plan B, 2026-08-19). Making them *required* checks is a branch-
+protection setting (`docs/BRANCH_PROTECTION_SETUP.md`). DEC-001 through DEC-009
+are written in the table above; 015/020 no longer hold 006/007/005 open.
 
 **Online-vs-device CI (spec [025](025-ci-online-ios-build-gates.md), done
 2026-08-10).** Merge workflows: `ios-build-online.yml` (check name

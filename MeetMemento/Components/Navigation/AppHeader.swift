@@ -52,6 +52,17 @@ enum AppHeaderMetrics {
     /// First line of scroll content: header clearance plus 16pt air.
     static var contentTopPadding: CGFloat { headerClearance + contentGap }
 
+    /// Air between the header row's bottom edge and the pinned user message in
+    /// Chat's send choreography. Chat-only — do NOT fold this into
+    /// `contentGap`, which Journal and the rest of the app share.
+    static let chatPinGap: CGFloat = Spacing.xxl
+
+    /// Top safe-area inset for the Chat transcript. A safe-area inset (unlike
+    /// `.padding`) shrinks the scroll view's *visible* rect, which is the rect
+    /// `ScrollViewProxy.scrollTo(_:anchor:)` resolves against — so `anchor:
+    /// .top` lands on the pin for every message, not just the first one.
+    static var chatPinTopInset: CGFloat { headerClearance + chatPinGap }
+
     private static var windowSafeArea: UIEdgeInsets {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }

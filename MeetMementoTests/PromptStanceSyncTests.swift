@@ -22,8 +22,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@8")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@8")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@10")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@10")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 
@@ -40,8 +40,11 @@ final class PromptStanceSyncTests: XCTestCase {
     func test_askPrompt_isConversationNotReport() {
         let prompt = PromptRegistry.instructions(for: .ask).text
         XCTAssertTrue(prompt.contains("conversation, not a report"))
-        XCTAssertTrue(prompt.contains("at most one natural entry reference")
-            || prompt.contains("at most one natural entry"))
+        XCTAssertTrue(prompt.contains("Meet them"))
+        XCTAssertTrue(prompt.contains("one notebook moment")
+            || prompt.contains("one dated moment"))
+        XCTAssertFalse(prompt.contains("Follow it exactly"))
+        XCTAssertFalse(prompt.contains("answer and stop"))
     }
 
     func test_stancePromptLines_areBracketedSingleLines() {
@@ -52,8 +55,29 @@ final class PromptStanceSyncTests: XCTestCase {
         }
     }
 
-    func test_journalGroundedStance_forbidsMultiEntryDump() {
-        XCTAssertTrue(TurnStance.journalGrounded.promptLine.contains("at most one natural entry reference"))
+    func test_journalGroundedStance_describesPiecesNotBrevity() {
+        let line = TurnStance.journalGrounded.promptLine
+        XCTAssertTrue(line.contains("Meet them"))
+        XCTAssertTrue(line.contains("Sit"))
+        XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertFalse(line.contains("answer and stop"))
+        XCTAssertFalse(line.contains("ask one forward question"))
         XCTAssertTrue(TurnStance.followupThread.promptLine.contains("entry inventory"))
+    }
+
+    func test_casualStance_isNotALengthQuota() {
+        let line = TurnStance.casual.promptLine
+        XCTAssertTrue(line.contains("Meet them"))
+        XCTAssertFalse(line.contains("one or two friendly sentences"))
+        XCTAssertFalse(line.contains("answer and stop"))
+    }
+
+    func test_noMatchStance_isDirectEmptyRecall() {
+        let line = TurnStance.noMatch.promptLine
+        XCTAssertTrue(line.contains("don't see anything from that stretch"))
+        XCTAssertTrue(line.contains("do not invent"))
+        XCTAssertTrue(line.contains("do not change the subject"))
+        XCTAssertFalse(line.contains("invite them to write about it"))
+        XCTAssertFalse(line.contains("answer and stop"))
     }
 }

@@ -2,7 +2,9 @@
 //  SpeechService.swift
 //  MeetMemento
 //
-//  Native iOS speech-to-text using Speech framework and AVFoundation.
+//  Native iOS speech-to-text. Capture engine is SpeechAnalyzer /
+//  SpeechTranscriber / SpeechDetector (spec 018 R1). Permission still uses
+//  the Speech framework authorization API.
 //
 
 import Foundation
@@ -25,6 +27,10 @@ final class SpeechService: ObservableObject {
     @Published var authorizationStatus: AuthorizationStatus = .notDetermined
     /// Real-time audio level 0...1 for voice-reactive UI (e.g. wave visualizer).
     @Published var audioLevel: Float = 0
+    /// Spec 034: SpeechDetector VAD bit for conversation barge-in.
+    @Published var speechDetected: Bool = false
+    /// Locale-model download progress (first-run, spec 018 R1).
+    @Published var assetState: TranscriptionAssetState = .missing
 
     /// Tracks consecutive silence duration for auto-stop
     private var silenceStartTime: Date?
@@ -63,23 +69,25 @@ final class SpeechService: ObservableObject {
         }
     }
 
-    private var audioEngine: AVAudioEngine?
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var recognitionTask: SFSpeechRecognitionTask?
     private var durationTimer: Timer?
     private var finalizationTimeoutTask: Task<Void, Never>?
-    private let audioQueue = DispatchQueue(label: "com.meetmemento.speech.audio")
     private var smoothedLevel: Float = 0
     /// When true, recognition callbacks are ignored (cancel path / teardown).
     private var ignoreRecognitionResults = false
     /// Bumped on every start/cancel so stale callbacks cannot revive a finished session.
     private var sessionGeneration: UInt64 = 0
+    private let analyzerEngine = SpeechAnalyzerEngine()
+    private var pendingTeardown: Task<Void, Never>?
+    private var interruptionObserver: NSObjectProtocol?
+    private var isPausedForInterruption = false
 
-    private init() {}
+    private init() {
+        observeInterruptions()
+    }
 
     // MARK: - Audio level (for voice-reactive UI)
 
-    private nonisolated static func computeRMS(from buffer: AVAudioPCMBuffer) -> Float {
+    nonisolated static func computeRMS(from buffer: AVAudioPCMBuffer) -> Float {
         let frameLength = Int(buffer.frameLength)
         guard frameLength > 0 else { return 0 }
         if let channelData = buffer.floatChannelData {
@@ -110,51 +118,25 @@ final class SpeechService: ObservableObject {
         smoothedLevel = smoothedLevel * 0.3 + rms * 0.7
         audioLevel = smoothedLevel
 
-        // Silence detection for auto-stop
         if isRecording {
             if smoothedLevel < silenceThreshold {
-                // Start tracking silence if not already
                 if silenceStartTime == nil {
                     silenceStartTime = Date()
                 } else if let start = silenceStartTime,
                           Date().timeIntervalSince(start) >= silenceTimeout {
-                    // Prolonged silence — finalize so the user can review
                     Task { @MainActor in
                         await self.stopRecording()
                     }
                 }
             } else {
-                // Sound detected - reset silence timer
                 silenceStartTime = nil
             }
         }
     }
 
-    /// Converts buffer to 16 kHz mono for Speech framework; returns nil on failure.
-    /// Output buffer capacity must be >= input frame length per AVAudioConverter requirement.
-    private nonisolated static func convertTo16kMono(
-        _ buffer: AVAudioPCMBuffer,
-        inputFormat: AVAudioFormat,
-        converter: AVAudioConverter,
-        outputFormat: AVAudioFormat
-    ) -> AVAudioPCMBuffer? {
-        let outFrameCount = AVAudioFrameCount(
-            Double(buffer.frameLength) * 16000.0 / inputFormat.sampleRate + 1
-        )
-        let capacity = max(outFrameCount, buffer.frameLength)
-        guard let outBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else { return nil }
-        do {
-            try converter.convert(to: outBuffer, from: buffer)
-            return outBuffer
-        } catch {
-            return nil
-        }
-    }
-
     // MARK: - Authorization
 
-    /// Pure mapping shared by the synchronous fast path and the async request
-    /// path (spec 029 R4).
+    /// Permission still types through this API; recognition itself does not.
     static func mapSpeechAuth(_ status: SFSpeechRecognizerAuthorizationStatus) -> AuthorizationStatus {
         switch status {
         case .authorized: return .authorized
@@ -168,14 +150,7 @@ final class SpeechService: ObservableObject {
         await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { [weak self] status in
                 Task { @MainActor in
-                    let auth: AuthorizationStatus
-                    switch status {
-                    case .notDetermined: auth = .notDetermined
-                    case .denied: auth = .denied
-                    case .restricted: auth = .denied
-                    case .authorized: auth = .authorized
-                    @unknown default: auth = .denied
-                    }
+                    let auth = Self.mapSpeechAuth(status)
                     self?.authorizationStatus = auth
                     continuation.resume(returning: auth)
                 }
@@ -185,224 +160,27 @@ final class SpeechService: ObservableObject {
 
     private func requestMicrophonePermission() async -> Bool {
         await withCheckedContinuation { continuation in
-            if #available(iOS 17.0, *) {
-                AVAudioApplication.requestRecordPermission { granted in
-                    continuation.resume(returning: granted)
-                }
-            } else {
-                AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                    continuation.resume(returning: granted)
-                }
+            AVAudioApplication.requestRecordPermission { granted in
+                continuation.resume(returning: granted)
             }
         }
-    }
-
-    /// One recognizer per locale, reused across turns — startRecording used to
-    /// allocate two fresh `SFSpeechRecognizer`s on every narration turn
-    /// (spec 029 R4). Invalidates itself if the locale changes.
-    private var cachedRecognizer: SFSpeechRecognizer?
-    private var cachedRecognizerLocale: String?
-
-    private func currentRecognizer() -> SFSpeechRecognizer? {
-        let localeId = Locale.current.identifier
-        if let cachedRecognizer, cachedRecognizerLocale == localeId {
-            return cachedRecognizer
-        }
-        let fresh = SFSpeechRecognizer(locale: Locale.current)
-        cachedRecognizer = fresh
-        cachedRecognizerLocale = localeId
-        return fresh
-    }
-
-    private func checkAvailability() throws {
-        guard let recognizer = currentRecognizer(), recognizer.isAvailable else {
-            throw SpeechError.notAvailable
-        }
-        if !recognizer.supportsOnDeviceRecognition {
-            throw SpeechError.onDeviceUnavailable
-        }
-    }
-
-    private func handleRecognitionResult(
-        _ result: SFSpeechRecognitionResult?,
-        _ error: Error?,
-        generation: UInt64
-    ) {
-        guard generation == sessionGeneration, !ignoreRecognitionResults else { return }
-
-        if let error = error {
-            let nsError = error as NSError
-            // Cancellation is expected on the cancel path — not a user-facing failure.
-            if nsError.domain == "kAFAssistantErrorDomain", nsError.code == 216 {
-                return
-            }
-            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                return
-            }
-            // Ignore benign "no speech detected" style failures if we already have text.
-            let message = error.localizedDescription
-            if message.localizedCaseInsensitiveContains("no speech"),
-               !bestAvailableTranscript.isEmpty {
-                isProcessing = false
-                return
-            }
-            errorMessage = message
-            ignoreRecognitionResults = true
-            teardownEngine(cancelTask: true, clearOwnership: false)
-            isProcessing = false
-            isRecording = false
-            return
-        }
-
-        guard let result = result else { return }
-        let best = result.bestTranscription.formattedString
-
-        if result.isFinal {
-            finalizationTimeoutTask?.cancel()
-            finalizationTimeoutTask = nil
-            if !best.isEmpty {
-                transcribedText = best
-            } else if transcribedText.isEmpty, !partialTranscribedText.isEmpty {
-                // Final arrived empty but we had a usable hypothesis — keep it.
-                transcribedText = partialTranscribedText
-            }
-            partialTranscribedText = ""
-            isProcessing = false
-            recognitionTask = nil
-            recognitionRequest = nil
-        } else if !best.isEmpty {
-            partialTranscribedText = best
-        }
-    }
-
-    /// Runs on a background thread to avoid blocking the main thread (watchdog / SIGKILL).
-    private nonisolated static func performEngineSetup(
-        recognizer: SFSpeechRecognizer,
-        onResult: @escaping (SFSpeechRecognitionResult?, Error?) -> Void,
-        onLevel: @escaping (Float) -> Void
-    ) throws -> (AVAudioEngine, SFSpeechAudioBufferRecognitionRequest, SFSpeechRecognitionTask) {
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .record,
-            mode: .measurement,
-            options: [AVAudioSession.CategoryOptions.allowBluetoothHFP]
-        )
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
-
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        request.taskHint = .dictation
-        if #available(iOS 16.0, *) {
-            request.addsPunctuation = true
-        }
-
-        // Keep audio on the device. Without this, `SFSpeechRecognizer` is free
-        // to send audio to Apple's servers for some locales — an undisclosed
-        // off-device path for the most sensitive data the app touches, which
-        // contradicts both the privacy policy and the REQ-POS-001 positioning
-        // claim that CI already lints for (Guideline 5.1.2(i)).
-        //
-        // The cost is locale coverage: where on-device recognition is
-        // unavailable, transcription degrades rather than silently uploading.
-        // That trade is the honest one, and it is the interim named in
-        // docs/app-store/01 §5.1.2 — spec 018 R1's `SpeechAnalyzer` migration is
-        // the real fix and supersedes this line.
-        // Set unconditionally. Gating this on `supportsOnDeviceRecognition`
-        // would mean that exactly when on-device recognition is unavailable the
-        // audio gets uploaded instead — the failure we are trying to prevent.
-        // Better to fail the recognition request and say so.
-        request.requiresOnDeviceRecognition = true
-        if !recognizer.supportsOnDeviceRecognition {
-            AppLogger.log(
-                "⚠️ [SpeechService] On-device recognition unavailable for \(recognizer.locale.identifier); " +
-                "transcription will fail rather than send audio off device"
-            )
-        }
-
-        let engine = AVAudioEngine()
-        let inputNode = engine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-
-        let speechFormat: AVAudioFormat?
-        let converter: AVAudioConverter?
-        if inputFormat.sampleRate == 16000 && inputFormat.channelCount == 1 {
-            speechFormat = nil
-            converter = nil
-        } else {
-            speechFormat = AVAudioFormat(standardFormatWithSampleRate: 16000, channels: 1)
-            converter = speechFormat.flatMap { AVAudioConverter(from: inputFormat, to: $0) }
-        }
-
-        let task = recognizer.recognitionTask(with: request) { result, error in
-            onResult(result, error)
-        }
-
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, _ in
-            let toAppend: AVAudioPCMBuffer
-            if let conv = converter, let outFmt = speechFormat,
-               let converted = Self.convertTo16kMono(buffer, inputFormat: inputFormat, converter: conv, outputFormat: outFmt) {
-                toAppend = converted
-            } else {
-                toAppend = buffer
-            }
-            request.append(toAppend)
-            onLevel(Self.computeRMS(from: buffer))
-        }
-
-        do {
-            try engine.start()
-        } catch {
-            inputNode.removeTap(onBus: 0)
-            task.cancel()
-            throw error
-        }
-        return (engine, request, task)
-    }
-
-    /// Runs on a background thread to avoid blocking the main thread on the
-    /// AVAudioSession HAL (watchdog / hang). Symmetric with `performEngineSetup`:
-    /// `setActive(false)` and `engine.stop()` can each block for hundreds of ms
-    /// while audio routes are torn down, so they must not run on the main actor.
-    private nonisolated static func performEngineTeardown(
-        engine: AVAudioEngine?,
-        request: SFSpeechAudioBufferRecognitionRequest?
-    ) {
-        // Preserve the original ordering: end audio input, remove the tap while
-        // the engine is still valid, stop the engine, then release the session.
-        request?.endAudio()
-        if let engine {
-            engine.inputNode.removeTap(onBus: 0)
-            engine.stop()
-        }
-        // Only deactivate when this teardown actually owned hardware —
-        // startRecording calls teardown defensively before arming, and
-        // deactivating a session we never activated paid a full audio-session
-        // round-trip before every re-arm (spec 029 Amendment A).
-        guard engine != nil || request != nil else { return }
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // MARK: - Recording
 
-    /// Starts a recording session owned by the specified view.
-    /// - Parameter ownerId: Unique identifier for the view starting the recording (e.g., "AddEntryView", "ChatInputField")
     func startRecording(ownerId: String) async throws {
-        // Tear down any leftover session before arming a new one.
-        teardownEngine(cancelTask: true, clearOwnership: true)
+        teardownEngine(clearOwnership: true)
 
         errorMessage = nil
         transcribedText = ""
         partialTranscribedText = ""
+        speechDetected = false
         activeSessionOwner = ownerId
         silenceStartTime = nil
         ignoreRecognitionResults = false
         sessionGeneration &+= 1
         let generation = sessionGeneration
 
-        // 1. Speech authorization. The async request is an XPC round-trip that
-        // was paid on EVERY turn; once the status is determined, the
-        // synchronous read answers instantly (and stays correct if the user
-        // later revokes in Settings — it re-reads every start, spec 029 R4).
         let knownAuth = Self.mapSpeechAuth(SFSpeechRecognizer.authorizationStatus())
         let speechAuth: AuthorizationStatus
         if knownAuth == .notDetermined {
@@ -418,7 +196,6 @@ final class SpeechService: ObservableObject {
             throw SpeechError.permissionDenied
         }
 
-        // 2. Microphone permission — same synchronous fast path.
         let micGranted: Bool
         switch AVAudioApplication.shared.recordPermission {
         case .granted: micGranted = true
@@ -431,83 +208,74 @@ final class SpeechService: ObservableObject {
             throw SpeechError.permissionDenied
         }
 
-        // 3. Recognizer available + on-device support
-        do {
-            try checkAvailability()
-        } catch {
-            errorMessage = (error as? SpeechError)?.errorDescription ?? error.localizedDescription
-            activeSessionOwner = nil
-            throw error
-        }
-
-        guard let recognizer = currentRecognizer() else {
+        guard SpeechTranscriber.isAvailable else {
             errorMessage = SpeechError.notAvailable.errorDescription
             activeSessionOwner = nil
             throw SpeechError.notAvailable
         }
 
-        // 4–7. Run audio session + engine setup off the main thread to avoid watchdog SIGKILL
-        let onResult: (SFSpeechRecognitionResult?, Error?) -> Void = { [weak self] result, error in
-            Task { @MainActor in
-                self?.handleRecognitionResult(result, error, generation: generation)
-            }
+        let locale = Locale.current
+        assetState = await analyzerEngine.assetState(for: locale)
+        if assetState == .missing || assetState == .downloading {
+            await analyzerEngine.ensureAssets(for: locale)
+            assetState = await analyzerEngine.assetState(for: locale)
         }
-        let onLevel: (Float) -> Void = { [weak self] rms in
-            Task { @MainActor in
-                self?.updateAudioLevel(rms)
-            }
+        if assetState == .unsupported {
+            errorMessage = SpeechError.onDeviceUnavailable.errorDescription
+            activeSessionOwner = nil
+            throw SpeechError.onDeviceUnavailable
         }
 
-        // Any teardown still in flight (ours from the top of this call, or a
-        // cancel that immediately preceded this restart) must land before the
-        // new session's setActive(true) — a late setActive(false) would kill
-        // the fresh session silently (spec 028 R3d).
         await pendingTeardown?.value
 
-        let setupResult: Result<(AVAudioEngine, SFSpeechAudioBufferRecognitionRequest, SFSpeechRecognitionTask), Error>
         do {
-            let triple = try await Task.detached(priority: .userInitiated) {
-                try Self.performEngineSetup(recognizer: recognizer, onResult: onResult, onLevel: onLevel)
-            }.value
-            setupResult = .success(triple)
+            try await analyzerEngine.start(
+                locale: locale,
+                onUpdate: { [weak self] update in
+                    Task { @MainActor in
+                        self?.handleUpdate(update, generation: generation)
+                    }
+                },
+                onLevel: { [weak self] rms in
+                    Task { @MainActor in
+                        self?.updateAudioLevel(rms)
+                    }
+                },
+                onSpeechDetected: { [weak self] present in
+                    Task { @MainActor in
+                        self?.speechDetected = present
+                        ConversationAudioController.shared.handleVoiceActivity(present)
+                    }
+                }
+            )
         } catch {
-            setupResult = .failure(error)
-        }
-
-        switch setupResult {
-        case .failure(let error):
-            let msg = (error as NSError).localizedDescription
-            errorMessage = (SpeechError.engineStartFailed(msg)).errorDescription
+            let msg = error.localizedDescription
+            errorMessage = SpeechError.engineStartFailed(msg).errorDescription
             isProcessing = false
             activeSessionOwner = nil
             throw SpeechError.engineStartFailed(msg)
-        case .success((let engine, let request, let task)):
-            audioEngine = engine
-            recognitionRequest = request
-            recognitionTask = task
-            isProcessing = true
-            isRecording = true
+        }
 
-            let startTime = Date()
-            durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self = self, self.isRecording else { return }
-                    self.currentDuration = Date().timeIntervalSince(startTime)
-                }
+        isProcessing = true
+        isRecording = true
+        let startTime = Date()
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isRecording else { return }
+                self.currentDuration = Date().timeIntervalSince(startTime)
             }
-            RunLoop.main.add(durationTimer!, forMode: .common)
+        }
+        if let durationTimer {
+            RunLoop.main.add(durationTimer, forMode: .common)
         }
     }
 
-    /// Stops capture and waits for a final transcript (task left running until final/timeout).
     func stopRecording() async {
-        guard isRecording || audioEngine != nil || recognitionRequest != nil else {
+        guard isRecording else {
             isRecording = false
             return
         }
 
-        // Main-actor UI/state resets — immediate, non-blocking so the mic UI
-        // flips the moment the user stops, before the hardware finishes tearing down.
         durationTimer?.invalidate()
         durationTimer = nil
         currentDuration = 0
@@ -516,38 +284,16 @@ final class SpeechService: ObservableObject {
         smoothedLevel = 0
         isRecording = false
 
-        // Hand the hardware objects to a background thread and clear our refs on
-        // the main actor. The closure retains them until teardown completes, so
-        // nulling here is safe.
-        let engine = audioEngine
-        let request = recognitionRequest
-        audioEngine = nil
-        recognitionRequest = nil
-        // Note: recognitionTask is intentionally NOT cancelled — it finishes for
-        // the final transcription and is cleared in handleRecognitionResult when isFinal.
-
-        // Run the blocking AVAudioSession/engine teardown off the main actor
-        // (mirror of the setup path; AVAudioSession hang fix — endAudio, engine
-        // stop, and setActive(false) all leave the main thread). Awaited so
-        // `setActive(false)` is strictly ordered before any immediate restart's
-        // `setActive(true)`, avoiding an activate/deactivate race on the shared session.
-        await Task.detached(priority: .userInitiated) {
-            Self.performEngineTeardown(engine: engine, request: request)
-        }.value
-
-        // Keep isProcessing true until final (or timeout) so UI can show "finishing…"
+        await analyzerEngine.finish()
         scheduleFinalizationTimeout()
-        // Note: activeSessionOwner is intentionally NOT cleared here.
-        // It remains set so the owning view can consume the transcribedText.
-        // It will be cleared when the next recording starts or on cancel/clear.
     }
 
-    /// Cancels the session immediately. Drops any in-flight final so cancel cannot
-    /// race into a late send/insert (the narrate X / mishearing escape hatch).
     func cancelRecording() async {
         ignoreRecognitionResults = true
         sessionGeneration &+= 1
-        teardownEngine(cancelTask: true, clearOwnership: true)
+        teardownEngine(clearOwnership: true)
+        pendingTeardown = Task { await analyzerEngine.cancel() }
+        await pendingTeardown?.value
 
         transcribedText = ""
         partialTranscribedText = ""
@@ -558,22 +304,19 @@ final class SpeechService: ObservableObject {
         silenceStartTime = nil
         audioLevel = 0
         smoothedLevel = 0
+        speechDetected = false
     }
 
-    /// Best available transcript for the current session (final preferred, else live partial).
     var bestAvailableTranscript: String {
         let final = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !final.isEmpty { return final }
         return partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Checks if the given owner is the active session owner.
-    /// Use this to determine if your view should process the transcription.
     func isOwner(_ ownerId: String) -> Bool {
         activeSessionOwner == ownerId
     }
 
-    /// Clears the transcription and resets ownership after consuming the result.
     func clearTranscription() {
         transcribedText = ""
         partialTranscribedText = ""
@@ -581,70 +324,97 @@ final class SpeechService: ObservableObject {
         isProcessing = false
     }
 
-    // MARK: - Teardown helpers
+    // MARK: - Updates
+
+    private func handleUpdate(_ update: TranscriptionUpdate, generation: UInt64) {
+        guard generation == sessionGeneration, !ignoreRecognitionResults else { return }
+        switch update {
+        case .volatile(let text):
+            if !text.isEmpty { partialTranscribedText = text }
+        case .finalized(let text):
+            finalizationTimeoutTask?.cancel()
+            finalizationTimeoutTask = nil
+            if !text.isEmpty {
+                transcribedText = text
+            } else if transcribedText.isEmpty, !partialTranscribedText.isEmpty {
+                transcribedText = partialTranscribedText
+            }
+            partialTranscribedText = ""
+            isProcessing = false
+            let leftover = AudioAssetStore.applyRetentionAfterTranscription(assetID: nil)
+            _ = leftover
+        }
+    }
 
     private func scheduleFinalizationTimeout() {
         finalizationTimeoutTask?.cancel()
         let generation = sessionGeneration
         finalizationTimeoutTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
             guard !Task.isCancelled else { return }
             guard generation == self.sessionGeneration else { return }
             guard self.isProcessing else { return }
-
-            // Promote the last partial so consumers are not left hanging with empty text.
             if self.transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                !self.partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 self.transcribedText = self.partialTranscribedText
             }
             self.partialTranscribedText = ""
             self.isProcessing = false
-            self.recognitionTask = nil
-            self.recognitionRequest = nil
             AppLogger.log("⚠️ [SpeechService] Finalization timed out; promoted partial transcript if available")
         }
     }
 
-    /// The most recent fire-and-forget engine teardown, stored so an immediate
-    /// restart (`startRecording`) can await it instead of racing it.
-    private var pendingTeardown: Task<Void, Never>?
-
-    private func teardownEngine(cancelTask: Bool, clearOwnership: Bool) {
+    private func teardownEngine(clearOwnership: Bool) {
         durationTimer?.invalidate()
         durationTimer = nil
         finalizationTimeoutTask?.cancel()
         finalizationTimeoutTask = nil
-
-        if cancelTask {
-            recognitionTask?.cancel()
-        }
-
-        // Capture the hardware and clear refs on the main actor, then run the
-        // blocking endAudio / engine.stop() / setActive(false) off the main thread
-        // (AVAudioSession hang fix — those calls can block for hundreds of ms).
-        // Not awaited here — cancel/error paths don't restart in-line — but the
-        // task is *stored* so `startRecording` can await it: narration's
-        // silent-retry re-arms the mic immediately after a cancel, and this
-        // teardown's setActive(false) landing after that restart's
-        // setActive(true) would silently kill the new session (spec 028 R3d).
-        // The closure retains the objects until teardown completes.
-        let engine = audioEngine
-        let request = recognitionRequest
-        audioEngine = nil
-        recognitionRequest = nil
-        recognitionTask = nil
-
-        pendingTeardown = Task.detached(priority: .userInitiated) {
-            Self.performEngineTeardown(engine: engine, request: request)
-        }
-
+        pendingTeardown = Task { await analyzerEngine.cancel() }
         audioLevel = 0
         smoothedLevel = 0
         silenceStartTime = nil
         currentDuration = 0
-
         if clearOwnership {
             activeSessionOwner = nil
+        }
+    }
+
+    private func observeInterruptions() {
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleInterruption(notification)
+            }
+        }
+    }
+
+    private func handleInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
+        switch type {
+        case .began:
+            guard isRecording else { return }
+            isPausedForInterruption = true
+            analyzerEngine.pause()
+            errorMessage = "Paused for your call. Everything you said is safe."
+        case .ended:
+            let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if isPausedForInterruption, options.contains(.shouldResume) {
+                try? analyzerEngine.resume()
+                isPausedForInterruption = false
+                errorMessage = nil
+            } else if isPausedForInterruption {
+                Task { await stopRecording() }
+                isPausedForInterruption = false
+            }
+        @unknown default:
+            break
         }
     }
 }

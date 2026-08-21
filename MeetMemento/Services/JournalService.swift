@@ -84,6 +84,19 @@ class JournalService {
         }
     }
 
+    /// Spec 020 R1: Siri / shortcut capture with spoken content, no UI.
+    @discardableResult
+    func saveFromIntent(text: String) -> Bool {
+        let now = Date()
+        return saveEntryLocally(
+            entryId: UUID(),
+            title: "",
+            content: text,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
     /// Deletes an entry's local file AND every content-derived cache of it —
     /// the embedding vector on disk in particular (spec 029 R8: derived
     /// journal data follows its source). Delete call sites should route here

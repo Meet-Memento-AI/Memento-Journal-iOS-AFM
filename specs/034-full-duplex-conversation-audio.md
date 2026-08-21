@@ -2,7 +2,7 @@
 id: 034
 title: Full-Duplex Conversation Audio — AEC and Barge-in
 tier: P2
-status: not-started
+status: in-progress (2026-08-19) — ConversationAudioController + SpeechDetector VAD; tap-interrupt always; acoustic barge-in on conversation path only; read-back stays half-duplex
 effort: 2 sessions
 depends_on: [018, 028, 031, 032]
 findings: [supersedes-half-duplex-invariant-on-conversation-path, no-vad-source-exists-yet, voice-processing-degrades-timbre, sample-rate-conversion-on-conversation-path, voice-processing-state-must-not-leak]

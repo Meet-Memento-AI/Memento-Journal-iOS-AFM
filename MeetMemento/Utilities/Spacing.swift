@@ -109,3 +109,72 @@ struct Spacing {
         static let slow: CGFloat = 0.3
     }
 }
+
+// MARK: - Motion
+
+/// Named animation curves. Previously every call site inlined its own spring
+/// literal; anything shared across files belongs here instead.
+enum Motion {
+    /// Chat send choreography: the user's bubble travelling from the composer
+    /// to its pinned rest position.
+    ///
+    /// A spring is correct here only because the composer no longer drops
+    /// focus on send — see the note in `ChatInputField.sendMessage()`. If the
+    /// keyboard is ever dismissed on send again, this has to go back to an
+    /// ease curve so it does not fight the system keyboard's own timing.
+    static let sendFlight: Animation = .spring(duration: 0.42, bounce: 0.10)
+
+    /// Empty state ↔ transcript cross-fade.
+    static let transcriptCrossFade: Animation = .easeOut(duration: 0.2)
+
+    /// Beat 2 of the send choreography: the transcript easing the just-landed
+    /// message up to the pin.
+    ///
+    /// Scaled by distance, because the send that scrolls 40pt and the send that
+    /// scrolls 900pt are the same gesture and should not take the same time —
+    /// a fixed curve makes the short one feel sluggish and the long one feel
+    /// like a jump. Clamped at both ends so a very long thread never drags.
+    ///
+    /// `bounce: 0` is deliberate and is NOT a "spring settle": a zero-bounce
+    /// spring is critically damped, so it never overshoots. It is the same
+    /// curve `Animation.smooth(duration:)` produces, and its decelerating shape
+    /// is what lets beat 2 pick up the momentum beat 1's ghost put down instead
+    /// of reading as a second, separate launch. An ease-in-out would be worse,
+    /// not better — ease-in starts at zero velocity, which contradicts that
+    /// hand-off. If this ever reads as a jump again the cause is upstream of
+    /// the curve: see `PinIntent.settling` in `ChatMessagesView`.
+    static func sendScroll(distance: CGFloat) -> Animation {
+        .spring(duration: sendScrollDuration(distance: distance), bounce: 0)
+    }
+
+    /// How long `sendScroll` runs, in seconds.
+    ///
+    /// Extracted so the view can *time* the settle rather than ask SwiftUI when
+    /// the scroll finished: a `ScrollViewProxy` scroll is not a view-tree
+    /// animation, so there is no contract that it reports through
+    /// `withAnimation`'s completion handler. The duration is analytic, so
+    /// timing it needs no such contract.
+    static func sendScrollDuration(distance: CGFloat) -> Double {
+        let span = min(max(abs(distance), 0), sendScrollFullTravel)
+        let progress = sendScrollFullTravel > 0 ? span / sendScrollFullTravel : 0
+        return sendScrollMinDuration
+            + (sendScrollMaxDuration - sendScrollMinDuration) * Double(progress)
+    }
+
+    /// How long the transcript must be left entirely alone once beat 2 starts:
+    /// the animation's own duration plus a couple of frames, so the pin is
+    /// handed back to the corrective pass *after* the last animated frame
+    /// rather than on it.
+    static func sendScrollSettleWindow(distance: CGFloat) -> Double {
+        sendScrollDuration(distance: distance) + sendScrollSettleSlack
+    }
+
+    /// Distance at which `sendScroll` reaches its longest duration. Roughly one
+    /// viewport — beyond that the motion is already reading as "a long way".
+    private static let sendScrollFullTravel: CGFloat = 700
+    private static let sendScrollMinDuration: Double = 0.25
+    private static let sendScrollMaxDuration: Double = 0.50
+    /// ~3 frames at 60Hz. Long enough to absorb a dropped frame, short enough
+    /// that the pin is unguarded for no meaningful window.
+    private static let sendScrollSettleSlack: Double = 0.05
+}

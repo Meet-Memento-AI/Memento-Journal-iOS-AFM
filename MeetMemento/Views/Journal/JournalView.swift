@@ -30,8 +30,6 @@ public struct JournalView: View {
     /// Page to the AI chat screen. The header's chat icon and a left swipe are
     /// the same navigation, so both route through here.
     var onOpenChat: (() -> Void)? = nil
-    /// Callback to present entry sheet when embedded (ContentView provides this)
-    var onPresentEntry: ((EntryRoute) -> Void)? = nil
 
     @EnvironmentObject var entryViewModel: EntryViewModel
     @EnvironmentObject var appState: AppStateStore
@@ -50,9 +48,7 @@ public struct JournalView: View {
 
     // Task for loading data
     @State private var loadingTask: Task<Void, Never>?
-
-    // Entry sheet state for standalone mode
-    @State private var activeEntryRoute: EntryRoute?
+    @Namespace private var standaloneEntryZoom
 
     /// Search overlay and the profile/settings sheet, both driven by this
     /// page's own header. They used to live in ContentView because the header
@@ -104,13 +100,11 @@ public struct JournalView: View {
     public init(
         isEmbedded: Bool = false,
         externalNavigationPath: Binding<NavigationPath> = .constant(NavigationPath()),
-        onOpenChat: (() -> Void)? = nil,
-        onPresentEntry: ((EntryRoute) -> Void)? = nil
+        onOpenChat: (() -> Void)? = nil
     ) {
         self.isEmbedded = isEmbedded
         self._externalNavigationPath = externalNavigationPath
         self.onOpenChat = onOpenChat
-        self.onPresentEntry = onPresentEntry
     }
 
     public var body: some View {
@@ -164,25 +158,21 @@ public struct JournalView: View {
                                 .environment(\.fabVisible, false)
                         }
                     }
-                    .sheet(item: $activeEntryRoute) { route in
-                        entrySheet(for: route)
-                            .presentationDetents([.fraction(0.95)])
-                            .presentationDragIndicator(.hidden)
-                            .presentationCornerRadius(32)
-                            .interactiveDismissDisabled(false)
+                    .navigationDestination(for: EntryRoute.self) { route in
+                        EntryEditorDestination(route: route)
                     }
             }
+            .environment(\.entryZoomNamespace, standaloneEntryZoom)
         }
     }
 
     @ViewBuilder
     private var coreContentView: some View {
-        let showsFAB = isEmbedded
-            && navigationPath.wrappedValue.isEmpty
-            && !entryViewModel.entries.isEmpty
+        let showsFAB = isEmbedded && !entryViewModel.entries.isEmpty
 
         RootPageScaffold(
             footerBottomPadding: showsFAB ? 16 : 0,
+            pageBackground: theme.secondaryBackground,
             header: { if isEmbedded { journalHeader } },
             footer: {
                 if showsFAB {
@@ -191,6 +181,7 @@ public struct JournalView: View {
                         NewEntryFAB(size: AppHeaderMetrics.footerButtonSize) {
                             presentEntry(.create)
                         }
+                        .entryZoomSource(EntryRoute.createZoomSourceID)
                     }
                     .padding(.horizontal, 16)
                 }
@@ -240,13 +231,14 @@ public struct JournalView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            activeEntryRoute = .create
+                            presentEntry(.create)
                         } label: {
                             Image(systemName: "square.and.pencil")
                                 .font(type.body1)
                                 .fontWeight(.medium)
                                 .foregroundStyle(theme.foreground)
                         }
+                        .entryZoomSource(EntryRoute.createZoomSourceID)
                         .accessibilityLabel("New Journal Entry")
                     }
                 }
@@ -278,13 +270,9 @@ public struct JournalView: View {
         )
     }
 
-    /// Embedded, ContentView owns the entry sheet; standalone, we do.
+    /// Pushes the editor onto the overlay (embedded) or standalone stack.
     private func presentEntry(_ route: EntryRoute) {
-        if isEmbedded, let onPresentEntry {
-            onPresentEntry(route)
-        } else {
-            activeEntryRoute = route
-        }
+        navigationPath.wrappedValue.append(route)
     }
 
     // MARK: - Header (Figma 483:1213)
@@ -399,39 +387,6 @@ public struct JournalView: View {
     // MARK: - Navigation Destinations
 
     @ViewBuilder
-    private func entrySheet(for route: EntryRoute) -> some View {
-        switch route {
-        case .create:
-            AddEntryView(state: .create) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-            }
-            .environment(\.fabVisible, false)
-        case .createWithTitle(let prefillTitle):
-            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-            }
-            .environment(\.fabVisible, false)
-        case .createWithContent(let prefillTitle, let prefillContent):
-            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-            }
-            .environment(\.fabVisible, false)
-        case .edit(let entry):
-            AddEntryView(state: .edit(entry)) { title, text, photoAction in
-                var updated = entry
-                updated.title = title
-                updated.text = text
-                entryViewModel.updateEntry(updated, photoAction: photoAction)
-                activeEntryRoute = nil
-            }
-            .environment(\.fabVisible, false)
-        }
-    }
-
-    @ViewBuilder
     private func settingsDestination(for route: SettingsRoute) -> some View {
         switch route {
         case .main:
@@ -461,13 +416,21 @@ public struct JournalView: View {
             AboutSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        case .acknowledgments:
+            AcknowledgmentsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .weekly:
+            WeeklyReflectionView()
+                .environmentObject(entryViewModel)
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .patterns:
+            PatternsView()
+                .environmentObject(entryViewModel)
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
         }
-    }
-
-    // MARK: - Actions
-
-    private func createEntry() {
-        navigationPath.wrappedValue.append(EntryRoute.create)
     }
 }
 

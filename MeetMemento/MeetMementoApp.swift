@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import UIKit
 
 // MARK: - Root Background
@@ -107,5 +108,6 @@ struct MeetMementoApp: App {
                 }
             }
         }
+        .modelContainer(JournalContainer.make())
     }
 }

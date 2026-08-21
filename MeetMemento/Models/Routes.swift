@@ -26,6 +26,23 @@ public enum EntryRoute: Hashable, Identifiable {
             return "edit-\(entry.id)"
         }
     }
+
+    /// Stable zoom-transition source IDs. Distinct from `id` so create-with-title
+    /// still morphs from the FAB, and chat-summary still morphs from sparkles
+    /// regardless of the generated title.
+    static let createZoomSourceID = "create"
+    static let createFromChatZoomSourceID = "createFromChat"
+
+    public var zoomSourceID: String {
+        switch self {
+        case .create, .createWithTitle:
+            return Self.createZoomSourceID
+        case .createWithContent:
+            return Self.createFromChatZoomSourceID
+        case .edit(let entry):
+            return "edit-\(entry.id.uuidString)"
+        }
+    }
 }
 
 // MARK: - Navigation route for settings
@@ -36,6 +53,9 @@ public enum SettingsRoute: Hashable {
     case voice
     case security
     case about
+    case acknowledgments
+    case weekly
+    case patterns
 }
 
 // MARK: - Navigation route for AI Chat

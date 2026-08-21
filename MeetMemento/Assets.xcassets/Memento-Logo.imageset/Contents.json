@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Icon+Text : Light.svg",
+      "filename" : "AppLogo-Text.svg",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "Icon+Text : Light 1.svg",
+      "filename" : "AppLogo-Text 1.svg",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "Icon+Text : Light 2.svg",
+      "filename" : "AppLogo-Text 2.svg",
       "idiom" : "universal",
       "scale" : "3x"
     }

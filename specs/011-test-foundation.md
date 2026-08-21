@@ -2,7 +2,7 @@
 id: 011
 title: Test Foundation for Security-Critical Paths
 tier: P2
-status: not-started
+status: in-progress (2026-08-19) — Security-path and closeout contract tests expanded; coverage ratchet still 011 R3
 effort: 2-3 sessions
 depends_on: [006]
 findings: [zero-tests-outside-chat, security-code-untested, coverage-gate-ratchet]

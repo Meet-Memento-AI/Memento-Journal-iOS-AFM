@@ -15,17 +15,22 @@ struct AIChatFooter: View {
     var isSending: Bool
     var onSend: () -> Void
     var onNarrate: (() -> Void)?
+    /// Forwarded to `ChatInputField` so the send choreography can read the
+    /// composer's pre-send frame.
+    var onComposerFrame: ((CGRect) -> Void)?
 
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
         onSend: @escaping () -> Void,
-        onNarrate: (() -> Void)? = nil
+        onNarrate: (() -> Void)? = nil,
+        onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
         self._inputText = inputText
         self.isSending = isSending
         self.onSend = onSend
         self.onNarrate = onNarrate
+        self.onComposerFrame = onComposerFrame
     }
 
     var body: some View {
@@ -33,7 +38,8 @@ struct AIChatFooter: View {
             text: $inputText,
             onSend: onSend,
             onNarrate: onNarrate,
-            isInteractive: !isSending
+            isInteractive: !isSending,
+            onComposerFrame: onComposerFrame
         )
         // 16pt above the field. Horizontal inset is `rootEdgeInset()` on the
         // capsule, applied before glass. Bottom offset is `windowBottom + 16`,

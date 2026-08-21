@@ -71,6 +71,11 @@ extension View {
     func typographyBody2Bold() -> some View {
         modifier(Body2BoldModifier())
     }
+
+    /// Apply loading-heading style (16pt Lora Medium)
+    func typographyLoadingHeading() -> some View {
+        modifier(LoadingHeadingModifier())
+    }
 }
 
 // MARK: - Typography Modifiers
@@ -169,5 +174,14 @@ private struct Body2BoldModifier: ViewModifier {
         content
             .font(typography.body2Bold)
             .lineSpacing(typography.bodyLineSpacing(for: typography.sizeMD))
+    }
+}
+
+private struct LoadingHeadingModifier: ViewModifier {
+    @Environment(\.typography) private var typography
+    func body(content: Content) -> some View {
+        content
+            .font(typography.loadingHeading)
+            .lineSpacing(typography.bodyLineSpacing)
     }
 }

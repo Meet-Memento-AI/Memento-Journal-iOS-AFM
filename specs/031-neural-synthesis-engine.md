@@ -2,7 +2,7 @@
 id: 031
 title: Neural Synthesis Engine Core
 tier: P1
-status: not-started
+status: in-progress (2026-08-19) — Engine shipping; DEC-008 locked to `.cpuAndNeuralEngine` (GPU excluded); V29 device traces still to archive
 effort: 2 sessions
 depends_on: [030]
 findings: [coreml-import-containment, first-load-is-compilation-not-inference, engine-seam-is-avfoundation-typed, playback-completion-callback-type, sample-rate-conversion-boundary, memory-pressure-release-valve]

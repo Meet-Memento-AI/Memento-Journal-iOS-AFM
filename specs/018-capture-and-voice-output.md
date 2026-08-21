@@ -2,7 +2,7 @@
 id: 018
 title: Capture and Voice Output
 tier: P1
-status: in-progress (2026-08-18) — Requirements derived; R7 rewritten and R12 added for the neural-voice family (specs 030–036); Personal Voice/AirPods verification still gated on device testing
+status: in-progress (2026-08-19) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only
 effort: 3 sessions
 depends_on: [013, 015, 017]
 findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first, tts-vendor-rule-was-a-privacy-rule, phonemizer-gpl-contamination-gate]

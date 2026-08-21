@@ -2,7 +2,7 @@
 id: 036
 title: Neural Voice Verification and Release Gates
 tier: P1
-status: not-started
+status: in-progress (2026-08-19) — Harnesses + zero-egress CI landed; physical-device Gate V numbers still to archive
 effort: 1 session
 depends_on: [030, 031, 032, 033, 035]
 findings: [zero-egress-artifact-substantiates-the-claim, no-device-ci-exists, masked-and-unmasked-both-gated, xctest-only-no-swift-testing, gate-v-definition]

@@ -64,7 +64,9 @@ extension Color {
 /// brown used for filled buttons. Kept under the name `GrayScale` because
 /// ~40 call sites depend on it.
 struct GrayScale {
-    static let gray50  = Color(hex: "#FFFFFF") // canvas
+    static let gray50  = Color(hex: "#FFFFFF") // canvas / card wash
+    /// Figma gray-50 — sits between white and `gray100`. Journal canvas.
+    static let gray75  = Color(hex: "#FAFAFA")
     static let gray100 = Color(hex: "#F5F5F5") // surface-sunken
     static let gray200 = Color(hex: "#E5E5E5") // border
     static let gray300 = Color(hex: "#D4D4D4") // border-strong
@@ -160,6 +162,8 @@ struct Theme {
 
     // Color palette (semantic)
     let background: Color
+    /// Journal-only page canvas — the lightest gray surface step beneath cards.
+    let secondaryBackground: Color
     let foreground: Color
     let card: Color
     let cardForeground: Color
@@ -252,6 +256,7 @@ struct Theme {
 
     static let light = Theme(
         background: BaseColors.white,
+        secondaryBackground: GrayScale.gray75,
         foreground: BaseColors.black,
         card: BaseColors.white,
         cardForeground: BaseColors.black,
@@ -318,6 +323,7 @@ struct Theme {
 
     static let dark = Theme(
         background: BaseColors.black,
+        secondaryBackground: Color(hex: "#0A0A0A"),
         foreground: BaseColors.white,
         card: Color(hex: "#111111"),
         cardForeground: BaseColors.white,

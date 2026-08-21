@@ -118,8 +118,18 @@ public struct ContentView: View {
     @State private var selectedPage: RootPage = .journal
     @State private var didSetPreviewTab = false
     @State private var isTabBarHidden = false
-    @State private var activeEntryRoute: EntryRoute?
     @State private var showEntryToast = false
+    @Namespace private var entryZoom
+    /// Keeps the overlay stack composited through a zoom-out. Snapping opacity
+    /// to 0 the instant the path is empty hides the reverse morph.
+    @State private var holdOverlayForZoomOut = false
+    @State private var overlayHoldTask: Task<Void, Never>?
+
+    /// Overlay is on while a destination is pushed, and for a beat after pop
+    /// so `.navigationTransition(.zoom)` can shrink back to its source.
+    private var overlayActive: Bool {
+        !navigationPath.isEmpty || holdOverlayForZoomOut
+    }
 
     /// Consolidated navigation path for all routes
     @State private var navigationPath = NavigationPath()
@@ -144,7 +154,7 @@ public struct ContentView: View {
     public var body: some View {
         ZStack(alignment: .leading) {
             // Full-screen background that extends to all edges
-            theme.background
+            theme.secondaryBackground
                 .ignoresSafeArea()
 
             // Journal and Chat share RootPageScaffold on the pager.
@@ -156,10 +166,7 @@ public struct ContentView: View {
                     JournalView(
                         isEmbedded: true,
                         externalNavigationPath: $navigationPath,
-                        onOpenChat: { RootPage.select(.chat, in: $selectedPage) },
-                        onPresentEntry: { route in
-                            activeEntryRoute = route
-                        }
+                        onOpenChat: { RootPage.select(.chat, in: $selectedPage) }
                     )
                 case .chat:
                     AIChatView(
@@ -168,7 +175,7 @@ public struct ContentView: View {
                         hasEntries: !entryViewModel.entries.isEmpty,
                         onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
                         onPresentEntry: { route in
-                            activeEntryRoute = route
+                            navigationPath.append(route)
                         }
                     )
                 }
@@ -187,20 +194,33 @@ public struct ContentView: View {
                     .navigationDestination(for: DrawerRoute.self) { route in
                         drawerDestination(for: route)
                     }
+                    .navigationDestination(for: EntryRoute.self) { route in
+                        EntryEditorDestination(route: route) {
+                            showEntryToast = true
+                        }
+                    }
             }
             .toolbar(.hidden, for: .navigationBar)
             .toolbarBackground(.hidden, for: .navigationBar)
             .containerBackground(.clear, for: .navigation)
-            .allowsHitTesting(!navigationPath.isEmpty)
-            .opacity(navigationPath.isEmpty ? 0 : 1)
+            .allowsHitTesting(overlayActive)
+            .opacity(overlayActive ? 1 : 0)
+            .animation(nil, value: overlayActive)
+            .onChange(of: navigationPath.isEmpty) { _, isEmpty in
+                overlayHoldTask?.cancel()
+                if isEmpty {
+                    holdOverlayForZoomOut = true
+                    overlayHoldTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(450))
+                        guard !Task.isCancelled, navigationPath.isEmpty else { return }
+                        holdOverlayForZoomOut = false
+                    }
+                } else {
+                    holdOverlayForZoomOut = false
+                }
+            }
         }
-        .sheet(item: $activeEntryRoute) { route in
-            entrySheet(for: route)
-                .presentationDetents([.fraction(0.95)])
-                .presentationDragIndicator(.hidden)
-                .presentationCornerRadius(32)
-                .interactiveDismissDisabled(false)
-        }
+        .environment(\.entryZoomNamespace, entryZoom)
         .overlay(alignment: .bottom) {
             if showEntryToast {
                 JournalToast(message: "Entry saved") {
@@ -261,48 +281,12 @@ public struct ContentView: View {
         // replaced by per-page headers — nothing could set `showSummarySheet`
         // once ContentView stopped drawing chat's chrome. AIChatView owns the
         // whole flow now and hands the finished summary back through
-        // `onPresentEntry`, which lands in `entrySheet(for:)` below and is the
-        // only path that actually calls `entryViewModel.createEntry`.
+        // `onPresentEntry`, which appends `EntryRoute` onto the overlay
+        // NavigationStack — the only path that actually calls
+        // `entryViewModel.createEntry`.
     }
 
     // MARK: - Navigation Destinations
-
-    @ViewBuilder
-    private func entrySheet(for route: EntryRoute) -> some View {
-        switch route {
-        case .create:
-            AddEntryView(state: .create) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-                showEntryToast = true
-            }
-            .environment(\.fabVisible, false)
-        case .createWithTitle(let prefillTitle):
-            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-                showEntryToast = true
-            }
-            .environment(\.fabVisible, false)
-        case .createWithContent(let prefillTitle, let prefillContent):
-            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
-                activeEntryRoute = nil
-                showEntryToast = true
-            }
-            .environment(\.fabVisible, false)
-        case .edit(let entry):
-            AddEntryView(state: .edit(entry)) { title, text, photoAction in
-                var updated = entry
-                updated.title = title
-                updated.text = text
-                entryViewModel.updateEntry(updated, photoAction: photoAction)
-                activeEntryRoute = nil
-                showEntryToast = true
-            }
-            .environment(\.fabVisible, false)
-        }
-    }
 
     @ViewBuilder
     private func settingsDestination(for route: SettingsRoute) -> some View {
@@ -332,6 +316,20 @@ public struct ContentView: View {
                 .environment(\.fabVisible, false)
         case .about:
             AboutSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .acknowledgments:
+            AcknowledgmentsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .weekly:
+            WeeklyReflectionView()
+                .environmentObject(entryViewModel)
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .patterns:
+            PatternsView()
+                .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         }

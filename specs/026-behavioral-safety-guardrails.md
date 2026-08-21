@@ -2,7 +2,7 @@
 id: 026
 title: Behavioral Safety Guardrails
 tier: P0
-status: in-progress (2026-08-12) — Contract authored; Swift SafetyClassifier/Router/Card shipping with this spec
+status: in-progress (2026-08-19) — Safety stack shipping; PersonaGate re-run on ask@10 fixtures in CI
 effort: 2 sessions
 depends_on: [017, 019, 022]
 findings: [deterministic-pre-gate, static-crisis-card, hard-refuse-taxonomy, output-scanner, persona-gate-expansion]

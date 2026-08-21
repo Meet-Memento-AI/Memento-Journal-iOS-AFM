@@ -2,7 +2,7 @@
 id: 021
 title: Monetization and Store Compliance
 tier: P1
-status: in-progress (2026-07-24) — Requirements derived; DEC-001/DEC-004 open product decisions, V8 privacy-label verification outstanding
+status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-004 = $9.99/mo and $79/yr; Support URL / privacy policy P0s closed in docs/app-store
 effort: 2 sessions
 depends_on: [017]
 findings: [dec-004-pricing-open, dec-001-reduced-tier-open, revenuecat-z2-data-diet, privacy-label-verify-first, dependency-allowlist-ci-lint, sbp-pcc-eligibility-ops]

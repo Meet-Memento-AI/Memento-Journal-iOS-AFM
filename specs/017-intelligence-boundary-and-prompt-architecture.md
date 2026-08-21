@@ -2,7 +2,7 @@
 id: 017
 title: Intelligence Boundary and Prompt Architecture
 tier: P0
-status: in-progress (2026-07-24) — Requirements derived; latency validation and quota-scope verification gated on Xcode 27 beta
+status: in-progress (2026-08-19) — Ask pipeline shipping (`ask@10`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
 effort: 3 sessions
 depends_on: [014, 015, 016]
 findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open]
@@ -397,6 +397,8 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   present; always the fallback. The registry resolves
   `(intent, zone, degraded?) → (prompt text, promptVersion)` — the degraded
   variants R4 requires are registry entries, not string mutations.
+  Shipping Ask is `ask@10` / `ask-degraded@10`: `[Turn:]` tags are stance
+  **guidance** (prefer the intent), not a script the model must follow exactly.
 - `REQ-PRM-002` — an optional remote prompt manifest MAY be fetched from a
   static host: signed JSON, CDN, no server logic; the request carries **no
   user data, no identifier, no query parameters**; fetch is weekly at most;

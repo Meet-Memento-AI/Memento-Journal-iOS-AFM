@@ -2,7 +2,7 @@
 id: 035
 title: Spoken-Form Formatter and Expression Tags
 tier: P1
-status: not-started
+status: in-progress (2026-08-19) — SpokenFormFormatter at the VoicePlaybackService choke point (sanitizer → formatter → engine)
 effort: 1 session
 depends_on: [031]
 findings: [three-text-transforms-must-compose-in-order, do-not-double-transform-numbers, expression-tag-allowlist-by-construction, breath-insertion-is-mode-specific, rate-control-already-ships]

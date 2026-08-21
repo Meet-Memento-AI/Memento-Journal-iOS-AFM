@@ -27,6 +27,16 @@ struct RetrievedEntry: Sendable, Equatable {
     let id: UUID
     let date: Date
     let text: String   // already truncated for context
+    /// Contiguous sentence copied from `text` when one is clean (spec 037 quotes).
+    let quotedSpan: String?
+
+    init(ref: Int, id: UUID, date: Date, text: String, quotedSpan: String? = nil) {
+        self.ref = ref
+        self.id = id
+        self.date = date
+        self.text = text
+        self.quotedSpan = quotedSpan ?? QuotedSpanExtractor.extract(from: text)
+    }
 }
 
 struct RetrievalResult: Sendable, Equatable {
@@ -108,7 +118,12 @@ struct RetrievalLimits: Equatable, Sendable {
     }
 
     init(budget: ContextBudget) {
-        self.init(maxEntries: budget.maxRetrievedEntries, maxContentChars: budget.maxEntryChars)
+        // Spec 037 R7: the Ask block is 3–5 entries. The budget may still
+        // compute a larger window-derived count; the UX cap is the retriever's.
+        self.init(
+            maxEntries: min(budget.maxRetrievedEntries, EntryRetriever.maxEntries),
+            maxContentChars: budget.maxEntryChars
+        )
     }
 
     /// Half the evidence, for a degraded route: the smaller model handles a
@@ -120,7 +135,9 @@ struct RetrievalLimits: Equatable, Sendable {
 }
 
 enum EntryRetriever {
-    static let maxEntries = 7
+    /// Spec 037 R7: at most 3–5 entries enter the Ask prompt. Floor of 3 is
+    /// `ContextBudget.minRetrievedEntries`; this is the UX ceiling.
+    static let maxEntries = 5
     // Trimmed from 600 → 500: still enough of each entry to ground a reply,
     // while shrinking the journal-evidence block the model ingests per turn
     // (faster time-to-first-token). Tunable.
@@ -435,6 +452,10 @@ enum EntryRetriever {
 
     static func formattedDate(_ date: Date) -> String { dateFormatter.string(from: date) }
 
+    static func contextBlock(for entries: [RetrievedEntry], ambient: Bool) -> String {
+        buildContextBlock(entries, ambient: ambient)
+    }
+
     private static func buildContextBlock(_ entries: [RetrievedEntry], ambient: Bool) -> String {
         guard !entries.isEmpty else { return "" }
         // The [ref N] labels below are an INTERNAL handle so the model can name
@@ -453,6 +474,9 @@ enum EntryRetriever {
         var lines = [header, ""]
         for entry in entries {
             lines.append("[ref \(entry.ref) | \(formattedDate(entry.date))] \(entry.text)")
+            if let quote = entry.quotedSpan, !quote.isEmpty {
+                lines.append("quoted: \"\(quote)\"")
+            }
         }
         lines.append("")
         lines.append("[End of journal context]")

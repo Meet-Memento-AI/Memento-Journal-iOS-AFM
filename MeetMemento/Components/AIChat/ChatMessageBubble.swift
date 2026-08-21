@@ -65,15 +65,13 @@ public struct ChatMessageBubble: View {
     public var body: some View {
         if message.isFromUser {
             // User messages: right-aligned with bubble background
-            HStack(alignment: .top, spacing: 12) {
-                Spacer(minLength: 60)
+            HStack(alignment: .top, spacing: UserBubbleSurface.rowSpacing) {
+                Spacer(minLength: UserBubbleSurface.leadingGutter)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    messageContent
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 16)
-                        .background(theme.secondary) // Use semantic token for proper light/dark support
-                        .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
+                    // Shared with the send choreography's flying ghost so the
+                    // two cannot drift apart — see `UserBubbleSurface`.
+                    UserBubbleSurface(text: message.content)
 
                     if message.sendFailed {
                         retryRow
@@ -88,15 +86,11 @@ public struct ChatMessageBubble: View {
     }    
     // MARK: - Message Content
     
+    /// Assistant-side content only. The user branch renders `UserBubbleSurface`
+    /// directly in `body` so the send choreography's ghost can share it.
     @ViewBuilder
     private var messageContent: some View {
-        if message.isFromUser {
-            // User messages: plain text
-            Text(message.content)
-                .font(type.body1.weight(.medium))
-                .foregroundStyle(theme.foreground) // Use semantic token for proper contrast
-                .lineSpacing(type.bodyLineSpacing)
-        } else if message.safetyPresentation == .crisisResource {
+        if message.safetyPresentation == .crisisResource {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 if !message.content.isEmpty {
                     Text(message.content)

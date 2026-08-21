@@ -499,7 +499,7 @@ final class NarrationCoordinator: ObservableObject {
         // TTS pre-activation happens in finishListeningAndSend once the mic
         // hand-off completes (spec 029 Amendment A) — the model call below is
         // deliberately dispatched without waiting for either.
-        chatViewModel.sendMessage(prompt: text)
+        chatViewModel.sendMessage(prompt: text, origin: .narration)
     }
 
     /// Feed the streaming reply into the chunker and the chunker's output into
@@ -542,6 +542,7 @@ final class NarrationCoordinator: ObservableObject {
                 ttsSessionBegun = true
                 PerfSignposts.speechLoop.emitEvent("chunk.firstSentence")
                 LiveTurnClock.shared.mark(.firstSentence)
+                (voiceService as? VoicePlaybackService)?.deliveryMode = .conversation
                 voiceService.beginUtteranceSession(
                     for: id,
                     title: message.aiOutputContent?.heading1

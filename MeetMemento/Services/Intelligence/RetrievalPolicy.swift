@@ -6,7 +6,7 @@
 //  retrieval has run, to the stance instruction handed to the model. The
 //  stance line is the deterministic contract that stops the small on-device
 //  model from grounding every reply in journal entries ("You wrote about…"):
-//  logic decides the stance, the prompt obeys it.
+//  logic decides the stance; the prompt prefers that intent as guidance.
 //
 //  Followup turns are handled statelessly: retrieval is deterministic given
 //  (query, entries) and entry vectors are cached in EmbeddingService, so
@@ -48,19 +48,28 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     var promptLine: String {
         switch self {
         case .casual:
-            return "[Turn: casual — reply in one or two friendly sentences; do not mention journal entries; leave citedRefs empty]"
+            return "[Turn: casual — Meet them in a friendly way; notebook only if they brought it up; leave citedRefs empty]"
         case .aboutApp:
             return "[Turn: about the app — briefly say what you can do together; no journal references; leave citedRefs empty]"
         case .outsideScope:
             return "[Turn: outside scope — say that's outside what you can see, then gently return to them; no journal references; leave citedRefs empty]"
         case .sharing:
-            return "[Turn: sharing — respond to what they said as a friend; mention an entry only if it clearly helps; do not force an insight or citation]"
+            return "[Turn: sharing — respond to what they said as a friend; Notebook only if it clearly helps; do not force an insight or citation]"
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; do not restart, re-acknowledge, or begin a new entry inventory]"
+            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; do not restart, re-acknowledge, or begin a new entry inventory]"
         case .journalGrounded:
-            return "[Turn: journal question — answer conversationally first; use at most one natural entry reference if it helps; ask one forward question; list only the refs you used in citedRefs; do not list multiple entries unless they asked what they wrote about a topic]"
+            return "[Turn: journal question — Meet them, then one notebook moment, then Sit; "
+                + "reproduce any quoted field exactly; "
+                + "Open only if a [Shape:] line asks; "
+                + "list only the refs you used in citedRefs; "
+                + "do not list multiple entries unless they asked what they wrote about a topic; "
+                + "do not reopen an entry already used in this thread]"
         case .noMatch:
-            return "[Turn: journal question, no matches — say you don't see entries about that yet and invite them to write about it; do not invent any]"
+            return "[Turn: journal question, no matches — "
+                + "Meet them, then say you don't see anything from that stretch; "
+                + "do not invent any; do not change the subject; "
+                + "invite them once to write only if they asked what they have written "
+                + "and the archive is empty]"
         }
     }
 
