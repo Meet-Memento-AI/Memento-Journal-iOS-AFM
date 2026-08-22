@@ -357,6 +357,7 @@ struct ChatMessagesView: View {
         choreographer.begin(
             messageID: ticket.userMessageID,
             text: message.content,
+            imageJPEGs: message.imageJPEGs,
             wantsFlight: ticket.origin == .composer && !followTail,
             reduceMotion: reduceMotion
         )

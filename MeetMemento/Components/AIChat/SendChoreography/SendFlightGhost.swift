@@ -62,7 +62,7 @@ struct SendFlightGhost: View {
     /// Learns the landing size without touching the real row — which may not
     /// have been materialised by the `LazyVStack` yet.
     private var measuringProbe: some View {
-        UserBubbleSurface(text: flight.text)
+        UserBubbleSurface(text: flight.text, imageJPEGs: flight.imageJPEGs)
             .frame(maxWidth: maxBubbleWidth, alignment: .trailing)
             .fixedSize(horizontal: false, vertical: true)
             .hidden()
@@ -110,7 +110,7 @@ struct SendFlightGhost: View {
         // message, the whole third line of a dictated one. Only the width
         // animates now, and it only ever narrows (the composer is wider than the
         // bubble), so the clip can never crop content in either axis.
-        return UserBubbleSurface(text: flight.text, cornerRadius: radius)
+        return UserBubbleSurface(text: flight.text, cornerRadius: radius, imageJPEGs: flight.imageJPEGs)
             .frame(width: bubbleSize.width, height: bubbleSize.height, alignment: .topTrailing)
             .frame(width: rect.width, height: bubbleSize.height, alignment: .topTrailing)
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))

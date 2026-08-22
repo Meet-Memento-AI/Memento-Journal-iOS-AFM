@@ -36,6 +36,7 @@
 import Foundation
 import FoundationModels
 import os
+import UIKit
 
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
@@ -378,7 +379,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Availability → safety gate → turn classification → retrieval → stance → prompt.
     /// Pure aside from the availability await.
-    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskPreparation {
+    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskPreparation {
         let availability = await availability()
         guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
@@ -409,6 +410,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .continueConstrained, .continue:
             break
         }
+
+        async let visionTask: String? = Self.visionBlockIfNeeded(current: images, history: history)
 
         let budget = ContextBudget(window: Self.currentWindow())
 
@@ -474,6 +477,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             if isNewConversation { turnShapeCadence.reset() }
             return turnShapeCadence.resolve(for: stance)
         }()
+        let visionBlock = await visionTask
         let prompt = Self.buildAskPrompt(
             question: question,
             history: history,
@@ -482,7 +486,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             shape: shape,
             archiveEmpty: entries.isEmpty,
             budget: budget,
-            safetyConstrained: safety.action == .continueConstrained
+            safetyConstrained: safety.action == .continueConstrained,
+            imageCount: images.count,
+            historyImageCount: history.reduce(0) { $0 + $1.imageJPEGs.count },
+            canSeeImages: Self.canAttachImagesToModel,
+            visionBlock: visionBlock
         )
         // The degraded variant is a registry entry, never the heavy prompt
         // behind a lighter model (REQ-INT-010).
@@ -558,19 +566,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
-    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskResult {
         let clock = ContinuousClock()
         let started = clock.now
-        let prep = try await prepareAsk(question: question, history: history, entries: entries)
+        let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images)
         let session = takeSpeculativeSession(matching: prep.plan.fingerprint)
             ?? Self.makeSession(from: prep.plan)
         do {
-            let response = try await session.respond(
-                to: prep.prompt,
-                generating: AskAnswer.self,
-                options: Self.askOptions
-            )
-            let answer = response.content
+            let answer = try await Self.respondToAsk(session: session, prompt: prep.prompt,
+                                                     images: images, history: history)
             let result = try makeResult(heading1: answer.heading1, heading2: answer.heading2,
                               body: answer.body, citedRefs: answer.citedRefs,
                               prep: prep, question: question, latency: clock.now - started)
@@ -593,6 +597,109 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// fields (see AskAnswer's field-order comment).
     private static let askOptions = GenerationOptions(temperature: 0.7, maximumResponseTokens: 512)
 
+    /// Image attachments landed in the iOS 27 SDK (Xcode 27 / Swift 6.3+).
+    /// Same compiler-version gate as `contextSize` — `#available` cannot see
+    /// a member the iOS 26 SDK does not declare.
+    private static var canAttachImagesToModel: Bool {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) { return true }
+        #endif
+        return false
+    }
+
+    /// When the SDK cannot attach pixels, produce a Vision reading so the
+    /// model still has something to ground "what's in the photo" on.
+    private static func visionBlockIfNeeded(current: [Data], history: [ChatTurn]) async -> String? {
+        let hasImages = !current.isEmpty || history.contains { !$0.imageJPEGs.isEmpty }
+        guard hasImages, !canAttachImagesToModel else { return nil }
+        let block = await ChatImageUnderstanding.promptBlock(current: current, history: history)
+        return block.isEmpty ? nil : block
+    }
+
+    /// Decodes in-session JPEGs into labeled UIImages for the prompt builder.
+    private static func decodedAttachments(current: [Data], history: [ChatTurn]) -> [(label: String, image: UIImage)] {
+        var result: [(label: String, image: UIImage)] = []
+        for (turnIndex, turn) in history.enumerated() {
+            for (photoIndex, jpeg) in turn.imageJPEGs.enumerated() {
+                if let image = UIImage(data: jpeg) {
+                    result.append((
+                        "earlier-turn-\(turnIndex + 1)-photo-\(photoIndex + 1)",
+                        image
+                    ))
+                }
+            }
+        }
+        for (photoIndex, jpeg) in current.enumerated() {
+            if let image = UIImage(data: jpeg) {
+                result.append(("this-message-photo-\(photoIndex + 1)", image))
+            }
+        }
+        return result
+    }
+
+    /// One-shot Ask. Uses the prompt-builder + `Attachment` path when the
+    /// SDK can see images; otherwise the text-only `respond(to:)`.
+    private static func respondToAsk(
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn]
+    ) async throws -> AskAnswer {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let attachments = decodedAttachments(current: images, history: history)
+            if !attachments.isEmpty {
+                let response = try await session.respond(
+                    generating: AskAnswer.self,
+                    options: askOptions
+                ) {
+                    prompt
+                    for item in attachments {
+                        Attachment(item.image).label(item.label)
+                    }
+                }
+                return response.content
+            }
+        }
+        #endif
+        let response = try await session.respond(
+            to: prompt,
+            generating: AskAnswer.self,
+            options: askOptions
+        )
+        return response.content
+    }
+
+    /// Streaming Ask. Same vision gate as `respondToAsk`.
+    private static func streamAskResponse(
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn]
+    ) -> LanguageModelSession.ResponseStream<AskAnswer> {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let attachments = decodedAttachments(current: images, history: history)
+            if !attachments.isEmpty {
+                return session.streamResponse(
+                    generating: AskAnswer.self,
+                    options: askOptions
+                ) {
+                    prompt
+                    for item in attachments {
+                        Attachment(item.image).label(item.label)
+                    }
+                }
+            }
+        }
+        #endif
+        return session.streamResponse(
+            to: prompt,
+            generating: AskAnswer.self,
+            options: askOptions
+        )
+    }
+
     /// A stream with no new snapshot for this long is stalled (spec 029 R7).
     static let generationWatchdogTimeout: Duration = .seconds(30)
     /// How far the incremental output-safety scan re-reads behind its
@@ -610,7 +717,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         var citedRefs: [Int] = []
     }
 
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let clock = ContinuousClock()
@@ -619,7 +726,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 let spid = signposter.makeSignpostID()
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
-                    let prep = try await prepareAsk(question: question, history: history, entries: entries)
+                    let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images)
                     signposter.endInterval("prep", prepState)
 
                     // Spec 029 Amendment A: adopt the speculative session when
@@ -637,11 +744,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     LiveTurnClock.shared.start(.modelFirstToken)
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
 
-                    let stream = session.streamResponse(
-                        to: prep.prompt,
-                        generating: AskAnswer.self,
-                        options: Self.askOptions
-                    )
+                    let stream = Self.streamAskResponse(session: session, prompt: prep.prompt,
+                                                        images: images, history: history)
                     // The journals retrieval surfaced for a grounded turn — known
                     // now, before the first token. Emitting them on every delta
                     // lets the "Reviewed your journals" link appear right away
@@ -963,7 +1067,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
                                        stance: TurnStance, shape: RecallTurnShape,
                                        archiveEmpty: Bool, budget _: ContextBudget,
-                                       safetyConstrained: Bool = false) -> String {
+                                       safetyConstrained: Bool = false,
+                                       imageCount: Int = 0,
+                                       historyImageCount: Int = 0,
+                                       canSeeImages: Bool = false,
+                                       visionBlock: String? = nil) -> String {
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
         // conversation in journal entries. Spec 037: [Shape:] overlays A/B
@@ -1001,6 +1109,31 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     + "earlier in this conversation. Do not reopen an entry you already used "
                     + "in this thread."
             )
+        }
+        if imageCount > 0 || historyImageCount > 0 {
+            if canSeeImages {
+                var vision: [String] = []
+                if historyImageCount > 0 {
+                    vision.append(
+                        "Earlier messages in this conversation included photos, labeled earlier-turn-N-photo-M. If they ask about those photos, look at them."
+                    )
+                }
+                if imageCount > 0 {
+                    vision.append(
+                        "The person attached \(imageCount) photo\(imageCount == 1 ? "" : "s") to this message, labeled this-message-photo-1… in order. Look at each image. Ground what you say in what is visibly there. Refer to them as \"this photo\" or \"the first photo\" when it helps. Do not invent details that are not visible."
+                    )
+                }
+                parts.append(vision.joined(separator: " "))
+            } else if let visionBlock, !visionBlock.isEmpty {
+                parts.append(
+                    "The person attached photo\(imageCount + historyImageCount == 1 ? "" : "s"). A visual reading of each follows. Treat it as what is in the images. Refer to them as \"this photo\" or \"the first photo\" when it helps. Do not invent details beyond this reading and what they wrote.\n\n"
+                    + visionBlock
+                )
+            } else {
+                parts.append(
+                    "The person attached photo\(imageCount + historyImageCount == 1 ? "" : "s"). Image understanding is not available on this device, so you cannot see them. Acknowledge the attachment without describing what you cannot see."
+                )
+            }
         }
         parts.append("The person's latest message: \(question)")
         return parts.joined(separator: "\n\n")

@@ -2,12 +2,17 @@
 //  ChatInputField.swift
 //  MeetMemento
 //
-//  The chat composer: one 64pt capsule that morphs between three states.
-//  Figma 433:1077 (State=Default) and 431:6079 (State=Narration).
+//  The chat composer: one glass capsule that morphs between three states.
+//  Figma 433:1077 (State=Default), 431:6079 (State=Narration),
+//  431:5946 (attachments inside the glass).
 //
 //  - Default:   + · "Chat with Memento" · mic · voice button
 //  - Chat:      + · growing text field · mic · send
 //  - Narrate:   scrolling waveform · keyboard · send
+//
+//  Attached photos sit in a 112pt row *inside* the same glass, above the
+//  input row — not as a chip outside it. Up to three, equal flex, 16pt
+//  corners, close control on each thumb.
 //
 //  Everything lives inside a single capsule now. The previous design was three
 //  separate pills side by side plus a 280pt listening panel that took over the
@@ -39,7 +44,10 @@ struct ChatInputField: View {
     // MARK: - Properties
 
     @Binding var text: String
-    var onSend: () -> Void
+    /// JPEG bytes for photos attached to this draft. Empty when the send is
+    /// text-only. Fired *before* the field clears the draft, same as the
+    /// pre-send geometry capture.
+    var onSend: ([Data]) -> Void
     /// Called when the input field should be dismissed (e.g., tap outside)
     var onDismiss: (() -> Void)?
     /// Enters hands-free Narration Mode (the black waveform button). Only
@@ -74,9 +82,9 @@ struct ChatInputField: View {
     /// distinguishes them.
     @State private var dictationEnding: DictationEnding = .handToField
 
-    // Photo attachment
-    @State private var photoPickerItem: PhotosPickerItem?
-    @State private var attachedPhoto: UIImage?
+    // Photo attachments (Figma 431:5946 — up to three, inside the glass).
+    @State private var photoPickerItems: [PhotosPickerItem] = []
+    @State private var attachedPhotos: [AttachedChatPhoto] = []
 
     /// Unique identifier for this view's speech session ownership
     private let speechOwnerId = "ChatInputField"
@@ -88,7 +96,13 @@ struct ChatInputField: View {
     /// Figma: every control in the bar is a 40pt circle.
     private let iconButtonSize: CGFloat = 40
     private let glyphSize: CGFloat = 22          // icon-size: not user text
-    private let photoChipSize: CGFloat = 56
+    /// Figma 431:5946 — attachment thumbs inside the glass.
+    private let photoThumbHeight: CGFloat = 112
+    private static let maxAttachments = 3
+    private static let photoThumbSpacing: CGFloat = 8
+    /// Figma close control, inset from the thumb's top-trailing corner.
+    private let photoCloseInset: CGFloat = 10
+    private let photoCloseSize: CGFloat = 24
 
     /// Timing for the pill ⇄ composer morph.
     ///
@@ -115,11 +129,19 @@ struct ChatInputField: View {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var canSend: Bool {
+        !isTextEmpty || !attachedPhotos.isEmpty
+    }
+
+    private var remainingAttachmentSlots: Int {
+        max(0, Self.maxAttachments - attachedPhotos.count)
+    }
+
     // MARK: - Initializer
 
     init(
         text: Binding<String>,
-        onSend: @escaping () -> Void = {},
+        onSend: @escaping ([Data]) -> Void = { _ in },
         onDismiss: (() -> Void)? = nil,
         onNarrate: (() -> Void)? = nil,
         isInteractive: Bool = true,
@@ -140,28 +162,12 @@ struct ChatInputField: View {
 
     var body: some View {
         // One stack so AIChatView's ComposerHeightKey measures the attachment
-        // chip and transcript line too — anything that grows the composer has
-        // to be inside this, or the message list reserves the wrong space.
-        VStack(alignment: .leading, spacing: 8) {
-            if let attachedPhoto {
-                photoChip(attachedPhoto)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .bottomLeading)))
-            }
-
-            // NOTE: no live-transcript line while dictating. It used to sit
-            // here, but as a real row it grew the composer ~48pt the instant the
-            // mic was tapped — and `AIChatView` reserves the composer's measured
-            // height, so the whole conversation jumped. Waveform-only while
-            // recording is also what ChatGPT, WhatsApp voice notes, and system
-            // dictation all do; the words appear in the field when you stop.
-            // Nothing is posted without an explicit send gesture: the keyboard
-            // button puts the words in the field to read and edit, and only the
-            // send arrow sends.
-
-            capsule
-        }
+        // row too — anything that grows the composer has to be inside this, or
+        // the message list reserves the wrong space. Attachments live *inside*
+        // `capsule` (Figma 431:5946), not as a sibling chip above the glass.
+        capsule
         .accessibleAnimation(Self.stateChange, value: inputState)
-        .accessibleAnimation(Self.stateChange, value: attachedPhoto != nil)
+        .accessibleAnimation(Self.stateChange, value: attachedPhotos.map(\.id))
         .allowsHitTesting(isInteractive)
         // A single utterance can satisfy BOTH observers below (recording stops
         // with text present, then a final transcript lands). `consumeTranscriptOnce`
@@ -204,15 +210,9 @@ struct ChatInputField: View {
                 onDismiss?()
             }
         }
-        .onChange(of: photoPickerItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                if let data = try? await newItem.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data) {
-                    handleNewPhoto(uiImage)
-                }
-                photoPickerItem = nil
-            }
+        .onChange(of: photoPickerItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await ingestPickerItems(items) }
         }
         .modifier(SpeechAlertsModifier(
             showPermissionDenied: $showPermissionDenied,
@@ -225,31 +225,23 @@ struct ChatInputField: View {
     // MARK: - The Capsule
 
     private var capsule: some View {
-        // `.top`, not the default `.center`. At rest every child is 40pt inside a
-        // 64pt bar, so there is no slack and the two alignments are identical —
-        // the resting spacing is untouched. Once the field wraps, though, centre
-        // alignment drifts the controls down to the middle of a tall bar, away
-        // from the line being typed. Top-aligning pins them beside the first
-        // line, which is where the eye already is.
-        HStack(alignment: .top, spacing: 8) {
-            leadingContent
-
-            // Trailing controls. Both are 40pt circles in every state; only the
-            // glyph and the fill change, so the two slots stay put as the field
-            // morphs instead of sliding around.
-            HStack(alignment: .top, spacing: 8) {
-                trailingSecondaryButton
-                trailingPrimaryButton
+        // Attachments (when present) sit above the input row *inside* the same
+        // glass, matching Figma 431:5946: 112pt thumbs, 8pt gap, 10pt column
+        // gap, then the 64pt input row. Without photos this collapses to the
+        // original padded HStack so the resting 64pt silhouette is unchanged.
+        VStack(alignment: .leading, spacing: 10) {
+            if !attachedPhotos.isEmpty {
+                attachmentRow
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
             }
+
+            inputRow
+                .padding(.leading, inputState == .narrateActive ? 12 : 0)
         }
-        // Figma: px-12 by default, pl-24 while narrating (the waveform needs
-        // the extra breathing room the + button used to occupy).
-        .padding(.leading, inputState == .narrateActive ? 24 : 12)
+        .padding(.leading, 12)
         .padding(.trailing, 12)
-        .padding(.vertical, 12)
-        // minHeight, not a fixed height: the field grows to five lines and
-        // scales with Dynamic Type, and a hard 64 clips both.
-        .frame(minHeight: pillHeight)
+        .padding(.top, attachedPhotos.isEmpty ? 0 : 12)
+        .padding(.bottom, 0)
         .frame(maxWidth: .infinity)
         .rootEdgeInset()
         // Liquid Glass, `.regular` — the frosted variant, which is what spec 024
@@ -257,7 +249,7 @@ struct ChatInputField: View {
         // refraction but no frost, and this capsule floats over a scrolling
         // conversation, so the frosted legibility backing is the whole point.
         //
-        // Applied to the padded HStack itself, NOT as a `.background(Capsule())`
+        // Applied to the padded stack itself, NOT as a `.background(Capsule())`
         // layer. Only content composited *inside* the glass receives the
         // system's vibrancy treatment, which adapts colour and brightness to
         // whatever the glass is refracting; as a sibling background layer the
@@ -285,6 +277,49 @@ struct ChatInputField: View {
         .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xxl, style: .continuous))
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { onComposerFrame?($0) }
+    }
+
+    /// The + / field / trailing-controls row. Figma's input row is always the
+    /// 64pt bar (`py-12` around 40pt circles), whether or not thumbs sit above.
+    private var inputRow: some View {
+        // `.top`, not the default `.center`. At rest every child is 40pt inside a
+        // 64pt bar, so there is no slack and the two alignments are identical —
+        // the resting spacing is untouched. Once the field wraps, though, centre
+        // alignment drifts the controls down to the middle of a tall bar, away
+        // from the line being typed. Top-aligning pins them beside the first
+        // line, which is where the eye already is.
+        HStack(alignment: .top, spacing: 8) {
+            leadingContent
+
+            // Trailing controls. Both are 40pt circles in every state; only the
+            // glyph and the fill change, so the two slots stay put as the field
+            // morphs instead of sliding around.
+            HStack(alignment: .top, spacing: 8) {
+                trailingSecondaryButton
+                trailingPrimaryButton
+            }
+        }
+        .padding(.vertical, 12)
+        .frame(minHeight: pillHeight)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Figma 431:5946: three equal-flex 112pt thumbs, 8pt gap, 16pt corners.
+    private var attachmentRow: some View {
+        HStack(spacing: Self.photoThumbSpacing) {
+            ForEach(attachedPhotos) { photo in
+                photoThumb(photo)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: photoThumbHeight)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            attachedPhotos.count == 1
+            ? "1 photo attached"
+            : "\(attachedPhotos.count) photos attached"
+        )
     }
 
     // MARK: - Leading Content
@@ -360,19 +395,36 @@ struct ChatInputField: View {
     // MARK: - Attach Button (Figma "ic:round-plus")
 
     private var attachButton: some View {
-        PhotosPicker(selection: $photoPickerItem, matching: .images) {
+        PhotosPicker(
+            selection: $photoPickerItems,
+            maxSelectionCount: max(1, remainingAttachmentSlots),
+            matching: .images
+        ) {
             Image(systemName: "plus")
                 .font(.system(size: glyphSize, weight: .medium)) // icon-size: not user text
                 .foregroundStyle(theme.foreground)
                 .frame(width: iconButtonSize, height: iconButtonSize)
                 .contentShape(Circle())
         }
+        .disabled(remainingAttachmentSlots == 0)
+        .opacity(remainingAttachmentSlots == 0 ? 0.4 : 1)
         .accessibilityLabel("Attach photo")
-        .accessibilityHint(
-            attachedPhoto == nil
-            ? "Double-tap to choose a photo from your library"
-            : "Double-tap to replace the attached photo"
+        .accessibilityHint(attachAccessibilityHint)
+        .accessibilityValue(
+            attachedPhotos.isEmpty
+            ? "No photos attached"
+            : "\(attachedPhotos.count) of \(Self.maxAttachments) photos attached"
         )
+    }
+
+    private var attachAccessibilityHint: String {
+        if remainingAttachmentSlots == 0 {
+            return "You can attach up to \(Self.maxAttachments) photos"
+        }
+        if attachedPhotos.isEmpty {
+            return "Double-tap to choose photos from your library"
+        }
+        return "Double-tap to add another photo"
     }
 
     // MARK: - Trailing Buttons
@@ -456,12 +508,12 @@ struct ChatInputField: View {
                 .foregroundStyle(.white)
                 .frame(width: iconButtonSize, height: iconButtonSize)
                 .background(
-                    Circle().fill(isTextEmpty ? theme.primary.opacity(0.5) : theme.primary)
+                    Circle().fill(canSend ? theme.primary : theme.primary.opacity(0.5))
                 )
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .disabled(isTextEmpty)
+        .disabled(!canSend)
         .accessibilityLabel("Send message")
     }
 
@@ -504,31 +556,32 @@ struct ChatInputField: View {
         .accessibilityHint("Double-tap to stop recording and send what was heard")
     }
 
-    // MARK: - Photo Chip
+    // MARK: - Photo Thumbs (Figma 431:5946)
 
-    private func photoChip(_ image: UIImage) -> some View {
-        Image(uiImage: image)
+    private func photoThumb(_ photo: AttachedChatPhoto) -> some View {
+        Image(uiImage: photo.image)
             .resizable()
             .scaledToFill()
-            .frame(width: photoChipSize, height: photoChipSize)
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous))
+            .frame(maxWidth: .infinity, minHeight: photoThumbHeight, maxHeight: photoThumbHeight)
+            .clipped()
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    attachedPhoto = nil
+                    removePhoto(photo.id)
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20)) // icon-size: not user text
+                        .font(.system(size: photoCloseSize)) // icon-size: not user text
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(theme.background, theme.foreground)
+                        .frame(width: photoCloseSize, height: photoCloseSize)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .offset(x: 6, y: -6)
+                .padding(photoCloseInset)
                 .accessibilityLabel("Remove photo")
             }
-            .padding(.leading, 12)
-            .padding(.top, 6)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Attached photo")
     }
@@ -557,23 +610,44 @@ struct ChatInputField: View {
 
     // MARK: - Photo Actions
 
+    /// Loads picker items in order, downscales off the main thread, and appends
+    /// up to `maxAttachments`. Mirrors `AddEntryView.handleNewPhoto`.
+    @MainActor
+    private func ingestPickerItems(_ items: [PhotosPickerItem]) async {
+        photoPickerItems = []
+        var remaining = remainingAttachmentSlots
+        guard remaining > 0 else { return }
+
+        for item in items.prefix(remaining) {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let uiImage = UIImage(data: data) else { continue }
+            await appendPreparedPhoto(uiImage)
+            remaining -= 1
+            if remaining == 0 { break }
+        }
+    }
+
     /// Downscales/compresses off the main thread — a 12MP library photo through
     /// `UIGraphicsImageRenderer` is tens-to-hundreds of ms, which would stutter
-    /// the picker dismissal if done inline. Mirrors `AddEntryView.handleNewPhoto`.
-    private func handleNewPhoto(_ image: UIImage) {
-        Task {
-            let prepared: UIImage? = await Task.detached(priority: .userInitiated) {
-                guard let data = ImageProcessor.prepareForStorage(image) else { return nil }
-                return UIImage(data: data)
-            }.value
+    /// the picker dismissal if done inline.
+    private func appendPreparedPhoto(_ image: UIImage) async {
+        let prepared: (UIImage, Data)? = await Task.detached(priority: .userInitiated) {
+            guard let data = ImageProcessor.prepareForStorage(image),
+                  let uiImage = UIImage(data: data) else { return nil }
+            return (uiImage, data)
+        }.value
 
-            await MainActor.run {
-                guard let prepared else { return }
-                withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
-                    attachedPhoto = prepared
-                }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            }
+        guard let prepared else { return }
+        guard attachedPhotos.count < Self.maxAttachments else { return }
+        withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
+            attachedPhotos.append(AttachedChatPhoto(image: prepared.0, jpeg: prepared.1))
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func removePhoto(_ id: UUID) {
+        withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
+            attachedPhotos.removeAll { $0.id == id }
         }
     }
 
@@ -624,11 +698,15 @@ struct ChatInputField: View {
                 guard !didConsumeTranscript else { return }
                 let fallback = speechService.bestAvailableTranscript
                 if fallback.isEmpty {
-                    // Nothing was heard. Return to rest — notably this does NOT
-                    // send, even on the `.send` path, so an empty tap can't post
-                    // a blank prompt.
-                    collapseNarrateToDefault()
-                    speechService.clearTranscription()
+                    // Nothing was heard. Photos-only still sends — the draft
+                    // has something to post. An empty tap with no photos does
+                    // not, even on the `.send` path.
+                    if dictationEnding == .send && !attachedPhotos.isEmpty {
+                        sendMessage()
+                    } else {
+                        collapseNarrateToDefault()
+                        speechService.clearTranscription()
+                    }
                 } else {
                     consumeTranscriptOnce(fallback)
                 }
@@ -643,15 +721,12 @@ struct ChatInputField: View {
     }
 
     private func sendMessage() {
-        guard !isTextEmpty else { return }
+        guard canSend else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        onSend()
+        onSend(attachedPhotos.map(\.jpeg))
         // Return to default state after sending
         text = ""
-        // TODO: chat runs on the text-only on-device SystemLanguageModel, so
-        // nothing consumes the attachment yet — it is cleared with the draft
-        // rather than silently carried into the next message.
-        attachedPhoto = nil
+        attachedPhotos = []
         inputState = .defaultState
         // Focus is deliberately NOT dropped here. Dismissing the keyboard on
         // send dragged the footer ~300pt during the send flight and forced the
@@ -689,8 +764,8 @@ struct ChatInputField: View {
 
         switch dictationEnding {
         case .send:
-            // `sendMessage()` guards empty text, clears the draft and the
-            // attachment, and returns the field to rest.
+            // `sendMessage()` guards empty drafts, clears the text and the
+            // attachments, and returns the field to rest.
             sendMessage()
 
         case .handToField:
@@ -702,6 +777,24 @@ struct ChatInputField: View {
             isFocused = true
         }
     }
+}
+
+// MARK: - Attached photo (composer draft)
+
+/// One photo in the composer's in-glass attachment row. `jpeg` is the
+/// downscaled payload handed to `onSend`; `image` is the preview.
+private struct AttachedChatPhoto: Identifiable, Equatable {
+    let id: UUID
+    let image: UIImage
+    let jpeg: Data
+
+    init(id: UUID = UUID(), image: UIImage, jpeg: Data) {
+        self.id = id
+        self.image = image
+        self.jpeg = jpeg
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
 // MARK: - Speech Alerts Modifier
@@ -799,7 +892,7 @@ private struct ChatInputFieldPreview: View {
             Spacer()
             ChatInputField(
                 text: $text,
-                onSend: { AppLogger.log("Send: \(text)") },
+                onSend: { _ in AppLogger.log("Send: \(text)") },
                 initialState: initialState
             )
             .padding(.horizontal, 16)

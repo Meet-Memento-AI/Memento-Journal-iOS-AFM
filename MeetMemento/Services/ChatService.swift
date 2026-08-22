@@ -110,7 +110,8 @@ protocol ChatServiceProtocol: AnyObject {
     /// `sessionId` nil warms the empty-history first-turn session.
     func prewarmConversation(sessionId: UUID?)
     /// Streaming send: emits the reply as it generates, then a final response.
-    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
+    /// `images` are JPEG bytes attached to this turn (empty for text-only).
+    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data]) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
@@ -120,7 +121,9 @@ extension ChatServiceProtocol {
 
     /// Default streaming: run the one-shot `sendMessage` and emit a single
     /// delta + final. Mocks that only implement `sendMessage` still work.
-    func sendMessageStream(_ text: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    /// Images are ignored on this fallback — the live `ChatService` overrides
+    /// the images-aware requirement.
+    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data] = []) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -148,6 +151,12 @@ class ChatService {
     /// The on-device intelligence boundary. ChatService itself never imports
     /// FoundationModels — it depends only on the protocol (P3 / REQ-INT-001).
     private let intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared
+
+    /// In-session JPEG bytes per user turn, keyed by conversation. The store
+    /// stays text-only (spec 029: keep the transcript file small); follow-ups
+    /// in this launch still see earlier photos because history is rebuilt here.
+    private let attachmentLock = NSLock()
+    private var sessionUserImages: [UUID: [[Data]]] = [:]
 
     /// Warm the model AND precompute entry embeddings ahead of the first send,
     /// off the main thread, so message #1 doesn't pay cold model load + cold
@@ -212,7 +221,7 @@ class ChatService {
         let entries = loadLocalEntries()
 
         do {
-            let result = try await intelligence.ask(text, history: history, entries: entries)
+            let result = try await intelligence.ask(text, history: history, entries: entries, images: [])
 
             let sources = result.citations.map { citation in
                 ChatSource(
@@ -312,18 +321,20 @@ class ChatService {
     /// events (so the bubble fills as it generates), then persists the turn and
     /// emits `.final`. Persistence and citation mapping run *after* the stream
     /// so nothing blocks first-token.
-    func sendMessageStream(_ text: String, sessionId: UUID? = nil) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func sendMessageStream(_ text: String, sessionId: UUID? = nil, images: [Data] = []) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let conversationId = sessionId ?? UUID()
-                let history = Self.recentHistory(for: conversationId)
+                let history = self.historyWithImages(for: conversationId)
                 let entries = self.loadLocalEntries()
                 do {
                     var finalResult: AskResult?
                     // The reviewed set is constant for the whole turn — map it
                     // once instead of per delta (spec 029 Amendment A).
                     var deltaSources: [ChatSource]?
-                    for try await event in self.intelligence.askStream(text, history: history, entries: entries) {
+                    for try await event in self.intelligence.askStream(
+                        text, history: history, entries: entries, images: images
+                    ) {
                         switch event {
                         case .delta(let bodySoFar, let h1, let h2, let reviewed):
                             let sources = deltaSources ?? Self.sources(from: reviewed)
@@ -358,6 +369,7 @@ class ChatService {
             ),
                         to: conversationId
                     )
+                    self.rememberUserImages(images, for: conversationId)
                     PerfSignposts.chatTurn.endInterval("persist.turn", persistState)
                     LiveTurnClock.shared.end(.persist)
                     continuation.yield(.final(ChatResponse(
@@ -380,6 +392,7 @@ class ChatService {
                     if let designed = Self.persistDesignedSafetyReply(
                         error, userText: text, conversationId: conversationId
                     ) {
+                        self.rememberUserImages(images, for: conversationId)
                         continuation.yield(.final(designed))
                         continuation.finish()
                     } else {
@@ -396,6 +409,9 @@ class ChatService {
     // MARK: - History Management
 
     func clearHistory() async throws {
+        attachmentLock.lock()
+        sessionUserImages.removeAll()
+        attachmentLock.unlock()
         LocalChatStore.shared.clear()
                 AppLogger.log("🗑️ [ChatService] Local chat history cleared")
     }
@@ -418,8 +434,37 @@ class ChatService {
 
     /// Deletes a chat session and its messages.
     func deleteSession(sessionId: UUID) async throws {
+        attachmentLock.lock()
+        sessionUserImages[sessionId] = nil
+        attachmentLock.unlock()
         LocalChatStore.shared.deleteSession(sessionId)
                 AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
+    }
+
+    /// Recent store history with in-session photo bytes reattached to user turns.
+    private func historyWithImages(for conversationId: UUID) -> [ChatTurn] {
+        let turns = Self.recentHistory(for: conversationId)
+        attachmentLock.lock()
+        let stored = sessionUserImages[conversationId] ?? []
+        attachmentLock.unlock()
+        guard !stored.isEmpty else { return turns }
+
+        let userCount = turns.reduce(0) { $0 + ($1.role == .user ? 1 : 0) }
+        let imageTail = Array(stored.suffix(userCount))
+        var index = 0
+        return turns.map { turn in
+            guard turn.role == .user else { return turn }
+            let images = index < imageTail.count ? imageTail[index] : []
+            index += 1
+            return ChatTurn(role: .user, text: turn.text, imageJPEGs: images)
+        }
+    }
+
+    private func rememberUserImages(_ images: [Data], for conversationId: UUID) {
+        guard !images.isEmpty else { return }
+        attachmentLock.lock()
+        sessionUserImages[conversationId, default: []].append(images)
+        attachmentLock.unlock()
     }
 
     /// Only the trailing slice of a conversation ever reaches the model: the

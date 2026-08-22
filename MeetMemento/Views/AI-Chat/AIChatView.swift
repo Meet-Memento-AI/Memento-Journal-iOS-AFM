@@ -43,7 +43,8 @@ public struct AIChatView: View {
     /// compact voice; the X persists dismissal so it never reappears.
     @State private var selectedCitations: CitationsWrapper? = nil
     /// Measured footer height (composer or narration stack), excluding the
-    /// scaffold's `windowBottom + 16` pad.
+    /// scaffold's bottom pad (`windowBottom + 16` at rest, `keyboardHeight + 16`
+    /// with the keyboard up).
     @State private var footerHeight: CGFloat = 80
     @State private var showChatHistorySheet = false
     @State private var showSummarySheet = false
@@ -116,9 +117,14 @@ public struct AIChatView: View {
         footerHeight + AppHeaderMetrics.windowBottom + footerBottomPadding + 8
     }
 
+    /// Extra air the scaffold adds under the composer, on top of `windowBottom`.
+    ///
+    /// Resting: 16pt above the home indicator. Keyboard up: 16pt above the
+    /// keys (`keyboardHeight - windowBottom + 16`), matching AddEntryView.
     private var keyboardBottomPadding: CGFloat {
         if keyboardObserver.isKeyboardVisible {
             return max(keyboardObserver.keyboardHeight - AppHeaderMetrics.windowBottom, 0)
+                + AppHeaderMetrics.rowBottomPadding
         }
         return AppHeaderMetrics.rowBottomPadding
     }
@@ -350,14 +356,14 @@ public struct AIChatView: View {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
                     isSending: viewModel.isLoading,
-                    onSend: {
-                        // Synchronous, and it must run first: ChatInputField
-                        // fires `onSend()` before it clears the text, so this
-                        // is the last moment the composer's pre-send frame is
-                        // the one on screen.
-                        choreographer.captureOrigin()
-                        viewModel.sendMessage()
-                    },
+                    onSend: { images in
+                    // Synchronous, and it must run first: ChatInputField
+                    // fires `onSend` before it clears the text, so this
+                    // is the last moment the composer's pre-send frame is
+                    // the one on screen.
+                    choreographer.captureOrigin()
+                    viewModel.sendMessage(images: images)
+                },
                     onNarrate: startNarration,
                     onComposerFrame: { choreographer.composerFrame = $0 }
                 )

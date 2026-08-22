@@ -355,4 +355,28 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(result.title, "T")
         XCTAssertEqual(result.content, "C")
     }
+
+    func test_sendMessage_photosOnly_doesNotRequireText() async throws {
+        let mock = MockChatService()
+        mock.fetchSessionsImpl = { [] }
+        mock.sendMessageImpl = { text, _ in
+            XCTAssertTrue(text.contains("photo"), "photo-only sends still give the model a prompt")
+            return ChatResponse(
+                reply: "I see a quiet street at dusk.",
+                heading1: nil, heading2: nil,
+                citedEntryIds: nil, sources: [],
+                sessionId: UUID().uuidString
+            )
+        }
+        let vm = ChatViewModel(chatService: mock)
+        let jpeg = Data([0xFF, 0xD8, 0xFF])
+
+        vm.sendMessage(images: [jpeg])
+        await waitForLoadingFalse(vm)
+
+        let user = vm.messages.first { $0.isFromUser }
+        XCTAssertEqual(user?.content, "")
+        XCTAssertEqual(user?.imageJPEGs, [jpeg])
+        XCTAssertTrue(vm.messages.contains { !$0.isFromUser && $0.content.contains("street") })
+    }
 }

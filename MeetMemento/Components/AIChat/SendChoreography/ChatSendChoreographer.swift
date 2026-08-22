@@ -182,6 +182,7 @@ final class ChatSendChoreographer: ObservableObject {
     struct Flight: Equatable, Identifiable {
         let id: UUID          // == the user message's id
         let text: String
+        let imageJPEGs: [Data]
         let origin: CGRect    // composer capsule, in ChatSpace.page
         let column: CGRect    // transcript column, in ChatSpace.page
 
@@ -247,7 +248,7 @@ final class ChatSendChoreographer: ObservableObject {
 
     /// Begins a turn. Falls back to an instant pin — no ghost — whenever a
     /// flight would be wrong or impossible.
-    func begin(messageID: UUID, text: String, wantsFlight: Bool, reduceMotion: Bool) {
+    func begin(messageID: UUID, text: String, imageJPEGs: [Data] = [], wantsFlight: Bool, reduceMotion: Bool) {
         watchdog?.cancel()
         watchdog = nil
 
@@ -265,7 +266,7 @@ final class ChatSendChoreographer: ObservableObject {
         }
 
         phase = .preparing(messageID: messageID)
-        flight = Flight(id: messageID, text: text, origin: origin, column: column, pinOffset: nil)
+        flight = Flight(id: messageID, text: text, imageJPEGs: imageJPEGs, origin: origin, column: column, pinOffset: nil)
         capturedOrigin = nil
 
         UIAccessibility.post(notification: .announcement, argument: "Message sent")

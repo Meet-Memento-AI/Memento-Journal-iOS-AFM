@@ -9,7 +9,7 @@ final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {
     var estimateCallCount = 0
     var lastEstimateReflection: String?
 
-    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data] = []) async throws -> AskResult {
         AskResult(
             heading1: nil,
             heading2: nil,

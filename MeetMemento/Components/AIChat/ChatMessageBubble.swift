@@ -71,7 +71,7 @@ public struct ChatMessageBubble: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     // Shared with the send choreography's flying ghost so the
                     // two cannot drift apart — see `UserBubbleSurface`.
-                    UserBubbleSurface(text: message.content)
+                    UserBubbleSurface(text: message.content, imageJPEGs: message.imageJPEGs)
 
                     if message.sendFailed {
                         retryRow

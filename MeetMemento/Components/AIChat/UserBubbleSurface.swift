@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// The filled, rounded surface a user's message sits in.
 ///
@@ -42,29 +43,63 @@ struct UserBubbleSurface: View {
     let text: String
     /// Resting radius (`theme.radius.lg`) when nil.
     var cornerRadius: CGFloat?
+    /// Photos attached to this user turn. Shown above the text when present.
+    var imageJPEGs: [Data] = []
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    init(text: String, cornerRadius: CGFloat? = nil) {
+    init(text: String, cornerRadius: CGFloat? = nil, imageJPEGs: [Data] = []) {
         self.text = text
         self.cornerRadius = cornerRadius
+        self.imageJPEGs = imageJPEGs
+    }
+
+    private var hasText: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
-        Text(text)
-            .font(type.body1.weight(.medium))
-            .foregroundStyle(theme.foreground)
-            .lineSpacing(type.bodyLineSpacing)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.secondary)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: cornerRadius ?? theme.radius.lg,
-                    style: .continuous
-                )
+        VStack(alignment: .trailing, spacing: 8) {
+            if !imageJPEGs.isEmpty {
+                bubblePhotoRow
+            }
+            if hasText {
+                Text(text)
+                    .font(type.body1.weight(.medium))
+                    .foregroundStyle(theme.foreground)
+                    .lineSpacing(type.bodyLineSpacing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.md)
+        .background(theme.secondary)
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: cornerRadius ?? theme.radius.lg,
+                style: .continuous
             )
+        )
+    }
+
+    /// Compact thumbs in the transcript — the composer uses 112pt inside the
+    /// glass; the bubble is a record of the send, not a second composer.
+    private var bubblePhotoRow: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(imageJPEGs.enumerated()), id: \.offset) { _, jpeg in
+                if let image = UIImage(data: jpeg) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipShape(
+                            RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
+                        )
+                        .accessibilityLabel("Attached photo")
+                }
+            }
+        }
     }
 }
 

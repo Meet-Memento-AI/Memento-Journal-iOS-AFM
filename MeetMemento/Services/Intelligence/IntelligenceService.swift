@@ -65,6 +65,16 @@ struct ChatTurn: Sendable, Equatable {
     enum Role: String, Sendable { case user, assistant }
     let role: Role
     let text: String
+    /// JPEG bytes attached to this turn. Empty for assistant turns and for
+    /// text-only user turns. Kept on the in-session history so follow-ups can
+    /// still see earlier photos; the store itself stays text-only.
+    let imageJPEGs: [Data]
+
+    init(role: Role, text: String, imageJPEGs: [Data] = []) {
+        self.role = role
+        self.text = text
+        self.imageJPEGs = imageJPEGs
+    }
 }
 
 // MARK: - Ask output
@@ -215,11 +225,11 @@ protocol IntelligenceService: Sendable {
     /// on-device entries the retriever selects from; `history` is the prior
     /// conversation (oldest first) so follow-ups have context. Stateless — the
     /// caller owns the transcript.
-    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskResult
 
     /// Streaming variant of `ask` (spec 017 R6): emits the reply as it
     /// generates so the UI shows text immediately instead of after completion.
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error>
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error>
 
     /// Turn a conversation into a first-person journal-entry summary.
     ///
@@ -251,15 +261,25 @@ extension IntelligenceService {
 
     func prewarmConversation(history: [ChatTurn]) {}
 
+    /// Convenience for text-only callers (onboarding, tests). Forwards to the
+    /// images-aware requirement with an empty attachment list.
+    func ask(_ question: String, history: [ChatTurn], entries: [Entry]) async throws -> AskResult {
+        try await ask(question, history: history, entries: entries, images: [])
+    }
+
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        askStream(question, history: history, entries: entries, images: [])
+    }
+
     /// Default streaming implementation: run the one-shot `ask` and emit a
     /// single delta + final. Mocks and any non-streaming implementation get
     /// correct (if non-incremental) behavior for free; the real Foundation
     /// Models service overrides this with true snapshot streaming.
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let result = try await ask(question, history: history, entries: entries)
+                    let result = try await ask(question, history: history, entries: entries, images: images)
                     continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1,
                                               heading2: result.heading2, reviewedCitations: result.citations))
                     continuation.yield(.final(result))

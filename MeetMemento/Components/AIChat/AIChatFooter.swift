@@ -13,7 +13,7 @@ import SwiftUI
 struct AIChatFooter: View {
     @Binding var inputText: String
     var isSending: Bool
-    var onSend: () -> Void
+    var onSend: ([Data]) -> Void
     var onNarrate: (() -> Void)?
     /// Forwarded to `ChatInputField` so the send choreography can read the
     /// composer's pre-send frame.
@@ -22,7 +22,7 @@ struct AIChatFooter: View {
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
-        onSend: @escaping () -> Void,
+        onSend: @escaping ([Data]) -> Void,
         onNarrate: (() -> Void)? = nil,
         onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
@@ -42,8 +42,9 @@ struct AIChatFooter: View {
             onComposerFrame: onComposerFrame
         )
         // 16pt above the field. Horizontal inset is `rootEdgeInset()` on the
-        // capsule, applied before glass. Bottom offset is `windowBottom + 16`,
-        // applied by AIChatView's scaffold.
+        // capsule, applied before glass. Bottom offset is applied by
+        // AIChatView's scaffold: `windowBottom + 16` at rest, `keyboardHeight
+        // + 16` with the keyboard up so the capsule never sits on the keys.
         .padding(.top, 16)
         .opacity(isSending ? 0.7 : 1.0)
     }
@@ -56,7 +57,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { AppLogger.log("Send tapped") }
+            onSend: { _ in AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -69,7 +70,7 @@ struct AIChatFooter: View {
         AIChatFooter(
             inputText: .constant("What patterns do you see?"),
             isSending: true,
-            onSend: { AppLogger.log("Send tapped") }
+            onSend: { _ in AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -81,7 +82,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { AppLogger.log("Send tapped") }
+            onSend: { _ in AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -111,7 +112,7 @@ private struct AIChatFooterInteractivePreview: View {
             AIChatFooter(
                 inputText: $inputText,
                 isSending: isSending,
-                onSend: {
+                onSend: { _ in
                     isSending = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         isSending = false

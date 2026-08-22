@@ -276,23 +276,38 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Send Message
 
-    func sendMessage(prompt: String? = nil, origin: SendOrigin = .composer) {
-        let text: String
+    func sendMessage(prompt: String? = nil, images: [Data] = [], origin: SendOrigin = .composer) {
+        let typed: String
         if let prompt = prompt {
-            text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            typed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+            typed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        guard !text.isEmpty, !isLoading else { return }
+        guard !isLoading else { return }
+        let modelText: String
+        if typed.isEmpty {
+            guard !images.isEmpty else { return }
+            modelText = Self.attachedPhotosPrompt(count: images.count)
+        } else {
+            modelText = typed
+        }
 
         if prompt == nil {
             inputText = ""
         }
 
-        let userMessage = ChatMessage(content: text, isFromUser: true, isNew: true)
+        let userMessage = ChatMessage(content: typed, isFromUser: true, imageJPEGs: images, isNew: true)
         appendMessage(userMessage)
 
-        performSend(text: text, userMessageId: userMessage.id, origin: origin)
+        performSend(text: modelText, images: images, userMessageId: userMessage.id, origin: origin)
+    }
+
+    /// Copy the model reads when the person sends photos without typing.
+    static func attachedPhotosPrompt(count: Int) -> String {
+        if count <= 1 {
+            return "I've attached a photo. Look at it carefully and respond to what you see."
+        }
+        return "I've attached \(count) photos. Look at them carefully and respond to what you see."
     }
 
     /// Retries a user message that previously failed to send (spec-010),
@@ -300,7 +315,11 @@ class ChatViewModel: ObservableObject {
     func retryMessage(_ message: ChatMessage) {
         guard message.isFromUser, message.sendFailed, !isLoading else { return }
         setSendFailed(false, forMessageId: message.id)
-        performSend(text: message.content, userMessageId: message.id, origin: .retry)
+        let typed = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let modelText = typed.isEmpty
+            ? Self.attachedPhotosPrompt(count: message.imageJPEGs.count)
+            : typed
+        performSend(text: modelText, images: message.imageJPEGs, userMessageId: message.id, origin: .retry)
     }
 
     private func setSendFailed(_ failed: Bool, forMessageId id: UUID) {
@@ -312,7 +331,7 @@ class ChatViewModel: ObservableObject {
     /// one. On failure, the user's message stays in the transcript marked
     /// `sendFailed` — never rolled back — so retrying doesn't require
     /// retyping.
-    private func performSend(text: String, userMessageId: UUID, origin: SendOrigin) {
+    private func performSend(text: String, images: [Data] = [], userMessageId: UUID, origin: SendOrigin) {
         isLoading = true
         let generation = sendGeneration
         let turn = TurnClassifier.classify(text, hasHistory: messages.count > 1)
@@ -387,7 +406,9 @@ class ChatViewModel: ObservableObject {
             }
 
             do {
-                for try await event in chatService.sendMessageStream(text, sessionId: currentSessionId) {
+                for try await event in chatService.sendMessageStream(
+                    text, sessionId: currentSessionId, images: images
+                ) {
                     // Cancelled or superseded mid-flight (user left / switched
                     // conversations): stop writing into whatever is on screen now.
                     guard generation == sendGeneration, !Task.isCancelled else { return }

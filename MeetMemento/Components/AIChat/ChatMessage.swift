@@ -109,6 +109,12 @@ public struct ChatMessage: Identifiable, Hashable {
     public let timestamp: Date
     public let citations: [JournalCitation]?
 
+    /// JPEG bytes for photos the user attached to this turn. Empty for
+    /// assistant messages and for text-only user turns. In-memory for the
+    /// current session so follow-ups can still see the pixels; not persisted
+    /// with the transcript store (those files stay small and text-only).
+    public var imageJPEGs: [Data]
+
     // Structured content for AI messages (optional)
     public let aiOutputContent: AIOutputContent?
 
@@ -138,6 +144,7 @@ public struct ChatMessage: Identifiable, Hashable {
         isFromUser: Bool,
         timestamp: Date = Date(),
         citations: [JournalCitation]? = nil,
+        imageJPEGs: [Data] = [],
         aiOutputContent: AIOutputContent? = nil,
         safetyPresentation: ChatSafetyPresentation = .none,
         isNew: Bool = false,
@@ -149,6 +156,7 @@ public struct ChatMessage: Identifiable, Hashable {
         self.isFromUser = isFromUser
         self.timestamp = timestamp
         self.citations = citations
+        self.imageJPEGs = imageJPEGs
         self.aiOutputContent = aiOutputContent
         self.safetyPresentation = safetyPresentation
         self.isNew = isNew
