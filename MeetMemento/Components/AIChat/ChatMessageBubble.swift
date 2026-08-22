@@ -133,10 +133,9 @@ public struct ChatMessageBubble: View {
                 // line's height, which is the gap above the loading indicator.
                 EmptyView()
             } else {
-                Text(LocalizedStringKey(cleanContent))
-                    .font(type.body1)
-                    .foregroundStyle(theme.foreground)
-                    .lineSpacing(type.bodyLineSpacing)
+                MarkdownBodyView(
+                    blocks: RichTextParser.parseBlocks(cleanContent, lastLineClosed: true)
+                )
             }
         }
     }
@@ -222,7 +221,7 @@ public struct ChatMessageBubble: View {
 #Preview("AI Message with Markdown") {
     ChatMessageBubble(
         message: ChatMessage(
-            content: "This is **bold text** and this is *italic text*. You can also include `code` snippets.",
+            content: "This is **bold text** and this is *italic text*.\n\n### A moment\n1. First dated beat\n2. Next dated beat\n\n- Sit with the notebook\n- Answer from your entries",
             isFromUser: false
         )
     )

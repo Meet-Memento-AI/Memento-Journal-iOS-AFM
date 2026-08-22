@@ -5,7 +5,7 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask@10")
+        XCTAssertEqual(resolved.version, "ask@11")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@10+p2")
+        XCTAssertEqual(resolved.version, "ask@11+p2")
         XCTAssertTrue(resolved.text.contains("Themes they chose: Stress, Clarity"))
         XCTAssertTrue(resolved.text.contains("Personalization lens:"))
         // With themes/lens present, raw reflection must not be quoted into L1.
@@ -59,7 +59,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@10+p2")
+        XCTAssertEqual(resolved.version, "ask@11+p2")
         XCTAssertTrue(resolved.text.contains("I want to understand my stress patterns more deeply"))
     }
 
@@ -71,7 +71,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@10+p2")
+        XCTAssertEqual(resolved.version, "ask-degraded@11+p2")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
     }
 
@@ -97,8 +97,43 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertTrue(AskAnswerGuides.body.contains("complete spoken reply"))
         XCTAssertTrue(AskAnswerGuides.body.contains("Meet them"))
         XCTAssertTrue(AskAnswerGuides.body.contains("Never a one-sentence caption"))
+        XCTAssertTrue(AskAnswerGuides.body.contains("Markdown subset allowed"))
         XCTAssertTrue(AskAnswerGuides.heading1.hasPrefix("Always empty on conversational Ask"))
         XCTAssertEqual(AskAnswerGuides.heading2, "Always empty on conversational Ask.")
+    }
+
+    func test_ask11_markdownGrammar_onFullAndDegraded() {
+        for degraded in [false, true] {
+            let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
+            XCTAssertFalse(
+                text.contains("plain spoken prose only"),
+                "degraded=\(degraded): the no-markdown ban must be gone"
+            )
+            XCTAssertTrue(text.contains("###"), "degraded=\(degraded): ### heading grammar")
+            XCTAssertTrue(
+                text.contains("no headings or lists") || text.contains("Zero markdown structure"),
+                "degraded=\(degraded): casual must forbid lists"
+            )
+            XCTAssertTrue(
+                text.contains("italic") || text.contains("*italic*"),
+                "degraded=\(degraded): italic quotes"
+            )
+            XCTAssertTrue(
+                text.contains("what you can do together"),
+                "degraded=\(degraded): about-the-app capability list"
+            )
+            XCTAssertTrue(
+                text.contains("lists only if they asked what they"),
+                "degraded=\(degraded): topic inventory may list"
+            )
+            XCTAssertTrue(text.contains("heading1 and heading2 stay empty"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("Never write more than one ###"), "degraded=\(degraded)")
+        }
+        let full = PromptRegistry.instructions(for: .ask).text
+        XCTAssertTrue(full.contains("Markdown you may use"))
+        XCTAssertTrue(full.contains("exact journal quotes"))
+        XCTAssertTrue(full.contains("unordered lists starting with"))
+        XCTAssertTrue(full.contains("ordered lists starting with"))
     }
 
     func test_ask6_safetyHardBans_onFullAndDegraded() {

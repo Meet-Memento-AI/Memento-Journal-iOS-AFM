@@ -86,8 +86,8 @@ final class ConversationalRecallContractTests: XCTestCase {
     // MARK: R5 / R1 — version and notebook voice
 
     func test_ask9_versions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@10")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@10")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@11")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@11")
     }
 
     func test_notebookVoice_andShapeContract() {

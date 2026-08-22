@@ -2,7 +2,7 @@
 id: 037
 title: Conversational Recall Experience
 tier: P1
-status: in-progress (2026-08-20) — ask@10 conversational skeleton (Meet / Notebook / Sit / Open); Shape gates Open only; device goldens still pending
+status: in-progress (2026-08-22) — ask@11 markdown subset in `body`; guided heading1/heading2 stay empty; Meet / Notebook / Sit / Open; device goldens still pending
 effort: 1 session
 depends_on: [017, 022, 026, 028]
 findings: [notebook-beside-them-voice, turn-shape-cadence, empty-recall-direct, prompt-entry-cap, conversational-reply-skeleton]
@@ -86,6 +86,13 @@ Ask is a notebook beside them, not a search engine and not a therapist.
 four composition pieces, no-count / no-advice / no-praise bans. Guided
 `AskAnswer.body` is the complete spoken reply; `heading1` / `heading2` stay
 empty.
+
+**Amendment (ask@11, 2026-08-22):** `body` may contain a markdown subset
+(`###` headings, paragraphs, `- ` / `1. ` lists, italic quotes, sparse bold)
+so Notebook is visible and topic/span asks can list dated moments. Guided
+`heading1` / `heading2` **remain empty** — titles are markdown in `body`, not
+decode-leading fields. Casual turns still have zero markdown structure.
+Shipping versions: `ask@11` / `ask-degraded@11`.
 
 ### R2. Turn shapes A–D
 
@@ -347,12 +354,13 @@ prose. `[Turn:]` is guidance, not a script.
 - [x] 6. Cap Ask retrieval at 3–5 entries (`EntryRetriever.maxEntries` + `RetrievalLimits(budget:)`) (R7).
 - [x] 7. Contract tests: stance sync, versions, six eval cases without counts, cadence never two B, retrieval cap (R3, R6, R7).
 - [x] 8. ask@10 conversational skeleton: Meet / Notebook / Sit / Open; Shape gates Open only; headings empty; stance lines describe pieces (R1, R8).
+- [x] 9. ask@11 markdown subset in `body` (`###`, lists, italic quotes); guided heading fields stay empty; casual forbids lists.
 
 ## Verification
 
-- [x] `PromptRegistry.instructions(for: .ask).version == "ask@10"` (degraded `ask-degraded@10`).
+- [x] `PromptRegistry.instructions(for: .ask).version == "ask@11"` (degraded `ask-degraded@11`).
 - [x] Full and degraded prompts contain "Safety hard bans", violence, terrorism, crisis counseling; do **not** contain "988 Suicide & Crisis Lifeline".
-- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@10`; journal grounded line has no mandatory "ask one forward question" and no "answer and stop".
+- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@11`; journal grounded line has no mandatory "ask one forward question" and no "answer and stop".
 - [x] Cadence unit tests: first journal → B; after B → A; after A → B; never two B. Shape A overlay has no "and stop".
 - [x] `RetrievalLimits(budget:)` `maxEntries <= 5`; `EntryRetriever.maxEntries == 5`.
 - [x] Contract tests pin: no emotion labels, no advice, no counts, direct empty recall, Sit required on journal turns, `citedRefs` still requested, four composition pieces, no "Follow it exactly".

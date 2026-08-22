@@ -4,8 +4,8 @@ import XCTest
 /// The `[ref N]` labels in the context block are an internal handle for
 /// `citedRefs`, not a citation style — but they sit in the model's context as
 /// the naming convention for entries, so a small on-device model leaks them
-/// into prose. Nothing downstream strips them (`RichTextParser` handles only
-/// bold/italic/bullets), so whatever the model writes reaches the screen.
+/// into prose. `RichTextParser` leaves `[n]` as plain text (not a markdown
+/// link); the stripper is the backstop so leaked markers never reach the screen.
 ///
 /// These pin the backstop. Inline citations return in a later release, at which
 /// point this whole surface goes away.

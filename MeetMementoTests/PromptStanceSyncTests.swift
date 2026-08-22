@@ -22,8 +22,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@10")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@10")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@11")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@11")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 
@@ -42,7 +42,8 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertTrue(prompt.contains("conversation, not a report"))
         XCTAssertTrue(prompt.contains("Meet them"))
         XCTAssertTrue(prompt.contains("one notebook moment")
-            || prompt.contains("one dated moment"))
+            || prompt.contains("one dated moment")
+            || prompt.contains("one ### notebook moment"))
         XCTAssertFalse(prompt.contains("Follow it exactly"))
         XCTAssertFalse(prompt.contains("answer and stop"))
     }
@@ -60,14 +61,18 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertTrue(line.contains("Meet them"))
         XCTAssertTrue(line.contains("Sit"))
         XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertTrue(line.contains("###"))
+        XCTAssertTrue(line.contains("italic exact quote"))
         XCTAssertFalse(line.contains("answer and stop"))
         XCTAssertFalse(line.contains("ask one forward question"))
         XCTAssertTrue(TurnStance.followupThread.promptLine.contains("entry inventory"))
+        XCTAssertTrue(TurnStance.followupThread.promptLine.contains("new heading"))
     }
 
     func test_casualStance_isNotALengthQuota() {
         let line = TurnStance.casual.promptLine
         XCTAssertTrue(line.contains("Meet them"))
+        XCTAssertTrue(line.contains("no headings or lists"))
         XCTAssertFalse(line.contains("one or two friendly sentences"))
         XCTAssertFalse(line.contains("answer and stop"))
     }
@@ -77,6 +82,7 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertTrue(line.contains("don't see anything from that stretch"))
         XCTAssertTrue(line.contains("do not invent"))
         XCTAssertTrue(line.contains("do not change the subject"))
+        XCTAssertTrue(line.contains("no heading, no list"))
         XCTAssertFalse(line.contains("invite them to write about it"))
         XCTAssertFalse(line.contains("answer and stop"))
     }
