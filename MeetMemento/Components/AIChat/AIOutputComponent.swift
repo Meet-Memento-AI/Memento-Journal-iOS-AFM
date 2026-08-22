@@ -141,31 +141,24 @@ public struct AIOutputComponent: View {
         return text.index(after: newline)
     }
 
-    /// Single-entry memo for `RichTextParser.parse`. A class (not @State value)
-    /// on purpose: `bodyText` re-evaluates every tick, and mutating a boxed
+    /// Single-entry memo for `RichTextParser.parseBlocks`. A class (not @State
+    /// value) on purpose: the body re-evaluates every tick, and mutating a boxed
     /// cache during body evaluation publishes nothing — no re-render loop.
-    /// Keyed on the exact inputs, so a theme or Dynamic Type change simply
-    /// misses and re-parses.
+    /// Keyed on the exact inputs so a settled vs streaming last-line flip misses
+    /// and re-parses.
     private final class ParseCache {
         private var text: String?
-        private var baseFont: Font?
-        private var boldFont: Font?
-        private var textColor: Color?
-        private var attr = AttributedString()
+        private var lastLineClosed: Bool?
+        private var blocks: [MarkdownBlock] = []
 
-        func parse(_ text: String, baseFont: Font, boldFont: Font, textColor: Color) -> AttributedString {
-            if text == self.text, baseFont == self.baseFont,
-               boldFont == self.boldFont, textColor == self.textColor {
-                return attr
+        func parse(_ text: String, lastLineClosed: Bool) -> [MarkdownBlock] {
+            if text == self.text, lastLineClosed == self.lastLineClosed {
+                return blocks
             }
-            let parsed = RichTextParser.parse(
-                text, baseFont: baseFont, boldFont: boldFont, textColor: textColor
-            )
+            let parsed = RichTextParser.parseBlocks(text, lastLineClosed: lastLineClosed)
             self.text = text
-            self.baseFont = baseFont
-            self.boldFont = boldFont
-            self.textColor = textColor
-            self.attr = parsed
+            self.lastLineClosed = lastLineClosed
+            self.blocks = parsed
             return parsed
         }
     }
@@ -267,9 +260,6 @@ public struct AIOutputComponent: View {
         String(tBody.prefix(max(0, displayedCount - tHeading1.count - tHeading2.count)))
     }
 
-    /// Still revealing characters (or the stream is live): show a trailing caret.
-    private var isTyping: Bool { animate && (displayedCount < totalCount || streamingState) }
-
     /// Actively revealing backlog — apply the leading-edge dissolve. When caught
     /// up (a pause, or the end) text sits solid, matching ChatGPT.
     private var isDissolving: Bool { animate && displayedCount < totalCount }
@@ -282,70 +272,22 @@ public struct AIOutputComponent: View {
         animate && streamingState && displayedCount >= totalCount && !shownBody.isEmpty
     }
 
-    /// The body as a `Text` with the ChatGPT dissolve applied. Parses the shown
-    /// prefix (markdown / RAG styling preserved), fades the newest `dissolveRamp`
-    /// characters from faint to full so the leading edge melts in, and folds the
-    /// caret into the same `AttributedString` (no deprecated `Text` concatenation).
-    private var bodyText: Text {
+    /// Shown body parsed into Figtree markdown blocks. While the stream is
+    /// live, the closed prefix (through the last newline) is cached and the
+    /// trailing open line is forced to a paragraph so a half-typed `###` does
+    /// not flash a heading. Once the stream ends, the last line may be a
+    /// heading even without a trailing newline.
+    private var shownBodyBlocks: [MarkdownBlock] {
         let shown = animate ? shownBody : content.body
-        var attr: AttributedString
-        // Splice while the reply is in motion (revealing OR merely paused
-        // mid-stream — a pause must not evict the prefix cache); one full parse
-        // once it settles for good.
-        if animate && (isDissolving || streamingState) {
-            // Mid-reveal: don't re-parse the whole shown prefix at 70Hz.
-            // RichTextParser is line-scoped — it splits on "\n" and parses each
-            // line independently, joining with a bare newline — so
-            // parse(prefix-through-last-newline) + parse(trailing line) is
-            // exactly parse(shown). The prefix only changes when the reveal
-            // crosses a newline, so each tick the cache hit means only the
-            // short trailing line is re-parsed.
+        if animate && streamingState {
             let lineStart = Self.lastLineStart(of: shown)
-            attr = parseCache.parse(
-                String(shown[..<lineStart]),
-                baseFont: type.body1,
-                boldFont: type.body1Bold,
-                textColor: theme.foreground
+            let prefix = parseCache.parse(String(shown[..<lineStart]), lastLineClosed: true)
+            let trailing = RichTextParser.parseBlocks(
+                String(shown[lineStart...]), lastLineClosed: false
             )
-            attr.append(RichTextParser.parse(
-                String(shown[lineStart...]),
-                baseFont: type.body1,
-                boldFont: type.body1Bold,
-                textColor: theme.foreground
-            ))
-        } else {
-            // Settled (finished and drained, or reloaded history): one full
-            // parse of the complete text — the finished reply renders from
-            // exactly the same parse of the full body as before, and the cache
-            // keeps scroll-driven re-renders from re-parsing it.
-            attr = parseCache.parse(
-                shown,
-                baseFont: type.body1,
-                boldFont: type.body1Bold,
-                textColor: theme.foreground
-            )
+            return prefix + trailing
         }
-        if isDissolving {
-            let ramp = min(dissolveRamp, attr.characters.count)
-            if ramp > 0 {
-                var upper = attr.characters.endIndex
-                for k in 0..<ramp {
-                    let lower = attr.characters.index(before: upper)
-                    // k = 0 is the newest (last) character → faintest; opacity
-                    // climbs toward 1.0 for characters further from the edge.
-                    let t = Double(k + 1) / Double(ramp)
-                    let alpha = dissolveMinOpacity + (1 - dissolveMinOpacity) * t
-                    attr[lower..<upper].foregroundColor = theme.foreground.opacity(alpha)
-                    upper = lower
-                }
-            }
-        }
-        if showsCaret {
-            var caret = AttributedString("\u{258F}") // ▏
-            caret.foregroundColor = theme.mutedForeground
-            attr.append(caret)
-        }
-        return Text(attr)
+        return parseCache.parse(shown, lastLineClosed: true)
     }
 
     public var body: some View {
@@ -364,7 +306,7 @@ public struct AIOutputComponent: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
             
-            // Heading 1 (if provided)
+            // Legacy structured headings (Figtree h3/h4 — never Lora h1/h2).
             if let heading1 = content.heading1, !heading1.isEmpty {
                 let shown = animate ? shownHeading1 : heading1
                 if !shown.isEmpty {
@@ -372,10 +314,10 @@ public struct AIOutputComponent: View {
                         .font(type.h3)
                         .foregroundStyle(theme.foreground)
                         .modifier(type.headingLineSpacingModifier(for: type.size2XL))
+                        .accessibilityAddTraits(.isHeader)
                 }
             }
 
-            // Heading 2 (if provided)
             if let heading2 = content.heading2, !heading2.isEmpty {
                 let shown = animate ? shownHeading2 : heading2
                 if !shown.isEmpty {
@@ -384,16 +326,18 @@ public struct AIOutputComponent: View {
                         .foregroundStyle(theme.foreground)
                         .modifier(type.headingLineSpacingModifier(for: type.sizeXL))
                         .padding(.top, (content.heading1?.isEmpty == false) ? 4 : 0)
+                        .accessibilityAddTraits(.isHeader)
                 }
             }
 
-            // Body text with the ChatGPT-style typewriter + leading-edge dissolve.
-            // `bodyText` parses the shown prefix and fades the newest characters
-            // in; the caret only appears during a mid-stream pause.
             let bodyShown = animate ? shownBody : content.body
             if !bodyShown.isEmpty || !animate {
-                bodyText
-                    .lineSpacing(type.bodyLineSpacing)
+                MarkdownBodyView(
+                    blocks: shownBodyBlocks,
+                    dissolveCount: isDissolving ? dissolveRamp : 0,
+                    dissolveMinOpacity: dissolveMinOpacity,
+                    showCaret: showsCaret
+                )
             }
 
             // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently
@@ -585,7 +529,7 @@ public struct AIOutputComponent: View {
         content: AIOutputContent(
             heading1: "Understanding Your Patterns",
             heading2: "Key Insights",
-            body: "Based on your journal entries, I've noticed several patterns. **Work-related stress** appears frequently, especially around deadlines. You've also mentioned *feeling more balanced* after taking walks.",
+            body: "You asked how work has been landing.\n\n### 12 March\n*I left the office with my jaw still tight.*\nThat walk is the part you stayed with — not the meeting, the leaving.\n\n- 12 March — the long walk home\n- 4 April — Sunday dread",
             citations: [
                 JournalCitation(
                     entryId: UUID(),

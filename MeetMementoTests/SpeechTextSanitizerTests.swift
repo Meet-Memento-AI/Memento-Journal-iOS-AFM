@@ -51,6 +51,13 @@ final class SpeechTextSanitizerTests: XCTestCase {
         XCTAssertEqual(sanitize("## A pattern\nYou noticed it."), "A pattern\nYou noticed it.")
     }
 
+    func test_h3HeadingAndOrderedList_areSpeakable() {
+        XCTAssertEqual(
+            sanitize("### 12 March\n1. The long walk home\n2. Sunday dread"),
+            "12 March\nThe long walk home\nSunday dread"
+        )
+    }
+
     func test_bulletMarkersDropped() {
         XCTAssertEqual(sanitize("- First thing\n* Second thing\n• Third thing"),
                        "First thing\nSecond thing\nThird thing")

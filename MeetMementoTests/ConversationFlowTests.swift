@@ -44,10 +44,14 @@ final class ConversationFlowTests: XCTestCase {
         ]
         let turn = TurnClassifier.classify("tell me more", hasHistory: true)
         XCTAssertEqual(turn, .followup)
-        XCTAssertEqual(RetrievalPolicy.mode(for: turn), .reusePrevious)
+        XCTAssertEqual(RetrievalPolicy.mode(for: turn, history: history), .reusePrevious)
         XCTAssertEqual(RetrievalPolicy.followupAnchor(history: history), "what did I write about work stress?")
-        // Follow-ups keep the thread's grounding privileges.
-        XCTAssertTrue(TurnStance.followupThread.isGrounded)
+        // Follow-ups keep grounding only when retrieval actually hit.
+        XCTAssertFalse(TurnStance.followupThread.isGrounded)
+        XCTAssertTrue(TurnStance.followupThread.isGrounded(retrieval: RetrievalResult(
+            entries: [RetrievedEntry(ref: 1, id: UUID(), date: Date(), text: "x")],
+            contextBlock: "[ref 1]", isAmbient: false
+        )))
     }
 
     /// An explicit journal ask that matches an entry ends journalGrounded.
@@ -83,10 +87,23 @@ final class ConversationFlowTests: XCTestCase {
     func test_share_staysConversationalByDefault() {
         let turn = TurnClassifier.classify("today was exhausting, meetings all day", hasHistory: true)
         XCTAssertEqual(turn, .share)
-        XCTAssertEqual(RetrievalPolicy.mode(for: turn), .currentOnly(highBar: true))
+        XCTAssertEqual(RetrievalPolicy.mode(for: turn), .none)
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: .empty)
         XCTAssertEqual(stance, .sharing)
         XCTAssertFalse(stance.isGrounded)
+    }
+
+    /// "tell me more" after a share must not sneak a page onto the table.
+    func test_followupAfterShare_doesNotRetrieve() {
+        let history = [
+            user("today was exhausting, meetings all day"),
+            memento("That sounds like a long one."),
+        ]
+        let turn = TurnClassifier.classify("tell me more", hasHistory: true)
+        XCTAssertEqual(turn, .followup)
+        XCTAssertEqual(RetrievalPolicy.mode(for: turn, history: history), .none)
+        XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: .empty), .followupThread)
+        XCTAssertFalse(TurnStance.followupThread.isGrounded(retrieval: .empty))
     }
 
     /// Even a strong retrieval hit must not turn a share into an entry report.

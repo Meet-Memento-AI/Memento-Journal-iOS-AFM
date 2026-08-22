@@ -335,8 +335,12 @@ class ChatViewModel: ObservableObject {
         isLoading = true
         let generation = sendGeneration
         let turn = TurnClassifier.classify(text, hasHistory: messages.count > 1)
-        loadingPhrase = LoadingStatus.phrase(for: turn)
-        if let second = LoadingStatus.followUpPhrase(for: turn) {
+        // Prior turns only — the current user message is already appended.
+        let priorHistory: [ChatTurn] = messages.dropLast().map {
+            ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content)
+        }
+        loadingPhrase = LoadingStatus.phrase(for: turn, history: priorHistory)
+        if let second = LoadingStatus.followUpPhrase(for: turn, history: priorHistory) {
             track(Task { [weak self] in
                 try? await Task.sleep(for: .seconds(1))
                 guard let self, generation == self.sendGeneration, !Task.isCancelled, self.isLoading else { return }

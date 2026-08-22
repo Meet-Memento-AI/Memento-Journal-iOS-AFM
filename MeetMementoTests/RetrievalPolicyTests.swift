@@ -10,10 +10,10 @@ final class RetrievalPolicyTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.mode(for: .acknowledgement), .none)
         XCTAssertEqual(RetrievalPolicy.mode(for: .meta), .none)
         XCTAssertEqual(RetrievalPolicy.mode(for: .offdomain), .none)
-        XCTAssertEqual(RetrievalPolicy.mode(for: .followup), .reusePrevious)
-        XCTAssertEqual(RetrievalPolicy.mode(for: .share), .currentOnly(highBar: true))
+        XCTAssertEqual(RetrievalPolicy.mode(for: .followup), .none, "follow-up without a journal anchor does not retrieve")
+        XCTAssertEqual(RetrievalPolicy.mode(for: .share), .none)
         XCTAssertEqual(RetrievalPolicy.mode(for: .journalQuery), .currentWeighted)
-        XCTAssertEqual(RetrievalPolicy.mode(for: .reflectiveQuestion), .currentWeighted)
+        XCTAssertEqual(RetrievalPolicy.mode(for: .reflectiveQuestion), .none)
     }
 
     // MARK: - Followup anchor
@@ -91,10 +91,33 @@ final class RetrievalPolicyTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.stance(turn: .reflectiveQuestion, retrieval: .empty), .sharing)
     }
 
+    func test_followup_reusesJournalAnchorOnly() {
+        let journalHistory = [
+            user("what did I write about work stress?"),
+            memento("Deadlines come up…"),
+        ]
+        XCTAssertEqual(
+            RetrievalPolicy.mode(for: .followup, history: journalHistory),
+            .reusePrevious
+        )
+        let shareHistory = [
+            user("today was exhausting, meetings all day"),
+            memento("That sounds like a long one."),
+        ]
+        XCTAssertEqual(
+            RetrievalPolicy.mode(for: .followup, history: shareHistory),
+            .none
+        )
+    }
+
     func test_groundedFlag() {
         XCTAssertTrue(TurnStance.journalGrounded.isGrounded)
-        XCTAssertTrue(TurnStance.followupThread.isGrounded)
-        for stance in TurnStance.allCases where !(stance == .journalGrounded || stance == .followupThread) {
+        XCTAssertFalse(TurnStance.followupThread.isGrounded,
+                       "follow-up without retrieval is not grounded")
+        XCTAssertTrue(TurnStance.followupThread.isGrounded(retrieval: grounded()))
+        XCTAssertFalse(TurnStance.followupThread.isGrounded(retrieval: .empty))
+        XCTAssertFalse(TurnStance.followupThread.isGrounded(retrieval: ambient()))
+        for stance in TurnStance.allCases where stance != .journalGrounded {
             XCTAssertFalse(stance.isGrounded, "\(stance)")
         }
     }

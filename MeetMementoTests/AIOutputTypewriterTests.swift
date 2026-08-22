@@ -1,5 +1,4 @@
 import XCTest
-import SwiftUI
 @testable import MeetMemento
 
 /// Pins the adaptive typewriter (spec 029): the pure reveal curve in
@@ -133,17 +132,11 @@ final class AIOutputTypewriterTests: XCTestCase {
 
     // MARK: - Splice correctness
 
-    /// The property the incremental parse relies on: `RichTextParser` is
-    /// line-scoped, so parsing the stable prefix (through the last newline) and
-    /// the trailing line separately, then appending, yields EXACTLY the same
-    /// `AttributedString` as parsing the whole text — bullets, bold, italics,
-    /// blank lines, and half-typed markers included. This is what guarantees
-    /// the streamed render matches the final full-body parse.
+    /// The property the incremental parse relies on: closed prefix (through the
+    /// last newline) plus an open trailing line equals a full parse with
+    /// `lastLineClosed: false` — headings and lists on the unfinished line stay
+    /// paragraphs so they do not flash mid-token.
     func test_splicedParse_equalsFullParse() {
-        let baseFont = Font.body
-        let boldFont = Font.body.bold()
-        let color = Color.primary
-
         let samples = [
             "plain single line",
             "line one\nline two",
@@ -152,23 +145,21 @@ final class AIOutputTypewriterTests: XCTestCase {
             "blank\n\nline between",
             "- first bullet\n- second **bold** bullet\n- third *soft* point",
             "**bold** intro\nthen *italic* tail",
-            // Half-typed markers at the reveal edge — the common mid-stream case.
             "finished line with **bold**\nan unclosed **marker",
             "finished line\n- a bullet still typi",
-            "*italic\nsplit across lines*"
+            "*italic\nsplit across lines*",
+            "Meet them here.\n### 12 Marc",
+            "Meet them here.\n### 12 March\n1. The lon"
         ]
 
         for text in samples {
             let split = AIOutputComponent.lastLineStart(of: text)
-            var spliced = RichTextParser.parse(
-                String(text[..<split]), baseFont: baseFont, boldFont: boldFont, textColor: color
+            let spliced = RichTextParser.parseBlocks(
+                String(text[..<split]), lastLineClosed: true
+            ) + RichTextParser.parseBlocks(
+                String(text[split...]), lastLineClosed: false
             )
-            spliced.append(RichTextParser.parse(
-                String(text[split...]), baseFont: baseFont, boldFont: boldFont, textColor: color
-            ))
-            let full = RichTextParser.parse(
-                text, baseFont: baseFont, boldFont: boldFont, textColor: color
-            )
+            let full = RichTextParser.parseBlocks(text, lastLineClosed: false)
             XCTAssertEqual(spliced, full, "splice diverged for: \(text.debugDescription)")
         }
     }
