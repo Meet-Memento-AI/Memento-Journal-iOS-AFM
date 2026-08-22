@@ -46,26 +46,25 @@ public struct SetupPinView: View {
     public var body: some View {
         OnboardingPageScaffold(
             onBack: onCancel,
-            scrolls: true,
-            centersContent: false
+            scrolls: false,
+            centersContent: true
         ) {
-            VStack(spacing: OnboardingLayout.sectionSpacing) {
-                VStack(spacing: OnboardingLayout.titleBodySpacing) {
+            VStack(spacing: Spacing.xxl) {
+                VStack(spacing: Spacing.xxs) {
                     Text(titleText)
                         .font(type.h3)
                         .foregroundStyle(theme.foreground)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
 
                     Text(subtitleText)
-                        .font(type.body2)
+                        .font(type.body1Medium)
                         .foregroundStyle(theme.mutedForeground)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
                 }
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
 
                 pinInputFields
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } footer: {
             PrimaryButton(title: "Set PIN") {
                 handlePinComplete()
@@ -103,7 +102,7 @@ public struct SetupPinView: View {
     // MARK: - Subviews
 
     private var pinInputFields: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Spacing.md) {
             ForEach(0..<4, id: \.self) { index in
                 Button {
                     // Focus the hidden TextField to show keyboard
@@ -112,9 +111,9 @@ public struct SetupPinView: View {
                     }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous)
                         .fill(colorScheme == .dark ? GrayScale.gray700 : GrayScale.gray200)
-                        .frame(width: 60, height: 70)
+                        .frame(width: 64, height: 80)
                         .overlay(
                             Group {
                                 if index < pin.count {

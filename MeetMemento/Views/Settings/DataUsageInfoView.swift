@@ -36,8 +36,6 @@ public struct DataUsageInfoView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 IconButtonNav(
                     icon: "chevron.left",
-                    iconSize: 18,
-                    buttonSize: 40,
                     enableHaptic: true,
                     onTap: { dismiss() }
                 )

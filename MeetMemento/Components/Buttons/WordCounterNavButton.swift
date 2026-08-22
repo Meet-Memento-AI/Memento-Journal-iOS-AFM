@@ -41,7 +41,9 @@ public struct WordCounterNavButton: View {
     public init(
         characterCount: Int,
         minimumCharacters: Int,
-        buttonSize: CGFloat = 32,
+        // Literal: this init is `public`, so it cannot default to internal
+        // `AppHeaderMetrics.controlSize` (48). Keep the number in sync.
+        buttonSize: CGFloat = 48,
         onTap: (() -> Void)? = nil
     ) {
         self.characterCount = characterCount
@@ -187,7 +189,7 @@ private struct EmptyStatePreview: View {
             WordCounterNavButton(
                 characterCount: 0,
                 minimumCharacters: 100,
-                buttonSize: 40
+                buttonSize: AppHeaderMetrics.controlSize
             )
         }
         .useTheme()
@@ -206,7 +208,7 @@ private struct ProgressPreview: View {
             WordCounterNavButton(
                 characterCount: count,
                 minimumCharacters: 100,
-                buttonSize: 40
+                buttonSize: AppHeaderMetrics.controlSize
             )
         }
         .useTheme()
@@ -224,7 +226,7 @@ private struct CompletePreview: View {
             WordCounterNavButton(
                 characterCount: 125,
                 minimumCharacters: 100,
-                buttonSize: 40
+                buttonSize: AppHeaderMetrics.controlSize
             )
         }
         .useTheme()
@@ -247,7 +249,7 @@ private struct InteractiveDemoView: View {
                 WordCounterNavButton(
                     characterCount: text.count,
                     minimumCharacters: 100,
-                    buttonSize: 50,
+                    buttonSize: AppHeaderMetrics.controlSize,
                     onTap: {
                         AppLogger.log("✅ Minimum character count reached!")
                     }

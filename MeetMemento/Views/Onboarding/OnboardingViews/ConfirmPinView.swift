@@ -46,27 +46,32 @@ public struct ConfirmPinView: View {
     public var body: some View {
         OnboardingPageScaffold(
             onBack: onCancel,
-            scrolls: true,
-            centersContent: false
+            scrolls: false,
+            centersContent: true
         ) {
-            VStack(spacing: OnboardingLayout.sectionSpacing) {
+            VStack(spacing: Spacing.xxl) {
                 Text(titleText)
                     .font(type.h3)
                     .foregroundStyle(theme.foreground)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
 
-                pinInputFields
-                    .offset(x: shakeOffset)
+                VStack(spacing: Spacing.sm) {
+                    pinInputFields
+                        .offset(x: shakeOffset)
 
-                if showError {
+                    // Reserved line so the cluster does not jump when mismatch
+                    // text appears (Figma has no error slot; we keep the copy).
                     Text("PINs don't match. Please try again.")
                         .font(type.body2)
                         .foregroundStyle(Color.red)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
+                        .opacity(showError ? 1 : 0)
+                        .accessibilityHidden(!showError)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } footer: {
             PrimaryButton(title: "Confirm PIN") {
                 handlePinComplete()
@@ -113,7 +118,7 @@ public struct ConfirmPinView: View {
     // MARK: - Subviews
 
     private var pinInputFields: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Spacing.md) {
             ForEach(0..<4, id: \.self) { index in
                 Button {
                     // Focus the hidden TextField to show keyboard
@@ -122,9 +127,9 @@ public struct ConfirmPinView: View {
                     }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous)
                         .fill(colorScheme == .dark ? GrayScale.gray700 : GrayScale.gray200)
-                        .frame(width: 60, height: 70)
+                        .frame(width: 64, height: 80)
                         .overlay(
                             Group {
                                 if index < pin.count {

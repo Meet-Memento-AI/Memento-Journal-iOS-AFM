@@ -7,6 +7,7 @@ public struct PrimaryButton: View {
     }
 
     @Environment(\.theme) private var theme
+    @Environment(\.usesOnboardingInkButtons) private var usesOnboardingInkButtons
 
     let title: String
     var systemImage: String? = nil
@@ -26,6 +27,14 @@ public struct PrimaryButton: View {
         self.action = action
     }
 
+    private var fillColor: Color {
+        usesOnboardingInkButtons ? OnboardingLayout.buttonFill : theme.primary
+    }
+
+    private var labelColor: Color {
+        usesOnboardingInkButtons ? OnboardingLayout.buttonForeground : theme.primaryForeground
+    }
+
     public var body: some View {
         Button {
             guard !isLoading else { return }
@@ -40,12 +49,12 @@ public struct PrimaryButton: View {
                 if let systemImage, imagePlacement == .trailing {
                     Image(systemName: systemImage)
                 }
-                if isLoading { ProgressView().tint(theme.primaryForeground) }
+                if isLoading { ProgressView().tint(labelColor) }
             }
             .frame(height: 48)
             .frame(maxWidth: .infinity)
-            .foregroundStyle(theme.primaryForeground)
-            .background(theme.primary)
+            .foregroundStyle(labelColor)
+            .background(fillColor)
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
         }
         .buttonStyle(PrimaryButtonPressStyle())

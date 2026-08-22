@@ -11,7 +11,7 @@ import SwiftUI
 struct AvatarInitialButton: View {
     // MARK: - Inputs
     let initial: String?
-    var size: CGFloat = 44
+    var size: CGFloat = AppHeaderMetrics.controlSize
     var fontSize: CGFloat? = nil  // nil = derived from size
     var enableHaptic: Bool = false
     var accessibilityLabel: String = "Menu"
@@ -49,13 +49,9 @@ struct AvatarInitialButton: View {
             // glass is refracting. As a separate `.background(...)` layer the
             // glyph kept its literal token colour and washed out.
             .glassEffect(.regular.interactive(), in: .circle)
-            // Match `HeaderIconButton`: expand the layout/hit slot to 44pt when
-            // the drawn circle is smaller, so avatar + icon buttons share one
-            // row geometry in `AppHeader`.
-            .frame(
-                minWidth: AppHeaderMetrics.minimumTapTarget,
-                minHeight: AppHeaderMetrics.minimumTapTarget
-            )
+            // Lock layout at rest. `.interactive()` still scales the glass
+            // on press; this outer frame keeps neighbours from shifting.
+            .frame(width: size, height: size)
             .contentShape(Circle())
         }
         // `.plain`, not IconButtonPressStyle: the glass is `.interactive()`, which
@@ -65,7 +61,7 @@ struct AvatarInitialButton: View {
         .buttonStyle(.plain)
         // Without this, SwiftUI promotes the inner glyph to be the accessibility
         // element: the tree reported this control as a 13×14pt `person.fill`
-        // image, flagged NOT hittable, instead of the 40pt circle. The
+        // image, flagged NOT hittable, instead of the 48pt circle. The
         // destructive-flow UI test taps `app.buttons["Menu"]`, so that mismatch
         // fails the test even though a finger hits the button fine.
         .accessibilityElement(children: .ignore)

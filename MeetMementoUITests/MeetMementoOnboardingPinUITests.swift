@@ -51,7 +51,7 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
 
         app.buttons["onboarding.continueName"].tap()
 
-        // LearnAboutYourselfView — Continue (checkmark) works with empty text.
+        // LearnAboutYourselfView — Next step works with empty text.
         let learnContinue = app.buttons["onboarding.continueLearn"]
         XCTAssertTrue(learnContinue.waitForExistence(timeout: 10))
         learnContinue.tap()

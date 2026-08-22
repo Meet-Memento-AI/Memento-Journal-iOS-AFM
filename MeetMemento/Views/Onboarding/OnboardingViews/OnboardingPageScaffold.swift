@@ -29,6 +29,26 @@ enum OnboardingLayout {
     static let footerTop: CGFloat = Spacing.sm
     static let footerBottom: CGFloat = Spacing.md
     static let footerStackSpacing: CGFloat = Spacing.sm
+
+    /// Filled CTA fill — Figma-adjacent neutral 900, near-black ink rather
+    /// than cordovan `theme.primary`.
+    static let buttonFill = GrayScale.gray900
+    /// Label on `buttonFill`. White, not `theme.primaryForeground`, so dark
+    /// mode does not flip the chip to black-on-black.
+    static let buttonForeground = BaseColors.white
+}
+
+/// When true, `PrimaryButton` uses `OnboardingLayout.buttonFill` (gray900)
+/// instead of `theme.primary`. Set by `OnboardingPageScaffold`.
+private struct UsesOnboardingInkButtonsKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var usesOnboardingInkButtons: Bool {
+        get { self[UsesOnboardingInkButtonsKey.self] }
+        set { self[UsesOnboardingInkButtonsKey.self] = newValue }
+    }
 }
 
 /// Back-chevron header used across onboarding steps.
@@ -44,34 +64,40 @@ struct OnboardingBackHeader<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.sm) {
-            IconButtonNav(
-                icon: "chevron.left",
-                iconSize: 20,
-                buttonSize: 40,
-                foregroundColor: theme.foreground,
-                useDarkBackground: false,
-                enableHaptic: true,
-                onTap: onBack
-            )
-            .accessibilityLabel("Back")
+        // One sampling region for the back chevron and any trailing glass
+        // control. Glass cannot sample glass, so adjacent nav chrome shares
+        // a container. No opaque header fill — that would leave glass
+        // nothing to refract but a flat colour.
+        GlassEffectContainer(spacing: 0) {
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                IconButtonNav(
+                    icon: "chevron.left",
+                    foregroundColor: theme.foreground,
+                    useDarkBackground: false,
+                    enableHaptic: true,
+                    onTap: onBack
+                )
+                .accessibilityLabel("Back")
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            trailing()
+                trailing()
+            }
         }
         .padding(.horizontal, OnboardingLayout.headerHorizontal)
         .padding(.top, OnboardingLayout.headerTop)
         .padding(.bottom, OnboardingLayout.headerBottom)
         .frame(maxWidth: .infinity)
-        .background(theme.background)
     }
 }
 
 /// Keeps the back button optically centered when there is no trailing action.
 struct OnboardingHeaderSpacer: View {
     var body: some View {
-        Color.clear.frame(width: 40, height: 40)
+        Color.clear.frame(
+            width: AppHeaderMetrics.controlSize,
+            height: AppHeaderMetrics.controlSize
+        )
     }
 }
 
@@ -137,6 +163,7 @@ struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View
                 }
             }
         }
+        .environment(\.usesOnboardingInkButtons, true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }

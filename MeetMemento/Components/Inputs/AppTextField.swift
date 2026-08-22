@@ -61,7 +61,7 @@ public struct AppTextField: View {
                 TextField(placeholder, text: $text)
             }
         }
-        .font(isFilled ? type.body2Medium : type.h4)
+        .font(isFilled ? type.body1Medium : type.h4)
         .foregroundStyle(theme.foreground)
         .textInputAutocapitalization(textInputAutocapitalization)
         .keyboardType(keyboardType)
@@ -69,7 +69,9 @@ public struct AppTextField: View {
         .accessibilityLabel(placeholder)
         .accessibilityHint(isSecure ? "Secure text field" : "Text field")
         .padding(.horizontal, isFilled ? Spacing.md : Spacing.xs)
-        .padding(.vertical, isFilled ? Spacing.sm : 14)
+        .padding(.vertical, isFilled ? 0 : 14)
+        // AX5: minHeight (not a hard 56) lets the well grow with Dynamic Type.
+        .frame(minHeight: isFilled ? 56 : nil)
         .frame(maxWidth: isFilled ? .infinity : nil, alignment: .leading)
         .background {
             if isFilled {

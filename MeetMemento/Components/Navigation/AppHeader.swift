@@ -23,7 +23,7 @@ import UIKit
 /// Drawn diameter and padding for every control in `AppHeader`.
 /// Journal and Chat (including Chat's narration mode) all use these so chrome stays matched.
 enum AppHeaderMetrics {
-    /// Drawn diameter for every header control (avatar + icon buttons).
+    /// Drawn diameter for every header / nav glass icon button.
     static let controlSize: CGFloat = 48
     /// Hit-target floor. Matches `controlSize` now that controls clear Apple's
     /// 44pt minimum on their own; kept so smaller sizes still expand cleanly.
@@ -131,8 +131,8 @@ struct AppHeader<Leading: View, Trailing: View>: View {
 
 // MARK: - Header Icon Button
 
-/// A circular glass icon button sized to the design, with a tap target that
-/// always clears Apple's 44pt minimum even when the circle is smaller.
+/// A circular glass icon button. Layout stays at `size` at rest;
+/// `.interactive()` glass supplies the press scale.
 struct HeaderIconButton: View {
     let systemName: String
     /// Defaults to `AppHeaderMetrics.controlSize` so Journal and Chat stay matched.
@@ -158,10 +158,9 @@ struct HeaderIconButton: View {
                 .foregroundStyle(theme.foreground)
                 .frame(width: size, height: size)
                 .glassEffect(.regular.interactive(), in: .circle)
-                .frame(
-                    minWidth: AppHeaderMetrics.minimumTapTarget,
-                    minHeight: AppHeaderMetrics.minimumTapTarget
-                )
+                // Lock layout at rest. `.interactive()` still scales the glass
+                // on press; this outer frame keeps neighbours from shifting.
+                .frame(width: size, height: size)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

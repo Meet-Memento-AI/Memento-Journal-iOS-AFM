@@ -18,9 +18,9 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     @Environment(\.theme) private var theme
 
     /// Extra air below the footer, on top of `windowBottom`. Resting chrome
-    /// passes 16. Chat passes `keyboardHeight - windowBottom` while the
-    /// keyboard is up so the total equals `keyboardHeight`. Pass 0 to skip
-    /// the home-indicator pad (no footer).
+    /// passes 16. Chat with the keyboard up passes
+    /// `keyboardHeight - windowBottom + 16` so the composer sits 16pt above
+    /// the keys. Pass 0 to skip the home-indicator pad (no footer).
     var footerBottomPadding: CGFloat = 16
     /// Page fill behind content. Defaults to `theme.background`; Journal passes
     /// `theme.secondaryBackground` for its subtle gray canvas.

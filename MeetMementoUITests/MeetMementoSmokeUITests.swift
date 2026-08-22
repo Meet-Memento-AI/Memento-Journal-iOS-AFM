@@ -42,6 +42,7 @@ final class MeetMementoSmokeUITests: XCTestCase {
 
         let getStarted = app.buttons["welcome.getStarted"]
         XCTAssertTrue(getStarted.waitForExistence(timeout: 30))
+        XCTAssertTrue(getStarted.isHittable, "Get Started must remain a tappable control under Liquid Glass")
         getStarted.tap()
 
         let firstNameField = app.textFields["First name"]

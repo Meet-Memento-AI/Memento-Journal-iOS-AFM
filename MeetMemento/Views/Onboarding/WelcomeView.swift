@@ -3,13 +3,12 @@
 //  MeetMemento
 //
 //  Welcome screen with video background. No account, no sign-in — a single
-//  "Get Started" CTA moves straight into onboarding (spec 023 R2).
+//  "Get Started" CTA moves straight into onboarding (spec 023
 //
 
 import SwiftUI
 
 public struct WelcomeView: View {
-    @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @EnvironmentObject var appState: AppStateStore
 
@@ -87,9 +86,10 @@ public struct WelcomeView: View {
                 .opacity(videoOpacity)
                 .blur(radius: blurAmount)
                 .ignoresSafeArea()
-                .onChange(of: playbackProgress) { oldValue, newValue in
-                    // Detect loop completion (progress resets from ~1 to ~0)
-                    if oldValue > 0.9 && newValue < 0.1 {
+                .onChange(of: playbackProgress) { _, newValue in
+                    // First forward pass reached the end. Lock blur so the
+                    // reverse half of ping-pong does not ease it back out.
+                    if newValue >= 0.95 {
                         hasCompletedFirstLoop = true
                     }
                 }
@@ -192,64 +192,68 @@ public struct WelcomeView: View {
         }
     }
 
+    // MARK: - Welcome Mark
+
+    /// Rebrand mark as Liquid Glass clipped to the SVG paths (hexagon + sparkle).
+    /// Not `.interactive()` — this is decoration, not a control.
+    /// Not `.clear` — that needs a dimming layer and bold content.
+    /// `spacing: 0` so the two glyphs share a sampling region without fusing.
+    private let welcomeMarkSize: CGFloat = 72
+
+    private var welcomeMark: some View {
+        GlassEffectContainer(spacing: 0) {
+            ZStack {
+                Color.clear
+                    .frame(width: welcomeMarkSize, height: welcomeMarkSize)
+                    .glassEffect(.regular, in: WelcomeMarkBodyShape())
+                Color.clear
+                    .frame(width: welcomeMarkSize, height: welcomeMarkSize)
+                    .glassEffect(.regular, in: WelcomeMarkSparkleShape())
+            }
+        }
+        .frame(width: welcomeMarkSize, height: welcomeMarkSize)
+        .accessibilityHidden(true)
+    }
+
     // MARK: - Content Overlay
+
+    /// Figma 248:672 — mark at y=280, headline 16pt below (y=368).
+    private let welcomeMarkTop: CGFloat = 280
 
     private var contentOverlay: some View {
         VStack(spacing: 0) {
-            // Logo at center-top
-            Image("Memento-Logo")
-                .resizable()
-                .scaledToFit()
-                .frame(height: 44)
-                .padding(.top, 32)
-                .opacity(showLogo ? 1 : 0)
+            VStack(spacing: Spacing.md) {
+                welcomeMark
+                    .opacity(showLogo ? 1 : 0)
 
-            Spacer()
+                Text("Journal with your voice, reflect privately on your device")
+                    .font(.custom("Lora-Bold", size: 32))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, 24)
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                    .accessibilityIdentifier("welcome.headline")
+                    .opacity(showHeadline ? 1 : 0)
+            }
+            .padding(.top, welcomeMarkTop)
+            .frame(maxWidth: .infinity)
 
-            // Headline - centered
-            Text("Journal with your voice, reflect privately on your device")
-                .font(.custom("Lora-Bold", size: 32))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 24)
-                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                .accessibilityIdentifier("welcome.headline")
-                .opacity(showHeadline ? 1 : 0)
-
-            // Positioning line (REQ-POS-001) — the first UI expression of the
-            // trust boundary. 1.x is on-device (Z0) only: no Private Cloud
-            // Compute path has shipped, so the copy must not mention it.
-            // Re-introduce the PCC clause only when Z1 routing actually lands.
-            //
-            // Restored 2026-08-16. `adbe7fa` ("boomerang the intro video")
-            // deleted this Text and all nine of its modifiers as collateral —
-            // its commit message never mentions the positioning line, and the
-            // comment above was left stranded over a blank line. `b1bab65`
-            // reverted that commit's video change but not this. The only thing
-            // that noticed for five days was the smoke test asserting
-            // `welcome.positioning`, which has been red ever since.
-            Text("No account. No analytics. No third-party AI. Your words are processed on your iPhone with Apple's on-device models. Nothing else.")
-                .font(type.body2)
-                .foregroundStyle(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 32)
-                .padding(.top, 12)
-                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                .accessibilityIdentifier("welcome.positioning")
-                .opacity(showHeadline ? 1 : 0)
-
-            Spacer()
+            Spacer(minLength: 0)
 
             // Get Started — no sign-in step; moves straight into onboarding.
             getStartedSection
                 .padding(.horizontal, 24)
                 .opacity(showButtons ? 1 : 0)
         }
+        .ignoresSafeArea(edges: .top)
     }
 
     // MARK: - Get Started
+
+    /// Darkens the glass from the inside so the capsule still *is* Liquid
+    /// Glass — the tint reads through the frost instead of covering it.
+    private static let getStartedGlassTintOpacity: Double = 0.24
 
     @ViewBuilder
     private var getStartedSection: some View {
@@ -258,13 +262,30 @@ public struct WelcomeView: View {
                 .font(type.body1Bold)
                 // AX5: minHeight lets the button grow instead of clipping/overlapping
                 // the label text when it scales up at large Dynamic Type sizes.
-                .frame(minHeight: 48)
+                .frame(minHeight: AppHeaderMetrics.controlSize)
                 .frame(maxWidth: .infinity)
-                .background(.black)
                 .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
+                // Real Liquid Glass: `.regular` frost in a capsule, tinted
+                // through the material. No fill, no `Material`, no
+                // `.interactive()` — those flatten the refraction or paint a rim.
+                .glassEffect(
+                    .regular.tint(BaseColors.black.opacity(Self.getStartedGlassTintOpacity)),
+                    in: .capsule
+                )
+                // Glass can report a tiny inner text frame as the hit target
+                // (same failure as `AvatarInitialButton` without this). The
+                // capsule is the control.
+                .contentShape(Capsule())
         }
+        .buttonStyle(.plain)
         .disabled(isExiting)
+        .allowsHitTesting(showButtons && !isExiting)
+        // Promote the Button itself so XCTest/`VoiceOver` see one control
+        // named Get Started, not the inner `Text` after glass wrapping.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Get Started")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double-tap to start setting up Memento")
         .accessibilityIdentifier("welcome.getStarted")
     }
 

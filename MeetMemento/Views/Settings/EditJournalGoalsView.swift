@@ -95,8 +95,6 @@ public struct EditJournalGoalsView: View {
         HStack(alignment: .center) {
             IconButtonNav(
                 icon: "chevron.left",
-                iconSize: 20,
-                buttonSize: 40,
                 foregroundColor: theme.foreground,
                 useDarkBackground: false,
                 enableHaptic: true,
@@ -113,7 +111,7 @@ public struct EditJournalGoalsView: View {
                 if isSaving {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: theme.primaryForeground))
-                        .frame(width: 60, height: 40)
+                        .frame(width: 60, height: AppHeaderMetrics.controlSize)
                         .background(theme.primary)
                         .clipShape(Capsule())
                 } else {
@@ -121,7 +119,7 @@ public struct EditJournalGoalsView: View {
                         .font(type.body2Bold)
                         .foregroundStyle(canSave ? theme.primaryForeground : theme.mutedForeground)
                         .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
+                        .frame(minHeight: AppHeaderMetrics.controlSize)
                         .background(canSave ? theme.primary : theme.muted)
                         .clipShape(Capsule())
                 }

@@ -2,19 +2,19 @@
 //  VideoBackground.swift
 //  MeetMemento
 //
-//  Reusable video background with a seamless forward-only loop.
+//  Reusable video background with an in-place ping-pong loop: play forward,
+//  then reverse, forever. Direction flips by setting `AVPlayer.rate` to 1 or
+//  -1 at the clip ends — no seek on a healthy flip.
 //
-//  History: this used to also offer a "boomerang" ping-pong mode (forward,
-//  then reverse in place, forever). Two attempts at that were tried and both
-//  had to be reverted:
-//   1. Building a reverse AVMutableComposition frame-by-frame — allocated
-//      hundreds of segments and could jetsam the process (signal 9).
-//   2. Native `rate = -1` reverse playback — H.264 is decode-unfriendly in
-//      reverse, and zero-tolerance seeks on every direction flip produced a
-//      steady stream of CoreMedia/Fig decode-pipeline errors, severe enough
-//      on-device to stall the player and make the app appear stuck loading.
-//  Forward-only via AVPlayerLooper has no reverse decode and is the only
-//  approach that's actually been reliable.
+//  Earlier attempts that were reverted:
+//   1. Reverse `AVMutableComposition` frame-by-frame — too many segments,
+//      jetsam (signal 9).
+//   2. `rate = -1` plus zero-tolerance seeks on every flip — H.264 reverse
+//      decode errors that stalled the player so Welcome looked stuck loading.
+//
+//  This pass never seeks with `.zero` tolerance. If reverse stalls (item
+//  error, rate stuck at 0, or waiting-to-play too long after a flip), we
+//  fall back to forward-only wrap so the launch overlay cannot hang.
 //
 
 import SwiftUI
@@ -58,12 +58,24 @@ final class PlayerUIView: UIView {
     var playbackProgressBinding: Binding<Double>?
 
     private var playerLayer: AVPlayerLayer?
-    private var playerLooper: AVPlayerLooper?
-    private var queuePlayer: AVQueuePlayer?
+    private var player: AVPlayer?
     private var timeObserver: Any?
+    private var endObserver: NSObjectProtocol?
+    private var failObserver: NSObjectProtocol?
     private var durationSeconds: Double = 0
     private var didSetup = false
     private var lastPublishedProgress: Double = -1
+
+    /// Flip before the last/first frame so we do not rely on play-to-end.
+    private let edgeEpsilon: Double = 0.05
+    /// Waiting-to-play / rate-0 longer than this after a flip → forward-only.
+    private let stallTimeout: TimeInterval = 1.5
+
+    private var isPingPongEnabled = true
+    private var isReversing = false
+    private var hasStartedPlaying = false
+    private var isWrappingToStart = false
+    private var stallStartedAt: Date?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -96,21 +108,24 @@ final class PlayerUIView: UIView {
 
         let asset = AVURLAsset(url: url)
         let item = AVPlayerItem(asset: asset)
-        let queuePlayer = AVQueuePlayer(playerItem: item)
-        self.queuePlayer = queuePlayer
+        item.audioTimePitchAlgorithm = .spectral
 
-        playerLooper = AVPlayerLooper(player: queuePlayer, templateItem: item)
-        attachLayer(player: queuePlayer)
+        let player = AVPlayer(playerItem: item)
+        player.actionAtItemEnd = .none
+        player.isMuted = true
+        self.player = player
 
-        queuePlayer.isMuted = true
-        queuePlayer.play()
+        attachLayer(player: player)
+        observeItemEnd(item)
+        observeItemFailure(item)
+        player.play()
 
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 let duration = try await asset.load(.duration)
                 self.durationSeconds = CMTimeGetSeconds(duration)
-                self.setupTimeObserver(on: queuePlayer)
+                self.setupTimeObserver(on: player)
             } catch {
                 AppLogger.log("⚠️ VideoBackground: Failed to load duration: \(error)")
             }
@@ -125,13 +140,34 @@ final class PlayerUIView: UIView {
         self.playerLayer = playerLayer
     }
 
+    private func observeItemEnd(_ item: AVPlayerItem) {
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handlePlayedToEnd()
+        }
+    }
+
+    private func observeItemFailure(_ item: AVPlayerItem) {
+        failObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.fallBackToForwardLoop()
+        }
+    }
+
     private func setupTimeObserver(on player: AVPlayer) {
         if let timeObserver {
-            self.queuePlayer?.removeTimeObserver(timeObserver)
+            self.player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil
         }
 
-        // 10 Hz is enough for blur ramp; 30 Hz was thrashing SwiftUI + blur.
+        // 10 Hz is enough for blur ramp and edge flips; 30 Hz was thrashing
+        // SwiftUI + blur.
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self else { return }
@@ -144,6 +180,106 @@ final class PlayerUIView: UIView {
             if self.isVideoReadyBinding?.wrappedValue == false {
                 self.isVideoReadyBinding?.wrappedValue = true
             }
+
+            self.flipIfNeeded(at: current)
+            if abs(player.rate) > 0.01 {
+                self.hasStartedPlaying = true
+            }
+            self.checkStall()
+        }
+    }
+
+    private func flipIfNeeded(at current: Double) {
+        guard let player else { return }
+
+        if isPingPongEnabled {
+            if !isReversing, current >= durationSeconds - edgeEpsilon {
+                isReversing = true
+                stallStartedAt = nil
+                player.rate = -1
+            } else if isReversing, current <= edgeEpsilon {
+                isReversing = false
+                stallStartedAt = nil
+                player.rate = 1
+            }
+            return
+        }
+
+        if current >= durationSeconds - edgeEpsilon {
+            wrapForwardToStart()
+        }
+    }
+
+    private func handlePlayedToEnd() {
+        guard let player else { return }
+
+        if !isPingPongEnabled {
+            wrapForwardToStart()
+            return
+        }
+
+        isReversing = true
+        stallStartedAt = nil
+        player.rate = -1
+
+        // Item is already at the last sample; rate -1 can no-op. Nudge off
+        // the end with infinite tolerance — never `.zero`.
+        if abs(player.rate) < 0.01 {
+            let nudge = max(0, durationSeconds - edgeEpsilon)
+            let time = CMTime(seconds: nudge, preferredTimescale: 600)
+            player.seek(
+                to: time,
+                toleranceBefore: .positiveInfinity,
+                toleranceAfter: .positiveInfinity
+            ) { [weak self] finished in
+                guard finished, let self, self.isPingPongEnabled else { return }
+                self.player?.rate = -1
+            }
+        }
+    }
+
+    private func checkStall() {
+        guard isPingPongEnabled, hasStartedPlaying, let player else { return }
+
+        if player.currentItem?.status == .failed {
+            fallBackToForwardLoop()
+            return
+        }
+
+        // Rate can be 0 for a tick at a flip; only waiting-to-play is a stall.
+        if player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+            if stallStartedAt == nil {
+                stallStartedAt = Date()
+            } else if let started = stallStartedAt,
+                      Date().timeIntervalSince(started) >= stallTimeout {
+                fallBackToForwardLoop()
+            }
+        } else {
+            stallStartedAt = nil
+        }
+    }
+
+    private func fallBackToForwardLoop() {
+        guard isPingPongEnabled else { return }
+        isPingPongEnabled = false
+        isReversing = false
+        stallStartedAt = nil
+        AppLogger.log("⚠️ VideoBackground: reverse stalled — falling back to forward loop")
+        wrapForwardToStart()
+    }
+
+    private func wrapForwardToStart() {
+        guard let player, !isWrappingToStart else { return }
+        isWrappingToStart = true
+        player.seek(
+            to: .zero,
+            toleranceBefore: .positiveInfinity,
+            toleranceAfter: .positiveInfinity
+        ) { [weak self] finished in
+            guard let self else { return }
+            self.isWrappingToStart = false
+            guard finished else { return }
+            self.player?.rate = 1
         }
     }
 
@@ -156,14 +292,21 @@ final class PlayerUIView: UIView {
 
     private func teardownPlayback() {
         if let observer = timeObserver {
-            queuePlayer?.removeTimeObserver(observer)
+            player?.removeTimeObserver(observer)
             timeObserver = nil
         }
-        queuePlayer?.pause()
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
+        }
+        if let failObserver {
+            NotificationCenter.default.removeObserver(failObserver)
+            self.failObserver = nil
+        }
+        player?.pause()
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
-        playerLooper = nil
-        queuePlayer = nil
+        player = nil
     }
 
     deinit {

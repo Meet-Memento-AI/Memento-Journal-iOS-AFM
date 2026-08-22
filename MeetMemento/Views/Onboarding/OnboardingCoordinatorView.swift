@@ -175,7 +175,6 @@ public struct OnboardingCoordinatorView: View {
                 isFirstStep: false,
                 onBack: { handleBack() }
             )
-            .environmentObject(appState)
 
         case .themeConfirmation:
             ThemeConfirmationView(
