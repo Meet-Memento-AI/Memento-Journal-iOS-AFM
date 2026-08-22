@@ -1,17 +1,17 @@
 import XCTest
 @testable import MeetMemento
 
-/// Spec 037 R3: never two B (answer-and-open) journal shapes in a row.
+/// Spec 037 R3 / ask@12: thread-level Open/Stop bit. Never two Opens in a row.
 final class TurnShapeCadenceTests: XCTestCase {
 
-    /// The first grounded turn now OPENS.
-    ///
-    /// It used to be forced to A, which made the first reply of every new
-    /// conversation the tersest one the user ever sees. The A-after-B rule
-    /// below is untouched — only the starting foot changed.
     func test_firstJournalTurn_opens() {
         var cadence = TurnShapeCadence()
         XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerOpen)
+    }
+
+    func test_firstCasualTurn_opens() {
+        var cadence = TurnShapeCadence()
+        XCTAssertEqual(cadence.resolve(for: .casual), .answerOpen)
     }
 
     func test_afterAnswerOpen_nextJournalStops() {
@@ -23,45 +23,89 @@ final class TurnShapeCadenceTests: XCTestCase {
     func test_neverTwoOpenShapesInARow() {
         var cadence = TurnShapeCadence()
         var last: RecallTurnShape?
-        for _ in 0..<12 {
-            let shape = cadence.resolve(for: .journalGrounded)
+        let stances: [TurnStance] = [.journalGrounded, .casual, .sharing, .aboutApp, .followupThread]
+        for i in 0..<12 {
+            let shape = cadence.resolve(for: stances[i % stances.count])
             XCTAssertFalse(last == .answerOpen && shape == .answerOpen,
-                           "two B shapes in a row")
+                           "two Open shapes in a row")
             last = shape
         }
     }
 
-    func test_nonJournalStances_doNotAdvanceCadence() {
+    /// Casual after a journal Open is Stop and **does** advance the bit, so
+    /// the next journal turn may Open again.
+    func test_casualAfterJournalOpen_stopsAndAdvancesBit() {
         var cadence = TurnShapeCadence()
         XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerOpen)
         XCTAssertEqual(cadence.resolve(for: .casual), .answerStop)
+        XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerOpen)
+    }
+
+    func test_noMatch_doesNotFlipTheBit() {
+        var cadence = TurnShapeCadence()
+        XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerOpen)
         XCTAssertEqual(cadence.resolve(for: .noMatch), .answerStop)
-        XCTAssertEqual(cadence.resolve(for: .followupThread), .answerStop)
-        // Casual in between must not advance the journal cadence.
-        XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerStop)
+        // Bit still Open, so the next participating turn Stops.
+        XCTAssertEqual(cadence.resolve(for: .casual), .answerStop)
+    }
+
+    func test_outsideScope_doesNotFlipTheBit() {
+        var cadence = TurnShapeCadence()
+        XCTAssertEqual(cadence.resolve(for: .casual), .answerOpen)
+        XCTAssertEqual(cadence.resolve(for: .outsideScope), .answerStop)
+        XCTAssertEqual(cadence.resolve(for: .sharing), .answerStop)
     }
 
     func test_reset_returnsToTheOpeningShape() {
         var cadence = TurnShapeCadence()
-        _ = cadence.resolve(for: .journalGrounded) // B
-        _ = cadence.resolve(for: .journalGrounded) // A
+        _ = cadence.resolve(for: .journalGrounded) // Open
+        _ = cadence.resolve(for: .journalGrounded) // Stop
         cadence.reset()
-        XCTAssertEqual(cadence.resolve(for: .journalGrounded), .answerOpen)
+        XCTAssertEqual(cadence.resolve(for: .casual), .answerOpen)
     }
 
-    func test_overlay_onlyOnJournalGrounded() {
-        XCTAssertNil(TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .casual))
+    func test_overlay_nonNilForCasualAndSharing() {
+        XCTAssertNotNil(TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .casual))
+        XCTAssertNotNil(TurnShapeCadence.overlayLine(shape: .answerStop, stance: .casual))
+        XCTAssertNotNil(TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .sharing))
+        XCTAssertNotNil(TurnShapeCadence.overlayLine(shape: .answerStop, stance: .sharing))
+    }
+
+    func test_overlay_nilForForceStopStances() {
+        XCTAssertNil(TurnShapeCadence.overlayLine(shape: .answerStop, stance: .noMatch))
+        XCTAssertNil(TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .outsideScope))
+    }
+
+    func test_overlay_journalAndSocialCopy() {
         let stopOverlay = TurnShapeCadence.overlayLine(shape: .answerStop, stance: .journalGrounded)
         XCTAssertTrue(stopOverlay?.contains("Do not end with a question") == true)
-        // The overlay constrains the QUESTION, never the length. "answer and
-        // stop" in the prompt's highest-attention slot read to the on-device
-        // model as an instruction to be brief, and collapsed replies to one
-        // sentence.
         XCTAssertFalse(stopOverlay?.contains("and stop") == true,
-                       "shape A must not carry a brevity cue")
+                       "shape Stop must not carry a brevity cue")
         XCTAssertTrue(
             TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .journalGrounded)?
                 .contains("one specific question") == true
         )
+
+        let casualOpen = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .casual)
+        XCTAssertTrue(casualOpen?.contains("how they are") == true)
+        XCTAssertTrue(casualOpen?.contains("Never about the journal unless they brought it up") == true)
+
+        let socialStop = TurnShapeCadence.overlayLine(shape: .answerStop, stance: .sharing)
+        XCTAssertTrue(socialStop?.contains("follow what they just said") == true)
+        XCTAssertFalse(socialStop?.contains("and stop") == true)
+
+        let aboutOpen = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .aboutApp)
+        XCTAssertTrue(aboutOpen?.contains("what they want to look at") == true)
+    }
+
+    func test_overlay_followupUsesEvidenceWhenGrounded() {
+        let grounded = TurnShapeCadence.overlayLine(
+            shape: .answerOpen, stance: .followupThread, isGrounded: true
+        )
+        XCTAssertTrue(grounded?.contains("something in the evidence") == true)
+        let social = TurnShapeCadence.overlayLine(
+            shape: .answerOpen, stance: .followupThread, isGrounded: false
+        )
+        XCTAssertTrue(social?.contains("how they are") == true)
     }
 }

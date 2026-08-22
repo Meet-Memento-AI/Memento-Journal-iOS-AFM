@@ -9,18 +9,21 @@ server-side system prompt and **no** Supabase Edge Function prompt to keep in sy
 
 | Layer | What it is | Where |
 |---|---|---|
-| **L0 Core** | Conversation-first companion constitution (`ask@11`) + markdown grammar + Safety hard bans | `PromptRegistry` `ask@11` / `ask-degraded@11` |
+| **L0 Core** | Conversation-first companion constitution (`ask@12`) + markdown grammar + thread Open/Stop cadence + Safety hard bans | `PromptRegistry` `ask@12` / `ask-degraded@12` |
 | **L1 Experience lens** | Per-user personalization from onboarding | `PromptPersonalization` / `ExperienceProfile` appended as “About this person”; version suffix `+p2` |
 | **L2 Session** | Per-turn stance, retrieval context, citations | `TurnClassifier`, `RetrievalPolicy`, `EntryRetriever` |
 | **Safety (pre/post)** | Deterministic gate before retrieval; output scan after generation | `SafetyClassifier`, `SafetyRouter`, `OutputSafetyScanner` (spec 026) |
 
-### ask@11 conversation + markdown + safety contract
+### ask@12 conversation + markdown + safety contract
 
 - Talk like a friend; this is a conversation, **not** a report about their journal.
 - Reply composition is Meet them / Notebook / Sit / Open. Shape gates Open only, never length.
+- **Thread cadence:** first participating turn Opens; after Open the next Stops; never two questions in a row. `noMatch` / `outsideScope` force Stop without recording the bit.
+- **Notebook on** (journal match): one `###`, italic quote, Sit required; Open is about that moment.
+- **Notebook off** (casual / sharing / ungrounded follow-up): one or two sentences, zero markdown, empty citations; Open (when Shape asks) is about how they are or what they just shared — curious, not therapeutic. Continuers are not skipped.
 - Guided `heading1` / `heading2` stay **empty**. Visual titles live in `body` as `###` markdown (Figtree, never Lora display sizes).
 - Markdown subset: `###` headings (at most one), paragraphs, `- ` unordered lists, `1. ` ordered lists, `*italic*` for exact journal quotes, `**bold**` for a short span of their wording in Sit.
-- Casual / continuer: **no** headings or lists. About-the-app: a short capability list. Journal topic/span asks may list dated moments. Single-moment journal turns use one `###` plus an italic quote, not a list.
+- Casual / continuer: **no** headings or lists. About-the-app: a short capability list; may Open with “what do you want to look at?” Shares and reflective musings skip retrieval. Journal topic/span asks may list dated moments. Single-moment journal turns use one `###` plus an italic quote, not a list.
 - Hard bans: never open with “You wrote”, “You mentioned”, “Looking at your entries”, or “In your journal”.
 - `[Turn: journal question]` uses **at most one** notebook moment unless they asked what they wrote about a topic.
 - Shares and reflective musings stay `.sharing` — they are **not** promoted to `.journalGrounded`.

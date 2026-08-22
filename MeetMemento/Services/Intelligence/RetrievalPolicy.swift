@@ -21,15 +21,17 @@ import Foundation
 
 /// What retrieval, if any, to run for a turn.
 enum RetrievalMode: Sendable, Equatable {
-    /// No retrieval at all — social, acknowledgement, meta, offdomain.
+    /// No retrieval at all — social, acknowledgement, share, reflective,
+    /// meta, offdomain, and follow-ups that are not anchored to a journal ask.
     case none
-    /// Followup: re-derive the previous grounding from the last substantive
-    /// user turn (see `RetrievalPolicy.followupAnchor`).
+    /// Follow-up after a journal ask: re-derive the previous grounding from
+    /// the last substantive user turn (see `RetrievalPolicy.followupAnchor`).
     case reusePrevious
-    /// Share: retrieve on the current message only; grounded only above the
-    /// high confidence bar.
+    /// Current message only, optional high confidence bar. Unused on the
+    /// ask@12 path (share no longer retrieves); kept so the switch stays
+    /// exhaustive if a caller still requests it.
     case currentOnly(highBar: Bool)
-    /// Journal/reflective question: current message weighted with recent history.
+    /// Journal question: current message weighted with recent history.
     case currentWeighted
 }
 
@@ -48,15 +50,15 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     var promptLine: String {
         switch self {
         case .casual:
-            return "[Turn: casual — Meet them in a friendly way; notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
+            return "[Turn: casual — Meet them in a friendly way; Open only if a [Shape:] line asks; notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
         case .aboutApp:
-            return "[Turn: about the app — briefly say what you can do together; a short \"- \" list of capabilities; no journal references; leave citedRefs empty]"
+            return "[Turn: about the app — briefly say what you can do together; a short \"- \" list of capabilities; Open only if a [Shape:] line asks, about what they want to look at; no journal references; leave citedRefs empty]"
         case .outsideScope:
             return "[Turn: outside scope — say that's outside what you can see, then gently return to them; no headings or lists; leave citedRefs empty]"
         case .sharing:
-            return "[Turn: sharing — respond to what they said as a friend; ### plus italic quote only if it clearly helps; do not force an insight or citation]"
+            return "[Turn: sharing — follow what they said as a friend; no ### unless they asked for the journal; Open only if a [Shape:] line asks; do not force an insight or citation]"
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; do not restart with a new heading or begin a new entry inventory]"
+            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; Open only if a [Shape:] line asks; do not restart with a new heading or begin a new entry inventory]"
         case .journalGrounded:
             return "[Turn: journal question — Meet them, then one ### notebook moment, italic exact quote, then Sit; "
                 + "lists only if they asked what they wrote about a topic; "
@@ -73,10 +75,25 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Whether the citation fallback (attach top retrieved refs when the model
-    /// cites none) is allowed. Casual/sharing turns must keep empty citations.
+    /// Whether this stance type cites the journal even without looking at
+    /// retrieval. Follow-up must use `isGrounded(retrieval:)` — it is grounded
+    /// only when retrieval actually hit.
     var isGrounded: Bool {
-        self == .journalGrounded || self == .followupThread
+        self == .journalGrounded
+    }
+
+    /// Citation fallback and evidence-block empty-copy. Casual/sharing stay
+    /// ungrounded. Follow-up is grounded only on a real (non-empty, non-ambient)
+    /// retrieval hit — "tell me more" after a share must not sneak a page on.
+    func isGrounded(retrieval: RetrievalResult) -> Bool {
+        switch self {
+        case .journalGrounded:
+            return true
+        case .followupThread:
+            return !retrieval.isEmpty && !retrieval.isAmbient
+        default:
+            return false
+        }
     }
 
     /// The tag name up to the inline instructions — e.g. "[Turn: casual". The
@@ -89,25 +106,32 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
 
 enum RetrievalPolicy {
 
-    /// The retrieval decision matrix.
-    static func mode(for turn: TurnType) -> RetrievalMode {
+    /// The retrieval decision matrix. `history` is required for follow-up:
+    /// reuse the previous grounding only when the anchor classifies as a
+    /// journal ask — "tell me more" after a share must not retrieve.
+    static func mode(for turn: TurnType, history: [ChatTurn] = []) -> RetrievalMode {
         switch turn {
-        case .social, .acknowledgement, .meta, .offdomain:
+        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion:
             return .none
         case .followup:
-            return .reusePrevious
-        case .share:
-            return .currentOnly(highBar: true)
-        case .journalQuery, .reflectiveQuestion:
+            return followupMode(history: history)
+        case .journalQuery:
             return .currentWeighted
         }
+    }
+
+    /// `reusePrevious` only when the last substantive user turn was a journal
+    /// ask. Otherwise `.none` so a social continuer does not load the notebook.
+    static func followupMode(history: [ChatTurn]) -> RetrievalMode {
+        guard let anchor = followupAnchor(history: history) else { return .none }
+        return classifyHistoryTurn(anchor) == .journalQuery ? .reusePrevious : .none
     }
 
     /// Walks history backwards to the last substantive user message — the one
     /// a followup like "tell me more" refers to. Skips user turns that are
     /// themselves followups/acknowledgements/social, checks at most
     /// `maxWalkback` user turns, and returns nil when none qualifies (caller
-    /// falls back to `.currentWeighted` on the current message).
+    /// then uses `.none` — do not retrieve on a social continuer).
     static func followupAnchor(history: [ChatTurn], maxWalkback: Int = 4) -> String? {
         var checked = 0
         for turn in history.reversed() where turn.role == .user {

@@ -48,7 +48,7 @@ struct AskAnswer {
     // `body` leads so the first visible token never waits on the two optional
     // heading decisions; `citedRefs` trails so a token-cap truncation can only
     // cost citations (which reconcile falls back for), never body text.
-    @Guide(description: "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Open only if a [Shape:] line asks. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "Always empty on conversational Ask. Titles steal decode and delay the visible body.")
@@ -64,7 +64,7 @@ struct AskAnswer {
 /// Testable twin of `AskAnswer`'s `@Guide` copy (spec 037 R8). Keep in sync
 /// with the descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Open only if a [Shape:] line asks. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
     static let heading1 = "Always empty on conversational Ask. Titles steal decode and delay the visible body."
     static let heading2 = "Always empty on conversational Ask."
 }
@@ -437,7 +437,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         LiveTurnClock.shared.start(.prepRetrieve)
         let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
         let wideRetrieval: RetrievalResult
-        switch RetrievalPolicy.mode(for: turn) {
+        switch RetrievalPolicy.mode(for: turn, history: history) {
         case .none:
             wideRetrieval = .empty
         case .reusePrevious:
@@ -966,10 +966,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        safetyConstrained: Bool = false) -> String {
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
-        // conversation in journal entries. Spec 037: [Shape:] overlays A/B
-        // on journal-grounded turns only.
+        // conversation in journal entries. Spec 037 / ask@12: [Shape:] overlays
+        // Open vs Stop on participating stances (journal and notebook-off).
         var parts: [String] = [stance.promptLine]
-        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance) {
+        let grounded = stance.isGrounded(retrieval: retrieval)
+        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance,
+                                                      isGrounded: grounded) {
             parts.append(overlay)
         }
         if safetyConstrained {
@@ -982,7 +984,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
                 + retrieval.contextBlock
             )
-        } else if stance == .noMatch || stance.isGrounded {
+        } else if stance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {

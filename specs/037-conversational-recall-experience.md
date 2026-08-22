@@ -2,7 +2,7 @@
 id: 037
 title: Conversational Recall Experience
 tier: P1
-status: in-progress (2026-08-22) — ask@11 markdown subset in `body`; guided heading1/heading2 stay empty; Meet / Notebook / Sit / Open; device goldens still pending
+status: in-progress (2026-08-22) — ask@12 thread Open/Stop cadence; notebook-off Open; ask@11 markdown subset in `body`; guided heading1/heading2 stay empty; device goldens still pending
 effort: 1 session
 depends_on: [017, 022, 026, 028]
 findings: [notebook-beside-them-voice, turn-shape-cadence, empty-recall-direct, prompt-entry-cap, conversational-reply-skeleton]
@@ -94,6 +94,16 @@ so Notebook is visible and topic/span asks can list dated moments. Guided
 decode-leading fields. Casual turns still have zero markdown structure.
 Shipping versions: `ask@11` / `ask-degraded@11`.
 
+**Amendment (ask@12, 2026-08-22):** Open is a **thread** rule, not journal-only.
+`TurnShapeCadence` tracks last Open/Stop across casual, sharing, journal,
+follow-up, and about-the-app. First participating turn Opens; never two Opens
+in a row. `noMatch` / `outsideScope` force Stop without recording. Notebook-off
+turns are one or two sentences, zero markdown; Open (when Shape asks) is about
+them or what they just shared — not the journal unless they brought it up.
+Share and reflective skip retrieval; follow-up reuses journal anchors only.
+Guided `heading1` / `heading2` **remain empty**. Shipping versions: `ask@12` /
+`ask-degraded@12`.
+
 ### R2. Turn shapes A–D
 
 | Shape | When | Behavior |
@@ -107,25 +117,32 @@ Shape A/B gates **Open only**, never length. B only when cadence allows.
 Never two B in a row. First journal turn in a thread **opens** (B).
 
 **Acceptance:** journal `[Turn:]` no longer requires a forward question. Prompt
-describes A–D. Code emits a `[Shape:]` overlay on journal-grounded turns.
+describes A–D. Code emits a `[Shape:]` overlay on participating turns
+(journal and notebook-off).
 
 ### R3. Cadence in code
 
-A small `TurnShapeCadence` tracks the last **journal** shape for the live Ask
+A small `TurnShapeCadence` tracks the last Open/Stop shape for the live Ask
 session (reset when the prompt history is empty). Overlay on the user prompt —
-not a longer system prompt:
+not a longer system prompt. Participating stances: casual, sharing,
+journal-grounded, follow-up, about-the-app. Force-stop without recording:
+noMatch, outsideScope.
 
 - `[Shape: answer the question fully from the evidence. Do not end with a question this turn.]`
 - `[Shape: answer, then one specific question about something in the evidence. Never a second question.]`
+- `[Shape: Meet them, then one specific question about how they are or what they just said. Never about the journal unless they brought it up. Never a second question.]`
+- `[Shape: follow what they just said. Do not end with a question this turn.]`
+- `[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]`
 
-Non-journal stances do not advance the journal cadence. First journal turn in a
-thread is **B** (opens). After a journal B, the next journal turn is A. After A,
-the next journal turn may be B. Never two B in a row. Overlay copy constrains
-the question, never length — “answer and stop” in this slot collapsed replies
-to one sentence.
+Non-participating stances (`noMatch`, `outsideScope`) do not advance the bit.
+First participating turn in a thread is **B** (opens). After B, the next
+participating turn is A. After A, the next may be B. Never two B in a row.
+Overlay copy is stance-aware (journal Open is about the evidence; notebook-off
+Open is about them). Overlay constrains the question, never length — “answer
+and stop” in this slot collapsed replies to one sentence.
 
 **Acceptance:** unit tests prove two B shapes are never emitted in a row.
-`PromptStanceSyncTests` still pins every `TurnStance.tagPrefix` in `ask@10`.
+`PromptStanceSyncTests` still pins every `TurnStance.tagPrefix` in `ask@12`.
 
 ### R4. Empty recall
 
@@ -355,13 +372,14 @@ prose. `[Turn:]` is guidance, not a script.
 - [x] 7. Contract tests: stance sync, versions, six eval cases without counts, cadence never two B, retrieval cap (R3, R6, R7).
 - [x] 8. ask@10 conversational skeleton: Meet / Notebook / Sit / Open; Shape gates Open only; headings empty; stance lines describe pieces (R1, R8).
 - [x] 9. ask@11 markdown subset in `body` (`###`, lists, italic quotes); guided heading fields stay empty; casual forbids lists.
+- [x] 10. ask@12 thread-level Open/Stop cadence; notebook-off Open; share/reflective skip retrieval; follow-up reuses journal anchors only.
 
 ## Verification
 
-- [x] `PromptRegistry.instructions(for: .ask).version == "ask@11"` (degraded `ask-degraded@11`).
+- [x] `PromptRegistry.instructions(for: .ask).version == "ask@12"` (degraded `ask-degraded@12`).
 - [x] Full and degraded prompts contain "Safety hard bans", violence, terrorism, crisis counseling; do **not** contain "988 Suicide & Crisis Lifeline".
-- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@11`; journal grounded line has no mandatory "ask one forward question" and no "answer and stop".
-- [x] Cadence unit tests: first journal → B; after B → A; after A → B; never two B. Shape A overlay has no "and stop".
+- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@12`; journal grounded line has no mandatory "ask one forward question" and no "answer and stop".
+- [x] Cadence unit tests: first participating turn → B; after B → A; casual after journal Open advances the bit; `noMatch` does not flip the bit; never two B. Shape A overlay has no "and stop". Overlay non-nil for casual/sharing.
 - [x] `RetrievalLimits(budget:)` `maxEntries <= 5`; `EntryRetriever.maxEntries == 5`.
 - [x] Contract tests pin: no emotion labels, no advice, no counts, direct empty recall, Sit required on journal turns, `citedRefs` still requested, four composition pieces, no "Follow it exactly".
 - [x] PersonaGate (026) still runs; this spec does not weaken it.

@@ -2,7 +2,7 @@
 id: 017
 title: Intelligence Boundary and Prompt Architecture
 tier: P0
-status: in-progress (2026-08-22) — Ask pipeline shipping (`ask@11`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
+status: in-progress (2026-08-22) — Ask pipeline shipping (`ask@12`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
 effort: 3 sessions
 depends_on: [014, 015, 016]
 findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open]
@@ -397,7 +397,7 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   present; always the fallback. The registry resolves
   `(intent, zone, degraded?) → (prompt text, promptVersion)` — the degraded
   variants R4 requires are registry entries, not string mutations.
-  Shipping Ask is `ask@11` / `ask-degraded@11`: `[Turn:]` tags are stance
+  Shipping Ask is `ask@12` / `ask-degraded@12`: `[Turn:]` tags are stance
   **guidance** (prefer the intent), not a script the model must follow exactly.
 - `REQ-PRM-002` — an optional remote prompt manifest MAY be fetched from a
   static host: signed JSON, CDN, no server logic; the request carries **no

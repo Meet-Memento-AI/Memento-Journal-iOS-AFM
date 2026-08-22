@@ -22,8 +22,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@11")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@11")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@12")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@12")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 
@@ -46,6 +46,9 @@ final class PromptStanceSyncTests: XCTestCase {
             || prompt.contains("one ### notebook moment"))
         XCTAssertFalse(prompt.contains("Follow it exactly"))
         XCTAssertFalse(prompt.contains("answer and stop"))
+        XCTAssertFalse(prompt.contains("Meet them only"))
+        XCTAssertTrue(prompt.contains("do not skip continuers"))
+        XCTAssertTrue(prompt.contains("how they are"))
     }
 
     func test_stancePromptLines_areBracketedSingleLines() {
@@ -73,8 +76,18 @@ final class PromptStanceSyncTests: XCTestCase {
         let line = TurnStance.casual.promptLine
         XCTAssertTrue(line.contains("Meet them"))
         XCTAssertTrue(line.contains("no headings or lists"))
+        XCTAssertTrue(line.contains("Open only if"))
         XCTAssertFalse(line.contains("one or two friendly sentences"))
         XCTAssertFalse(line.contains("answer and stop"))
+        XCTAssertFalse(line.contains("Meet them only"))
+    }
+
+    func test_sharingStance_doesNotForceANotebookPage() {
+        let line = TurnStance.sharing.promptLine
+        XCTAssertTrue(line.contains("follow what they said"))
+        XCTAssertTrue(line.contains("no ### unless they asked for the journal"))
+        XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertEqual(line.components(separatedBy: " — ").first, "[Turn: sharing")
     }
 
     func test_noMatchStance_isDirectEmptyRecall() {
