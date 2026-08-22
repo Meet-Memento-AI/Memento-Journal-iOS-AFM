@@ -60,7 +60,7 @@ struct UserBubbleSurface: View {
     }
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             if !imageJPEGs.isEmpty {
                 bubblePhotoRow
             }
@@ -69,7 +69,7 @@ struct UserBubbleSurface: View {
                     .font(type.body1.weight(.medium))
                     .foregroundStyle(theme.foreground)
                     .lineSpacing(type.bodyLineSpacing)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
             }
         }
         .padding(.horizontal, Spacing.md)

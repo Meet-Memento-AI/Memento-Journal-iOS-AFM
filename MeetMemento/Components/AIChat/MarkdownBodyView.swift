@@ -148,7 +148,7 @@ struct MarkdownBodyView: View {
         lineSpacing: CGFloat,
         dissolve: Bool,
         caret: Bool
-    ) -> Text {
+    ) -> some View {
         var attr = RichTextParser.attributed(
             runs,
             baseFont: baseFont,
