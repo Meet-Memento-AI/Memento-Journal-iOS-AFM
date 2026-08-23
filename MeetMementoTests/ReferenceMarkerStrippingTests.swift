@@ -90,6 +90,72 @@ final class ReferenceMarkerStrippingTests: XCTestCase {
         XCTAssertTrue(out.contains("\n\n"), "paragraph breaks must survive: \(out)")
     }
 
+    // MARK: - Schema field names leaked as prose (observed live 2026-08-23)
+
+    /// The model writes `citedRefs` into `body` instead of into the property.
+    /// These four strings are verbatim tails of real replies from the QA pass.
+    func test_stripsTrailingCitedRefsFieldName() {
+        for tail in ["citedRefs:", "citedRefs: 1.", "citedRefs:[1]", "citedRefs: 1, 2"] {
+            let body = "That pattern has stayed with you. What are you holding onto now?\n\n\(tail)"
+            let out = strip(body)
+            XCTAssertFalse(out.lowercased().contains("citedrefs"), "leaked field name survived: \(out)")
+            XCTAssertTrue(out.hasSuffix("What are you holding onto now?"),
+                          "stripping must not eat the reply: \(out)")
+        }
+    }
+
+    func test_stripsHeadingFieldNames() {
+        let out = strip("heading1: You and the fog. What stayed with you?")
+        XCTAssertFalse(out.lowercased().contains("heading1"), out)
+        XCTAssertTrue(out.hasPrefix("You and the fog."), out)
+    }
+
+    /// A bracket pair with no digits in it — the number-bearing patterns cannot
+    /// match these. Observed live as a trailing `[,]` on its own line.
+    func test_stripsBracketPairsWithoutNumbers() {
+        for junk in ["[,]", "[]", "[ref]", "[-]"] {
+            let out = strip("What's carrying you now, beyond the things you've written?\n\(junk)")
+            XCTAssertFalse(out.contains(junk), "\(junk) survived: \(out)")
+            XCTAssertTrue(out.hasSuffix("written?"), out)
+        }
+    }
+
+    // MARK: - Truncation wreckage (observed in the chat eval gate 2026-08-23)
+
+    func test_stripsControlTokenAndEverythingAfterIt() {
+        let out = strip("What are you holding steady right now?**} <ctrl46>Memento leans into the quiet, the")
+        XCTAssertEqual(out, "What are you holding steady right now?")
+    }
+
+    func test_stripsDanglingHeadingTheReplyNeverFilledIn() {
+        let body = "You’re the one who knows the rhythm of those quiet shifts.\n### July 19, 2026 *"
+        XCTAssertEqual(strip(body), "You’re the one who knows the rhythm of those quiet shifts.")
+    }
+
+    func test_stripsBareTrailingHeading() {
+        XCTAssertEqual(strip("Hey there, what’s something new you’ve tried lately?\n###"),
+                       "Hey there, what’s something new you’ve tried lately?")
+    }
+
+    /// A heading with a body after it is real content, not wreckage.
+    func test_keepsAHeadingThatHasContentAfterIt() {
+        let body = "You went up the mountain.\n### August 2, 2026\n*“Drove out to Mount Tamalpais.”*\nWhat stayed with you?"
+        XCTAssertEqual(strip(body), body)
+    }
+
+    /// Regression, and the reason the dangling-heading pattern is as fussy as it
+    /// is. Replies are frequently a *single line* with the heading inline, and a
+    /// pattern anchored on "### … end of string" then matched from the heading
+    /// all the way to the end — deleting the quote, the reflection and the
+    /// closing question. Five clean replies lost their question this way; the
+    /// eval gate caught it as a jump in `rule.noOpen` from 5 to 17.
+    func test_keepsAnInlineHeadingAndEverythingAfterIt() {
+        let body = "You’ve been tracing quiet shifts. ### August 2, 2026 *“Drove out to Mount "
+            + "Tamalpais on Saturday with Maya.”* The fog lifting matched something in you. "
+            + "What is it you’re holding onto right now?"
+        XCTAssertEqual(strip(body), body)
+    }
+
     // MARK: - What must NOT be touched
 
     func test_bodyWithoutMarkersIsUnchanged() {

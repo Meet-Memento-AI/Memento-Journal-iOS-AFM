@@ -16,8 +16,12 @@ struct ChatMessagesView: View {
     var hasEntries: Bool
     var bottomReserve: CGFloat
     var followTail: Bool
+    /// Starter prompts for the empty state. Empty hides the chips entirely —
+    /// which is what an archive with nothing in it should show.
+    var suggestions: [String] = []
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
+    var onSuggestionTap: (String) -> Void = { _ in }
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -96,6 +100,13 @@ struct ChatMessagesView: View {
 
     private var lastUserMessageID: UUID? {
         viewModel.messages.last(where: { $0.isFromUser })?.id
+    }
+
+    /// The reply Regenerate applies to — the last one, and only when it is the
+    /// final row in the transcript.
+    private var lastAssistantMessageID: UUID? {
+        guard let last = viewModel.messages.last, !last.isFromUser else { return nil }
+        return last.id
     }
 
     /// Slack below the transcript that makes the pin reachable.
@@ -275,7 +286,16 @@ struct ChatMessagesView: View {
         .scrollDismissesKeyboard(.interactively)
         .scrollContentBackground(.hidden)
         .background(.clear)
-        .scrollEdgeEffectHidden(true, for: .top)
+        // `.soft`, not hidden. Hidden left the transcript fully crisp behind the
+        // header: `AppHeader` puts blur only in the Dynamic Island strip so its
+        // glass can sample content, which meant the previous turn scrolled up
+        // *behind* the header buttons at full contrast. Measured at the resting
+        // pin, the previous reply's action bar sits at y=105–125 while the
+        // header buttons occupy y=62–110 — the Journal button lands on top of
+        // "Read aloud", so tapping the visible control navigated away instead.
+        // The soft edge is the system treatment for text content: it fades the
+        // band under the bar so nothing there reads as tappable.
+        .scrollEdgeEffectStyle(.soft, for: .top)
         // ⚠️ This gesture spans the whole message list, and it will SWALLOW
         // taps from any descendant that is not a `Button`. A plain
         // `.onTapGesture` on a child loses to it across the ScrollView
@@ -624,10 +644,14 @@ struct ChatMessagesView: View {
                     )
                 }
             },
-            onRedo: message.isFromUser ? nil : {
+            // Last reply only. Regenerating an older one re-sends it, which
+            // appends at the end — so offering it mid-transcript promised a
+            // reordering nobody wants (and `regenerateResponse` now refuses it,
+            // which would leave a dead button here).
+            onRedo: message.id == lastAssistantMessageID ? {
                 voiceService.stopIfSpeaking(messageID: message.id)
                 viewModel.regenerateResponse(for: message.id)
-            },
+            } : nil,
             onThumbsUp: message.isFromUser ? nil : {
                 viewModel.toggleThumbsUp(for: message.id)
             },
@@ -650,11 +674,12 @@ struct ChatMessagesView: View {
                         .scaledToFit()
                         .frame(width: 48, height: 48)
 
-                    Text("Let’s dive deeper\ninto your journal")
+                    Text(emptyStateHeading)
                         .font(type.h2)
                         .foregroundStyle(PrimaryScale.primary600)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
                 }
 
                 if !hasEntries {
@@ -663,9 +688,32 @@ struct ChatMessagesView: View {
                         .foregroundStyle(theme.mutedForeground)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                } else if !suggestions.isEmpty {
+                    // Starter prompts. `AIChatView` has been computing these on
+                    // every appear since they were written — rotating the pool
+                    // and reading the local profile — but nothing rendered them,
+                    // so the whole feature (ThemeAwareChatStarters,
+                    // AISuggestionPrompts.json, AISuggestionCard) was paid for
+                    // and never shown. Only offered when there is something to
+                    // ask *about*; the no-entries copy above takes precedence.
+                    //
+                    // Horizontal, because `AISuggestionCard` is a fixed
+                    // 164×210 — three of them stacked is 630pt and would push
+                    // the heading off screen.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .top, spacing: Spacing.sm) {
+                            ForEach(suggestions, id: \.self) { suggestion in
+                                AISuggestionCard(suggestion: suggestion) {
+                                    onSuggestionTap(suggestion)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                    }
+                    .scrollClipDisabled()
                 }
             }
-            .padding(.horizontal, AppHeaderMetrics.edgeInset)
             .frame(maxWidth: .infinity)
 
             Spacer()
@@ -673,6 +721,16 @@ struct ChatMessagesView: View {
         .padding(.top, AppHeaderMetrics.contentTopPadding)
     }
 
+    /// Greets by name when onboarding captured one. `ChatEmptyState` was written
+    /// to do this and was never rendered, so the shipping empty state had been
+    /// dropping the name since it was introduced.
+    private var emptyStateHeading: String {
+        guard let name = viewModel.userName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else {
+            return "Let\u{2019}s dive deeper\ninto your journal"
+        }
+        return "Welcome \(name),\nlet\u{2019}s dive deeper into your journal"
+    }
 }
 
 // MARK: - Geometry reporting

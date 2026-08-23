@@ -59,4 +59,10 @@ public enum ChatSafetyPresentation: String, Sendable, Equatable, Hashable, Codab
     case none
     case crisisResource
     case hardRefuse
+    /// The model produced nothing usable for this turn (Apple's guardrail
+    /// declined it). Authored copy, not an answer — so it must not carry the
+    /// affordances of one. Copying, reading aloud or rating "I don't have an
+    /// observation for this one." is meaningless; regenerating it is the only
+    /// action that does anything, and this used to render with the full bar.
+    case emptyObservation
 }

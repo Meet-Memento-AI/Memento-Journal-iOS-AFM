@@ -304,8 +304,13 @@ public struct AIChatView: View {
                         hasEntries: hasEntries,
                         bottomReserve: bottomReserve,
                         followTail: followTail,
+                        suggestions: currentSuggestions,
                         onCitations: { selectedCitations = CitationsWrapper(citations: $0) },
-                        onDismissKeyboard: dismissKeyboard
+                        onDismissKeyboard: dismissKeyboard,
+                        onSuggestionTap: { suggestion in
+                            dismissKeyboard()
+                            viewModel.sendMessage(prompt: suggestion)
+                        }
                     )
 
                     if keyboardObserver.isKeyboardVisible && !isNarrating {

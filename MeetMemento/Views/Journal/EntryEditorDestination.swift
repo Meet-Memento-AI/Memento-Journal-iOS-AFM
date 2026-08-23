@@ -26,18 +26,35 @@ extension EnvironmentValues {
 
 extension View {
     /// Marks this view as the zoom source for an `EntryRoute`.
-    func entryZoomSource(_ sourceID: String) -> some View {
-        modifier(EntryZoomSourceModifier(sourceID: sourceID))
+    ///
+    /// `cornerRadius` clips the transition-source platter. Pass it for any
+    /// non-rectangular source — without it the platter is an unclipped square,
+    /// which reads as a grey plate behind a round control like the FAB. Half
+    /// the control's size spells a circle; `nil` keeps the system default.
+    func entryZoomSource(_ sourceID: String, cornerRadius: CGFloat? = nil) -> some View {
+        modifier(EntryZoomSourceModifier(sourceID: sourceID, cornerRadius: cornerRadius))
     }
 }
 
 private struct EntryZoomSourceModifier: ViewModifier {
     @Environment(\.entryZoomNamespace) private var namespace
     let sourceID: String
+    let cornerRadius: CGFloat?
 
     func body(content: Content) -> some View {
         if let namespace {
-            content.matchedTransitionSource(id: sourceID, in: namespace)
+            if let cornerRadius {
+                // `RoundedRectangle` is the only shape this configuration
+                // accepts — the generic `clipShape` overload is marked
+                // unavailable ("matchedTransitionSource only supports
+                // `RoundedRectangle` clip shapes"), so a fully-rounded rect is
+                // how a circular source gets spelled.
+                content.matchedTransitionSource(id: sourceID, in: namespace) {
+                    $0.clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                }
+            } else {
+                content.matchedTransitionSource(id: sourceID, in: namespace)
+            }
         } else {
             content
         }

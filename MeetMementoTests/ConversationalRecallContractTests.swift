@@ -48,8 +48,26 @@ final class ConversationalRecallContractTests: XCTestCase {
         }
         XCTAssertTrue(askText().contains("citedRefs"))
         XCTAssertFalse(askText().contains("eleven entries"), "goldens must not teach counts")
-        XCTAssertTrue(askText().contains("across several entries this spring"))
-        XCTAssertTrue(askText().contains("never \"nine entries\""))
+        // The rule survives; the worked example does not.
+        XCTAssertTrue(askText().contains("name the pattern without counting"))
+    }
+
+    /// Regression: the span rule used to teach itself with a literal —
+    /// `say "across several entries this spring", never "nine entries"` — and
+    /// the model copied the example straight into replies. Three of twelve
+    /// grounded replies in the 2026-08-23 QA pass claimed "across several
+    /// entries this spring" over a corpus dated entirely in August, one of them
+    /// across a two-entry corpus.
+    ///
+    /// A prompt that must not be quoted verbatim must not contain a quotable
+    /// sentence. Keep the instruction abstract.
+    func test_spanRule_teachesNoCopyablePhrase() {
+        for degraded in [false, true] {
+            let text = askText(degraded: degraded)
+            XCTAssertFalse(text.contains("across several entries this spring"),
+                           "degraded=\(degraded): the model parrots this verbatim")
+            XCTAssertFalse(text.contains("nine entries"), "degraded=\(degraded)")
+        }
     }
 
     func test_emptyRecall_isDirect() {

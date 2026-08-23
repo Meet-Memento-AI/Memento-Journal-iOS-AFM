@@ -72,6 +72,34 @@ final class TurnClassifierTests: XCTestCase {
         XCTAssertEqual(classify("what about that?", hasHistory: true), .followup)
     }
 
+    /// A follow-up phrase is matched by prefix/suffix, so a real journal ask
+    /// that merely opens politely used to be swallowed as a continuer. That
+    /// misroute is not cosmetic: `.followup` re-runs retrieval against the
+    /// *previous* question's text, so the reply answers the wrong question.
+    ///
+    /// The rule: a continuer has no content of its own. Once the message names
+    /// the journal or a span, it is a new ask.
+    func test_followupPhrase_doesNotSwallowAJournalAsk() {
+        let cases = [
+            "what else did I write that week?",
+            "tell me more about what I wrote in March",
+            "anything else in my journal about work?",
+            "say more — did I log anything about sleep?"
+        ]
+        for message in cases {
+            XCTAssertEqual(classify(message, hasHistory: true), .journalQuery,
+                           "\"\(message)\" carries its own journal ask")
+        }
+    }
+
+    /// The other half of the same boundary: a bare continuer stays a continuer
+    /// even when the conversation it follows was about the journal.
+    func test_bareContinuer_staysFollowup_evenAfterAJournalTurn() {
+        for message in ["tell me more", "what else?", "say more", "go on"] {
+            XCTAssertEqual(classify(message, hasHistory: true), .followup, "\(message)")
+        }
+    }
+
     // MARK: - Journal query
 
     func test_journalLexicon_isJournalQuery() {

@@ -48,7 +48,9 @@ struct AcknowledgmentsView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Acknowledgments")
         .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("acknowledgments.screen")
+        // No container identifier here: it would overwrite the identifiers of
+        // `acknowledgments.fonts` / `.model` / `.ofl` inside. Same trap as the
+        // root of `AddEntryView`.
     }
 
     private var fontAttribution: String {

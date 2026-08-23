@@ -531,11 +531,15 @@ class ChatViewModel: ObservableObject {
                     // Drop the empty placeholder so a failed send doesn't leave a
                     // blank bubble; keep the retry affordance on the user's message.
                     if !sawContent { messages.removeAll { $0.id == assistantId } }
-                    setSendFailed(true, forMessageId: userMessageId)
-                    // A cancelled/superseded send shouldn't pop the error alert
-                    // over unrelated content.
+                    // A cancelled/superseded send is not a failure: it is the
+                    // user swiping back to Journal, or switching conversations.
+                    // Both the alert AND the "Failed to send · Retry" row have
+                    // to be suppressed for it — marking the message failed used
+                    // to sit above this condition, so leaving the chat mid-send
+                    // left a red retry row on a message that was never rejected.
                     if generation == sendGeneration, !Task.isCancelled,
                        !(error is CancellationError) {
+                        setSendFailed(true, forMessageId: userMessageId)
                         errorMessage = chatErrorMessage(for: error)
                         showingError = true
                     }
@@ -730,11 +734,23 @@ class ChatViewModel: ObservableObject {
 
     func regenerateResponse(for messageId: UUID) {
         guard let index = messages.firstIndex(where: { $0.id == messageId }), index > 0 else { return }
+        // Only the last reply can be regenerated. The re-send always appends at
+        // the end, so regenerating an older turn used to lift it out of the
+        // middle of the conversation and drop it at the bottom — reordering the
+        // transcript — while the store kept the original where it was.
+        guard index == messages.count - 1 else { return }
         let precedingUserMessage = messages[index - 1]
         guard precedingUserMessage.isFromUser else { return }
         let userContent = precedingUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userContent.isEmpty else { return }
         messages.removeSubrange((index - 1)...index)
+        // Keep the store in step. Without this the rejected turn stayed on disk,
+        // the re-sent one was appended beside it, and the history handed to the
+        // model on the next turn still contained the reply the user rejected.
+        if let sessionId = currentSessionId {
+            LocalChatStore.shared.removeLastTurn(from: sessionId)
+            messageCache[sessionId] = messages
+        }
         sendMessage(prompt: userContent, origin: .regenerate)
     }
 
@@ -878,6 +894,7 @@ class ChatViewModel: ObservableObject {
         switch intelligenceError {
         case .crisisResource: return .crisisResource
         case .safetyRefusal: return .hardRefuse
+        case .guardrailRefusal: return .emptyObservation
         default: return .none
         }
     }

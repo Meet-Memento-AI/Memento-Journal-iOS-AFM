@@ -68,15 +68,29 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Spec 039 R1 token caps. Notebook keeps 512; thread uses 512 only when
-    /// RAG actually ran. Light caps are one spoken sentence plus a question.
+    /// Spec 039 R1 token caps. Light caps are one spoken sentence plus a
+    /// question; the two channels that run the full `ask@14` recipe get room
+    /// for it.
+    ///
+    /// `.thread` used to drop to 128 when RAG had not run. Measured in the
+    /// chat eval gate on 2026-08-23: every one of ten follow-up turns on that
+    /// path truncated mid-sentence — 510 and 446 mean characters against a
+    /// ~460-character budget — and **0 of 10 reached the closing question**
+    /// that `ask@14` requires. The cap was the whole of `rule.noOpen`, the
+    /// gate's single largest failure family.
+    ///
+    /// The asymmetry never made sense on its own terms either: a follow-up
+    /// runs the same Meet → Notebook → Sit → Open recipe whether or not
+    /// retrieval hit, so budgeting it at a quarter of the length asked for one
+    /// outcome only — a reply cut off before it finished a sentence.
+    /// `retrievalRan` still selects the temperature, where the distinction is
+    /// real.
     func maximumResponseTokens(retrievalRan: Bool) -> Int {
         switch self {
         case .phatic: return 80
         case .continuer: return 64
         case .meta, .companion: return 128
-        case .thread: return retrievalRan ? 512 : 128
-        case .notebook: return 512
+        case .thread, .notebook: return 512
         case .redirect: return 80
         }
     }

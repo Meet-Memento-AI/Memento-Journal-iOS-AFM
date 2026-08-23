@@ -181,7 +181,12 @@ public struct JournalView: View {
                         NewEntryFAB(size: AppHeaderMetrics.footerButtonSize) {
                             presentEntry(.create)
                         }
-                        .entryZoomSource(EntryRoute.createZoomSourceID)
+                        // Circular platter: the FAB is round glass, and the
+                        // default square source plate shows through behind it.
+                        .entryZoomSource(
+                            EntryRoute.createZoomSourceID,
+                            cornerRadius: AppHeaderMetrics.footerButtonSize / 2
+                        )
                     }
                     .padding(.horizontal, 16)
                 }

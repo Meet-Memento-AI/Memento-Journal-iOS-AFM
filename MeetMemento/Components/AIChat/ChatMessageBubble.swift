@@ -107,6 +107,28 @@ public struct ChatMessageBubble: View {
                 .font(type.body1)
                 .foregroundStyle(theme.foreground)
                 .lineSpacing(type.bodyLineSpacing)
+        } else if message.safetyPresentation == .emptyObservation {
+            // Also authored copy, but unlike a hard refuse this one is worth
+            // retrying — the model simply produced nothing for this turn. So:
+            // muted text plus a single Try again, and none of copy / read aloud
+            // / thumbs, which used to render here because the presentation was
+            // `.none` and this fell through to the full AIOutputComponent bar.
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text(message.content)
+                    .font(type.body1)
+                    .foregroundStyle(theme.mutedForeground)
+                    .lineSpacing(type.bodyLineSpacing)
+                if let onRedo {
+                    Button(action: onRedo) {
+                        Label("Try again", systemImage: "arrow.clockwise")
+                            .font(type.body2Medium)
+                            .foregroundStyle(theme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Try again")
+                    .accessibilityHint("Double-tap to ask again")
+                }
+            }
         } else if let aiContent = message.aiOutputContent, !isEmptyStreamingPlaceholder(aiContent) {
             // AI messages with structured content (headings, body, citations)
             AIOutputComponent(

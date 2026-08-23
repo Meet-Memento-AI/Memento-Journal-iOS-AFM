@@ -166,6 +166,28 @@ final class LocalChatStore: @unchecked Sendable {
         scheduleMessagesWrite(all, for: sessionId)
     }
 
+    /// Drops the trailing user+assistant pair from a session.
+    ///
+    /// Regenerate needs it. It removes the pair from the on-screen transcript
+    /// and re-sends, which appends a fresh pair — so without a matching removal
+    /// here the stored conversation grew a duplicate turn every time, and the
+    /// history handed to the model on the next turn contained the reply the
+    /// user had just rejected.
+    ///
+    /// Trailing-only by design: removing from the middle would leave the store
+    /// and the screen in different orders, since the re-sent turn always lands
+    /// at the end.
+    func removeLastTurn(from sessionId: UUID) {
+        lock.lock(); defer { lock.unlock() }
+        var all = cachedMessages(sessionId)
+        // Walk back over the assistant reply, then the user message that
+        // prompted it. Tolerates a turn that never got its reply persisted.
+        if all.last?.role == "assistant" { all.removeLast() }
+        if all.last?.role == "user" { all.removeLast() }
+        messagesCache[sessionId] = all
+        scheduleMessagesWrite(all, for: sessionId)
+    }
+
     /// Drains pending write-behind work. Call when the app backgrounds so a
     /// suspension can't strand a turn in memory only.
     func flush() {

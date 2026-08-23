@@ -65,7 +65,10 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.companion.maximumResponseTokens(retrievalRan: false), 128)
         XCTAssertEqual(ReplyChannel.meta.maximumResponseTokens(retrievalRan: false), 128)
         XCTAssertEqual(ReplyChannel.redirect.maximumResponseTokens(retrievalRan: false), 80)
-        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: false), 128)
+        // Both, deliberately. A follow-up runs the full ask@14 recipe whether or
+        // not retrieval hit, and the old 128 truncated every measured one of
+        // them mid-sentence, before the closing question ask@14 requires.
+        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: false), 512)
         XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: true), 512)
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: false), 512)
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 512)

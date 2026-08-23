@@ -267,12 +267,21 @@ class ChatService {
         }
     }
 
-    /// Spec 026: for a designed Safety route (crisis card / hard refuse), persist
-    /// the turn locally — same shape as a normal reply — and return the
-    /// `ChatResponse` the caller should hand back instead of throwing. Returns
-    /// `nil` for errors that aren't a Safety route (`.unavailable`,
-    /// `.guardrailRefusal`, `.generationFailed`), so those still `throw` and hit
-    /// ChatViewModel's existing handling.
+    /// Spec 026: for a *designed* reply — crisis card, hard refuse, or the
+    /// model declining to produce anything — persist the turn locally in the
+    /// same shape as a normal reply and return the `ChatResponse` the caller
+    /// hands back instead of throwing. Returns `nil` for real failures
+    /// (`.unavailable`, `.generationFailed`, `.generationTimedOut`), which
+    /// still `throw` and hit ChatViewModel's retry handling.
+    ///
+    /// `.guardrailRefusal` belongs on the persisted side even though it reads
+    /// like a failure. ChatViewModel already renders it as a designed bubble,
+    /// so leaving it on the throwing side meant `sendMessageStream` bailed
+    /// before writing anything: the reply, *and the user's own message*, never
+    /// reached the store, `.final` never arrived so no session id was minted,
+    /// and the whole exchange vanished on relaunch or on switching
+    /// conversations — while still sitting there on screen. Same class of bug
+    /// the crisis path already carries a comment about.
     private static func persistDesignedSafetyReply(
         _ error: IntelligenceError, userText: String, conversationId: UUID
     ) -> ChatResponse? {
@@ -282,6 +291,8 @@ class ChatService {
             presentation = .crisisResource
         case .safetyRefusal:
             presentation = .hardRefuse
+        case .guardrailRefusal:
+            presentation = .emptyObservation
         default:
             return nil
         }

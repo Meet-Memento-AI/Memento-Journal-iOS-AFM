@@ -47,9 +47,26 @@ import UIKit
 struct AskAnswer {
     // Field order is decode order for guided generation (spec 029 Amendment A):
     // `body` leads so the first visible token never waits on the two optional
-    // heading decisions; `citedRefs` trails so a token-cap truncation can only
-    // cost citations (which reconcile falls back for), never body text.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    // heading decisions; `citedRefs` trails so losing it costs only citations
+    // (which reconcile falls back for), never body text.
+    //
+    // `citedRefs` is OPTIONAL, and that is load-bearing rather than cosmetic.
+    // Measured 2026-08-23 over the follow-up turn, 5 reps per cell: with the
+    // field required this decoded 3/5 at a 128-token cap and 4/5 at 512; with
+    // it optional, 5/5 at both. The cap is not the variable — the field is.
+    //
+    // The model routinely writes `citedRefs` as *prose inside `body`* and then
+    // never emits the real property, e.g.
+    //     {"body": "…now?\n\ncitedRefs:[1]}}  ```json\n{\n  "}
+    // which fails as `GeneratedContent does not contain a property 'citedRefs'`.
+    // Required, that killed the whole turn and the user saw "I couldn't put a
+    // reflection together just now." Optional, the turn survives and only the
+    // citations are lost — which `reconcileCitations` already backfills from
+    // the reviewed set. The prose leak itself is scrubbed by
+    // `strippingReferenceMarkers`.
+    //
+    // So: do NOT make this non-optional again without re-running that grid.
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "Always empty on conversational Ask. Titles steal decode and delay the visible body.")
@@ -59,13 +76,13 @@ struct AskAnswer {
     let heading2: String?
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
-    let citedRefs: [Int]
+    let citedRefs: [Int]?
 }
 
 /// Testable twin of `AskAnswer`'s `@Guide` copy (spec 037 R8). Keep in sync
 /// with the descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
     static let heading1 = "Always empty on conversational Ask. Titles steal decode and delay the visible body."
     static let heading2 = "Always empty on conversational Ask."
 }
@@ -587,8 +604,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 throw IntelligenceError.safetyRefusal(hit.category)
             }
         }
+        // `cleanedBody`, not `body`: markers are already stripped, and the quote
+        // match should see exactly the text the reader sees.
         let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question
+            citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
         )
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
                         promptVersion: prep.request.promptVersion,
@@ -618,7 +637,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                                      images: images, history: history,
                                                      options: prep.generationOptions)
             let result = try makeResult(heading1: answer.heading1, heading2: answer.heading2,
-                              body: answer.body, citedRefs: answer.citedRefs,
+                              body: answer.body, citedRefs: answer.citedRefs ?? [],
                               prep: prep, question: question, latency: clock.now - started)
             return result
         } catch let error as IntelligenceError {
@@ -842,7 +861,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 tail.body = content.body ?? ""
                                 tail.heading1 = content.heading1 ?? nil
                                 tail.heading2 = content.heading2 ?? nil
-                                if let refs = content.citedRefs { tail.citedRefs = refs }
+                                // Doubly optional now that the field itself is
+                                // `[Int]?`: the outer layer is "not yet decoded",
+                                // the inner is "decoded as absent".
+                                if let refs = content.citedRefs ?? nil { tail.citedRefs = refs }
 
                                 // Emit the cleaned body-so-far so the live reply
                                 // matches exactly what gets persisted at the end.
@@ -1165,10 +1187,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         if !retrieval.contextBlock.isEmpty {
             // Frame as optional evidence so the model does not treat the block
             // as a script to paraphrase ("you wrote this, this, and this").
-            parts.append(
-                "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
-                + retrieval.contextBlock
-            )
+            //
+            // The `.noMatch` case needs the extra line. Ambient retrieval still
+            // ships the full text of recent entries, so on a journal question
+            // with no topical hit the model was told "say you don't see
+            // anything from that stretch" and handed five quotable entries in
+            // the same prompt. It resolved that contradiction the obvious way:
+            // "What color is my bicycle?" came back with fog on Mount
+            // Tamalpais and a friend's remark about feeling calm, never once
+            // saying it had nothing. Name the entries as unrelated instead of
+            // hoping the stance line outweighs the evidence.
+            let framing = stance == .noMatch
+                ? "Journal evidence — NOTHING HERE MATCHES WHAT THEY ASKED ABOUT. "
+                + "These are recent entries for background only. Say plainly you don't see "
+                + "anything on that topic; do not offer these as an answer to it:\n"
+                : "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
+            parts.append(framing + retrieval.contextBlock)
         } else if stance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
@@ -1241,9 +1275,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private static let markerRegexes: [NSRegularExpression] = {
         let numberList = #"\d+(?:\s*(?:,|and|&)\s*\d+)*"#
         let patterns = [
+            // Schema field names written as prose. FIRST, because the model
+            // emits `citedRefs:[1]` / `citedRefs: 1.` as a trailing line of the
+            // body far more often than it emits a bare `[ref 1]` — measured
+            // 2026-08-23, and the same behaviour that used to kill the turn
+            // outright before `AskAnswer.citedRefs` became optional. The
+            // `\brefs?` pattern below can never match inside `citedRefs`
+            // (`d` and `R` are both word characters), so this is not redundant.
+            #"\s*\bcitedRefs\b\s*:?\s*(?:\[[^\]]*\]|"# + numberList + #")?\.?"#,
+            #"\s*\bheading[12]\b\s*:?\s*"#,
             #"\s*[\[(]\s*refs?\.?\s*#?"# + numberList + #"\s*[\])]"#,
             #"\s*\[\s*"# + numberList + #"\s*\]"#,
-            #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#
+            #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#,
+            // Bracket pairs the number-bearing patterns above cannot see:
+            // `[,]`, `[]`, `[ref]`, `[-]`. Observed live as a trailing `[,]`.
+            // Bounded to 6 inner characters and no digits so a real aside in
+            // square brackets is left alone.
+            #"\s*\[\s*[^\]\d]{0,6}\s*\]"#
         ]
         return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
     }()
@@ -1254,15 +1302,63 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let cleanups: [(String, String)] = [
             (#"\s+([,.;:!?])"#, "$1"),
             (#"[ \t]{2,}"#, " "),
-            (#"\(\s*\)"#, "")
+            (#"\(\s*\)"#, ""),
+            // The square-bracket twin of the rule above — a removal can leave
+            // `[]` behind the same way it leaves `()`.
+            (#"\[\s*\]"#, ""),
+            // Removing a trailing field name leaves the blank line it sat on.
+            (#"\n{3,}"#, "\n\n")
         ]
         return cleanups.compactMap { pattern, template in
             (try? NSRegularExpression(pattern: pattern)).map { ($0, template) }
         }
     }()
 
+    /// Artefacts of a generation that ran off the end of its reply, rather than
+    /// anything the model meant to say. All observed in the chat eval gate on
+    /// 2026-08-23 and all unambiguous, which is why removing them is safe:
+    ///
+    /// - a `<ctrl46>` control token and everything after it — one reply spilled
+    ///   2,122 characters this way, continuing past its closing question into
+    ///   `**} <ctrl46>Memento leans into the quiet…`;
+    /// - a trailing `}` / `**}` where the structured object leaked into prose;
+    /// - a dangling heading the reply never filled in (`### July 19, 2026 *`
+    ///   as the final line, the italic quote never arriving) — five replies
+    ///   ended mid-notebook-moment like this;
+    /// - a lone trailing `###` on a turn that should carry no heading at all.
+    ///
+    /// Deliberately conservative: it removes only trailing wreckage and never
+    /// rewrites the reply. Nothing here can add a closing question the model
+    /// failed to write — a reply that stops early is reported by the gate as
+    /// `rule.noOpen`, not quietly patched.
+    private static let truncationArtifactRegexes: [NSRegularExpression] = {
+        let patterns = [
+            #"<ctrl[\s\S]*$"#,                 // control token → end
+            #"\*{0,2}\}\s*$"#,                 // leaked closing brace at the end
+            // A heading the reply never filled in. The character class excludes
+            // sentence punctuation and caps the run at 40, which is what keeps
+            // this off a heading used *inline* mid-reply: replies are often a
+            // single line ("…quiet shifts. ### August 2, 2026 *“…”* … What is
+            // it you're holding onto right now?"), and an earlier version of
+            // this pattern matched from `###` to end of string and deleted the
+            // quote, the reflection and the closing question with it. Five
+            // otherwise-clean replies lost their question that way before the
+            // eval gate caught it.
+            #"\n?#{3}[^\n?.!]{0,40}\*?[ \t]*$"#,
+            #"\n?#{3}\s*$"#                    // bare trailing ###
+        ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
+    }()
+
     static func strippingReferenceMarkers(_ body: String) -> String {
         var out = body
+        for regex in truncationArtifactRegexes {
+            out = regex.stringByReplacingMatches(
+                in: out,
+                range: NSRange(out.startIndex..., in: out),
+                withTemplate: ""
+            )
+        }
         for regex in markerRegexes {
             out = regex.stringByReplacingMatches(
                 in: out,
@@ -1284,27 +1380,48 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     private static let maxCitations = 3
 
-    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult, question: String) -> [AskCitation] {
-        // Show "Reviewed your journals" whenever retrieval produced a real,
-        // non-ambient match — the exact condition the stance uses to decide
-        // `.journalGrounded`. This is known before generation, so the link can be
-        // emitted from the first delta (via reviewedCitations) and stays identical
-        // through the final reconcile: it appears right away and never vanishes.
-        // Ambient/empty retrieval (casual chat, or a "no matches" journal ask)
-        // still yields no citations.
-        guard !retrieval.isEmpty, !retrieval.isAmbient else { return [] }
+    /// Which journal entries this reply may be attributed to.
+    ///
+    /// Three sources, in priority order:
+    ///
+    /// 1. **What the model said it used** (`refs`), filtered to refs that were
+    ///    actually in the prompt — a hallucinated ref number cites nothing.
+    /// 2. **What the reply demonstrably quotes** (`quotedRefs(in:)`). Derived in
+    ///    Swift from the body, so it cannot be fabricated and does not depend on
+    ///    the model filling `citedRefs` — which it frequently does not, writing
+    ///    the field into its prose instead (see `AskAnswer`). This is what makes
+    ///    "the reply quoted an entry" and "the UI shows that entry" the same
+    ///    statement rather than two independent guesses.
+    /// 3. **The top reviewed entries**, only for a real topical match, so
+    ///    "Reviewed your journals" appears from the first delta and stays put.
+    ///
+    /// Ambient retrieval (recent life handed over as background, no topical
+    /// match) used to return `[]` unconditionally. That was the bug behind
+    /// replies that quoted an entry verbatim while the citation UI showed
+    /// nothing: the entries were in the prompt and quotable, but uncitable.
+    /// Ambient results are now citable — but they get no top-N fallback, so an
+    /// ambient turn cites exactly what it used and nothing more.
+    ///
+    /// `body` is nil on the pre-generation call that seeds the "Reviewed your
+    /// journals" link, where there is no reply text to check yet.
+    private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult,
+                                           question: String, body: String? = nil) -> [AskCitation] {
+        guard !retrieval.isEmpty else { return [] }
         let byRef = Dictionary(uniqueKeysWithValues: retrieval.entries.map { ($0.ref, $0) })
-        // Prefer the entries the model actually cited; fall back to the top
-        // reviewed entries when it cited nothing (or nothing valid), so the set is
-        // always non-empty for a real match and the link stays stable.
-        let chosenRefs: [Int]
-        if refs.isEmpty {
-            chosenRefs = retrieval.entries.prefix(maxCitations).map(\.ref)
-        } else {
-            var seen = Set<Int>()
-            let valid = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
-            chosenRefs = valid.isEmpty ? retrieval.entries.prefix(maxCitations).map(\.ref) : valid
+
+        var seen = Set<Int>()
+        var chosenRefs = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
+
+        if let body {
+            for ref in quotedRefs(in: body, retrieval: retrieval) where seen.insert(ref).inserted {
+                chosenRefs.append(ref)
+            }
         }
+
+        if chosenRefs.isEmpty, !retrieval.isAmbient {
+            chosenRefs = retrieval.entries.prefix(maxCitations).map(\.ref)
+        }
+
         return chosenRefs.prefix(maxCitations).compactMap { ref in
             guard let entry = byRef[ref] else { return nil }
             return AskCitation(
@@ -1313,6 +1430,39 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 excerpt: Self.previewExcerpt(entry.text, query: question)
             )
         }
+    }
+
+    /// Refs whose entry text the reply reproduces verbatim.
+    ///
+    /// Matching is on a normalised form — case, curly quotes, dashes and
+    /// whitespace all vary between what the model emits and what is stored, and
+    /// a quote that survives the model's typography is still a quote. The
+    /// 30-character window is long enough that ordinary shared phrasing ("I have
+    /// not felt") does not trip it, short enough to catch a clipped quote.
+    private static func quotedRefs(in body: String, retrieval: RetrievalResult) -> [Int] {
+        let needle = citationFold(body)
+        guard needle.count >= quoteWindow else { return [] }
+        let windows = Array(needle)
+        return retrieval.entries.compactMap { entry -> Int? in
+            let hay = citationFold(entry.text)
+            guard hay.count >= quoteWindow else { return nil }
+            for i in 0...(windows.count - quoteWindow) {
+                if hay.contains(String(windows[i..<(i + quoteWindow)])) { return entry.ref }
+            }
+            return nil
+        }
+    }
+
+    private static let quoteWindow = 30
+
+    private static func citationFold(_ s: String) -> String {
+        var t = s.lowercased()
+        for (from, to) in [("\u{2019}", "'"), ("\u{2018}", "'"),
+                           ("\u{201C}", "\""), ("\u{201D}", "\""),
+                           ("\u{2014}", "-"), ("\u{2013}", "-")] {
+            t = t.replacingOccurrences(of: from, with: to)
+        }
+        return t.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
     private static func previewExcerpt(_ text: String, query: String, window: Int = 120) -> String {
@@ -1339,14 +1489,82 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     // MARK: - Errors & identifiers
 
     private static func mapGenerationError(_ error: LanguageModelSession.GenerationError) -> IntelligenceError {
-        // Guardrail refusals are a *designed* empty state, not a failure.
+        // Guardrail refusals are a *designed* empty state, not a failure — but
+        // only when the guardrail actually judged the content.
         switch error {
         case .guardrailViolation:
+            guard !isInfrastructureFailure(error) else {
+                // The safety classifier could not run at all. Reported by the
+                // SDK as a guardrail violation, it is really a broken model
+                // asset, and treating it as a content decision is the worst
+                // possible read: the person is told "I don't have an
+                // observation for this one." about every message they send,
+                // forever, with no error and no retry, while
+                // `recordAFMGuardrailRefusal` quietly poisons the safety
+                // metric with failures that have nothing to do with safety.
+                //
+                // Seen on this machine's iOS 26.0 simulator runtime, where
+                // `com.apple.fm.language.instruct_300m.safety` fails to load
+                // (`promptTemplateNotFound`) and *every* generation refuses —
+                // including a bare `LanguageModelSession()` with no app
+                // instructions at all.
+                return .generationFailed(error.localizedDescription)
+            }
             SafetyMetrics.recordAFMGuardrailRefusal()
             return .guardrailRefusal
+        case .refusal:
+            // The model declined the content itself. Same designed empty state
+            // as a guardrail refusal from the user's side — authored copy, a
+            // Try again, and a persisted turn — rather than "I couldn't put a
+            // reflection together just now", which invites a retry that will
+            // deterministically fail the same way.
+            //
+            // Worth knowing what actually lands here. In the chat eval gate on
+            // 2026-08-23 the refusals were, verbatim: "What did I write the day
+            // my grandmother died?", "What has grief looked like for me this
+            // year?", and "What happened with my knee in March?" — bereavement
+            // and a knee injury, i.e. the substance of an ordinary journal. We
+            // cannot argue the on-device model out of that, but the reply the
+            // person sees should at least not pretend it was a glitch.
+            SafetyMetrics.recordAFMGuardrailRefusal()
+            return .guardrailRefusal
+        case .exceededContextWindowSize:
+            // Split out of `default` so it is distinguishable in logs from a
+            // decode failure — the two want opposite fixes (shrink the input
+            // vs. loosen the schema) and used to be one indistinguishable
+            // `generationFailed` string.
+            return .generationFailed("Context window exceeded: \(error.localizedDescription)")
         default:
             return .generationFailed(error.localizedDescription)
         }
+    }
+
+    /// Does this guardrail describe the safety classifier failing to *run*,
+    /// rather than declining the content?
+    ///
+    /// Matched against the error's reflected description. `Context` publishes
+    /// only `debugDescription` in the SDK interface — and that reads "May
+    /// contain sensitive or unsafe content" either way, which is exactly the
+    /// misleading part. The underlying chain does appear in the reflected form:
+    ///
+    ///     guardrailViolation(Context(debugDescription: "May contain sensitive
+    ///     or unsafe content", underlyingErrors: [Error Domain=
+    ///     com.apple.SensitiveContentAnalysisML Code=15 "Failed model manager
+    ///     query for model com.apple.fm.language.instruct_300m.safety:
+    ///     InferenceError::hostFailed::…::promptTemplateNotFound"]))
+    ///
+    /// so that is what we read. String matching is not ideal; it is what the
+    /// SDK surface allows. The markers chosen are all structural
+    /// (`ModelManager`, `InferenceError`, `hostFailed`) rather than prose, so
+    /// they should not drift with wording changes — and the failure mode of a
+    /// miss is simply the old behaviour.
+    private static func isInfrastructureFailure(
+        _ error: LanguageModelSession.GenerationError
+    ) -> Bool {
+        let reflected = String(describing: error)
+        return ["ModelManager", "InferenceError", "hostFailed",
+                "promptTemplateNotFound", "Failed model manager query"]
+            .contains { reflected.contains($0) }
     }
 
     /// Persisted provenance (`REQ-PRM-004`). Stable strings — the quality study

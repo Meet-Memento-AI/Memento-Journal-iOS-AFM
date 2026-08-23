@@ -129,6 +129,9 @@ MeetMemento/Config/Release.local.xcconfig
 # Xcode test result bundles (build artifacts)
 /TestResults
 /TestResults.xcresult
+
+# Chat eval gate output (spec 022) — regenerated on every run.
+/.eval-runs/
 *.xcresult
 
 # App Store Connect / code-signing credentials (docs/app-store/06 s6, /07).

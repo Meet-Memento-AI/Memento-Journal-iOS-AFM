@@ -209,7 +209,14 @@ public struct AddEntryView: View {
         .ignoresSafeArea()
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
-        .accessibilityIdentifier("journal.entryEditor")
+        // NO `.accessibilityIdentifier` on this root. A container identifier
+        // overwrites the identifier of every SwiftUI-native descendant — the
+        // header buttons, the date pill, the mic and photo controls all reported
+        // `journal.entryEditor` instead of their own ids, so `.back` and `.save`
+        // never matched and both EntryZoomPageUITests failed. (Only the
+        // UIKit-backed `.title`/`.body` fields survived it, because those set
+        // the identifier on the underlying UIView.) Probe for "editor is up"
+        // with `journal.entryEditor.back` instead.
         .task {
             await preloadExistingPhotoIfNeeded()
         }
