@@ -18,6 +18,11 @@ class EntryViewModel: ObservableObject {
     @Published var hasInitiallyLoaded = false
     @Published var errorMessage: String?
     @Published var userFirstName: String = ""
+    @Published var selectedEntryId: UUID?
+
+    func entry(id: UUID) -> Entry? {
+        entries.first { $0.id == id } ?? MementoDataStore.entry(id: id)
+    }
 
     /// Cached month groups for efficient SwiftUI diffing
     @Published private(set) var entriesByMonth: [MonthGroup] = []
@@ -382,8 +387,9 @@ class EntryViewModel: ObservableObject {
         // file *is* the entire operation — there's no server copy to also
         // delete, so this is fully synchronous with no retry or rollback path.
         entries.removeAll { $0.id == id }
+        if selectedEntryId == id { selectedEntryId = nil }
         updateEntriesByMonth()
-        LocalJournalStorage.shared.deleteEncrypted(entryId: id)
+        JournalService.shared.deleteEntryLocally(entryId: id)
         PhotoStorage.shared.deleteEncrypted(entryId: id)
         PhotoThumbnailCache.shared.removeImage(for: id)
 

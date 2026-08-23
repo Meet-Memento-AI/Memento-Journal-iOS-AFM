@@ -66,6 +66,7 @@ Full definitions live in the architecture spec §5.2. Summary for orientation:
 | `Reflection` | Generated artifact | Carries `zone`, `modelIdentifier`, `promptVersion`, `citations`, `audioAssetID` |
 | `Citation` | Grounding link | `entryID` + optional `quotedSpan` — mandatory, not decorative |
 | `Conversation` / `Turn` | Ask surface history | `Turn.wasDegraded` records Z1→Z0 fallback |
+| `StoredProfile` | Name, about, goals, experience profile, AI toggles | Replicated (spec 040). Live writes go through SwiftData; do not wrap mirrored rows in a ThisDeviceOnly DEK. |
 
 **Key fields an agent will be tempted to skip and must not:**
 

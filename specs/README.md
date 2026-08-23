@@ -23,6 +23,7 @@ specs/
 ├── 037-*.md           ← conversational recall experience (Ask notebook voice, turn cadence, 3–5 cap)
 ├── 038-*.md           ← experience profile and theme estimation (L1 lens)
 ├── 039-*.md           ← reply channels and phatic generation (effort curve, chat-light@4)
+├── 040-*.md           ← iPad backend readiness (SwiftData live writes, CloudKit private replica, selection IDs)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

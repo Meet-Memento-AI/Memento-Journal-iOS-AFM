@@ -301,7 +301,7 @@ Non-negotiable, from the architecture spec:
 
 - Degradation Z1 → Z0 is **attempted automatically**, **completed successfully**, and **disclosed** — both persisted (`Reflection.zone`, `Turn.wasDegraded`) and rendered in the UI.
 - Degraded output uses a **different prompt** tuned for the smaller model, never the PCC prompt with a smaller model behind it. Reusing the heavy prompt on the light model produces confident, ungrounded, badly structured output — the worst failure mode available.
-- Degradation copy is a design deliverable, not a string constant. Draft: *"Written on your iPhone. Shorter than usual — your daily reflection allowance is used up until tomorrow."*
+- Degradation copy is a design deliverable, not a string constant. Draft: *"Written on this device. Shorter than usual — your daily reflection allowance is used up until tomorrow."*
 
 ---
 

@@ -27,6 +27,7 @@ class PreferencesService: ObservableObject {
     @Published var aiEnabled: Bool {
         didSet {
             defaults.set(aiEnabled, forKey: Keys.aiEnabled)
+            LocalProfileStore.persistMirroredProfile()
         }
     }
 
@@ -46,6 +47,7 @@ class PreferencesService: ObservableObject {
     @Published var processOnDeviceOnly: Bool {
         didSet {
             defaults.set(processOnDeviceOnly, forKey: Keys.processOnDeviceOnly)
+            LocalProfileStore.persistMirroredProfile()
         }
     }
 

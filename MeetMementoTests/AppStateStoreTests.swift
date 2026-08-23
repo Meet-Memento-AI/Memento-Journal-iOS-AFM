@@ -22,6 +22,7 @@ final class AppStateStoreTests: XCTestCase {
         for key in [
             "memento_onboarding_completed", "memento_first_name", "memento_last_name",
             "memento_local_user_id", "memento_migrated_from_account",
+            MementoDataStore.importFlagKey,
         ] {
             defaults.removeObject(forKey: key)
         }

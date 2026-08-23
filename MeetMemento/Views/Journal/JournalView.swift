@@ -272,6 +272,9 @@ public struct JournalView: View {
 
     /// Pushes the editor onto the overlay (embedded) or standalone stack.
     private func presentEntry(_ route: EntryRoute) {
+        if case .edit(let id) = route {
+            entryViewModel.selectedEntryId = id
+        }
         navigationPath.wrappedValue.append(route)
     }
 

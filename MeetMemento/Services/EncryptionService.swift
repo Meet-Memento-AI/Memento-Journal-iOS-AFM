@@ -19,6 +19,12 @@
 //  `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and never changes. The PIN
 //  is purely an app-access gate. Changing, setting, or removing it is free.
 //
+//  Spec 040: do **not** wrap SwiftData / CloudKit-mirrored rows in this DEK.
+//  ThisDeviceOnly keys cannot decrypt on a second device. Mirrored journal,
+//  chat, reflection, and profile rows use NSFileProtection + optional
+//  `@Attribute(.allowsCloudEncryption)`. The DEK remains only for leftover
+//  EncryptedJournals files until legacy import deletes them.
+//
 //  Legacy PIN-derived content is migrated lazily and per-entry by
 //  `EncryptionMigrator` — see `decryptMigrating(_:legacyPIN:)`. The PBKDF2 path
 //  below exists ONLY to read that legacy content and must not be used for new

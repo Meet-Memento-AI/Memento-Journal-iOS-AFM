@@ -9,6 +9,7 @@
 
 import CoreSpotlight
 import Foundation
+import SwiftData
 import UniformTypeIdentifiers
 
 enum IndexingPreferences {
@@ -40,6 +41,15 @@ enum EntrySpotlightIndexer {
             try await CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: [id.uuidString])
         } catch {
             AppLogger.log("[Spotlight] remove failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Spec 016 / 040: rebuild the local index from SwiftData (inbound CloudKit rows).
+    static func rebuildFromStore(container: ModelContainer? = nil) async {
+        guard IndexingPreferences.spotlightOptIn else { return }
+        let entries = MementoDataStore.allEntries(container: container)
+        for entry in entries {
+            await donate(entry)
         }
     }
 

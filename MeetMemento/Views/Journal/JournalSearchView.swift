@@ -140,7 +140,7 @@ struct JournalSearchView: View {
         // Delay navigation slightly to allow dismiss animation
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 100_000_000)
-            navigationPath.append(EntryRoute.edit(entry))
+            navigationPath.append(EntryRoute.edit(entry.id))
         }
     }
 
