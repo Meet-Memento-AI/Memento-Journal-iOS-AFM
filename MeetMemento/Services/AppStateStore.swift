@@ -121,6 +121,14 @@ class AppStateStore: ObservableObject {
 
         migrateFromPriorAccountIfNeeded()
 
+        if !isUiTestRun {
+            LegacyStoreImporter.importIfNeeded()
+        }
+        Task {
+            await SyncStatusStore.shared.refresh()
+            await EntrySpotlightIndexer.rebuildFromStore()
+        }
+
         AppLogger.log("[AppState] Local state loaded, onboarded: \(hasCompletedOnboarding)")
     }
 
@@ -147,6 +155,7 @@ class AppStateStore: ObservableObject {
         UserDefaults.standard.set(firstName, forKey: Self.firstNameKey)
         UserDefaults.standard.set(lastName, forKey: Self.lastNameKey)
         self.firstName = firstName
+        LocalProfileStore.persistMirroredProfile()
     }
 
     /// Existing-user migration (spec 023 R5), run once on first post-update
@@ -187,11 +196,8 @@ class AppStateStore: ObservableObject {
         firstName = UserDefaults.standard.string(forKey: Self.firstNameKey)
     }
 
-    /// "Delete everything" (spec 023 R4). Interim scope: local entry storage +
-    /// security/encryption Keychain entries + chat transcripts + UserDefaults +
-    /// content-derived caches. Spec 015 extends this to the full five-store
-    /// deletion (SwiftData, Spotlight index, TTS cache, CloudKit) per
-    /// `REQ-DATA-013`.
+    /// "Delete everything" (spec 023 R4 / 015 R6 / 040): five stores including
+    /// StoredProfile and CloudKit private-DB records.
     func deleteEverything() {
         SecurityService.shared.clearAll()
         LocalJournalStorage.shared.clearAll()
@@ -235,6 +241,8 @@ class AppStateStore: ObservableObject {
         WeeklyReflectionStore.clear()
         AudioAssetStore.deleteAll()
         TTSRenderCache.deleteAll()
+        MementoDataStore.clearImportFlag()
+        MementoDataStore.deleteAllProfiles()
         Task { await FiveStoreDeletion.run() }
 
         firstName = nil

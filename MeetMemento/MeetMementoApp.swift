@@ -25,6 +25,7 @@ private struct RootBackground: View {
 struct MeetMementoApp: App {
     @StateObject private var appState = AppStateStore()
     @StateObject private var lockScreenViewModel = LockScreenViewModel()
+    @StateObject private var navigationState = AppNavigationState()
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -60,6 +61,7 @@ struct MeetMementoApp: App {
                                 .useTheme()
                                 .useTypography()
                                 .environmentObject(appState)
+                                .environmentObject(navigationState)
                                 .transition(.opacity)
                         }
                     } else if appState.hasStartedOnboarding {

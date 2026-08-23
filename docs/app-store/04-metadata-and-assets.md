@@ -22,6 +22,9 @@ Compute, so absolute-privacy claims are false. Forbidden, verbatim from
 
 > ❌ "Nothing leaves your phone" · ❌ "No network calls" · ❌ "Turn on airplane
 > mode and everything still works" · ❌ "There is no server" · ❌ "100% on-device"
+>
+> iCloud private-DB replica (spec 040) is the user's Apple ID, not a Memento
+> account. Do not claim the journal never leaves this device.
 
 Permitted, and used verbatim in the description:
 

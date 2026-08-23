@@ -148,6 +148,7 @@ public struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var appState: AppStateStore
+    @EnvironmentObject var navigationState: AppNavigationState
 
     public init() {}
 
@@ -175,6 +176,9 @@ public struct ContentView: View {
                         hasEntries: !entryViewModel.entries.isEmpty,
                         onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
                         onPresentEntry: { route in
+                            if case .edit(let id) = route {
+                                entryViewModel.selectedEntryId = id
+                            }
                             navigationPath.append(route)
                         }
                     )
@@ -232,6 +236,7 @@ public struct ContentView: View {
             }
         }
         .environmentObject(entryViewModel)
+        .environmentObject(navigationState)
         .environment(\.selectedTab, $selectedPage)
         .environment(\.tabBarHidden, $isTabBarHidden)
         .useTheme()
@@ -254,6 +259,16 @@ public struct ContentView: View {
             // which is the exact access control the notification represented.
             if let pin = SecurityService.shared.getPIN() {
                 entryViewModel.setSessionPIN(pin)
+            }
+            navigationState.primarySection = selectedPage
+            await chatViewModel.fetchSessions()
+        }
+        .onChange(of: selectedPage) { _, page in
+            navigationState.primarySection = page
+        }
+        .onChange(of: navigationState.primarySection) { _, section in
+            if selectedPage != section {
+                RootPage.select(section, in: $selectedPage)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didUnlockWithPIN)) { notification in
@@ -354,12 +369,14 @@ public struct ContentView: View {
 #Preview("Light - iPhone 15 Pro") {
     ContentView()
         .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark - iPhone 15 Pro") {
     ContentView()
         .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
         .preferredColorScheme(.dark)
 }
 
@@ -369,6 +386,7 @@ public struct ContentView: View {
         .environment(\.previewEntryViewModel, entryViewModel)
         .environment(\.previewInitialTab, .chat)
         .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
         .useTheme()
         .useTypography()
 }

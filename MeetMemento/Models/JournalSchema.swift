@@ -60,6 +60,7 @@ struct HealthSnapshot: Codable, Sendable, Equatable {
 final class StoredEntry {
     var id: UUID = UUID()
     var title: String = ""
+    @Attribute(.allowsCloudEncryption)
     var transcript: String = ""
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
@@ -133,6 +134,7 @@ final class StoredCitation {
 @Model
 final class StoredConversation {
     var id: UUID = UUID()
+    var title: String = ""
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
     @Relationship(deleteRule: .cascade, inverse: \StoredTurn.conversation)
@@ -149,6 +151,7 @@ final class StoredTurn {
     var createdAt: Date = Date()
     var zoneRaw: String = "z0Device"
     var wasDegraded: Bool = false
+    var promptVersion: String = ""
     var conversation: StoredConversation?
     @Relationship(deleteRule: .cascade, inverse: \StoredCitation.turn)
     var citations: [StoredCitation]? = []
@@ -161,6 +164,21 @@ final class StoredTurn {
     init() {}
 }
 
+/// Replicated profile for iPhone↔iPad parity (spec 040 R2). One row.
+@Model
+final class StoredProfile {
+    var id: UUID = UUID()
+    var firstName: String = ""
+    var lastName: String = ""
+    var personalizationText: String = ""
+    var experienceJSON: Data?
+    var aiEnabled: Bool = true
+    var processOnDeviceOnly: Bool = false
+    var updatedAt: Date = Date()
+
+    init() {}
+}
+
 enum JournalSchema {
     static let models: [any PersistentModel.Type] = [
         StoredEntry.self,
@@ -168,7 +186,8 @@ enum JournalSchema {
         StoredReflection.self,
         StoredCitation.self,
         StoredConversation.self,
-        StoredTurn.self
+        StoredTurn.self,
+        StoredProfile.self
     ]
 
     static var schema: Schema { Schema(models) }

@@ -23,7 +23,9 @@ This is the foundational subtraction-and-rebuild: delete `supabase/` (Postgres,
 pgvector, 6 edge functions, auth) and replace the system of record with SwiftData
 (authoritative) + CloudKit private-DB mirroring (replication only, per P2). Every
 other 2.0 spec's entities — `Entry`, `Reflection`, `Citation`, `Conversation`,
-`Turn` — are defined here. Nothing downstream (indexing, intelligence, capture,
+`Turn` — are defined here. Spec [040](040-ipad-backend-readiness.md) executes
+the **live write cutover** (journals, chats, reflections, `StoredProfile`)
+onto this schema. Nothing downstream (indexing, intelligence, capture,
 surfaces) can be built until this schema exists.
 
 ## Technology References
@@ -179,10 +181,24 @@ framing is forbidden):
 
 | Failure | Detection | Copy (draft — design owns final wording) |
 |---|---|---|
-| No iCloud account / signed out | `CKContainer.accountStatus` | *"Your journal lives on this iPhone. iCloud backup is off — sign in to iCloud to turn it on."* |
-| iCloud storage full | `CKError.quotaExceeded` via mirroring | *"iCloud is full, so recent entries aren't backed up yet. Everything is still safe on this iPhone."* |
+| No iCloud account / signed out | `CKContainer.accountStatus` | *"Your journal lives on this device. iCloud backup is off — sign in to iCloud to turn it on."* (idiom-aware: `DeviceCopy.signedOutSync`) |
+| iCloud storage full | `CKError.quotaExceeded` via mirroring | *"iCloud is full, so recent entries aren't backed up yet. Everything is still safe on this device."* (`DeviceCopy.quotaExceeded`) |
 | Network unavailable | passive | no copy at all — offline is a normal state (`REQ-PLAT-003`), not an error |
 | Container fails to init / mirroring stops (schema violates a mirroring rule) | dev-time; the failure is silent per `technology/05` §2 | never user-facing — this is a build defect caught by R1's `SchemaMirroringComplianceTests`, not shippable |
+
+**Live writes (spec 040):** create/edit/delete load through `ModelContext`.
+The ThisDeviceOnly DEK used for leftover encrypted files is **incompatible
+with mirroring** — a second device cannot unwrap it. Mirrored rows stay in
+plaintext SwiftData under `NSFileProtection` (R3) plus optional
+`@Attribute(.allowsCloudEncryption)` on `transcript`. Photo **bytes** stay
+device-local; the mirror holds `StoredAttachment.fileAssetID` metadata only
+unless a later spec requires same-photo `CKAsset`s.
+
+**Conflict policy:** CloudKit native last-writer-wins. That discharges spec
+[012](012-post-launch-backlog.md) item 10.
+
+**`StoredProfile` (spec 040):** one mirrored row for name, about, goals,
+experience profile / themes, `aiEnabled`, and `processOnDeviceOnly`.
 
 **Field-level encryption (V25, 🔴 UNVERIFIED):** `@Attribute(.allowsCloudEncryption)`
 on `Entry.transcript` — the most sensitive mirrored column — is worth having

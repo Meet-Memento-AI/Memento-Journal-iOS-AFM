@@ -75,6 +75,7 @@ enum LocalProfileStore {
                     UserDefaults.standard.set(reflection, forKey: personalizationTextKey)
                 }
                 UserDefaults.standard.set(newValue.confirmedThemeNames, forKey: selectedGoalsKey)
+                persistMirroredProfile(experience: newValue)
             } else {
                 UserDefaults.standard.removeObject(forKey: experienceProfileKey)
             }
@@ -111,5 +112,20 @@ enum LocalProfileStore {
         UserDefaults.standard.removeObject(forKey: personalizationTextKey)
         UserDefaults.standard.removeObject(forKey: selectedGoalsKey)
         UserDefaults.standard.removeObject(forKey: experienceProfileKey)
+        MementoDataStore.deleteAllProfiles()
+    }
+
+    /// Mirrors name / about / experience / AI toggles into `StoredProfile`.
+    static func persistMirroredProfile(experience: ExperienceProfile? = nil) {
+        MementoDataStore.upsertProfile(
+            firstName: UserDefaults.standard.string(forKey: "memento_first_name") ?? "",
+            lastName: UserDefaults.standard.string(forKey: "memento_last_name") ?? "",
+            personalizationText: (experience ?? experienceProfile)?.reflection
+                ?? UserDefaults.standard.string(forKey: personalizationTextKey)
+                ?? "",
+            experience: experience ?? experienceProfile,
+            aiEnabled: PreferencesService.shared.aiEnabled,
+            processOnDeviceOnly: PreferencesService.shared.processOnDeviceOnly
+        )
     }
 }

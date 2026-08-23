@@ -32,10 +32,17 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
   `MeetMemento/MeetMementoApp.swift`, route enums in `MeetMemento/Models/Routes.swift`
   — both re-verified, not replaced, as specs 013+ land.
 - **Data layer**: SwiftData is the **authoritative** system of record
-  (`Entry`/`Reflection`/`Citation`/`Conversation`/`Turn` — see
-  `specs/reference/memento-2.0-architecture-spec.md` §5.2), mirrored to the
-  **CloudKit private database** for replication/durability only. No server-side
-  representation of any journal entry, at rest, anywhere (P2). Owned by spec 015.
+  (`StoredEntry`/`StoredReflection`/`StoredCitation`/`StoredConversation`/
+  `StoredTurn`/`StoredProfile` — see
+  `specs/reference/memento-2.0-architecture-spec.md` §5.2 and spec 040).
+  **Live writes** go through `ModelContext` + CloudKit **private** DB
+  (spec [040](040-ipad-backend-readiness.md) executes the cutover that
+  spec [015](015-data-layer-swiftdata-cloudkit.md) scaffolded). CloudKit is
+  replication/durability only — no Memento account, no server-side
+  representation of any journal entry (P2). Mirrored rows MUST NOT be
+  wrapped in the `ThisDeviceOnly` DEK (that key cannot decrypt on a second
+  device). Compact chrome remains spec 027 + `ChatHeaderActionCluster`;
+  regular-width selection IDs are spec 040.
 - **Retrieval**: entries donated to **Core Spotlight**'s semantic index; a
   `SpotlightSearchTool`-equipped `LanguageModelSession` authors its own queries. No
   embedding pipeline, no vector store. Contingent on `DEC-002` (can donation be
@@ -174,7 +181,7 @@ examples to converge on (do not invent parallel systems):
 | Text styles / Dynamic Type | `MeetMemento/Resources/Typography.swift` (`Font.custom(_:relativeTo:)`) | ~~008~~ — **superseded**, merged into 020 |
 | Logging | `MeetMemento/Utils/Logger.swift` (`AppLogger`, DEBUG-gated) | 005 |
 | Glass surfaces | one system to be chosen in spec 009 (currently two exist) | 009 |
-| ~~Local persistence~~ | ~~`MeetMemento/Services/LocalJournalStorage.swift`~~ | ~~007~~ — **superseded**, spec 007 obsolete (see 015) |
+| Live journal / chat / profile writes | `MeetMemento/Services/MementoDataStore.swift` + SwiftData `ModelContext` (CloudKit private DB). Do not wrap mirrored rows in the ThisDeviceOnly DEK. | 015 schema / 040 live cutover |
 | ~~Edge-function auth~~ | ~~inline JWT verify pattern in `supabase/functions/chat/index.ts:295-310`~~ | ~~004~~ — **superseded**, spec 004 retired |
 
 New canonical patterns for SwiftData persistence, Core Spotlight donation, and the

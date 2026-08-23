@@ -101,7 +101,7 @@ These are the constraints that resolve disputes when requirements conflict.
 If Apple ships a framework that does the job, use it. Every third-party dependency must justify its binary weight, its privacy surface, and its presence in the "no third-party SDK" story. The current allowlist is in §12.4 and is short.
 
 **P2 — The device is the system of record.**
-SwiftData on-device is authoritative. CloudKit is a replication and durability mechanism, not a backend. There is no server-side representation of any journal entry, at rest, anywhere, ever.
+SwiftData on-device is authoritative. CloudKit is a replication and durability mechanism, not a backend. Live writes go through SwiftData (spec 040); the user's private DB is the iPhone↔iPad replica. There is no Memento account and no server-side representation of any journal entry, at rest, anywhere, ever. Do not claim the journal is 100% on-device while CloudKit mirroring is enabled.
 
 **P3 — One intelligence boundary.**
 Exactly one module imports `FoundationModels`. Every AI surface calls a protocol. Model choice, routing, quota, degradation, and telemetry-free instrumentation all live in one place. This is what makes provider swapping a config change.
@@ -162,7 +162,7 @@ Three concentric zones. Every operation in this document is tagged with the inne
 
 | Zone | Definition | What runs here |
 |---|---|---|
-| **Z0 — Device** | Never leaves the iPhone. Works in airplane mode. | Transcription, entry reflection, mood inference, tagging, retrieval, search, TTS, all rendering |
+| **Z0 — Device** | Never leaves this device. Works in airplane mode. | Transcription, entry reflection, mood inference, tagging, retrieval, search, TTS, all rendering. PIN, audio, embeddings, and Spotlight stay per-device. |
 | **Z1 — Apple** | Leaves the device, stays inside Apple's attested infrastructure. Not retained. | PCC generation (weekly, monthly, chat), CloudKit replication (encrypted, user's own account) |
 | **Z2 — Third party** | Leaves Apple. | **Nothing.** RevenueCat receives purchase receipts and an anonymous ID only — never content. |
 
@@ -439,7 +439,7 @@ PCC has a **daily per-user limit**, higher for iCloud+ subscribers. Chat is the 
 
 **REQ-INT-010** — Degraded output MUST use a different prompt tuned for the smaller model's strengths, not the PCC prompt with a smaller model behind it. Reusing the heavy prompt on the light model produces confident, ungrounded, badly structured output — the worst failure mode available.
 
-**REQ-INT-011** — Copy for degradation is a design deliverable, not a string constant. It must convey: what happened, that nothing was lost, and what the user can do. Draft: *"Written on your iPhone. Shorter than usual — your daily reflection allowance is used up until tomorrow."*
+**REQ-INT-011** — Copy for degradation is a design deliverable, not a string constant. It must convey: what happened, that nothing was lost, and what the user can do. Draft: *"Written on this device. Shorter than usual — your daily reflection allowance is used up until tomorrow."*
 
 ### 7.5 Guided generation contracts
 

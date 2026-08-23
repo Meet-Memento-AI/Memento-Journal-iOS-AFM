@@ -37,6 +37,10 @@ farewells. Light prompt is a warm companion (`chat-light@4`). Cadence is
 always Open on generated turns. Short `[Move:]` cues pick the kind of
 turn; AFM writes the reply.
 
+**Ask history persistence** (sessions / turns in SwiftData + CloudKit) is
+spec [040](040-ipad-backend-readiness.md). This spec owns classification
+and generation work only.
+
 **Does not implement:** barge-in ([`034`](034-full-duplex-conversation-audio.md));
 turn-start instrumentation internals ([`029`](029-performance-and-speech-excellence.md)
 records the token caps this spec mints). Cite those specs; do not re-own them.

@@ -132,6 +132,8 @@ class EntryIndexDelegate: NSObject, CSSearchableIndexDelegate {
   in the same transaction boundary as the SwiftData write (spec 015's
   `indexState` is the record of whether that happened). A full-reindex path
   MUST exist and be triggerable from Settings ("Rebuild search index").
+  **Inbound CloudKit rows** (spec 040) MUST be re-donated on this device —
+  Spotlight is Z0 and does not replicate.
 - **Index target is branch-dependent and verify-first:** Branch A's leading
   mechanism is a named index (`CSSearchableIndex(name: "memento-entries")`)
   rather than `.default()` — 🔴 unverified that `SpotlightSearchTool` can

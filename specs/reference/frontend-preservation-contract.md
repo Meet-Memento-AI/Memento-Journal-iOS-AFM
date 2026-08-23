@@ -54,7 +54,7 @@ before relying on a row.
 | PRES-008 | Full-screen journal search overlay: `SearchTextField` + cancel, empty-prompt state, no-results state, result cards | `Views/Journal/JournalSearchView.swift`, `Cards/SearchResultCard.swift` |
 | PRES-009 | "Entry saved" toast on save | `Components/Toast/JournalToast.swift` |
 | PRES-010 | Offline banner: dismissible, non-blocking, appears when connectivity drops; journal reads/writes keep working locally | `Components/OfflineBanner.swift`, `NetworkMonitor` (2.0: offline is the *native* state per `REQ-PLAT-003`; the banner's scope shrinks to Z1-only features) |
-| PRES-011 | Route enums drive all navigation (`EntryRoute` create/createWithTitle/createWithContent/edit, `SettingsRoute`, `DrawerRoute`) — preserved as the deep-link surface for widgets/App Intents (ATTACH-09) | `Models/Routes.swift` |
+| PRES-011 | Route enums drive all navigation (`EntryRoute` create/createWithTitle/createWithContent/`edit(UUID)`, `SettingsRoute`, `DrawerRoute`) — preserved as the deep-link surface for widgets/App Intents (ATTACH-09). Selection IDs (`selectedEntryId`, `currentSessionId`, `AppNavigationState`) are the regular-width bind points (spec 040); compact chrome stays `RootPager` + `ChatHeaderActionCluster`. | `Models/Routes.swift`, `Models/AppNavigationState.swift` |
 
 ### 2.2 Journal
 
@@ -65,7 +65,7 @@ before relying on a row.
 | PRES-022 | Month-picker sheet (wheel month+year) synced to scroll position | `Views/Journal/JournalView.swift` |
 | PRES-023 | Notion-style full-page editor: zooming navigation page (not a sheet — no drag handle), back, date pill, title field ("Journal title" placeholder), spacious body editor, submit arrow disabled when body empty, keyboard-aware padding. Opens/closes with the native SwiftUI zoom transition from the new-entry FAB or journal card. | `Views/Journal/AddEntryView.swift`, `EntryEditorDestination.swift` |
 | PRES-024 | Editor voice-dictation FAB: expands to live duration display, red stop state, mic-permission and recording-failed alerts | `AddEntryView.swift` + speech service (2.0: `SpeechAnalyzer`, spec 018) |
-| PRES-025 | Local-first entry writes with pending-sync indicator and automatic drain on reconnect/foreground | `EntryViewModel`, `LocalJournalStorage` (2.0: SwiftData is authoritative — "pending sync" becomes CloudKit mirror state, spec 015) |
+| PRES-025 | Local-first entry writes; passive CloudKit sync-status line (device-neutral). Compact-width only for pager chrome. | `EntryViewModel`, `MementoDataStore` (SwiftData + CloudKit private DB; spec 015 schema, spec 040 live writes) |
 | PRES-026 | Local entry search (title + content filter) | `EntryViewModel.searchEntries` (2.0: may route through Spotlight, spec 016 — behavior preserved either way) |
 
 ### 2.3 Chat / Ask (end-state class — restored by spec 019)
@@ -144,7 +144,8 @@ before relying on a row.
 | ATTACH-06 | Export (Markdown/JSON) | "Your Data" settings row | PRES-085 | 015 |
 | ATTACH-07 | Paywall (new — no monetization UI exists today) | Gates reflections/patterns/ask/Personal Voice per `REQ-MON-003`; never gates capture/timeline/search/export | PRES-085, free-tier surfaces untouched | 021 |
 | ATTACH-08 | Notification preferences (new) | Settings — exactly two notifications exist (opt-in daily reminder, weekly-ready) | PRES-085 | 019/020 |
-| ATTACH-09 | Widgets / Controls / App Intents / Live Activity | Deep-link through the existing route enums (`EntryRoute.create`, etc.); recording Live Activity pairs with the dictation FAB durability contract | PRES-011, PRES-024 | 020 |
+| ATTACH-09 | Widgets / Controls / App Intents / Live Activity | Deep-link through the existing route enums (`EntryRoute.create`, `EntryRoute.edit(UUID)`, etc.); recording Live Activity pairs with the dictation FAB durability contract | PRES-011, PRES-024 | 020 |
+| ATTACH-12 | Multi-device selection IDs (no iPad chrome in 040) | `selectedEntryId` / `currentSessionId` / `AppNavigationState.primarySection` so a later regular-width shell can bind without rewriting compact pager | PRES-011, PRES-025 | 040 |
 | ATTACH-10 | Journaling Suggestions picker | Composer (editor) as a seeded prompt + attachment | PRES-023 | 018 |
 | ATTACH-11 | Trust-zone indicator (P4: boundary as UI element) | Generated-content surfaces (reflection cards, chat responses) — new, from spec 014's reusable component | PRES-042, PRES-090 | 014/019 |
 

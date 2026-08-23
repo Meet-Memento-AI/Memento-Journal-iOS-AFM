@@ -19,6 +19,7 @@ struct SettingsView: View {
 
     @ObservedObject private var preferences = PreferencesService.shared
     @ObservedObject private var sampleContent = SampleContentService.shared
+    @ObservedObject private var syncStatus = SyncStatusStore.shared
     @State private var isSampleWorking = false
 
     @State private var exportURLs: [URL] = []
@@ -33,6 +34,7 @@ struct SettingsView: View {
                 voiceSection
                 securitySection
                 aboutSection
+                syncStatusSection
                 yourDataSection
 
                 Spacer(minLength: Spacing.xxxl)
@@ -41,6 +43,7 @@ struct SettingsView: View {
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())
+        .task { await syncStatus.refresh() }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showDataUsageInfo) {
@@ -97,6 +100,19 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    @ViewBuilder
+    private var syncStatusSection: some View {
+        if let banner = syncStatus.banner {
+            SettingsSection(title: "iCloud") {
+                SettingsInfoRow(
+                    icon: "icloud",
+                    title: "Sync",
+                    description: banner
+                )
+            }
+        }
+    }
 
     private var appearanceSection: some View {
         SettingsSection(title: "Appearance") {

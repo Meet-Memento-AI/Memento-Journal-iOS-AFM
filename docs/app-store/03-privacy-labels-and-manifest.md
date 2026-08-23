@@ -46,7 +46,7 @@ Apple's definition of "collect", verbatim:
 |---|---|---|
 | Journal entries, transcripts, reflections | SwiftData on device; mirrored to the **user's own CloudKit private database** | **No** — CloudKit private database is the user's iCloud account, not our infrastructure. We have no access to it |
 | Audio | Live buffers only. `SpeechService.swift` uses `AVAudioEngine` + `SFSpeechAudioBufferRecognitionRequest` with `requiresOnDeviceRecognition = true`; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — on-device recognition is required, see below |
-| Display name | `LocalProfileStore`, `UserDefaults`, never transmitted | **No** |
+| Display name / experience profile | `StoredProfile` in SwiftData; mirrored to the user's CloudKit private DB (spec 040). Not a Memento account. | **No** — we cannot read the user's private DB |
 | Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
 | Crash and performance data | Apple's own, opt-in at the OS level, never surfaced to us via an SDK | **No** |
