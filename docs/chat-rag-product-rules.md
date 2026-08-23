@@ -1,5 +1,10 @@
 # Chat RAG — product rules (testable)
 
+> **Superseded.** Shipping Ask is on-device (`IntelligenceService`, specs
+> 017 / 037 / 039). Retrieval skip for greetings and continuers is spec 039,
+> not these Edge Function env vars. Kept as a historical record of the
+> Gemini-era `chat` function.
+
 These rules govern **journal retrieval** and **citations** in the `chat` Edge Function. They are implemented in [`supabase/functions/chat/`](../supabase/functions/chat/) (see env vars below).
 
 ## When to retrieve (embedding + `match_journal_entries`)

@@ -31,16 +31,22 @@ enum ThemeAwareChatStarters {
         return Array(pool.shuffled().prefix(limit))
     }
 
-    /// Merge theme starters with a generic fallback pool, preferring themes.
+    /// Merge theme starters with a generic fallback pool.
+    /// At most one themed chip; the rest come from the generic pool so the
+    /// empty state is not three "tell me about {goal}" prompts.
     static func rotate(
         genericPool: [String],
         limit: Int = 3
     ) -> [String] {
-        let themed = starters(limit: limit)
-        if themed.count >= limit { return themed }
-        let needed = limit - themed.count
+        let themed = starters(limit: 1)
+        var result: [String] = []
+        if let first = themed.first {
+            result.append(first)
+        }
+        let needed = max(limit - result.count, 0)
         let fillers = genericPool.shuffled().prefix(needed)
-        return themed + fillers
+        result.append(contentsOf: fillers)
+        return Array(result.prefix(limit))
     }
 
     private static func templates(for lower: String, display: String) -> [String] {

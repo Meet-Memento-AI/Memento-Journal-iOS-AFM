@@ -45,7 +45,9 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
 - **Intelligence boundary**: exactly one Swift module imports `FoundationModels`
   (P3). Every AI surface calls the `IntelligenceService` protocol; routing between
   on-device (Z0) and Private Cloud Compute (Z1) is table-driven (`REQ-INT-003`), never
-  scattered conditionals. Owned by spec 017.
+  scattered conditionals. Ask **generation work** is channelled (`REQ-INT-017`,
+  spec 039): phatic/continuer use `chat-light@4`; journal RAG remains ask@14.
+  Channel is not a TrustZone. Owned by spec 017 (boundary) and 039 (channels).
 - **Capture/voice**: `SpeechAnalyzer`/`SpeechTranscriber` for on-device transcription,
   no cloud fallback of any kind (`REQ-CAP-001` — note: the source document's "Gemini
   Audio fallback" concern doesn't apply to this codebase; `SpeechService.swift`

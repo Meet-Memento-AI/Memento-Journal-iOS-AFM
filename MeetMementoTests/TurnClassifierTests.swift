@@ -20,12 +20,24 @@ final class TurnClassifierTests: XCTestCase {
 
     func test_greetingWithName_isSocial() {
         XCTAssertEqual(classify("hey memento"), .social)
+        XCTAssertEqual(classify("hello Memento"), .social)
+        XCTAssertEqual(classify("hey there"), .social)
+    }
+
+    func test_compoundGreeting_isSocial() {
+        XCTAssertEqual(classify("Hello, how are you"), .social)
+        XCTAssertEqual(classify("hello, how are you"), .social)
+        XCTAssertEqual(classify("how are you"), .social)
+    }
+
+    func test_greetingPlusJournalAsk_staysJournalQuery() {
+        XCTAssertEqual(classify("hello, what did I write about work?"), .journalQuery)
     }
 
     // MARK: - Acknowledgement
 
     func test_continuers_areAcknowledgement() {
-        for message in ["yeah", "haha", "ok cool", "makes sense", "i guess", "lol", "wow", "ok thanks"] {
+        for message in ["yeah", "ok", "haha", "ok cool", "makes sense", "i guess", "lol", "wow", "ok thanks"] {
             XCTAssertEqual(classify(message), .acknowledgement, "\(message)")
         }
     }

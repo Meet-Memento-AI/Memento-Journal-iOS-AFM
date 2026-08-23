@@ -9,6 +9,12 @@ final class SafetyClassifierTests: XCTestCase {
         XCTAssertEqual(d.action, .continue)
     }
 
+    func test_greetingWrappingCrisis_stillRoutesToCrisisCard() {
+        let d = SafetyRouter.decide("hello, I want to hurt myself tonight.")
+        XCTAssertEqual(d.action, .showCrisisCard)
+        XCTAssertEqual(d.category, .selfHarmCrisis)
+    }
+
     func test_crisis_selfHarm() {
         let d = SafetyClassifier.classify("I want to hurt myself tonight.")
         XCTAssertEqual(d.category, .selfHarmCrisis)

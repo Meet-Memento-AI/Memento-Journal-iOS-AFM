@@ -2,11 +2,11 @@
 id: 017
 title: Intelligence Boundary and Prompt Architecture
 tier: P0
-status: in-progress (2026-08-22) — Ask pipeline shipping (`ask@12`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
+status: in-progress (2026-08-23) — Ask pipeline shipping (`ask@14` + spec 039 `chat-light@4`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
 effort: 3 sessions
 depends_on: [014, 015, 016]
 findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open]
-source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003]
+source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-INT-017, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003]
 tech_refs: [technology/01-foundation-models.md, technology/02-private-cloud-compute.md, technology/04-evaluations.md]
 ---
 
@@ -56,7 +56,8 @@ synced Markdown file (`supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` +
 **Traceability:** R1 → `REQ-INT-001`, `REQ-INT-002`; R2 → `REQ-INT-003`,
 `REQ-INT-004`; R3 → `REQ-INT-005`–`008`; R4 → `REQ-INT-009`–`011`; R5 →
 `REQ-INT-012`, `REQ-INT-013`; R6 → `REQ-INT-014`; R7 → `REQ-INT-015`,
-`REQ-INT-016`; R8 → `REQ-PRM-001`–`005`, `DEC-003` (OPEN); R9 → context-budget
+`REQ-INT-016`; R8 → `REQ-PRM-001`–`005`, `DEC-003` (OPEN), spec 039 /
+`REQ-INT-017`; R9 → context-budget
 and session-architecture contracts supporting R1/R2; R10 → source doc §16
 items 4 and 14. Zone semantics and the disclosure UI are **not** redefined
 here: spec 014 R1 owns the `TrustZone`/`PCCReasoningLevel` contract and
@@ -250,8 +251,10 @@ a smaller model behind it (which produces confident, ungrounded, badly
 structured output — the worst failure mode available). Mechanically: R8's
 `PromptRegistry` holds a degraded variant for every Z1-capable intent, and
 the degraded artifact's persisted `promptVersion` identifies that variant —
-which is also how tests prove the right prompt ran. This is the procedural
-half of the contract 014 R2 states declaratively; the disclosure UI is only
+which is also how tests prove the right prompt ran. The same rule applies to
+**work-proportional prompts** (spec 039 / `REQ-INT-017`): phatic and continuer
+turns MUST run `chat-light@4`, never ask@14 with a smaller token cap. This is
+the procedural half of the contract 014 R2 states declaratively; the disclosure UI is only
 honest if this variant actually exists.
 
 `REQ-INT-011` — the error taxonomy is design copy, not developer strings,
@@ -397,8 +400,15 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   present; always the fallback. The registry resolves
   `(intent, zone, degraded?) → (prompt text, promptVersion)` — the degraded
   variants R4 requires are registry entries, not string mutations.
-  Shipping Ask is `ask@12` / `ask-degraded@12`: `[Turn:]` tags are stance
-  **guidance** (prefer the intent), not a script the model must follow exactly.
+  **Channel (spec 039):** resolution also selects the prompt **family**.
+  Shipping companion/notebook Ask is `ask@14` / `ask-degraded@14`: `[Turn:]`
+  tags are stance **guidance** (prefer the intent), not a script the model
+  must follow exactly. Phatic and continuer turns resolve to `chat-light@4`
+  / `chat-light-degraded@4` — a distinct bundled prompt (`REQ-INT-010`: do
+  not put ask@14 behind the light path). `GenerationIntent` stays `.ask`
+  (no new ModelRouter row). Exhaustiveness tests cover both families for
+  every zone/degraded combination the router can emit. `promptVersion` on
+  `GenerationOutcome` distinguishes the families (`REQ-PRM-004`).
 - `REQ-PRM-002` — an optional remote prompt manifest MAY be fetched from a
   static host: signed JSON, CDN, no server logic; the request carries **no
   user data, no identifier, no query parameters**; fetch is weekly at most;
@@ -424,10 +434,11 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   by version so the harness can pin what it tests.
 
 **Acceptance:**
-- Given any intent/zone/degraded combination the router can produce, when
-  the registry resolves it, then a bundled prompt with a version identifier
-  is returned — exhaustiveness unit test; a missing combination is a test
-  failure, not a runtime fallback to a "closest" prompt.
+- Given any intent/zone/degraded/**channel** combination the router and
+  spec 039 can produce, when the registry resolves it, then a bundled prompt
+  with a version identifier is returned (`ask@14` or `chat-light@4` families)
+  — exhaustiveness unit test; a missing combination is a test failure,
+  not a runtime fallback to a "closest" prompt.
 - Given a remote manifest with an invalid or missing signature (tampered
   fixture), when fetch completes, then the manifest is discarded and bundled
   prompts serve — silent fallthrough, no user-visible error, one log line

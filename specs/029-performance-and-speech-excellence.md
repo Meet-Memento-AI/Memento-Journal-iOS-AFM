@@ -22,7 +22,14 @@ instruction re-tokenization, `017:471`), and supplies the measurement layer
 attribution via the Xcode Foundation Models instrument — never custom
 timing infrastructure; this spec adds only app-stage `os_signpost`
 intervals, which render in the same Instruments trace). Builds directly on
-the loop correctness of `specs/028-conversational-narration.md`. Mints the
+the loop correctness of `specs/028-conversational-narration.md`. Spec
+[`039`](039-reply-channels-and-phatic-generation.md) mints per-channel
+`maximumResponseTokens` (phatic ~80, continuer ~64, no-RAG companion ≤ 128,
+notebook 512). Those caps are **normative**; later perf work MUST NOT raise
+them “for consistency” on notebook. Light caps were tightened (039, 2026-08-23)
+so a hello stays one spoken sentence plus a question. Phatic/continuer skip retrieve and ask@14 prefill
+(039 R2) — that skip is a latency win this spec may measure but must not
+undo. Mints the
 `REQ-PERF-` series.
 
 ## Why

@@ -2,10 +2,10 @@
 //  TurnShapeCadence.swift
 //  MeetMemento
 //
-//  Spec 037 R3 / ask@12: thread-level Open/Stop bit for the live Ask session.
-//  Overlay on the [Turn:] user prompt — never two Open shapes in a row, on
-//  journal or notebook-off turns. Force-stop stances (noMatch, outsideScope)
-//  do not record, so the next social turn can still Open.
+//  Spec 037 R3 / 039 R6: generated Ask turns Open. Overlay says *how* to
+//  ask, never "do not end with a question." Light channels skip the overlay
+//  (ConversationalMove already carries the ask). Farewells skip the question
+//  via the Move cue, not cadence Stop.
 //
 //  No `import FoundationModels` — pure Swift.
 //
@@ -13,9 +13,9 @@
 import Foundation
 
 /// Recall turn shapes from spec 037 R2. C (surface-and-stop) and D (minimal
-/// ack) are prompt-described; code gates Open vs Stop on participating turns.
+/// ack) are prompt-described; code always Opens on generated turns.
 enum RecallTurnShape: String, Sendable, Equatable {
-    /// Follow them. No question. Default after an Open, and for force-stop.
+    /// Follow them. No question. Unused on the live path (always Open).
     case answerStop
     /// Follow them, then one specific question.
     case answerOpen
@@ -29,60 +29,35 @@ struct TurnShapeCadence: Sendable, Equatable {
         lastShape = nil
     }
 
-    /// Stances that take a turn in the Open/Stop bit. First participating turn
-    /// of a thread is Open. After Open, next is Stop. After Stop, next may Open.
-    /// Never two Opens in a row.
-    private static func participates(_ stance: TurnStance) -> Bool {
-        switch stance {
-        case .casual, .sharing, .journalGrounded, .followupThread, .aboutApp:
-            return true
-        case .noMatch, .outsideScope:
-            return false
-        }
+    /// Every generated stance Opens. Farewell skips the question via
+    /// `ConversationalMove.skipsQuestion`, not this bit.
+    mutating func resolve(for _: TurnStance) -> RecallTurnShape {
+        lastShape = .answerOpen
+        return .answerOpen
     }
 
-    /// Resolve the shape for this stance. Force-stop stances return Stop and
-    /// do not record, so an honest empty / redirect does not spend the next
-    /// social Open.
-    mutating func resolve(for stance: TurnStance) -> RecallTurnShape {
-        guard Self.participates(stance) else { return .answerStop }
-        let shape: RecallTurnShape = (lastShape == .answerOpen) ? .answerStop : .answerOpen
-        lastShape = shape
-        return shape
-    }
-
-    /// Second user-prompt line on participating stances. Nil for force-stop
-    /// (noMatch / outsideScope) — the prompt already forbids Open there.
+    /// Second user-prompt line on the heavy path. Nil for casual — the light
+    /// Move cue already asks. Never "Do not end with a question this turn."
     ///
     /// `isGrounded` distinguishes a follow-up that actually hit the journal
     /// (Open about the evidence) from a social continuer (Open about them).
-    static func overlayLine(shape: RecallTurnShape, stance: TurnStance,
+    static func overlayLine(shape _: RecallTurnShape, stance: TurnStance,
                             isGrounded: Bool = false) -> String? {
-        guard Self.participates(stance) else { return nil }
+        guard stance != .casual else { return nil }
         let notebookOn = stance == .journalGrounded
             || (stance == .followupThread && isGrounded)
-        switch shape {
-        case .answerOpen:
-            if stance == .aboutApp {
-                return "[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]"
-            }
-            if notebookOn {
-                return "[Shape: answer, then one specific question about something in the evidence. Never a second question.]"
-            }
-            return "[Shape: Meet them, then one specific question about how they are or what they just said. Never about the journal unless they brought it up. Never a second question.]"
-        case .answerStop:
-            if notebookOn {
-                // Phrased to constrain the QUESTION, not the length.
-                //
-                // This used to read "answer and stop — no question this turn." Shape
-                // Stop is documented as being purely about not asking a question, but
-                // "answer and stop" sits in the highest-attention slot of the prompt
-                // (second line, right after `[Turn:]`), and a small on-device model
-                // reads it as an instruction about brevity.
-                return "[Shape: answer the question fully from the evidence. "
-                    + "Do not end with a question this turn.]"
-            }
-            return "[Shape: follow what they just said. Do not end with a question this turn.]"
+        if stance == .aboutApp {
+            return "[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]"
         }
+        if stance == .noMatch {
+            return "[Shape: be honest you don't see it, then one question back toward them. Never a second question.]"
+        }
+        if stance == .outsideScope {
+            return "[Shape: that's outside what you can see, then one question toward them. Never a second question.]"
+        }
+        if notebookOn {
+            return "[Shape: connect one pattern from the evidence, then one specific question about that. Never a second question. No counts, no emotion labels.]"
+        }
+        return "[Shape: Meet them, then one specific question about how they are or what they just said. Never about the journal unless they brought it up. Never a second question.]"
     }
 }

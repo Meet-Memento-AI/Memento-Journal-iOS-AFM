@@ -5,6 +5,8 @@ import XCTest
 final class ExperienceProfileBuilderTests: XCTestCase {
 
     override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "memento_first_name")
+        UserDefaults.standard.removeObject(forKey: "memento_last_name")
         LocalProfileStore.clearAll()
         super.tearDown()
     }
@@ -135,8 +137,36 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         XCTAssertTrue(rotated.allSatisfy { $0.hasPrefix("Generic") })
     }
 
+    func test_themeAwareChatStarters_rotate_isGenericFirstWithAtMostOneThemed() {
+        LocalProfileStore.experienceProfile = ExperienceProfile(
+            reflection: "stress",
+            confirmedThemeIds: ["stress", "goals"],
+            suggestedThemeIds: [],
+            promptLens: nil,
+            catalogVersion: ThemeCatalog.catalogVersion,
+            builtAt: Date(),
+            modelIdentifier: nil
+        )
+        let rotated = ThemeAwareChatStarters.rotate(
+            genericPool: ["Generic prompt A", "Generic prompt B", "Generic prompt C"],
+            limit: 3
+        )
+        XCTAssertEqual(rotated.count, 3)
+        let themedCount = rotated.filter { !$0.hasPrefix("Generic") }.count
+        XCTAssertEqual(themedCount, 1)
+        XCTAssertEqual(rotated.filter { $0.hasPrefix("Generic") }.count, 2)
+    }
+
+    func test_deterministicLens_doesNotEnumerateThemes() {
+        let lens = ExperienceProfileBuilder.deterministicLens(themes: ["stress", "anxiety", "goals"])
+        XCTAssertEqual(lens, "Stay conversational. Prefer open questions over advice.")
+        XCTAssertFalse(lens?.lowercased().contains("stress") == true)
+        XCTAssertFalse(lens?.lowercased().contains("anxiety") == true)
+    }
+
     func test_deleteEverything_clearsExperienceProfile() {
         UserDefaults.standard.set("Ada", forKey: "memento_first_name")
+        UserDefaults.standard.set("Lovelace", forKey: "memento_last_name")
         LocalProfileStore.experienceProfile = ExperienceProfile(
             reflection: "keep me",
             confirmedThemeIds: ["mindfulness"],
@@ -151,7 +181,8 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         store.deleteEverything()
 
         XCTAssertNil(LocalProfileStore.experienceProfile)
-        XCTAssertTrue(PromptPersonalization.fromLocalProfile().isEmpty)
+        XCTAssertNotEqual(UserDefaults.standard.string(forKey: "memento_first_name"), "Ada")
+        XCTAssertNil(UserDefaults.standard.string(forKey: "memento_last_name"))
         XCTAssertFalse(store.hasCompletedOnboarding)
         XCTAssertNil(store.firstName)
     }
@@ -206,10 +237,12 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         )
         let startersB = ThemeAwareChatStarters.starters(limit: 3)
 
-        XCTAssertTrue(askA.version.hasSuffix("+p2"))
-        XCTAssertTrue(askB.version.hasSuffix("+p2"))
-        XCTAssertTrue(askA.text.contains("Stress") || askA.text.contains("stress"))
-        XCTAssertTrue(askB.text.contains("Creative") || askB.text.contains("Inspiration"))
+        XCTAssertTrue(askA.version.hasSuffix("+p4"))
+        XCTAssertTrue(askB.version.hasSuffix("+p4"))
+        XCTAssertTrue(askA.text.contains("stress") || askA.text.contains("Stress"))
+        XCTAssertTrue(askB.text.contains("creative") || askB.text.contains("Creative"))
+        XCTAssertFalse(askA.text.contains("Themes they chose:"))
+        XCTAssertFalse(askB.text.contains("Themes they chose:"))
         XCTAssertNotEqual(askA.text, askB.text)
         // Facts/constitution stay shared — L0 phrase present in both.
         // (ask@10 wording: "a quiet companion, not a search engine and not a therapist")

@@ -166,6 +166,7 @@ struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View
         .environment(\.usesOnboardingInkButtons, true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .dismissKeyboardOnOutsideTap()
     }
 
     @ViewBuilder

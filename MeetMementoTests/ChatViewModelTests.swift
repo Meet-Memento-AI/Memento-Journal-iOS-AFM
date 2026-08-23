@@ -348,12 +348,31 @@ final class ChatViewModelTests: XCTestCase {
             ChatSummaryResponse(title: "T", content: "C")
         }
         let vm = ChatViewModel(chatService: mock)
-        vm.messages = [ChatMessage(content: "u", isFromUser: true)]
+        vm.messages = [
+            ChatMessage(content: "u1", isFromUser: true),
+            ChatMessage(content: "a1", isFromUser: false),
+            ChatMessage(content: "u2", isFromUser: true),
+        ]
         vm.currentSessionId = UUID()
 
         let result = try await vm.generateChatSummary()
         XCTAssertEqual(result.title, "T")
         XCTAssertEqual(result.content, "C")
+    }
+
+    func test_ChatViewModel_generateChatSummary_rejectsShortTranscript() async {
+        let vm = ChatViewModel(chatService: MockChatService())
+        vm.messages = [ChatMessage(content: "u", isFromUser: true)]
+        vm.currentSessionId = UUID()
+
+        do {
+            _ = try await vm.generateChatSummary()
+            XCTFail("short transcripts must not summarize")
+        } catch {
+            let ns = error as NSError
+            XCTAssertEqual(ns.domain, "ChatViewModel")
+            XCTAssertEqual(ns.code, 1)
+        }
     }
 
     func test_sendMessage_photosOnly_doesNotRequireText() async throws {
@@ -378,5 +397,79 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(user?.content, "")
         XCTAssertEqual(user?.imageJPEGs, [jpeg])
         XCTAssertTrue(vm.messages.contains { !$0.isFromUser && $0.content.contains("street") })
+    }
+
+    // MARK: - Summarize eligibility
+
+    func test_canSummarize_empty() {
+        XCTAssertFalse(ChatViewModel.canSummarize([]))
+    }
+
+    func test_canSummarize_oneUserOnly() {
+        XCTAssertFalse(ChatViewModel.canSummarize([
+            ChatMessage(content: "hello", isFromUser: true),
+        ]))
+    }
+
+    func test_canSummarize_oneUserAndEmptyStreamingAssistant() {
+        XCTAssertFalse(ChatViewModel.canSummarize([
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "", isFromUser: false, isStreaming: true),
+        ]))
+    }
+
+    func test_canSummarize_firstCompletedTurnOnly() {
+        XCTAssertFalse(ChatViewModel.canSummarize([
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "a reply", isFromUser: false),
+        ]))
+    }
+
+    func test_canSummarize_twoUsersAndOneAssistant() {
+        XCTAssertTrue(ChatViewModel.canSummarize([
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "a reply", isFromUser: false),
+            ChatMessage(content: "and then", isFromUser: true),
+        ]))
+    }
+
+    func test_canSummarize_photoOnlyUserCounts() {
+        XCTAssertTrue(ChatViewModel.canSummarize([
+            ChatMessage(content: "", isFromUser: true, imageJPEGs: [Data([0xFF, 0xD8])]),
+            ChatMessage(content: "I see that", isFromUser: false),
+            ChatMessage(content: "more", isFromUser: true),
+        ]))
+    }
+
+    func test_canSummarize_failedLastUserStillCounts() {
+        XCTAssertTrue(ChatViewModel.canSummarize([
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "a reply", isFromUser: false),
+            ChatMessage(content: "and then", isFromUser: true, sendFailed: true),
+        ]))
+    }
+
+    func test_canSummarize_clearedMessages() {
+        var messages = [
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "a reply", isFromUser: false),
+            ChatMessage(content: "and then", isFromUser: true),
+        ]
+        XCTAssertTrue(ChatViewModel.canSummarize(messages))
+        messages = []
+        XCTAssertFalse(ChatViewModel.canSummarize(messages))
+    }
+
+    func test_canSummarizeChat_tracksViewModelMessages() {
+        let vm = ChatViewModel(chatService: MockChatService())
+        XCTAssertFalse(vm.canSummarizeChat)
+        vm.messages = [
+            ChatMessage(content: "hello", isFromUser: true),
+            ChatMessage(content: "a reply", isFromUser: false),
+            ChatMessage(content: "and then", isFromUser: true),
+        ]
+        XCTAssertTrue(vm.canSummarizeChat)
+        vm.messages = []
+        XCTAssertFalse(vm.canSummarizeChat)
     }
 }

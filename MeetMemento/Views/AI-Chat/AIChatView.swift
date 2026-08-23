@@ -260,25 +260,18 @@ public struct AIChatView: View {
                 onOpenJournal?()
             }
         } trailing: {
-            HStack(spacing: 12) {
-                HeaderIconButton(
-                    systemName: "sparkles",
-                    accessibilityLabel: "Summarise chat",
-                    accessibilityHint: "Double-tap to turn this conversation into a journal entry"
-                ) {
+            ChatHeaderActionCluster(
+                showsSummarize: viewModel.canSummarizeChat,
+                onSummarize: {
                     stopNarration()
                     dismissKeyboard()
                     showSummarySheet = true
-                }
-                .entryZoomSource(EntryRoute.createFromChatZoomSourceID)
-                HeaderIconButton(
-                    systemName: "list.bullet",
-                    accessibilityLabel: "Chat history"
-                ) {
+                },
+                onHistory: {
                     stopNarration()
                     showChatHistorySheet = true
                 }
-            }
+            )
         }
     }
 

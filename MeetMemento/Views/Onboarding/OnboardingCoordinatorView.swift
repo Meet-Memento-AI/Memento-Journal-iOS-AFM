@@ -151,7 +151,7 @@ public struct OnboardingCoordinatorView: View {
         guard routeStack.count > 1 else { return }
         isNavigatingForward = false
         withAnimation(Self.stepTransition) {
-            routeStack.removeLast()
+            _ = routeStack.removeLast()
         }
     }
 

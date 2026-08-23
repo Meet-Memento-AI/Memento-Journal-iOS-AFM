@@ -82,7 +82,7 @@ final class PromptRegistryResolutionTests: XCTestCase {
     }
 
     /// Personalization must survive the new keying layer — it is part of what
-    /// the version string claims (the `+p2` suffix), so dropping it here would
+    /// the version string claims (the `+p4` suffix), so dropping it here would
     /// mislabel every personalized artifact.
     func test_resolve_carriesPersonalizationThrough() {
         let personalization = PromptPersonalization(
@@ -98,5 +98,38 @@ final class PromptRegistryResolutionTests: XCTestCase {
 
         XCTAssertNotEqual(plain.version, personalized.version)
         XCTAssertTrue(personalized.text.count > plain.text.count)
+    }
+
+    func test_everyAskChannel_resolves() {
+        for channel in ReplyChannel.allCases {
+            for degraded in [false, true] {
+                let resolved = PromptRegistry.resolve(
+                    intent: .ask, zone: .z0Device, degraded: degraded, channel: channel
+                )
+                XCTAssertFalse(resolved.text.isEmpty, "\(channel) degraded=\(degraded)")
+                XCTAssertTrue(resolved.version.contains("@"), "\(channel) \(resolved.version)")
+            }
+        }
+    }
+
+    func test_phaticChannel_resolvesToChatLight() {
+        let full = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .phatic)
+        let degraded = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: true, channel: .phatic)
+        XCTAssertEqual(full.version, "chat-light@4")
+        XCTAssertEqual(degraded.version, "chat-light-degraded@4")
+        XCTAssertNotEqual(full.version, degraded.version)
+        XCTAssertFalse(full.text.contains("How a reply is built"))
+    }
+
+    func test_companionChannel_staysAsk14() {
+        let resolved = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .companion)
+        XCTAssertEqual(resolved.version, "ask@14")
+    }
+
+    func test_phatic_agreesWithInstructions() {
+        let viaResolve = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .phatic)
+        let viaInstructions = PromptRegistry.instructions(for: .ask, channel: .phatic)
+        XCTAssertEqual(viaResolve.text, viaInstructions.text)
+        XCTAssertEqual(viaResolve.version, viaInstructions.version)
     }
 }

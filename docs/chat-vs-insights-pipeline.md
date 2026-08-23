@@ -1,5 +1,8 @@
 # Chat vs batch Insights (pipelines)
 
+> **Superseded.** Shipping Ask vs Weekly/Patterns is specs 017 / 019 / 037 /
+> 039 (on-device). This page describes the deleted Gemini Edge Functions.
+
 ## Chat (`supabase/functions/chat`)
 
 - **Per message**: embeds an **effective query** (condensed recent turns + current user text), runs **pgvector** `match_journal_entries` (top-K, thresholded), injects context into Gemini.

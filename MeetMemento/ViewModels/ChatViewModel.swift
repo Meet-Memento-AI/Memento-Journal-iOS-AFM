@@ -75,6 +75,37 @@ class ChatViewModel: ObservableObject {
         !messages.isEmpty || currentSessionId != nil
     }
 
+    /// True when the transcript has enough substance to turn into a journal
+    /// entry: at least two user turns and one assistant reply. Independent of
+    /// `hasActiveChat` — a minted session id with an empty transcript is not
+    /// summarizable.
+    var canSummarizeChat: Bool { Self.canSummarize(messages) }
+
+    /// Counts a user turn if it has text or attached photos. Failed sends with
+    /// content still count: the substance is on screen. Empty streaming
+    /// assistant placeholders do not count until they have a body.
+    static func canSummarize(_ messages: [ChatMessage]) -> Bool {
+        var userCount = 0
+        var assistantCount = 0
+        for message in messages {
+            if message.isFromUser {
+                if countsAsUserTurn(message) { userCount += 1 }
+            } else if countsAsAssistantReply(message) {
+                assistantCount += 1
+            }
+        }
+        return userCount >= 2 && assistantCount >= 1
+    }
+
+    private static func countsAsUserTurn(_ message: ChatMessage) -> Bool {
+        let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !text.isEmpty || !message.imageJPEGs.isEmpty
+    }
+
+    private static func countsAsAssistantReply(_ message: ChatMessage) -> Bool {
+        !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     // User info
     @Published var userName: String?
 
@@ -680,9 +711,9 @@ class ChatViewModel: ObservableObject {
 
     /// Generates a summary of the current chat conversation for creating a journal entry
     func generateChatSummary() async throws -> (title: String, content: String) {
-        guard hasActiveChat else {
+        guard canSummarizeChat else {
             throw NSError(domain: "ChatViewModel", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "No active chat to summarize"])
+                userInfo: [NSLocalizedDescriptionKey: "Conversation isn't long enough to summarize"])
         }
 
         isSummarizing = true

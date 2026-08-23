@@ -50,25 +50,26 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     var promptLine: String {
         switch self {
         case .casual:
-            return "[Turn: casual — Meet them in a friendly way; Open only if a [Shape:] line asks; notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
+            return "[Turn: casual — Meet them in a friendly way; then one question; notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
         case .aboutApp:
-            return "[Turn: about the app — briefly say what you can do together; a short \"- \" list of capabilities; Open only if a [Shape:] line asks, about what they want to look at; no journal references; leave citedRefs empty]"
+            return "[Turn: about the app — briefly say what you can do together; a short \"- \" list of capabilities; then one question about what they want to look at; no journal references; leave citedRefs empty]"
         case .outsideScope:
-            return "[Turn: outside scope — say that's outside what you can see, then gently return to them; no headings or lists; leave citedRefs empty]"
+            return "[Turn: outside scope — say that's outside what you can see, then gently return to them with one question; no headings or lists; leave citedRefs empty]"
         case .sharing:
-            return "[Turn: sharing — follow what they said as a friend; no ### unless they asked for the journal; Open only if a [Shape:] line asks; do not force an insight or citation]"
+            return "[Turn: sharing — follow what they said as a friend; no ### unless they asked for the journal; then one question; do not force an insight or citation]"
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; Open only if a [Shape:] line asks; do not restart with a new heading or begin a new entry inventory]"
+            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; then one question; do not restart with a new heading or begin a new entry inventory]"
         case .journalGrounded:
-            return "[Turn: journal question — Meet them, then one ### notebook moment, italic exact quote, then Sit; "
+            return "[Turn: journal question — Meet them, then one ### notebook moment, italic exact quote, then Sit that names a pattern from the evidence; "
                 + "lists only if they asked what they wrote about a topic; "
                 + "reproduce any quoted field exactly; "
-                + "Open only if a [Shape:] line asks; "
+                + "then one question; "
                 + "list only the refs you used in citedRefs; "
                 + "do not reopen an entry already used in this thread]"
         case .noMatch:
             return "[Turn: journal question, no matches — "
                 + "Meet them, then say you don't see anything from that stretch; "
+                + "then one question back toward them; "
                 + "no heading, no list; do not invent any; do not change the subject; "
                 + "invite them once to write only if they asked what they have written "
                 + "and the archive is empty]"

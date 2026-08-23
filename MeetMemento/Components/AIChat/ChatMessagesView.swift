@@ -644,23 +644,18 @@ struct ChatMessagesView: View {
             Spacer()
 
             VStack(spacing: 24) {
-                LinearGradient(
-                    colors: [PrimaryScale.primary700, PrimaryScale.primary400],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .mask {
+                VStack(spacing: Spacing.xs) {
                     Image("LaunchLogo")
                         .resizable()
                         .scaledToFit()
-                }
-                .frame(width: 56, height: 56)
+                        .frame(width: 48, height: 48)
 
-                Text("Let’s dive deeper\ninto your journal")
-                    .font(type.h2)
-                    .foregroundStyle(PrimaryScale.primary600)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text("Let’s dive deeper\ninto your journal")
+                        .font(type.h2)
+                        .foregroundStyle(PrimaryScale.primary600)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 if !hasEntries {
                     Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")

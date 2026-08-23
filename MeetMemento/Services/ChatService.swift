@@ -409,9 +409,7 @@ class ChatService {
     // MARK: - History Management
 
     func clearHistory() async throws {
-        attachmentLock.lock()
-        sessionUserImages.removeAll()
-        attachmentLock.unlock()
+        forgetAllSessionUserImages()
         LocalChatStore.shared.clear()
                 AppLogger.log("🗑️ [ChatService] Local chat history cleared")
     }
@@ -434,9 +432,7 @@ class ChatService {
 
     /// Deletes a chat session and its messages.
     func deleteSession(sessionId: UUID) async throws {
-        attachmentLock.lock()
-        sessionUserImages[sessionId] = nil
-        attachmentLock.unlock()
+        forgetSessionUserImages(sessionId)
         LocalChatStore.shared.deleteSession(sessionId)
                 AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
     }
@@ -464,6 +460,18 @@ class ChatService {
         guard !images.isEmpty else { return }
         attachmentLock.lock()
         sessionUserImages[conversationId, default: []].append(images)
+        attachmentLock.unlock()
+    }
+
+    private func forgetSessionUserImages(_ sessionId: UUID) {
+        attachmentLock.lock()
+        sessionUserImages[sessionId] = nil
+        attachmentLock.unlock()
+    }
+
+    private func forgetAllSessionUserImages() {
+        attachmentLock.lock()
+        sessionUserImages.removeAll()
         attachmentLock.unlock()
     }
 

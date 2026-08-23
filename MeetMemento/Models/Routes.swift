@@ -28,8 +28,8 @@ public enum EntryRoute: Hashable, Identifiable {
     }
 
     /// Stable zoom-transition source IDs. Distinct from `id` so create-with-title
-    /// still morphs from the FAB, and chat-summary still morphs from sparkles
-    /// regardless of the generated title.
+    /// still morphs from the FAB, and chat-summary still morphs from the chat
+    /// write control regardless of the generated title.
     static let createZoomSourceID = "create"
     static let createFromChatZoomSourceID = "createFromChat"
 

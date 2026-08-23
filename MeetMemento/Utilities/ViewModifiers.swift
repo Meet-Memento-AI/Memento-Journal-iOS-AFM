@@ -189,6 +189,103 @@ private struct HapticTapModifier: ViewModifier {
     }
 }
 
+// MARK: - Keyboard
+
+extension View {
+    /// Dismisses the keyboard when the user taps outside a text field or editor.
+    /// Taps on `UITextView` / `UITextField` still focus and type; buttons keep
+    /// their own action because the recognizer does not cancel touches.
+    func dismissKeyboardOnOutsideTap() -> some View {
+        background(DismissKeyboardOnOutsideTap())
+    }
+}
+
+private struct DismissKeyboardOnOutsideTap: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let probe = UIView(frame: .zero)
+        probe.backgroundColor = .clear
+        probe.isUserInteractionEnabled = false
+        return probe
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.install(from: uiView)
+    }
+
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        private weak var installedOn: UIView?
+        private var recognizer: UITapGestureRecognizer?
+
+        func install(from probe: UIView) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let host = probe.nearestViewController()?.view ?? probe.superview else { return }
+                if installedOn === host { return }
+                uninstall()
+                let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+                tap.cancelsTouchesInView = false
+                tap.delegate = self
+                host.addGestureRecognizer(tap)
+                recognizer = tap
+                installedOn = host
+            }
+        }
+
+        func uninstall() {
+            if let recognizer {
+                installedOn?.removeGestureRecognizer(recognizer)
+            }
+            recognizer = nil
+            installedOn = nil
+        }
+
+        @objc func dismissKeyboard() {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            var view = touch.view
+            while let current = view {
+                if current is UITextView || current is UITextField {
+                    return false
+                }
+                view = current.superview
+            }
+            return true
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+    }
+}
+
+private extension UIView {
+    func nearestViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let controller = current as? UIViewController {
+                return controller
+            }
+            responder = current.next
+        }
+        return nil
+    }
+}
+
 // MARK: - Spacing Shortcuts
 
 extension View {

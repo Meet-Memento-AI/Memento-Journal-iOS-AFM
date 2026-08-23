@@ -127,10 +127,14 @@ independently at its own thresholds, reporting per-gate numbers per run.
    R8** (aggregate + per-category scoring, branch coverage, built on
    `Evaluations`, explicitly shared with this harness) — one implementation,
    cited here, not re-specified. What this spec adds is the gate's second
-   row: **search-tool-called on 100% of Ask-category runs** via
-   `TrajectoryExpectation` — the mechanical enforcement of `REQ-SUR-003`: an
+   row: **search-tool-called on 100% of notebook-channel Ask runs** (spec 039
+   rank 4 / `.journalQuery`) via
+   `TrajectoryExpectation` — the mechanical enforcement of `REQ-SUR-003` on
+   journal questions: an
    answer synthesized from the model's priors about the user's own life is a
-   fabrication, and this catches it on every prompt change. The three honesty
+   fabrication, and this catches it on every prompt change. Phatic, continuer,
+   companion, meta, and redirect turns **must not** retrieve (039 R2); this
+   gate does not require a search tool on those samples. The three honesty
    questions (q-16–q-18) must both call the tool *and* decline to answer
    beyond the corpus ("I don't find anything about your brother before
    March" is the correct answer).
@@ -365,7 +369,8 @@ string). Re-confirm this is still true when implementation starts.
       reading the workflow file.
 - [ ] `RetrievalGate`'s recall half is the **same single implementation** as
       spec 016 R8's standing gate (no duplicate scorer exists); its trajectory
-      half asserts search-tool-called on 100% of Ask-category runs, and the
+      half asserts search-tool-called on 100% of **notebook-channel** Ask runs
+      (spec 039), and the
       honesty questions (q-16–q-18) decline beyond-corpus answers
       (R2, `REQ-SUR-003`).
 - [ ] `GroundingGate`'s automatable half passes (every `groundedEntryIDs`

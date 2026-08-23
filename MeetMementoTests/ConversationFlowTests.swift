@@ -21,6 +21,14 @@ final class ConversationFlowTests: XCTestCase {
         XCTAssertEqual(turn, .social)
         XCTAssertEqual(RetrievalPolicy.mode(for: turn), .none)
         XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: .empty), .casual)
+        XCTAssertEqual(ReplyChannel.resolve(turn: turn, hasImages: false), .phatic)
+    }
+
+    func test_compoundGreeting_isPhaticNotShare() {
+        let turn = TurnClassifier.classify("Hello, how are you", hasHistory: false)
+        XCTAssertEqual(turn, .social)
+        XCTAssertEqual(RetrievalPolicy.mode(for: turn), .none)
+        XCTAssertEqual(ReplyChannel.resolve(turn: turn, hasImages: false), .phatic)
     }
 
     /// The regression that motivated the redesign: after a grounded exchange,

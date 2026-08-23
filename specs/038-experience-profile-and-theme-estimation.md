@@ -21,9 +21,12 @@ visible, not only hidden inside prompts.
   catalog synonyms, then browse-all. Onboarding must still complete offline.
 - **R5 Local only.** ExperienceProfile persists in `LocalProfileStore` /
   UserDefaults. No accounts, no sync. Delete-everything clears the profile.
-- **R6 Prompt composition.** Ask prompts use version suffix `+p2` when an
-  ExperienceProfile is present. Summary ignores personalization. Personalization
-  never affects stance, retrieval, or citations.
+- **R6 Prompt composition.** Companion/notebook Ask prompts (`ask@14`) use
+  version suffix `+p4` when an ExperienceProfile is present. **Phatic and
+  continuer** (`chat-light@4`, spec 039) MUST NOT append L1. Names, if stored,
+  ride the **user** prompt as `[Name:]`. Summary ignores
+  personalization. Personalization never affects stance, retrieval, channel,
+  or citations.
 - **R7 Settings parity.** Theme editor and About Yourself write the same
   profile. **Rebuild lens** re-runs estimation while preserving confirmed themes
   (unless the user explicitly re-suggests).
@@ -41,9 +44,9 @@ grouped by `ThemeFamily` (164 themes).
 
 | Layer | Source | Mutable per user? |
 |---|---|---|
-| L0 Core | `PromptRegistry` `ask@4` | No — companion constitution |
-| L1 Lens | ExperienceProfile via `PromptPersonalization` | Yes — reflection, themes, lens |
-| L2 Session | Stance + retrieval + citations | No personalization influence |
+| L0 Core | `PromptRegistry` `ask@14` or `chat-light@4` (spec 039) | No — companion constitution vs light chat |
+| L1 Lens | ExperienceProfile via `PromptPersonalization` | Yes — omitted on phatic/continuer; names may still cue the user prompt |
+| L2 Session | Classifier → ReplyChannel → stance + retrieval + citations | Channel decides work; no personalization influence |
 
 ## Persistence timing
 
@@ -66,8 +69,14 @@ security setup). The first journal entry is created after security in
 
 ### Prompt composition
 - **Given** a stored ExperienceProfile with themes and lens  
-  **When** an ask prompt is resolved  
-  **Then** version ends with `+p2` and the “About this person” section includes themes and lens, never recited instructions.
+  **When** a **notebook or companion** ask prompt is resolved  
+  **Then** version ends with `+p4` and the “About this person” section includes
+  lens (never recited instructions). Address with first or last name, never both
+  in one reply.  
+- **Given** the same profile  
+  **When** a **phatic** ask is resolved (spec 039)  
+  **Then** version is `chat-light@4` with **no** About section. Stored names
+  appear on the user prompt as `[Name:]`, not in L1.
 - **Given** personalization present  
   **When** summary instructions are resolved  
   **Then** version stays `summarize@1` with no About section.

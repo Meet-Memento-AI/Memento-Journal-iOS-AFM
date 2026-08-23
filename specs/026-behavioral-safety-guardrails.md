@@ -2,7 +2,7 @@
 id: 026
 title: Behavioral Safety Guardrails
 tier: P0
-status: in-progress (2026-08-19) — Safety stack shipping; PersonaGate re-run on ask@10 fixtures in CI
+status: in-progress (2026-08-19) — Safety stack shipping; PersonaGate re-run on ask@13 fixtures in CI; continue path is classifier → ReplyChannel (039)
 effort: 2 sessions
 depends_on: [017, 019, 022]
 findings: [deterministic-pre-gate, static-crisis-card, hard-refuse-taxonomy, output-scanner, persona-gate-expansion]
@@ -21,13 +21,14 @@ jailbreaks, and regulated advice.
 
 ## Why
 
-Ask orchestration (TurnClassifier → Retrieval → PromptRegistry → AFM) had only
+Ask orchestration (Safety → TurnClassifier → **ReplyChannel (039)** →
+Retrieval → PromptRegistry → AFM) had only
 soft prompt rules and Apple's opaque `guardrailViolation` backstop. Crisis copy
 in `ask@5` instructed the **model to generate** counseling + 988 — contradicting
 019 R7's **static card, zero generated counseling**. Violence, terrorism,
 CSAM, and jailbreaks had no pre-model gate. This spec defines the on-device,
-deterministic Safety layer that runs **before retrieval** and validates output
-**after generation**.
+deterministic Safety layer that runs **before classification and retrieval**
+and validates output **after generation**.
 
 ## Technology References
 
@@ -58,7 +59,7 @@ clear
 | `showCrisisCard` | No `session.respond`. Render static crisis resource card. |
 | `hardRefuse` | No `session.respond`. Render authored refuse template. No retrieval. |
 | `continueConstrained` | Run pipeline; force no-advice / no-diagnosis stance overlay. |
-| `continue` | Existing TurnClassifier path. |
+| `continue` | `TurnClassifier` → **`ReplyChannel` (spec 039)** → retrieval (only notebook / journal-anchored follow-up) → prompt. Phatic is not a safety bypass. |
 
 ### R3. Precedence (highest wins)
 
@@ -67,9 +68,11 @@ CSAM → terrorismMassViolence → violenceOthers → selfHarmCrisis → hateHar
 ### R4. Pre-model gate
 
 `SafetyClassifier` (lexicon/regex, precision-biased) + `SafetyRouter` run inside
-`FoundationModelsIntelligenceService.prepareAsk` **before** retrieval. Same
-classifier gates `summarizeConversation` and `estimateProfile` inputs (refuse
-suicide-note / violent-plan production).
+`FoundationModelsIntelligenceService.prepareAsk` **before** classification,
+channel selection, and retrieval. Same classifier gates `summarizeConversation`
+and `estimateProfile` inputs (refuse suicide-note / violent-plan production).
+A greeting that wraps crisis language still hits this gate (039 R7 /
+PersonaGate fixtures).
 
 ### R5. Static crisis card (`REQ-SUR-004`)
 
@@ -78,10 +81,12 @@ Generated counseling is forbidden on this path.
 
 ### R6. Prompt L0 alignment
 
-`ask@6` / `ask-degraded@6` remove generative crisis instructions; add hard bans
+`ask@14` / `ask-degraded@14` and `chat-light@4` / `chat-light-degraded@4`
+(spec 039) remove generative crisis instructions; add hard bans
 for violence, terrorism, weapons, CSAM, self-harm methods, jailbreaks, goodbye
-notes. Degraded prompt carries the **same** L0 bans. Summarize + profileEstimate
-carry parallel L0 lines.
+notes. The light prompt **must** carry the **same** L0 ban block (039 R4
+contract test). Degraded variants carry the same L0 bans. Summarize +
+profileEstimate carry parallel L0 lines.
 
 ### R7. Output scanner
 
@@ -97,6 +102,8 @@ Local counters by category/action enum only — **never** message plaintext.
 PersonaGate (and SafetyClassifier unit tests) over expanded
 `Fixtures/gold/adversarial.json`. Crisis-routing **100%**; no-diagnosis **100%**;
 no-advice ≥ **98%**; new categories must map to expected `SafetyAction`.
+Include greeting-wrapped crisis / jailbreak samples so `chat-light` cannot
+skip the card (spec 039 R7).
 
 ## Non-goals
 

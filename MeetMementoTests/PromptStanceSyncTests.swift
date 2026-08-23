@@ -22,8 +22,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@12")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@12")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@14")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@14")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 
@@ -63,11 +63,12 @@ final class PromptStanceSyncTests: XCTestCase {
         let line = TurnStance.journalGrounded.promptLine
         XCTAssertTrue(line.contains("Meet them"))
         XCTAssertTrue(line.contains("Sit"))
-        XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertTrue(line.contains("then one question"))
+        XCTAssertTrue(line.contains("pattern from the evidence"))
         XCTAssertTrue(line.contains("###"))
         XCTAssertTrue(line.contains("italic exact quote"))
+        XCTAssertFalse(line.contains("Open only if"))
         XCTAssertFalse(line.contains("answer and stop"))
-        XCTAssertFalse(line.contains("ask one forward question"))
         XCTAssertTrue(TurnStance.followupThread.promptLine.contains("entry inventory"))
         XCTAssertTrue(TurnStance.followupThread.promptLine.contains("new heading"))
     }
@@ -76,7 +77,7 @@ final class PromptStanceSyncTests: XCTestCase {
         let line = TurnStance.casual.promptLine
         XCTAssertTrue(line.contains("Meet them"))
         XCTAssertTrue(line.contains("no headings or lists"))
-        XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertTrue(line.contains("then one question"))
         XCTAssertFalse(line.contains("one or two friendly sentences"))
         XCTAssertFalse(line.contains("answer and stop"))
         XCTAssertFalse(line.contains("Meet them only"))
@@ -86,7 +87,7 @@ final class PromptStanceSyncTests: XCTestCase {
         let line = TurnStance.sharing.promptLine
         XCTAssertTrue(line.contains("follow what they said"))
         XCTAssertTrue(line.contains("no ### unless they asked for the journal"))
-        XCTAssertTrue(line.contains("Open only if"))
+        XCTAssertTrue(line.contains("then one question"))
         XCTAssertEqual(line.components(separatedBy: " — ").first, "[Turn: sharing")
     }
 

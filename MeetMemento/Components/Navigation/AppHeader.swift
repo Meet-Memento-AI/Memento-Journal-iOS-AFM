@@ -212,12 +212,31 @@ private struct OptionalHint: ViewModifier {
             HeaderIconButton(systemName: "book",
                              accessibilityLabel: "Journal") {}
         } trailing: {
-            HStack(spacing: 12) {
-                HeaderIconButton(systemName: "sparkles",
-                                 accessibilityLabel: "Summarise chat") {}
-                HeaderIconButton(systemName: "list.bullet",
-                                 accessibilityLabel: "Chat history") {}
-            }
+            ChatHeaderActionCluster(
+                showsSummarize: false,
+                onSummarize: {},
+                onHistory: {}
+            )
+        }
+    }
+    .useTheme()
+    .useTypography()
+}
+
+#Preview("Chat header expanded") {
+    ZStack(alignment: .top) {
+        LinearGradient(colors: [GrayScale.gray100, GrayScale.gray50],
+                       startPoint: .top, endPoint: .bottom)
+            .ignoresSafeArea()
+        AppHeader {
+            HeaderIconButton(systemName: "book",
+                             accessibilityLabel: "Journal") {}
+        } trailing: {
+            ChatHeaderActionCluster(
+                showsSummarize: true,
+                onSummarize: {},
+                onHistory: {}
+            )
         }
     }
     .useTheme()

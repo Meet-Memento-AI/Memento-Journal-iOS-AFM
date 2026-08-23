@@ -16,7 +16,7 @@ private struct EntryZoomNamespaceKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// Shared by create/open sources (FAB, cards, chat sparkles) and the
+    /// Shared by create/open sources (FAB, cards, chat write control) and the
     /// editor destination so `.navigationTransition(.zoom)` can morph.
     var entryZoomNamespace: Namespace.ID? {
         get { self[EntryZoomNamespaceKey.self] }

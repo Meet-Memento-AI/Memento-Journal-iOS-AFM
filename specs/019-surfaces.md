@@ -290,16 +290,22 @@ edge functions.
   and two searches blended into one list). This is the
   richer-than-a-chat-bubble surface a design-led product should spend on —
   and it extends PRES-042's rendering contract rather than replacing it.
-- **`REQ-SUR-003` — grounded or silent:** when a question cannot be answered
-  from the corpus, Ask says so and **shows what it searched** ("I don't find
-  anything about your brother before March" is the correct answer); it never
-  answers from world knowledge. The retrieval-transparency affordance SHOULD
-  start from the orphaned `JournalReviewIndicator` ("Reviewed N journals" —
-  §4 reuse ledger). Enforcement is mechanical and owned by spec 022's
-  `RetrievalGate`: `TrajectoryExpectation` asserts the search tool was called
-  on 100% of Ask runs, and the honesty questions (q-16–q-18) must both call
-  the tool and decline to over-answer. This spec's obligation is keeping the
-  prompt/tool wiring compatible with that assertion — verify-first: V11
+- **`REQ-SUR-003` — grounded or silent (notebook channel):** when a
+  **journal** question cannot be answered from the corpus, Ask says so and
+  **shows what it searched** ("I don't find anything about your brother
+  before March" is the correct answer); it never answers from world
+  knowledge. Phatic, continuer, companion, meta, and redirect turns **do
+  not retrieve** (spec 039); honesty/search-tool assertions apply to
+  **notebook-channel** Ask runs only. Loading copy on no-RAG turns MUST NOT
+  say “Reviewing your past entries…” (`LoadingStatus` uses “Memento is
+  thinking…” when `RetrievalPolicy.mode` is `.none`). The retrieval-
+  transparency affordance SHOULD start from the orphaned
+  `JournalReviewIndicator` ("Reviewed N journals" — §4 reuse ledger).
+  Enforcement is mechanical and owned by spec 022's `RetrievalGate`:
+  `TrajectoryExpectation` asserts the search tool was called on 100% of
+  **notebook** Ask runs, and the honesty questions (q-16–q-18) must both
+  call the tool and decline to over-answer. This spec's obligation is keeping
+  the prompt/tool wiring compatible with that assertion — verify-first: V11
   (`ToolCallingMode`, "always search" if it exists) and V12 (registered tool
   name) are 016 R5/R10's items; Ask's tool wiring is not finalized until both
   are closed.
@@ -565,7 +571,8 @@ extraction, not a rewrite.
       narration is generating/degraded/failed; every §4 reuse-ledger chart
       row is claimed or deleted.
 - [ ] Ask grounding/honesty (R5): 022 `RetrievalGate` green — search tool
-      called on 100% of Ask runs (`TrajectoryExpectation`, V12 name), honesty
+      called on 100% of **notebook-channel** Ask runs (`TrajectoryExpectation`,
+      V12 name; spec 039), honesty
       questions q-16–q-18 decline to over-answer; computed-answer test renders
       a `.count` section for the brother question; interleaved `queryToken`
       streams render as two sections; 016 R8's recall@5 ≥ 0.85 gate has

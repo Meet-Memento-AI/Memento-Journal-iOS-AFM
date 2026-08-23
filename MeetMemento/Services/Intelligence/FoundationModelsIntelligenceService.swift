@@ -49,7 +49,7 @@ struct AskAnswer {
     // `body` leads so the first visible token never waits on the two optional
     // heading decisions; `citedRefs` trails so a token-cap truncation can only
     // cost citations (which reconcile falls back for), never body text.
-    @Guide(description: "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Open only if a [Shape:] line asks. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "Always empty on conversational Ask. Titles steal decode and delay the visible body.")
@@ -65,7 +65,7 @@ struct AskAnswer {
 /// Testable twin of `AskAnswer`'s `@Guide` copy (spec 037 R8). Keep in sync
 /// with the descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. This field is the whole answer: Meet them, Notebook, and Sit when the turn needs them. Open only if a [Shape:] line asks. Markdown subset allowed: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. Several sentences when the question needs Sit. Never a one-sentence caption of the evidence. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, **bold** on a short span of their wording, *italic* for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
     static let heading1 = "Always empty on conversational Ask. Titles steal decode and delay the visible body."
     static let heading2 = "Always empty on conversational Ask."
 }
@@ -185,6 +185,28 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return session
     }
 
+    private func hasSpeculativeSession(matching fingerprint: String) -> Bool {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return speculativeFingerprint == fingerprint && speculativeSession != nil
+    }
+
+    private func storeSpeculativeSession(_ session: LanguageModelSession, fingerprint: String) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        speculativeSession = session
+        speculativeFingerprint = fingerprint
+    }
+
+    private func cachedPositiveAvailability() -> IntelligenceAvailability? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        if case .available = cachedAvailability { return cachedAvailability }
+        return nil
+    }
+
+    private func cachePositiveAvailability(_ value: IntelligenceAvailability) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        cachedAvailability = value
+    }
+
     /// Maps the pure plan 1:1 onto a FoundationModels transcript session.
     private static func makeSession(from plan: AskTranscriptPlan) -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
@@ -226,17 +248,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let plan = AskTranscriptPlan.build(
                 instructions: instructions, history: history, budget: budget
             )
-            self.stateLock.lock()
-            let alreadyWarm = self.speculativeFingerprint == plan.fingerprint
-                && self.speculativeSession != nil
-            self.stateLock.unlock()
-            guard !alreadyWarm else { return }
+            guard !self.hasSpeculativeSession(matching: plan.fingerprint) else { return }
 
             let session = Self.makeSession(from: plan)
-            self.stateLock.lock()
-            self.speculativeSession = session
-            self.speculativeFingerprint = plan.fingerprint
-            self.stateLock.unlock()
+            self.storeSpeculativeSession(session, fingerprint: plan.fingerprint)
             session.prewarm()
         }
     }
@@ -244,12 +259,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
-        stateLock.lock()
-        if case .available = cachedAvailability, let cached = cachedAvailability {
-            stateLock.unlock()
+        if let cached = cachedPositiveAvailability() {
             return cached
         }
-        stateLock.unlock()
 
         // On-device (Z0) only against the iOS 26 SDK. The Private Cloud Compute
         // (Z1) path — `PrivateCloudComputeLanguageModel`, reasoning levels, quota
@@ -267,7 +279,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Only cache the positive result — an "unavailable" (still downloading)
         // can flip to available later, so keep re-checking that case.
         if case .available = resolved {
-            stateLock.lock(); cachedAvailability = resolved; stateLock.unlock()
+            cachePositiveAvailability(resolved)
         }
         return resolved
     }
@@ -367,17 +379,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let route: ResolvedRoute
         let retrieval: RetrievalResult
         let stance: TurnStance
+        let channel: ReplyChannel
         let prompt: String
         let resolved: ResolvedPrompt
         let budget: ContextBudget
         /// The session transcript (instructions + history tail) this turn
         /// runs against — and the adoption key for speculative sessions.
         let plan: AskTranscriptPlan
+        let generationOptions: GenerationOptions
 
         var zone: TrustZone { request.zone }
     }
 
-    /// Availability → safety gate → turn classification → retrieval → stance → prompt.
+    /// Availability → safety gate → classify → channel → retrieval → stance → prompt.
     /// Pure aside from the availability await.
     private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskPreparation {
         let availability = await availability()
@@ -411,18 +425,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             break
         }
 
+        let hasImages = !images.isEmpty || history.contains { !$0.imageJPEGs.isEmpty }
+        // Photos bump off phatic; visionBlockIfNeeded is a no-op without images.
         async let visionTask: String? = Self.visionBlockIfNeeded(current: images, history: history)
 
         let budget = ContextBudget(window: Self.currentWindow())
 
         // Conversational turn architecture: classify the current message,
-        // decide retrieval by policy, then hand the model an explicit stance —
-        // logic decides the stance, the prompt obeys it.
+        // resolve the reply channel (spec 039), decide retrieval by policy,
+        // then hand the model an explicit stance — logic decides the stance,
+        // the prompt obeys it.
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
         let turn = TurnClassifier.classify(question, hasHistory: !history.isEmpty)
         signposter.endInterval("prep.classify", classifyState)
         LiveTurnClock.shared.end(.prepClassify)
+
+        let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
 
         let route = await routeTask
         // A degraded route narrows the evidence: the smaller model grounds a
@@ -439,30 +458,35 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         LiveTurnClock.shared.start(.prepRetrieve)
         let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
+        let retrievalMode = RetrievalPolicy.mode(for: turn, history: history)
         let wideRetrieval: RetrievalResult
-        switch RetrievalPolicy.mode(for: turn, history: history) {
-        case .none:
+        if !channel.allowsRetrieval || retrievalMode == .none {
             wideRetrieval = .empty
-        case .reusePrevious:
-            if let anchor = RetrievalPolicy.followupAnchor(history: history) {
-                wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
+        } else {
+            switch retrievalMode {
+            case .none:
+                wideRetrieval = .empty
+            case .reusePrevious:
+                if let anchor = RetrievalPolicy.followupAnchor(history: history) {
+                    wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
+                                                        entries: entries, limits: poolLimits)
+                } else {
+                    wideRetrieval = EntryRetriever.retrieve(
+                        RetrievalQuery(currentMessage: question,
+                                       historyContext: Self.historyContext(history, budget: budget)),
+                        entries: entries, limits: poolLimits
+                    )
+                }
+            case .currentOnly(let highBar):
+                wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar),
                                                     entries: entries, limits: poolLimits)
-            } else {
+            case .currentWeighted:
                 wideRetrieval = EntryRetriever.retrieve(
                     RetrievalQuery(currentMessage: question,
                                    historyContext: Self.historyContext(history, budget: budget)),
                     entries: entries, limits: poolLimits
                 )
             }
-        case .currentOnly(let highBar):
-            wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar),
-                                                entries: entries, limits: poolLimits)
-        case .currentWeighted:
-            wideRetrieval = EntryRetriever.retrieve(
-                RetrievalQuery(currentMessage: question,
-                               historyContext: Self.historyContext(history, budget: budget)),
-                entries: entries, limits: poolLimits
-            )
         }
         signposter.endInterval("prep.retrieve", retrieveState)
         LiveTurnClock.shared.end(.prepRetrieve)
@@ -471,13 +495,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let isNewConversation = startsNewConversation(history: history)
         let retrieval = sliceRetrieval(wideRetrieval, promptCap: promptCap, resetPool: isNewConversation)
         let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
-        let shape: RecallTurnShape = {
-            cadenceLock.lock()
-            defer { cadenceLock.unlock() }
-            if isNewConversation { turnShapeCadence.reset() }
-            return turnShapeCadence.resolve(for: stance)
-        }()
+        let hasEvidence = !retrieval.isEmpty && !retrieval.isAmbient
+        let move = ConversationalMove.resolve(
+            turn: turn, message: question, history: history, hasEvidence: hasEvidence
+        )
+        let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
         let visionBlock = await visionTask
+        // Load once: light/redirect still get names on the user prompt, but
+        // PromptRegistry must not append L1 when the channel omits the lens.
+        let storedPersonalization = PromptPersonalization.fromLocalProfile()
         let prompt = Self.buildAskPrompt(
             question: question,
             history: history,
@@ -490,15 +516,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             imageCount: images.count,
             historyImageCount: history.reduce(0) { $0 + $1.imageJPEGs.count },
             canSeeImages: Self.canAttachImagesToModel,
-            visionBlock: visionBlock
+            visionBlock: visionBlock,
+            channel: channel,
+            move: move,
+            personalization: storedPersonalization
         )
         // The degraded variant is a registry entry, never the heavy prompt
-        // behind a lighter model (REQ-INT-010).
+        // behind a lighter model (REQ-INT-010). Phatic/continuer/redirect omit
+        // L1; names still ride the user prompt as a [Name:] cue.
         let resolved = PromptRegistry.resolve(
             intent: .ask,
             zone: route.executionZone,
             degraded: route.useDegradedPrompt,
-            personalization: PromptPersonalization.fromLocalProfile()
+            personalization: channel.omitsLens ? .none : storedPersonalization,
+            channel: channel
         )
         let request = GenerationRequest(
             intent: .ask,
@@ -510,8 +541,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let plan = AskTranscriptPlan.build(
             instructions: resolved.text, history: history, budget: budget
         )
+        let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
+        let generationOptions = Self.askOptions(for: channel, retrievalRan: retrievalRan)
         return AskPreparation(request: request, route: route, retrieval: retrieval, stance: stance,
-                              prompt: prompt, resolved: resolved, budget: budget, plan: plan)
+                              channel: channel, prompt: prompt, resolved: resolved, budget: budget,
+                              plan: plan, generationOptions: generationOptions)
+    }
+
+    private func resolveTurnShape(for stance: TurnStance, isNewConversation: Bool) -> RecallTurnShape {
+        cadenceLock.lock()
+        defer { cadenceLock.unlock() }
+        if isNewConversation { turnShapeCadence.reset() }
+        return turnShapeCadence.resolve(for: stance)
     }
 
     /// Spec 037 follow-on: retrieve up to 20, reveal 3–5. Session-scoped denylist
@@ -574,7 +615,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             ?? Self.makeSession(from: prep.plan)
         do {
             let answer = try await Self.respondToAsk(session: session, prompt: prep.prompt,
-                                                     images: images, history: history)
+                                                     images: images, history: history,
+                                                     options: prep.generationOptions)
             let result = try makeResult(heading1: answer.heading1, heading2: answer.heading2,
                               body: answer.body, citedRefs: answer.citedRefs,
                               prep: prep, question: question, latency: clock.now - started)
@@ -588,14 +630,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
-    /// Ask generation options (spec 029 Amendment A). Temperature stays 0.7 —
-    /// per-token sampling cost is negligible against prefill/decode, and
-    /// greedy would flatten the companion's voice for determinism nobody
-    /// asked for. `maximumResponseTokens` is a pure runaway guard: ten
-    /// sentences ≈ 250 output tokens; 512 is ~2× headroom including headings,
-    /// citedRefs, and structure tokens. Truncation can only clip trailing
-    /// fields (see AskAnswer's field-order comment).
-    private static let askOptions = GenerationOptions(temperature: 0.7, maximumResponseTokens: 512)
+    /// Ask generation options (spec 029 Amendment A / 039 R1). Temperature
+    /// and token cap come from ReplyChannel — 0.9 / 64–128 on light and
+    /// companion, 0.7 / 512 on notebook and RAG thread.
+    private static func askOptions(for channel: ReplyChannel, retrievalRan: Bool) -> GenerationOptions {
+        GenerationOptions(
+            temperature: channel.temperature(retrievalRan: retrievalRan),
+            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan)
+        )
+    }
 
     /// Image attachments landed in the iOS 27 SDK (Xcode 27 / Swift 6.3+).
     /// Same compiler-version gate as `contextSize` — `#available` cannot see
@@ -643,7 +686,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         session: LanguageModelSession,
         prompt: String,
         images: [Data],
-        history: [ChatTurn]
+        history: [ChatTurn],
+        options: GenerationOptions
     ) async throws -> AskAnswer {
         #if compiler(>=6.3)
         if #available(iOS 27.0, *) {
@@ -651,7 +695,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             if !attachments.isEmpty {
                 let response = try await session.respond(
                     generating: AskAnswer.self,
-                    options: askOptions
+                    options: options
                 ) {
                     prompt
                     for item in attachments {
@@ -665,7 +709,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let response = try await session.respond(
             to: prompt,
             generating: AskAnswer.self,
-            options: askOptions
+            options: options
         )
         return response.content
     }
@@ -675,7 +719,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         session: LanguageModelSession,
         prompt: String,
         images: [Data],
-        history: [ChatTurn]
+        history: [ChatTurn],
+        options: GenerationOptions
     ) -> LanguageModelSession.ResponseStream<AskAnswer> {
         #if compiler(>=6.3)
         if #available(iOS 27.0, *) {
@@ -683,7 +728,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             if !attachments.isEmpty {
                 return session.streamResponse(
                     generating: AskAnswer.self,
-                    options: askOptions
+                    options: options
                 ) {
                     prompt
                     for item in attachments {
@@ -696,7 +741,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return session.streamResponse(
             to: prompt,
             generating: AskAnswer.self,
-            options: askOptions
+            options: options
         )
     }
 
@@ -745,7 +790,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
 
                     let stream = Self.streamAskResponse(session: session, prompt: prep.prompt,
-                                                        images: images, history: history)
+                                                        images: images, history: history,
+                                                        options: prep.generationOptions)
                     // The journals retrieval surfaced for a grounded turn — known
                     // now, before the first token. Emitting them on every delta
                     // lets the "Reviewed your journals" link appear right away
@@ -767,9 +813,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                             // regex) re-strip when the raw body is unchanged.
                             var lastRawBody = ""
                             var lastCleaned = ""
-                            // Character count cached alongside — `String.count`
-                            // is an O(n) walk and ran twice per snapshot.
-                            var lastCleanedCount = 0
                             // Incremental scan watermark: characters of the cleaned
                             // body already proven safe.
                             var scannedCount = 0
@@ -934,8 +977,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let secondary = ThemeCatalog.validate(answer.secondaryThemeIds, max: 2)
                 .filter { !primary.contains($0) }
             var lens = answer.promptLens.trimmingCharacters(in: .whitespacesAndNewlines)
-            if lens.count > PromptRegistry.maxPromptLensChars {
-                lens = String(lens.prefix(PromptRegistry.maxPromptLensChars))
+            if lens.count > PromptRegistry.maxGeneratedPromptLensChars {
+                lens = String(lens.prefix(PromptRegistry.maxGeneratedPromptLensChars))
             }
             // If the model returned nothing usable, fall back to keyword overlap.
             let themes = primary.isEmpty
@@ -1064,18 +1107,44 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return condensed.isEmpty ? nil : condensed
     }
 
-    private static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
+    static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
                                        stance: TurnStance, shape: RecallTurnShape,
                                        archiveEmpty: Bool, budget _: ContextBudget,
                                        safetyConstrained: Bool = false,
                                        imageCount: Int = 0,
                                        historyImageCount: Int = 0,
                                        canSeeImages: Bool = false,
-                                       visionBlock: String? = nil) -> String {
+                                       visionBlock: String? = nil,
+                                       channel: ReplyChannel = .companion,
+                                       move: ConversationalMove? = nil,
+                                       personalization: PromptPersonalization = .none) -> String {
+        // Spec 039 ranks 0–1: Move cue + latest message + optional don't-repeat.
+        // No [Turn:] / [Shape:] stack, no evidence, no L1. Names ride [Name:].
+        if channel.usesLightPrompt {
+            let cue = move?.cueLine ?? ConversationalMove.greetAndAsk.cueLine
+            var light: [String] = [cue]
+            if safetyConstrained {
+                light.insert(SafetyRouter.constrainedStanceLine, at: 0)
+            }
+            let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
+            let skipName = move?.avoidsName == true || usedNameLastTurn
+            if !skipName, let name = personalization.nameCueLine {
+                light.append(name)
+            }
+            if let anti = ConversationalMove.antiRepeatLine(from: history) {
+                light.append(anti)
+            }
+            if skipName, personalization.spokenName != nil {
+                light.append(PromptPersonalization.nameSkipLine)
+            }
+            light.append("The person's latest message: \(question)")
+            return light.joined(separator: "\n\n")
+        }
+
         // The stance line is the first thing the model reads for this turn —
         // the deterministic instruction that stops it from grounding casual
-        // conversation in journal entries. Spec 037 / ask@12: [Shape:] overlays
-        // Open vs Stop on participating stances (journal and notebook-off).
+        // conversation in journal entries. Spec 037 / 039: [Shape:] says how
+        // to Open; Open is required. Light channels skip this stack.
         var parts: [String] = [stance.promptLine]
         let grounded = stance.isGrounded(retrieval: retrieval)
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance,
@@ -1084,6 +1153,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         if safetyConstrained {
             parts.insert(SafetyRouter.constrainedStanceLine, at: 0)
+        }
+        let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
+        let skipName = move?.avoidsName == true || usedNameLastTurn
+        // Redirect still gets [Name:] (no L1). Companion/notebook keep names
+        // in L1 only — never stack a second cue. Skip the cue when this
+        // beat avoids names or the last reply already used one.
+        if channel.omitsLens, !skipName, let name = personalization.nameCueLine {
+            parts.append(name)
         }
         if !retrieval.contextBlock.isEmpty {
             // Frame as optional evidence so the model does not treat the block
@@ -1111,6 +1188,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     + "earlier in this conversation. Do not reopen an entry you already used "
                     + "in this thread."
             )
+        }
+        if skipName, personalization.spokenName != nil {
+            parts.append(PromptPersonalization.nameSkipLine)
         }
         if imageCount > 0 || historyImageCount > 0 {
             if canSeeImages {

@@ -37,8 +37,8 @@ enum ExperienceProfileBuilder {
             )
             profile.suggestedThemeIds = suggested
             var lens = result.promptLens.trimmingCharacters(in: .whitespacesAndNewlines)
-            if lens.count > PromptRegistry.maxPromptLensChars {
-                lens = String(lens.prefix(PromptRegistry.maxPromptLensChars))
+            if lens.count > PromptRegistry.maxGeneratedPromptLensChars {
+                lens = String(lens.prefix(PromptRegistry.maxGeneratedPromptLensChars))
             }
             profile.promptLens = lens.isEmpty ? nil : lens
             profile.modelIdentifier = result.modelIdentifier
@@ -96,11 +96,10 @@ enum ExperienceProfileBuilder {
         )
     }
 
-    /// Quiet third-person lens when AFM is unavailable.
+    /// Quiet third-person lens when AFM is unavailable. Not a theme agenda.
     static func deterministicLens(themes: [String]) -> String? {
         let names = ThemeCatalog.displayNames(for: themes)
         guard !names.isEmpty else { return nil }
-        let joined = names.joined(separator: ", ")
-        return "Lean toward noticing patterns around \(joined). Prefer open questions over advice."
+        return "Stay conversational. Prefer open questions over advice."
     }
 }

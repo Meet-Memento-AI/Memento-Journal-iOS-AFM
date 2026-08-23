@@ -233,7 +233,7 @@ struct StreamingSentenceChunker {
         var i = text.startIndex
         while i < text.endIndex {
             if text[i].isWhitespace {
-                if let start = wordStart {
+                if wordStart != nil {
                     end = i
                     count += 1
                     wordStart = nil

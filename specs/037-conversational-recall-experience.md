@@ -2,7 +2,7 @@
 id: 037
 title: Conversational Recall Experience
 tier: P1
-status: in-progress (2026-08-22) — ask@12 thread Open/Stop cadence; notebook-off Open; ask@11 markdown subset in `body`; guided heading1/heading2 stay empty; device goldens still pending
+status: in-progress (2026-08-23) — ask@14 shipping; Open required; Sit names a pattern then asks; phatic/continuer generation owned by spec 039 (`chat-light@4`)
 effort: 1 session
 depends_on: [017, 022, 026, 028]
 findings: [notebook-beside-them-voice, turn-shape-cadence, empty-recall-direct, prompt-entry-cap, conversational-reply-skeleton]
@@ -20,6 +20,12 @@ with a notebook, not a search dump. Safety remains
 Typed Chat and Narration share one pipeline
 ([`028`](028-conversational-narration.md)). Eval goldens are 022 fixtures / unit
 contracts, not a new harness ([`022`](022-evaluation-and-quality-study.md)).
+**Phatic greetings and continuers** (hello, how are you, yeah) are **not**
+this spec's generation recipe — [`039`](039-reply-channels-and-phatic-generation.md)
+owns `chat-light@4`, the effort curve, and warm simple-turn generation.
+Shipping companion/notebook prompt: `ask@14` / `ask-degraded@14`. Open is
+required on generated turns. Notebook Sit names a connection visible in
+the evidence, then Open.
 
 **Does not implement:** barge-in ([`034`](034-full-duplex-conversation-audio.md));
 turn-start latency internals ([`029`](029-performance-and-speech-excellence.md)).
@@ -68,10 +74,13 @@ recite."
 
 Ask is a notebook beside them, not a search engine and not a therapist.
 
-- Length **follows the turn**. Casual / continuer: Meet them only. A journal
-  question is Meet + Notebook + Sit (several spoken sentences); a
-  one-sentence caption of the evidence is incomplete. Shape gates Open
-  only — never length.
+- Length **follows the turn**. **Phatic / continuer** (039 ranks 0–1):
+  `chat-light@4`, one short spoken sentence, then **one genuine question**
+  except goodbye; no notebook. **Notebook-off companion** (share /
+  reflective): Meet them, then one question (039 rank 2). A **journal**
+  question is Meet + Notebook + Sit that names a pattern from the evidence
+  (several spoken sentences); a one-sentence caption of the evidence is
+  incomplete. Then Open. Shape says how to Open — never length.
 - Put **evidence** in front of them. Do not name the meaning: no emotion
   labels ("you seemed anxious"), no interpretation of character, no advice.
   Reflecting their own words is fine.
@@ -82,10 +91,11 @@ Ask is a notebook beside them, not a search engine and not a therapist.
   "You mentioned", "Looking at your entries", "In your journal").
 - Typed Chat and Narration are **one agent**. This spec does not split modes.
 
-**Acceptance:** `ask@10` / `ask-degraded@10` contain the notebook voice, the
+**Acceptance:** `ask@14` / `ask-degraded@14` contain the notebook voice, the
 four composition pieces, no-count / no-advice / no-praise bans. Guided
-`AskAnswer.body` is the complete spoken reply; `heading1` / `heading2` stay
-empty.
+`AskAnswer.body` is the complete spoken reply and must end with one
+question except goodbye; `heading1` / `heading2` stay empty.
+Phatic/continuer acceptance is spec 039.
 
 **Amendment (ask@11, 2026-08-22):** `body` may contain a markdown subset
 (`###` headings, paragraphs, `- ` / `1. ` lists, italic quotes, sparse bold)
@@ -101,48 +111,61 @@ in a row. `noMatch` / `outsideScope` force Stop without recording. Notebook-off
 turns are one or two sentences, zero markdown; Open (when Shape asks) is about
 them or what they just shared — not the journal unless they brought it up.
 Share and reflective skip retrieval; follow-up reuses journal anchors only.
-Guided `heading1` / `heading2` **remain empty**. Shipping versions: `ask@12` /
-`ask-degraded@12`.
+Guided `heading1` / `heading2` **remain empty**. Shipping companion/notebook
+versions: `ask@13` / `ask-degraded@13` (`+p3` when personalized). Phatic and
+continuer use `chat-light@1` ([`039`](039-reply-channels-and-phatic-generation.md))
+and **do not** participate in Open/Stop.
+
+**Amendment (spec 039, 2026-08-22):** Casual greetings and continuers are
+**channels**, not a first-turn Open. `TurnShapeCadence.participates` is
+sharing, journal-grounded, follow-up, and about-the-app only. Social and
+acknowledgement force Stop and do not record, so a hello cannot spend the
+next journal Open. Compound greetings (“Hello, how are you”) classify as
+social (039 R3). No-RAG turns stay fast (039 R2 effort law).
+
+**Amendment (ask@14, 2026-08-23):** Open is **required** on generated
+turns. Sit on a notebook turn names a connection visible in the evidence
+— a pattern, not a count, not an emotion label — then Open. Shape says
+*how* to ask, never “do not end with a question.” Phatic/continuer Open
+and `[Move:]` cues are 039 (`chat-light@4`). Shipping versions:
+`ask@14` / `ask-degraded@14` (`+p4` when personalized).
+
+**Acceptance (ask@14):** companion/notebook prompts contain the notebook
+voice, the four composition pieces, no-count / no-advice / no-praise bans.
+Guided `AskAnswer.body` is the complete spoken reply; `heading1` /
+`heading2` stay empty. Phatic acceptance is 039's.
 
 ### R2. Turn shapes A–D
 
 | Shape | When | Behavior |
 |-------|------|----------|
-| **A** answer, no Open | After a B; ~half of later journal turns | Meet + Notebook + Sit. No question. |
-| **B** answer-and-open | First journal turn, then after A | Meet + Notebook + Sit, then **one** specific question. |
-| **C** surface pattern | Pattern / several-entry asks | Surface the pattern **without counts**. Sit. No Open unless Shape B. |
-| **D** minimal ack | Continuers ("yeah", "right") | Meet them only. |
+| **A** answer, then Open | Every generated turn | Meet (+ Notebook + Sit when grounded), then **one** specific question. |
+| **B** answer-and-open | Same as A (cadence always Opens) | Meet + Notebook + Sit, then **one** specific question. |
+| **C** surface pattern | Pattern / several-entry asks | Surface the pattern **without counts**. Sit names that pattern, then Open. |
+| **D** continuer | Continuers — 039 `continuer` channel | React, then a **new** question (039 R6). Farewell may skip. |
 
-Shape A/B gates **Open only**, never length. B only when cadence allows.
-Never two B in a row. First journal turn in a thread **opens** (B).
+Shape says how to Open, never length. Every generated turn Opens.
+Farewell may skip the question (039).
 
 **Acceptance:** journal `[Turn:]` no longer requires a forward question. Prompt
 describes A–D. Code emits a `[Shape:]` overlay on participating turns
-(journal and notebook-off).
+(journal and notebook-off **companion**; not phatic/continuer — 039).
 
 ### R3. Cadence in code
 
-A small `TurnShapeCadence` tracks the last Open/Stop shape for the live Ask
-session (reset when the prompt history is empty). Overlay on the user prompt —
-not a longer system prompt. Participating stances: casual, sharing,
-journal-grounded, follow-up, about-the-app. Force-stop without recording:
-noMatch, outsideScope.
+A small `TurnShapeCadence` always returns Open for the live Ask session
+(reset when the prompt history is empty). Overlay on the user prompt —
+not a longer system prompt. Overlay is nil on casual (Move cue already
+asks). Notebook overlay: connect one pattern from the evidence, then one
+ask. Never “Do not end with a question this turn.”
 
-- `[Shape: answer the question fully from the evidence. Do not end with a question this turn.]`
-- `[Shape: answer, then one specific question about something in the evidence. Never a second question.]`
+- `[Shape: connect one pattern from the evidence, then one specific question about that. Never a second question. No counts, no emotion labels.]`
 - `[Shape: Meet them, then one specific question about how they are or what they just said. Never about the journal unless they brought it up. Never a second question.]`
-- `[Shape: follow what they just said. Do not end with a question this turn.]`
 - `[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]`
 
-Non-participating stances (`noMatch`, `outsideScope`) do not advance the bit.
-First participating turn in a thread is **B** (opens). After B, the next
-participating turn is A. After A, the next may be B. Never two B in a row.
-Overlay copy is stance-aware (journal Open is about the evidence; notebook-off
-Open is about them). Overlay constrains the question, never length — “answer
-and stop” in this slot collapsed replies to one sentence.
-
-**Acceptance:** unit tests prove two B shapes are never emitted in a row.
-`PromptStanceSyncTests` still pins every `TurnStance.tagPrefix` in `ask@12`.
+**Acceptance:** unit tests prove every generated stance Opens.
+`PromptStanceSyncTests` still pins every `TurnStance.tagPrefix` in `ask@14`.
+Phatic/continuer overlays are nil (039); Move cue carries the ask.
 
 ### R4. Empty recall
 
@@ -170,11 +193,11 @@ is no sentence-splitting extractor in this pass (see Out of Scope).
 Do not re-open an entry already used in this thread (prompt + existing history
 anti-repeat line). No new store.
 
-**Acceptance:** versions are `ask@10` / `ask-degraded@10` (`+p2` when
+**Acceptance:** versions are `ask@14` / `ask-degraded@14` (`+p4` when
 personalized). `PromptStanceSyncTests` and `AskPromptContractTests` updated.
 026 L0 strings still present on full and degraded. Crisis copy is not
 generated (026 owns the card). Prompt does **not** contain “Follow it exactly”
-or “answer and stop.”
+or “answer and stop.” Light-channel versions are 039 (`chat-light@4`).
 
 ### R6. Eval goldens
 
@@ -214,7 +237,7 @@ length quotas:
 | **Meet them** | Every turn except a one-word continuer | Answer what they just said, in second person, no report opener |
 | **Notebook** | Journal-grounded (and sharing only if it clearly helps) | One dated moment or short exact quote from the evidence block |
 | **Sit** | Journal-grounded and substantive sharing | One or two more spoken sentences that stay with that moment |
-| **Open** | Only when `[Shape:]` asks | One specific question; otherwise end after Sit |
+| **Open** | Required | One specific question as the last beat; skip only on goodbye. Notebook Open is about the pattern just named. |
 
 A journal question **must not skip Sit**. Casual / about-app / continuer can
 be Meet-them only. No-match: Meet-them + nothing from that stretch; no
@@ -351,6 +374,7 @@ prose. `[Turn:]` is guidance, not a script.
 
 | Item | Owner |
 |------|--------|
+| Phatic greetings, continuer channel, `chat-light@4`, effort curve | 039 |
 | Barge-in / speak-over-the-agent | 034 (not-started) |
 | Turn-start latency internals, visual loading phrases | 029 |
 | Sticky 20-candidate retrieval pool in session state | follow-on |
@@ -373,17 +397,18 @@ prose. `[Turn:]` is guidance, not a script.
 - [x] 8. ask@10 conversational skeleton: Meet / Notebook / Sit / Open; Shape gates Open only; headings empty; stance lines describe pieces (R1, R8).
 - [x] 9. ask@11 markdown subset in `body` (`###`, lists, italic quotes); guided heading fields stay empty; casual forbids lists.
 - [x] 10. ask@12 thread-level Open/Stop cadence; notebook-off Open; share/reflective skip retrieval; follow-up reuses journal anchors only.
+- [x] 11. Cite spec 039: phatic/continuer leave Open cadence; shipping ask@13; compound greetings and effort law are 039's.
 
 ## Verification
 
-- [x] `PromptRegistry.instructions(for: .ask).version == "ask@12"` (degraded `ask-degraded@12`).
+- [x] `PromptRegistry.instructions(for: .ask).version == "ask@14"` (degraded `ask-degraded@14`).
 - [x] Full and degraded prompts contain "Safety hard bans", violence, terrorism, crisis counseling; do **not** contain "988 Suicide & Crisis Lifeline".
-- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@12`; journal grounded line has no mandatory "ask one forward question" and no "answer and stop".
-- [x] Cadence unit tests: first participating turn → B; after B → A; casual after journal Open advances the bit; `noMatch` does not flip the bit; never two B. Shape A overlay has no "and stop". Overlay non-nil for casual/sharing.
+- [x] `PromptStanceSyncTests`: every `TurnStance.tagPrefix` appears in `ask@14`; journal grounded line requires "then one question" and no "answer and stop".
+- [x] Cadence unit tests: first **participating** turn → B; after B → A; `noMatch` does not flip the bit; never two B. Shape A overlay has no "and stop". Overlay non-nil for sharing / journal / follow-up / about-app. **After 039:** overlay nil for social/acknowledgement; hello then journal may Open (039 Verification).
 - [x] `RetrievalLimits(budget:)` `maxEntries <= 5`; `EntryRetriever.maxEntries == 5`.
 - [x] Contract tests pin: no emotion labels, no advice, no counts, direct empty recall, Sit required on journal turns, `citedRefs` still requested, four composition pieces, no "Follow it exactly".
 - [x] PersonaGate (026) still runs; this spec does not weaken it.
-- [ ] Manual: "what was I like last winter?" → Meet + Notebook + Sit, no "you seemed anxious." "should I take the job?" → entries back, no advice. "what did I do in August 2019?" with nothing → nothing from that stretch, no "but I have September." Two journal questions in a row: second reply does not end in a question.
+- [ ] Manual: "what was I like last winter?" → Meet + Notebook + Sit, no "you seemed anxious." "should I take the job?" → entries back, no advice. "what did I do in August 2019?" with nothing → nothing from that stretch, no "but I have September." Two journal questions in a row: second reply does not end in a question. **"hello" / "how are you" → 039 (short, no Open).**
 
 ## Acceptance (customer)
 
@@ -392,6 +417,7 @@ prose. `[Turn:]` is guidance, not a script.
 - Ask "what did I do in August 2019?" with nothing → nothing from that stretch; **no** "but I have September."
 - Voice/narration: same agent; Sit on journal turns; not a chronology.
 - Two journal questions in a row: second reply does **not** end in a question.
+- **Hello / how are you / hello Memento:** spec 039 — fast, one or two sentences, no notebook, no Open.
 - Typed Chat and Narration stay one agent.
 
 ## Regression Guards
@@ -400,5 +426,5 @@ prose. `[Turn:]` is guidance, not a script.
 - `[Turn:]` + `PromptStanceSyncTests` must keep passing.
 - `citedRefs` schema and reference-marker stripping stay; conversational Ask headings stay empty.
 - 026 crisis card, L0 bans, PersonaGate thresholds.
-- Personalization never recited (`+p2`).
+- Personalization never recited (`+p4` on ask@14; omitted on `chat-light@4`; names may cue the light user prompt).
 - 028 half-duplex loop and 034 barge-in ownership unchanged.

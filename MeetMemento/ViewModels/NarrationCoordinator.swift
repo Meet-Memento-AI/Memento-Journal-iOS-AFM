@@ -151,7 +151,7 @@ final class NarrationCoordinator: ObservableObject {
     /// pinned at exactly 0) for this long is dead — a live mic's smoothed RMS
     /// noise floor is nonzero, so exact 0 means the tap never delivered a
     /// buffer (spec 028 R4: the killed-session failure mode is silent).
-    static let listeningLivenessTimeout: TimeInterval = 4.0
+    nonisolated static let listeningLivenessTimeout: TimeInterval = 4.0
     /// Instance copy so unit tests can shrink the window; production never
     /// changes it.
     var livenessTimeout: TimeInterval = NarrationCoordinator.listeningLivenessTimeout
@@ -165,12 +165,14 @@ final class NarrationCoordinator: ObservableObject {
     private let speechOwnerId = "NarrationMode"
 
     /// Default-argument DI, same convention as `ChatViewModel.init(chatService:)`.
+    /// Defaults are nil so `.shared` is not evaluated in a nonisolated default
+    /// argument; the body runs on the main actor and fills them in.
     init(
-        speechService: NarrationSpeechListening = SpeechService.shared,
-        voiceService: NarrationVoicePlayback = VoicePlaybackService.shared
+        speechService: (any NarrationSpeechListening)? = nil,
+        voiceService: (any NarrationVoicePlayback)? = nil
     ) {
-        self.speechService = speechService
-        self.voiceService = voiceService
+        self.speechService = speechService ?? SpeechService.shared
+        self.voiceService = voiceService ?? VoicePlaybackService.shared
     }
 
     // MARK: - Internals

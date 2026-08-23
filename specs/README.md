@@ -20,7 +20,9 @@ specs/
 ├── 026…029-*.md       ← post-2.0 experience work (safety, navigation, narration, performance)
 ├── 030…036-*.md       ← on-device neural voice (assets → engine → streaming → catalog →
 │                        full-duplex audio → spoken form → verification); mints REQ-TTS-
-├── 037-*.md           ← conversational recall experience (Ask voice, turn cadence, 3–5 cap)
+├── 037-*.md           ← conversational recall experience (Ask notebook voice, turn cadence, 3–5 cap)
+├── 038-*.md           ← experience profile and theme estimation (L1 lens)
+├── 039-*.md           ← reply channels and phatic generation (effort curve, chat-light@4)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

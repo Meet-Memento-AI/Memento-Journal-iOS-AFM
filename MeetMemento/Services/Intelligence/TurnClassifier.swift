@@ -38,12 +38,20 @@ enum TurnClassifier {
     /// Whole-message social openers/closers (matched against the normalized
     /// message, or its prefix for greetings that carry a name: "hey memento").
     static let socialPhrases: Set<String> = [
-        "hi", "hey", "hello", "yo", "hiya", "heya", "good morning", "good afternoon",
+        "hi", "hey", "hello", "yo", "hiya", "heya", "howdy", "good morning", "good afternoon",
         "good evening", "good night", "goodnight", "morning", "evening",
         "how are you", "how's it going", "hows it going", "how are you doing",
         "what's up", "whats up", "sup", "how have you been",
         "thanks", "thank you", "thx", "ty", "thanks a lot", "thank you so much",
         "bye", "goodbye", "see you", "later", "talk soon", "take care"
+    ]
+
+    /// Single-token openers used as a greeting prefix ("hello memento",
+    /// "hey there"). Two-word social phrases ("good morning") are handled
+    /// separately via `socialPhrases`.
+    static let greetingPrefixes: Set<String> = [
+        "hi", "hey", "hello", "yo", "hiya", "heya", "howdy", "sup",
+        "morning", "evening", "thanks", "thx", "ty", "bye", "goodbye"
     ]
 
     /// Continuer words: a short message made only of these is an acknowledgement.
@@ -143,15 +151,12 @@ enum TurnClassifier {
 
         if normalized.isEmpty { return .acknowledgement }
 
-        // 1. social — exact short phrases, or a greeting prefix ("hey memento").
-        if words.count <= 6 {
+        // 1. social — exact phrases, or a greeting plus a social/name tail.
+        // Journal lexicon always wins (checked here so "hello, what did I write"
+        // never lands in phatic). Cap ~8 words (spec 039 R3).
+        if words.count <= 8 {
             if socialPhrases.contains(normalized) { return .social }
-            if let first = words.first,
-               socialPhrases.contains(first),
-               !isQuestion,
-               words.count <= 3 {
-                return .social
-            }
+            if isSocialGreeting(words, isQuestion: isQuestion) { return .social }
         }
 
         // 2. acknowledgement — ≤ 4 words, all continuers, not a question.
@@ -204,12 +209,62 @@ enum TurnClassifier {
         "you", "with", "the", "a", "an", "so", "and", "then", "of"
     ]
 
+    /// Continuer / name tokens allowed after a greeting ("hey there",
+    /// "hello memento") without turning the turn into a share.
+    private static let socialTailTokens: Set<String> = {
+        var tokens = continuerWords
+        tokens.insert("memento")
+        tokens.insert("there")
+        for phrase in socialPhrases where !phrase.contains(" ") {
+            tokens.insert(phrase)
+        }
+        return tokens
+    }()
+
+    /// Greeting prefix plus a social remainder: "hello memento", "hey there",
+    /// "Hello, how are you". Not a share ("hello I had a long day") and not
+    /// a journal ask (journal words already excluded).
+    private static func isSocialGreeting(_ words: [String], isQuestion: Bool) -> Bool {
+        guard !words.contains(where: { journalWords.contains($0) }) else { return false }
+        guard let consumed = leadingGreetingWordCount(words) else { return false }
+        let rest = Array(words.dropFirst(consumed))
+        if rest.isEmpty { return true }
+        let restJoined = rest.joined(separator: " ")
+        if socialPhrases.contains(restJoined) { return true }
+        // A real question after a greeting ("hello, what's the capital?") is
+        // not small talk. Continuer/name tails are statements.
+        if isQuestion { return false }
+        return rest.allSatisfy { socialTailTokens.contains($0) }
+    }
+
+    private static func leadingGreetingWordCount(_ words: [String]) -> Int? {
+        if let first = words.first, greetingPrefixes.contains(first) { return 1 }
+        if words.count >= 2 {
+            let two = words[0] + " " + words[1]
+            if socialPhrases.contains(two) { return 2 }
+        }
+        return nil
+    }
+
     private static func normalize(_ message: String) -> String {
-        message
+        let lowered = message
             .lowercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: ".!?,;:…"))
             .replacingOccurrences(of: "’", with: "'")
+        // Clause punctuation becomes spaces so "Hello, how are you" matches
+        // the social lexicon (spec 039 R3). Sentence-ending marks stay
+        // trimmed from the ends.
+        let spaced = lowered.map { ch -> Character in
+            switch ch {
+            case ",", ";", ":", "…": return " "
+            default: return ch
+            }
+        }
+        return String(spaced)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".!?"))
+            .split { $0.isWhitespace }
+            .joined(separator: " ")
     }
 
     private static func matches(_ text: String, anyOf regexes: [NSRegularExpression]) -> Bool {

@@ -493,6 +493,8 @@ PCC has a **daily per-user limit**, higher for iCloud+ subscribers. Chat is the 
 
 **REQ-INT-016** — Shipping a non-Apple provider would change the trust boundary from Z1 to Z2 and MUST NOT occur without an explicit product decision, a privacy label change, and updated user-facing copy. The seam exists for survivability, not for convenience.
 
+**REQ-INT-017** — Ask generation **work is proportional to classified turn complexity** (an exponential curve, not a linear nudge). Phatic greetings and continuers MUST use a distinct light bundled prompt and MUST NOT run journal retrieval or the companion ask@14 recipe. They still Open (one question except goodbye). No-RAG turns MUST stay fast and conversation-shaped. Journal questions MAY pay retrieval and the full notebook recipe. The Safety layer (REQ-SUR-004 / spec 026) MUST still run first; a channel MUST NOT skip it. Specified by spec 039.
+
 **NON-GOAL:** Core AI custom weights in 2.0. Documented as the escape hatch below the escape hatch if Apple's models prove inadequate for reflection quality.
 
 ---
@@ -635,11 +637,17 @@ The surface where Apple-ecosystem depth becomes visible product value. Swift Cha
 
 ### 9.5 Ask (Z1 → Z0)
 
-Conversational retrieval over history. `SpotlightSearchTool` attached, tool-calling loop, snapshot streaming, citations rendered inline and tappable.
+Conversational retrieval over history. Channelled generation (spec 039 /
+`REQ-INT-017`): simple turns skip RAG and use `chat-light@4`; journal
+questions attach retrieval, snapshot streaming, citations when grounded.
 
-**REQ-SUR-002** — The assistant persona is an **archivist, not a therapist**. It reports what the user said and when. It does not advise, diagnose, comfort, reassure, or ask follow-up questions. This is both a safety posture and a differentiation posture, and it MUST be enforced in the system instructions and verified by adversarial evaluation.
+**REQ-SUR-002** — The assistant persona is an **archivist, not a therapist** on
+**notebook** turns. It reports what the user said and when. It does not advise,
+diagnose, comfort, or reassure. Phatic turns are ordinary conversation (spec
+039), still not therapy. Enforced in system instructions and verified by
+adversarial evaluation.
 
-**REQ-SUR-003** — When a question cannot be answered from the corpus, the assistant says so and shows what it searched. It MUST NOT answer from general world knowledge about the topic. "I don't find anything about your brother before March" is the correct answer.
+**REQ-SUR-003** — When a **journal** question cannot be answered from the corpus, the assistant says so and shows what it searched. It MUST NOT answer from general world knowledge about the topic. "I don't find anything about your brother before March" is the correct answer. This obligation does **not** apply to phatic/continuer/companion turns that must not retrieve (spec 039).
 
 **REQ-SUR-004** — Crisis-adjacent content: if a user's question or an entry indicates acute distress, the app surfaces a static, respectful, region-appropriate resource card. It does **not** generate crisis counseling. This is specified once, centrally, and applies to every generative surface. Route to `/specs/safety.spec.md`.
 

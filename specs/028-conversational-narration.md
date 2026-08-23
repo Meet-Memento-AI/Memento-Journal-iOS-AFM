@@ -16,7 +16,10 @@ tech_refs: [technology/06-speech-and-audio.md, technology/13-neural-tts-coreml.m
 `specs/027-navigation-redesign.md` (Narration folded into Chat) on top of the
 voice-output surface from `specs/018-capture-and-voice-output.md`
 (`REQ-VOX-001`–`007`) and the chat pipeline from
-`specs/017-intelligence-boundary-and-prompt-architecture.md`. Mints the
+`specs/017-intelligence-boundary-and-prompt-architecture.md`. Reply
+**channels** (spec [`039`](039-reply-channels-and-phatic-generation.md)) apply
+to Narration the same as typed Chat — one agent; a spoken “hello” is phatic
+and a TTS latency win. Mints the
 `REQ-NAR-` series. The half-duplex constraint is this spec's own (R2); the
 deferred full-duplex (`.playAndRecord` + voice-processing I/O) mode is
 `specs/034-full-duplex-conversation-audio.md`, with its API surface in
