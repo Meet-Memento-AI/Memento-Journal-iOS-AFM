@@ -167,7 +167,20 @@ final class DiagGroundingEval: XCTestCase {
                     let pattern = "\\b" + NSRegularExpression.escapedPattern(for: term.lowercased()) + "\\b"
                     return lower.range(of: pattern, options: .regularExpression) != nil
                 }
-                let responsive = c.expect.expectedAny.contains { lower.contains($0.lowercased()) }
+                var responsive = c.expect.expectedAny.contains { lower.contains($0.lowercased()) }
+                // A decline is never a responsive answer to a case the journal
+                // does answer. Without this, "I don't see anything from that
+                // stretch about Priya" scored *pass* on the Priya case purely
+                // because the word "priya" appeared in the refusal — which
+                // masked a total recall regression on 2026-08-23.
+                let declines = ["i don't see anything", "i do not see anything",
+                                "don't see anything from that stretch",
+                                "nothing in the recent entries", "the journal doesn't hold",
+                                "i can't trace", "i'm not seeing anything"]
+                let isDecline = declines.contains { lower.contains($0) }
+                if isDecline, !c.label.hasPrefix("no-match"), c.label != "empty archive" {
+                    responsive = false
+                }
                 var fab = Diag.fabricatedQuotes(body, entries: c.entries)
                 // ask@14: a no-match / empty turn is "Meet plus honest empty —
                 // no heading, no list". Quoting unrelated entries is a defect

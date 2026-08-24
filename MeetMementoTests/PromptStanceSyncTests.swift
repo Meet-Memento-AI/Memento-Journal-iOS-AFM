@@ -22,8 +22,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@14")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@14")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@15")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@15")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@1")
     }
 

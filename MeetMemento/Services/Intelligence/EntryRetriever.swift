@@ -267,12 +267,31 @@ enum EntryRetriever {
         return warmedHashes[id]
     }
 
+    /// Words that carry no retrieval signal.
+    ///
+    /// The second block was added on 2026-08-23. IDF demotes a word that is
+    /// common *as written*, but this journal's author writes "going", "getting"
+    /// and "happened" far more often than the bare stems, so `go`, `get` and
+    /// `happen` looked rare to IDF while contributing nothing but noise —
+    /// "When did I go skiing last winter?" scored 5.0 against a corpus with no
+    /// skiing in it, purely on `go` and `last`. `first`/`last`/`start` are safe
+    /// to drop here because origin and recency are detected from the raw
+    /// question by `seeksOrigin`, not from the keyword terms.
     private static let stopwords: Set<String> = [
         "the", "a", "an", "and", "or", "but", "if", "then", "so", "to", "of", "in",
         "on", "at", "for", "with", "about", "as", "is", "are", "was", "were", "be",
         "been", "being", "do", "did", "does", "have", "has", "had", "i", "you", "me",
         "my", "your", "it", "this", "that", "what", "when", "where", "why", "how",
-        "can", "could", "would", "should", "will", "just", "really", "very", "am"
+        "can", "could", "would", "should", "will", "just", "really", "very", "am",
+        // High-frequency verbs and deictics whose inflected forms dominate the
+        // text, so document frequency under-counts them.
+        "go", "goes", "going", "went", "gone", "get", "gets", "getting", "got",
+        "back", "into", "out", "up", "down", "over", "there", "here", "from", "by",
+        "thing", "things", "make", "makes", "made", "tell", "tells", "told", "say",
+        "says", "said", "like", "liked", "happen", "happens", "happened",
+        "write", "writes", "wrote", "written", "first", "last", "day", "days",
+        "we", "they", "them", "he", "she", "her", "his", "him", "our", "us", "all",
+        "not", "no", "than", "some", "any", "more", "most", "much", "many", "one"
     ]
 
     /// Select entries relevant to the query. Whether retrieval runs at all is
@@ -287,12 +306,20 @@ enum EntryRetriever {
         let trimmed = query.currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         if entries.isEmpty || trimmed.isEmpty { return .empty }
 
-        let terms = tokenize(trimmed)
+        let now = Date()
+        // The date range the question named, if it named one. Its words are
+        // subtracted from the keyword terms so "December" is scored as a date
+        // and not also as a topic word.
+        let window = QueryDateWindowParser.parse(trimmed, now: now)
+        var terms = tokenize(trimmed)
+        if let window {
+            let dateWords = Set(tokenize(window.matchedText))
+            terms.removeAll { dateWords.contains($0) }
+        }
         // Query vectors come from the LRU (`embedQuery`), so a repeated or
         // follow-up question skips NLEmbedding entirely.
         let currentVector = EmbeddingService.shared.embedQuery(trimmed)
         let historyVector = query.historyContext.flatMap { EmbeddingService.shared.embedQuery($0) }
-        let now = Date()
 
         // Pass 1: per-entry combined cosine (current-message dominated) so the
         // significance threshold can be computed over the whole corpus. The
@@ -302,10 +329,35 @@ enum EntryRetriever {
         // by the vector cache and the keyword cache; norms are precomputed at
         // embed time, so each pair costs a single vDSP dot product.
         let warmedHashes = warmedHashesIfCurrent()
+        let hashes = entries.map { contentHash(for: $0, warmed: warmedHashes) }
+        // Keyword scoring is a corpus-wide pass now, not per-entry: a term's
+        // weight depends on how many entries contain it, which cannot be known
+        // one entry at a time. Same single scan over (entries × terms) as
+        // before, with the document frequencies accumulated on the way through.
+        let (keywordByEntry, documentFrequency) = Self.keywordScores(
+            entries: entries, terms: terms, hashes: hashes
+        )
+        // Does the journal contain *any* of the words the question is about?
+        //
+        // "What have I said about my dog?" and "When did I go skiing last
+        // winter?" are questions this corpus cannot answer, and the honest
+        // reply is to say so. Semantic similarity alone will not say so — NL
+        // embeddings score every entry warmly against any well-formed English
+        // sentence, so μ + σ always crowns *something* and the reply came back
+        // grounded in an unrelated entry, with citations. Zero lexical support
+        // across every content term is the signal that nothing is on topic.
+        //
+        // With no date named this falls through to ambient rather than
+        // `.empty`, deliberately: the person still gets recent life as
+        // background and a conversational reply, and the `.noMatch` stance line
+        // already tells the model to say plainly that it does not see the thing
+        // they asked about. With a date named there is nothing left to offer,
+        // and the windowed branch below returns `.empty`.
+        let lexicallySupported = terms.isEmpty || documentFrequency.contains { $0 > 0 }
         struct Measured { let entry: Entry; let cosine: Double?; let keyword: Double }
-        let measured: [Measured] = entries.map { entry in
-            let hash = contentHash(for: entry, warmed: warmedHashes)
-            let keyword = keywordScore(entry: entry, terms: terms, contentHash: hash)
+        let measured: [Measured] = entries.enumerated().map { index, entry in
+            let hash = hashes[index]
+            let keyword = keywordByEntry[index]
             var cosine: Double? = nil
             if let currentVector,
                let entryVector = EmbeddingService.shared.entryVector(
@@ -332,29 +384,117 @@ enum EntryRetriever {
         let threshold = semanticThreshold(cosines: cosines, highBar: query.highBar, tuning: tuning)
         let keywordBar = query.highBar ? tuning.keywordSignalHigh : tuning.keywordSignalMin
 
-        struct Scored { let entry: Entry; let score: Double; let hasSignal: Bool }
+        // An origin question drops the recency term rather than inverting it.
+        // Inverting was measured (2026-08-23) and overshot: a *negative* recency
+        // reward lets a weakly-matching very old entry outrank a strongly
+        // matching one, so "when did Dario and I start talking again" walked
+        // back to November when the answer was March. Relevance has to decide
+        // which entries are candidates; age only decides between them, below.
+        let origin = seeksOrigin(trimmed)
+        struct Scored { let entry: Entry; let score: Double; let hasSignal: Bool; let touched: Bool }
+        // The informative mass of the question: what an entry containing every
+        // content word would score on the body alone.
+        let queryWeight = documentFrequency
+            .map { termWeight(documentFrequency: $0, corpus: entries.count) }
+            .reduce(0, +)
+
         let scored: [Scored] = measured.map { m in
             let semantic = m.cosine ?? 0.0
-            let recency = recencyScore(entry: m.entry, now: now)
+            let recency = origin ? 0.0 : recencyScore(entry: m.entry, now: now)
             let score = semantic * semanticWeight + m.keyword + recency * recencyWeight
-            let hasSignal = (m.cosine.map { $0 >= threshold } ?? false) || m.keyword >= keywordBar
-            return Scored(entry: m.entry, score: score, hasSignal: hasSignal)
+            // A named date range is a hard constraint, not a preference: an
+            // entry outside the window cannot be the answer to "what did I
+            // write in December", however well it scores on the words.
+            let inWindow = window.map { $0.contains(m.entry.createdAt) } ?? true
+            // An entry that carries essentially the whole question is a match
+            // however modest its absolute score. `keywordSignalMin` is an
+            // absolute bar — roughly "a title hit and a body hit" — and a
+            // one-word question can never reach it: "When did I first say I was
+            // burnt out?" reduces to *burnt*, whose single body hit scores 1.43
+            // against a bar of 2.0, so the question fell through to ambient and
+            // came back with the five most recent entries. Coverage says what
+            // the absolute bar cannot: this entry contains what was asked.
+            let covers = queryWeight > 0 && m.keyword >= queryWeight * 0.9
+            let clears = (m.cosine.map { $0 >= threshold } ?? false)
+                || m.keyword >= keywordBar || covers
+            // Inside a named range the words have to land too. A semantic-only
+            // hit put four unrelated 2025 entries behind "What did I write about
+            // my brother in 2025?" — the right year, and not one of them
+            // mentions him. When the person names both a period and a subject,
+            // an entry from the period that never touches the subject is not
+            // the answer.
+            let lexicalWhereRequired = window == nil || terms.isEmpty || m.keyword > 0
+            return Scored(entry: m.entry, score: score,
+                          hasSignal: clears && inWindow && lexicalWhereRequired && lexicallySupported,
+                          touched: inWindow && m.keyword > 0)
         }
         .sorted { $0.score > $1.score }
 
         let strong = scored.filter(\.hasSignal).map(\.entry)
-        let ordered: [Entry]
+        var ordered: [Entry]
         let ambient: Bool
         let cap: Int
-        if strong.isEmpty {
+        if strong.isEmpty, window != nil {
+            // The question named a date range, and nothing in that range cleared
+            // the bar. Recent-life ambient background is the wrong answer here —
+            // it is what produced three citations for "When did I go skiing last
+            // winter?" against a corpus with no skiing in it, and a March 2026
+            // citation for "What did I write about my brother in 2025?".
+            //
+            // Entries in the window that at least touch the question's words are
+            // still real evidence, so they are offered as a grounded (non-ambient)
+            // result. When nothing in the window touches it, the honest answer is
+            // nothing at all — `.empty` makes the stance `.noMatch` and leaves
+            // `reconcileCitations` with nothing to cite.
+            let touched = scored.filter(\.touched).map(\.entry)
+            if touched.isEmpty { return .empty }
+            ordered = origin ? touched.sorted { $0.createdAt < $1.createdAt } : touched
+            ambient = false
+            cap = limits.maxEntries
+        } else if strong.isEmpty {
             // General / open message — hand the model recent life as background.
             ordered = entries.sorted { $0.createdAt > $1.createdAt }
             ambient = true
             cap = query.highBar ? min(tuning.ambientCapHighBar, limits.maxEntries) : limits.maxEntries
         } else {
-            ordered = strong
+            // On an origin question the answer is the earliest entry *that
+            // actually matches* — not simply the oldest thing that shares a
+            // word. So relevance picks the shortlist and age orders only that:
+            // take the top matches by score, then put the earliest of them
+            // first. Sorting the whole strong set by date instead walked back
+            // to entries that merely mentioned the subject in passing.
+            ordered = origin
+                ? Array(strong.prefix(limits.maxEntries)).sorted { $0.createdAt < $1.createdAt }
+                : strong
             ambient = false
             cap = limits.maxEntries
+        }
+
+        // Top up the prompt from the ranking when the bar left slots empty.
+        //
+        // The signal bar decides *whether* this turn is grounded; it was also,
+        // accidentally, deciding *what* the model gets to see. μ + σ over a
+        // 262-entry corpus is cleared by a handful of entries, so a question
+        // whose answer sat just under it lost that entry altogether — not
+        // ranked low, absent. Measured on the gold set: "When did I switch teams
+        // at work?", "When did Sam and I break up?", "When did the crunch on
+        // Atlas start?" and "What was I working on last December?" all had their
+        // expected entry discarded this way while the prompt went out with
+        // fewer entries than it had room for.
+        //
+        // Only tops up a result that already cleared the bar somewhere — an
+        // ungrounded turn stays ungrounded, and ambient stays recent-life
+        // background — and never crosses a named date window.
+        if !ambient, ordered.count < cap {
+            let taken = Set(ordered.map(\.id))
+            let fill = scored.lazy
+                .filter { candidate in
+                    guard !taken.contains(candidate.entry.id) else { return false }
+                    return window.map { $0.contains(candidate.entry.createdAt) } ?? true
+                }
+                .prefix(cap - ordered.count)
+                .map(\.entry)
+            ordered += origin ? fill.sorted { $0.createdAt < $1.createdAt } : Array(fill)
         }
 
         // Diversify (drop near-duplicate bodies) and cap.
@@ -402,23 +542,169 @@ enum EntryRetriever {
 
     // MARK: - Scoring
 
-    private static func keywordScore(entry: Entry, terms: [String], contentHash: UInt64) -> Double {
-        guard !terms.isEmpty else { return 0 }
-        // The lowercased copies are cached per entry (hash-invalidated), so
-        // this no longer re-lowercases the full corpus on every turn. Cached
-        // full strings — not token sets — deliberately: substring containment
-        // on the whole lowercased text is the existing scoring semantics, and
-        // tokenizing would change it (e.g. "run" matching inside "running").
-        // The cost is roughly one extra in-memory copy of the journal text.
-        let (title, text) = EmbeddingService.shared.lowercasedEntryText(
-            id: entry.id, contentHash: contentHash, title: entry.title, text: entry.text
-        )
-        var overlap = 0.0
-        for term in terms {
-            if text.contains(term) { overlap += 1 }
-            if title.contains(term) { overlap += 1.5 }
+    /// Per-entry keyword scores for the whole corpus, IDF-weighted.
+    ///
+    /// Two things changed here on 2026-08-23, both measured against the
+    /// 262-entry persona corpus:
+    ///
+    /// **1. Word boundaries.** `text.contains(term)` matched inside words, so
+    /// `go` hit *going* and *ago*, `back` hit *background*, `into` hit almost
+    /// every entry. The damage was not subtle: "When did I get back into
+    /// running?" scored its expected entry **0.0** while an unrelated entry
+    /// scored 5.0 on nothing but that noise, and "When did I go skiing last
+    /// winter?" — a question this corpus cannot answer — scored 5.0 and
+    /// produced three citations.
+    ///
+    /// **2. Rarity.** Every term counted the same, so *actually*, *thing* and
+    /// *work* outvoted *Nonna*, *Atlas* and *pottery*. A term now contributes
+    /// in proportion to how rare it is **in this corpus**, so the weighting
+    /// adapts to the person's own vocabulary instead of a fixed word list.
+    ///
+    /// Same single scan over (entries × terms) as the per-entry version it
+    /// replaces; document frequency is accumulated on the way through.
+    static func keywordScores(
+        entries: [Entry], terms: [String], hashes: [UInt64]
+    ) -> (scores: [Double], documentFrequency: [Int]) {
+        guard !terms.isEmpty, entries.count == hashes.count else {
+            return (Array(repeating: 0, count: entries.count), Array(repeating: 0, count: terms.count))
         }
-        return overlap
+        // The lowercased copies are cached per entry (hash-invalidated), so
+        // this does not re-lowercase the corpus on every turn.
+        var bodyHits = [[Bool]](repeating: [Bool](repeating: false, count: terms.count),
+                                count: entries.count)
+        var titleHits = bodyHits
+        var documentFrequency = [Int](repeating: 0, count: terms.count)
+
+        for (index, entry) in entries.enumerated() {
+            let (title, text) = EmbeddingService.shared.lowercasedEntryText(
+                id: entry.id, contentHash: hashes[index], title: entry.title, text: entry.text
+            )
+            for (t, term) in terms.enumerated() {
+                let inBody = containsWord(text, term)
+                let inTitle = containsWord(title, term)
+                bodyHits[index][t] = inBody
+                titleHits[index][t] = inTitle
+                if inBody || inTitle { documentFrequency[t] += 1 }
+            }
+        }
+
+        let weights = documentFrequency.map { termWeight(documentFrequency: $0, corpus: entries.count) }
+        let scores = entries.indices.map { index -> Double in
+            var overlap = 0.0
+            for t in terms.indices {
+                if bodyHits[index][t] { overlap += weights[t] }
+                if titleHits[index][t] { overlap += 1.5 * weights[t] }
+            }
+            return overlap
+        }
+        return (scores, documentFrequency)
+    }
+
+    /// Below this many entries the document frequencies are too noisy to mean
+    /// anything, and the flat 1.0/1.5 weights are used unchanged — the same
+    /// reasoning as `minCorpusForSigma` for the σ statistics.
+    static let idfMinCorpus = 30
+
+    /// A term's weight, scaled by how rare it is in this corpus.
+    ///
+    /// Normalised so a term appearing in ~5% of entries weighs exactly 1.0 —
+    /// the old flat weight — which keeps `keywordSignalMin` meaning what it has
+    /// always meant (roughly "a title hit and a body hit") and leaves small
+    /// corpora bit-identical. Clamped at both ends: a near-universal word still
+    /// counts for a little, and a word appearing once cannot clear the signal
+    /// bar on its own.
+    static func termWeight(documentFrequency: Int, corpus: Int) -> Double {
+        guard corpus >= idfMinCorpus else { return 1.0 }
+        guard documentFrequency > 0 else { return 0.0 }
+        let idf = log(Double(corpus) / Double(1 + documentFrequency))
+        let reference = log(Double(corpus) / (1.0 + 0.05 * Double(corpus)))
+        guard reference > 0 else { return 1.0 }
+        return min(2.0, max(0.15, idf / reference))
+    }
+
+    /// Does `haystack` contain `term` as a word?
+    ///
+    /// A short suffix is allowed so ordinary inflection still matches
+    /// (*class* → *classes*, *apartment* → *apartments*), but only for terms
+    /// long enough that the prefix is meaningful — which is what stops `go`
+    /// from matching *going* and `back` from matching *background*. No stemmer:
+    /// the trailing-character allowance covers the plural and participle cases
+    /// that actually occur, and anything more aggressive re-introduces exactly
+    /// the false matches this replaced.
+    static func containsWord(_ haystack: String, _ term: String) -> Bool {
+        guard !term.isEmpty, !haystack.isEmpty else { return false }
+        if matchesWord(haystack, term) { return true }
+        // The question may carry the inflected form and the entry the plain one
+        // ("pottery *classes*" asked of "first pottery *class* tonight"), so the
+        // term is also tried stemmed. Only trailing inflections, and only when
+        // enough of the word survives for the prefix to still mean something.
+        for suffix in ["ies", "es", "ing", "ed", "s"] where term.hasSuffix(suffix) {
+            let stem = String(term.dropLast(suffix.count))
+            let restored = suffix == "ies" ? stem + "y" : stem
+            guard restored.count >= 4 else { continue }
+            return matchesWord(haystack, restored)
+        }
+        return false
+    }
+
+    private static func matchesWord(_ haystack: String, _ term: String) -> Bool {
+        // How much of a tail may follow and still be the same word. Three
+        // letters for a full-length term, two for a three-letter one — enough
+        // for "die" to reach *died*, which the journal writes while the
+        // question says "when did my grandmother die" — and none at all below
+        // that, which is what keeps "go" out of *going* and *ago*.
+        let maxSuffix = term.count >= 4 ? 3 : (term.count == 3 ? 2 : 0)
+        var searchStart = haystack.startIndex
+        while let found = haystack.range(of: term, range: searchStart..<haystack.endIndex) {
+            searchStart = found.upperBound
+            // Must start a word.
+            if found.lowerBound > haystack.startIndex {
+                let before = haystack[haystack.index(before: found.lowerBound)]
+                if before.isLetter || before.isNumber { continue }
+            }
+            // …and end one, give or take a short inflectional tail.
+            var suffix = 0
+            var cursor = found.upperBound
+            while cursor < haystack.endIndex, suffix <= maxSuffix {
+                let character = haystack[cursor]
+                if !(character.isLetter || character.isNumber) { break }
+                suffix += 1
+                cursor = haystack.index(after: cursor)
+            }
+            if suffix <= maxSuffix { return true }
+        }
+        return false
+    }
+
+    /// Does this question ask when something *started*?
+    ///
+    /// "When did I first say I was burnt out?", "When did I start pottery
+    /// classes?", "When did I get back into running?" — the answer is the
+    /// **earliest** entry on the topic, and `recencyScore` actively argues for
+    /// the opposite. Measured on the gold set 2026-08-23: seven of fifteen
+    /// wrong-citation failures were this exact shape, every one of them citing
+    /// a later entry about the right subject —
+    ///   "when did I start pottery classes?"  → cited May and July, expected January
+    ///   "when did I get back into running?"  → cited March,        expected November
+    ///   "when did I first say I was burnt out?" → cited March,     expected January
+    ///
+    /// Kept deliberately narrow: it must fire on origin questions and stay off
+    /// "what did I write *last* week", where recency is the whole point.
+    static func seeksOrigin(_ query: String) -> Bool {
+        let lower = query.lowercased()
+        // A recency cue always wins — "when did I last go running" is not an
+        // origin question even though it shares the "when did I" opener.
+        for recent in ["last week", "last month", "lately", "recently",
+                       "most recent", "last time", "these days"] {
+            if lower.contains(recent) { return false }
+        }
+        for cue in ["first said", "first say", "first time", "first mention",
+                    "first wrote", "first write", "start", "started", "starting",
+                    "begin", "began", "beginning", "get back into", "got back into",
+                    "take up", "took up", "originally", "at the beginning"] {
+            if lower.contains(cue) { return true }
+        }
+        return false
     }
 
     private static func recencyScore(entry: Entry, now: Date) -> Double {

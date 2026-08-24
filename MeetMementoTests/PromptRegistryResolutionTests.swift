@@ -121,9 +121,11 @@ final class PromptRegistryResolutionTests: XCTestCase {
         XCTAssertFalse(full.text.contains("How a reply is built"))
     }
 
-    func test_companionChannel_staysAsk14() {
+    /// Named for the version at the time; the contract is the *channel*, not the
+    /// number — `.companion` runs the heavy prompt, not `chat-light`.
+    func test_companionChannel_staysOnTheHeavyPrompt() {
         let resolved = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .companion)
-        XCTAssertEqual(resolved.version, "ask@14")
+        XCTAssertEqual(resolved.version, "ask@15")
     }
 
     func test_phatic_agreesWithInstructions() {

@@ -5,7 +5,7 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask@14")
+        XCTAssertEqual(resolved.version, "ask@15")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@14+p4")
+        XCTAssertEqual(resolved.version, "ask@15+p4")
         XCTAssertFalse(resolved.text.contains("Themes they chose:"))
         XCTAssertTrue(resolved.text.contains("Faint lens (not an agenda):"))
         XCTAssertTrue(resolved.text.contains("Conversation first"))
@@ -60,7 +60,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@14")
+        XCTAssertEqual(resolved.version, "ask@15")
         XCTAssertFalse(resolved.text.contains("I want to understand my stress patterns more deeply"))
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
     }
@@ -73,7 +73,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@14")
+        XCTAssertEqual(resolved.version, "ask-degraded@15")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
     }
 

@@ -132,4 +132,184 @@ final class EntryRetrieverConfidenceTests: XCTestCase {
         XCTAssertTrue(result.isAmbient)
         XCTAssertTrue(result.contextBlock.contains("background context"))
     }
+
+    // MARK: - Word-boundary keyword matching (gold-set failure, 2026-08-23)
+
+    /// `text.contains(term)` matched inside words. On the 262-entry persona
+    /// corpus that was the single largest source of wrong citations: `go` hit
+    /// *going* and *ago*, `back` hit *background*, `into` hit almost every
+    /// entry. "When did I go skiing last winter?" — a question the corpus does
+    /// not answer — scored 5.0 on that noise and produced three citations.
+    func test_containsWord_doesNotMatchInsideAWord() {
+        XCTAssertFalse(EntryRetriever.containsWord("i went for a walk an hour ago", "go"))
+        XCTAssertFalse(EntryRetriever.containsWord("the background hum of the office", "back"))
+        XCTAssertFalse(EntryRetriever.containsWord("a classroom full of people", "class"))
+        XCTAssertTrue(EntryRetriever.containsWord("let it go, finally", "go"))
+        XCTAssertTrue(EntryRetriever.containsWord("walked back home", "back"))
+    }
+
+    /// Ordinary inflection still has to match, or every plural becomes a miss.
+    /// The allowance is a short tail on a term long enough for the prefix to
+    /// mean something — which is exactly why `go` above does not qualify.
+    func test_containsWord_allowsShortInflection() {
+        XCTAssertTrue(EntryRetriever.containsWord("first pottery class tonight", "classes"))
+        XCTAssertTrue(EntryRetriever.containsWord("pottery classes on thursdays", "class"))
+        XCTAssertTrue(EntryRetriever.containsWord("moving apartments this weekend", "apartment"))
+    }
+
+    /// A term in most of the corpus must not outvote a term in two entries.
+    /// Normalised so ~5% document frequency weighs exactly 1.0, which is what
+    /// keeps `keywordSignalMin` meaning what it always meant.
+    func test_termWeight_scalesWithRarity() {
+        let corpus = 262
+        let rare = EntryRetriever.termWeight(documentFrequency: 2, corpus: corpus)
+        let typical = EntryRetriever.termWeight(documentFrequency: 13, corpus: corpus)
+        let common = EntryRetriever.termWeight(documentFrequency: 82, corpus: corpus)
+        XCTAssertEqual(typical, 1.0, accuracy: 0.05, "5% of the corpus is the 1.0 reference")
+        XCTAssertGreaterThan(rare, typical)
+        XCTAssertLessThan(common, typical)
+        XCTAssertLessThanOrEqual(rare, 2.0, "a hapax must not clear the bar alone")
+        XCTAssertGreaterThanOrEqual(common, 0.15)
+    }
+
+    /// Below `idfMinCorpus` the document frequencies are noise, so the weights
+    /// stay flat and every small-corpus expectation above is unchanged.
+    func test_termWeight_isFlatOnSmallCorpora() {
+        XCTAssertEqual(EntryRetriever.termWeight(documentFrequency: 1, corpus: 6), 1.0)
+        XCTAssertEqual(EntryRetriever.termWeight(documentFrequency: 5, corpus: 6), 1.0)
+    }
+
+    // MARK: - Date windows (gold-set failure, 2026-08-23)
+
+    private func datedCorpus() -> [Entry] {
+        let cal = Calendar.current
+        func at(_ year: Int, _ month: Int, _ day: Int) -> Date {
+            cal.date(from: DateComponents(year: year, month: month, day: day))!
+        }
+        return [
+            Entry(title: "Nonna", text: "Mom called about Nonna, the scan came back worse than anyone expected.",
+                  createdAt: at(2025, 12, 18)),
+            Entry(title: "Nonna", text: "Nonna died this morning. The half second of silence before the words.",
+                  createdAt: at(2026, 2, 9)),
+            Entry(title: "Nonna", text: "Thinking about Nonna again, the yellow light in her kitchen.",
+                  createdAt: at(2026, 4, 12)),
+            Entry(title: "Quiet", text: "An ordinary Tuesday, nothing much to report, made eggs properly.",
+                  createdAt: at(2025, 12, 4))
+        ]
+    }
+
+    /// A month in the question is a hard constraint. Without it, "What did I
+    /// hear about Nonna's health in December?" cited the February and April
+    /// entries — the right subject, the wrong months, and no way for the
+    /// reader to tell.
+    func test_namedMonth_restrictsToThatMonth() {
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "What did I hear about Nonna's health in December?"),
+            entries: datedCorpus()
+        )
+        XCTAssertFalse(result.isEmpty)
+        XCTAssertFalse(result.isAmbient)
+        let cal = Calendar.current
+        for entry in result.entries {
+            XCTAssertEqual(cal.component(.month, from: entry.date), 12, "cited outside the named month")
+            XCTAssertEqual(cal.component(.year, from: entry.date), 2025)
+        }
+    }
+
+    /// When the named range holds nothing that touches the question, the honest
+    /// answer is nothing — not recent life as ambient background. Returning
+    /// ambient here is what put three citations on "When did I go skiing last
+    /// winter?" and a March 2026 citation on "What did I write about my brother
+    /// in 2025?".
+    func test_namedRangeWithNothingInIt_returnsEmpty() {
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "What did I write about skiing in 2019?"),
+            entries: datedCorpus()
+        )
+        XCTAssertTrue(result.isEmpty, "a range with no entries at all must not fall back to ambient")
+    }
+
+    /// A subject the journal never mentions must not come back grounded.
+    ///
+    /// Semantic similarity alone will always crown something — NL embeddings
+    /// score every entry warmly against any well-formed English sentence — so
+    /// "What have I said about my dog?" came back with citations against a
+    /// corpus containing no dog. Zero lexical support across every content term
+    /// is what tells the two apart.
+    func test_subjectAbsentFromTheJournal_staysUngrounded() {
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "What have I said about my dog?"),
+            entries: datedCorpus()
+        )
+        XCTAssertTrue(result.isEmpty || result.isAmbient,
+                      "a subject the journal never mentions must not ground the reply")
+    }
+
+    /// Inside a named range the words have to land too: the right year and the
+    /// wrong subject is still the wrong answer.
+    func test_namedRangeWithoutTheSubject_returnsEmpty() {
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "What did I write about my brother in 2025?"),
+            entries: datedCorpus()
+        )
+        XCTAssertTrue(result.isEmpty, "no 2025 entry mentions a brother")
+    }
+
+    /// A question with no date must behave exactly as it did before.
+    func test_noDateInQuestion_leavesRetrievalUnchanged() {
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "What have I written about Nonna?"),
+            entries: datedCorpus()
+        )
+        XCTAssertFalse(result.isEmpty)
+        XCTAssertGreaterThan(result.entries.count, 1)
+    }
+
+    // MARK: - Origin questions (gold-set failure, 2026-08-23)
+
+    /// "When did I first…" wants the earliest entry on the topic. Recency
+    /// scoring argues for the opposite, and did: seven of fifteen wrong-citation
+    /// failures on the gold set were this shape.
+    func test_seeksOrigin_recognisesOriginQuestions() {
+        for q in ["When did I first say I was burnt out?",
+                  "When did I start pottery classes?",
+                  "When did I get back into running?",
+                  "When did the crunch on Atlas begin?",
+                  "When did I take up swimming?"] {
+            XCTAssertTrue(EntryRetriever.seeksOrigin(q), q)
+        }
+    }
+
+    /// Must stay off questions where recency is the whole point — a recency cue
+    /// wins even when the sentence also carries an origin word.
+    func test_seeksOrigin_ignoresRecencyQuestions() {
+        for q in ["What did I write last week?",
+                  "How have I been sleeping lately?",
+                  "What did I start last month?",
+                  "When did I last go running?",
+                  "What have I been up to recently?"] {
+            XCTAssertFalse(EntryRetriever.seeksOrigin(q), q)
+        }
+    }
+
+    /// The behaviour that matters: with several entries on one subject, an
+    /// origin question surfaces the oldest first.
+    func test_originQuestion_putsTheEarliestEntryFirst() {
+        let day = 86_400.0
+        let entries = [
+            Entry(title: "Pottery", text: "First pottery class tonight and I was genuinely terrible at it.",
+                  createdAt: Date(timeIntervalSinceNow: -200 * day)),
+            Entry(title: "Pottery", text: "Pottery again, the wheel is finally starting to make sense.",
+                  createdAt: Date(timeIntervalSinceNow: -60 * day)),
+            Entry(title: "Pottery", text: "Pottery class, glazed the bowl I made last month.",
+                  createdAt: Date(timeIntervalSinceNow: -10 * day))
+        ]
+        let result = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: "When did I start pottery classes?"),
+            entries: entries
+        )
+        XCTAssertFalse(result.isEmpty, "pottery should match on keywords alone")
+        XCTAssertEqual(result.entries.first?.date, entries[0].createdAt,
+                       "an origin question must lead with the earliest match")
+    }
 }
