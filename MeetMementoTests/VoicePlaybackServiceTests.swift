@@ -295,6 +295,13 @@ final class VoicePlaybackServiceTests: XCTestCase {
 
     // MARK: - Rate preference
 
+    /// The preference is read per utterance, not cached at session start.
+    ///
+    /// Expectations carry `readBackRateMultiplier` because `deliveryMode`
+    /// defaults to `.readBack` (spec 035): tap-to-read is deliberately 0.95x.
+    /// Asserting the bare preference here is what made this test drift once the
+    /// multiplier landed, so it is expressed against the constant instead of a
+    /// literal — if the pacing changes, this test should not.
     func test_enqueueAppliesInjectedRate() {
         var rate: Float = 0.45
         let localMock = MockUtteranceEngine()
@@ -307,8 +314,10 @@ final class VoicePlaybackServiceTests: XCTestCase {
         localService.beginUtteranceSession(for: UUID())
         localService.enqueue(sentence: "Two.")
 
-        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45)
-        XCTAssertEqual(localMock.spokenUtterances[1].rate, 0.58, "rate must be read per utterance")
+        let readBack = SpokenFormFormatter.readBackRateMultiplier
+        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45 * readBack, accuracy: 1e-5)
+        XCTAssertEqual(localMock.spokenUtterances[1].rate, 0.58 * readBack, accuracy: 1e-5,
+                       "rate must be read per utterance")
     }
 
     /// The clamp moved with the utterance construction it belongs to: the
@@ -323,16 +332,53 @@ final class VoicePlaybackServiceTests: XCTestCase {
                                  AVSpeechUtteranceMaximumSpeechRate)
     }
 
-    /// The service passes the preference through untouched — clamping is not
-    /// its job, and doing it in both places would hide a disagreement.
-    func test_serviceForwardsRawRate() {
+    /// The service applies the delivery-mode multiplier and nothing else —
+    /// clamping is not its job, and doing it in both places would hide a
+    /// disagreement.
+    func test_serviceForwardsRateWithoutClamping() {
         let localMock = MockUtteranceEngine()
         let localService = VoicePlaybackService(
             engineFactory: { _ in localMock }, managesAudioSession: false,
             rateProvider: { 0.45 }
         )
         localService.toggleSpeech(messageID: UUID(), heading1: nil, heading2: nil, body: "Hi.")
-        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45)
+        XCTAssertEqual(localMock.spokenUtterances[0].rate,
+                       0.45 * SpokenFormFormatter.readBackRateMultiplier, accuracy: 1e-5)
+    }
+
+    /// The pacing split itself (spec 035). This is the assertion whose absence
+    /// let the two tests above drift: nothing pinned which multiplier a mode
+    /// gets, so changing one silently broke tests that were about something
+    /// else entirely.
+    ///
+    /// The two modes are reached through different entry points on purpose.
+    /// `toggleSpeech` *is* tap-to-read and sets `.readBack` itself, so the
+    /// conversation case has to go through the narration path
+    /// (`beginUtteranceSession` + `enqueue`) the way `NarrationCoordinator`
+    /// does — setting `deliveryMode` before calling `toggleSpeech` would be
+    /// silently overwritten.
+    func test_deliveryModeSelectsRateMultiplier() {
+        let readBackMock = MockUtteranceEngine()
+        let readBackService = VoicePlaybackService(
+            engineFactory: { _ in readBackMock }, managesAudioSession: false,
+            rateProvider: { 0.5 }
+        )
+        readBackService.toggleSpeech(messageID: UUID(), heading1: nil, heading2: nil, body: "Hi.")
+        XCTAssertEqual(readBackMock.spokenUtterances[0].rate,
+                       0.5 * SpokenFormFormatter.readBackRateMultiplier, accuracy: 1e-5,
+                       "tap-to-read must use the read-back multiplier")
+
+        let conversationMock = MockUtteranceEngine()
+        let conversationService = VoicePlaybackService(
+            engineFactory: { _ in conversationMock }, managesAudioSession: false,
+            rateProvider: { 0.5 }
+        )
+        conversationService.deliveryMode = .conversation
+        conversationService.beginUtteranceSession(for: UUID())
+        conversationService.enqueue(sentence: "Hi.")
+        XCTAssertEqual(conversationMock.spokenUtterances[0].rate,
+                       0.5 * SpokenFormFormatter.conversationRateMultiplier, accuracy: 1e-5,
+                       "narration must use the conversation multiplier")
     }
 
     // MARK: - shouldReleaseAudioSession decision table (spec 028 R3b)

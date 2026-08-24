@@ -19,7 +19,16 @@ jobs:
     name: iOS build (online)
     runs-on: [self-hosted, macOS, ARM64, ios, xcode]
     env:
+      # Host-side steps (assert_ios_build_specs.sh, the coverage gate) read this.
       CI_ONLINE: "1"
+      # The tests read it too, and a simulator test process inherits *only*
+      # TEST_RUNNER_-prefixed variables from xcodebuild (the prefix is stripped).
+      # Without this line the XCTSkipIf guards in IntelligenceServiceTests and
+      # the four Diag suites never fire, and this lane silently runs live
+      # on-device generation it believes it is skipping — minutes of wall clock
+      # and a dependency on model availability the online lane is not supposed
+      # to have. Same mechanism as TEST_RUNNER_SPIKE_A in ios-device-eval.yml.
+      TEST_RUNNER_CI_ONLINE: "1"
       # Compiles the Intelligence boundary (Xcode 26+ / Foundation Models SDK).
       # Override IOS_DEVELOPER_DIR / IOS_SIM_DESTINATION as repo variables.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
