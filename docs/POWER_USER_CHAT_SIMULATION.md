@@ -297,9 +297,23 @@ to `.eval-runs/`.
 
 ### A note on running these
 
-The first attempt at the verification re-run died at generation 53 with
-*"Restarting after unexpected exit, crash, or test timeout"*. Cause: a second
-agent session started its own `xcodebuild test-without-building` on the **same
-simulator**, which relaunched the app under the running test. Long eval runs need
-a dedicated device, not just dedicated DerivedData.
+Four attempts at a clean 100-generation verification run failed, each on a
+different environmental fault and none in the code:
+
+1. **Shared simulator.** A second agent session started its own
+   `xcodebuild test-without-building` on the same device, relaunching the app
+   under the running test — died at generation 53.
+2. **Machine load.** Six concurrent simulator suites took median generation
+   time from 6s to 26s; 13 generations died on the 30-second stream-idle
+   watchdog.
+3. **Wedged device.** `Simulator device failed to launch … No such process`
+   after 27 generations.
+4. **`simctl erase`.** It un-wedges the device — and takes the on-device model
+   assets with it, after which `availability()` is no longer `.available` and
+   the gate skips instead of running.
+
+The lesson for whoever runs these next: a long eval needs its own simulator and
+a quiet machine, isolated DerivedData is not sufficient, and erasing the device
+is not a recovery step. This is a good argument for running the gate in CI on a
+dedicated runner rather than locally.
 
