@@ -107,9 +107,21 @@ enum ChatEvalCorpus {
         return (entries.sorted { $0.createdAt < $1.createdAt }, map)
     }
 
-    /// The 45-question gold set.
+    /// The 45-question gold set, **resolved**.
+    ///
+    /// `questions.resolved.json`, not `questions.json`. Four of the 45 (q-38..q-41)
+    /// are *derived* questions — "how do I usually feel on overcast Mondays",
+    /// "which were my hardest weeks" — whose `expectedEntryIDs` are empty in the
+    /// authored file and materialised by `Fixtures/validate_corpus.py` from the
+    /// corpus (14, 10, 14 and 16 entries respectively). Scoring citations against
+    /// the authored file therefore judged those four against an empty expected
+    /// set, where no answer can ever be correct.
+    ///
+    /// The resolved file is a build artefact regenerated on every validator run,
+    /// and CI already fails on it being stale (`spec-gates.yml`, `fixture-corpus`),
+    /// so reading it here cannot drift from the corpus.
     static func goldQuestions() throws -> [GoldQuestion] {
-        let url = try fixturesURL().appendingPathComponent("gold/questions.json")
+        let url = try fixturesURL().appendingPathComponent("gold/questions.resolved.json")
         return try JSONDecoder().decode(GoldFile.self, from: Data(contentsOf: url)).questions
     }
 

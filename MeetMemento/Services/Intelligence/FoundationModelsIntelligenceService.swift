@@ -181,6 +181,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
     private var cachedAvailability: IntelligenceAvailability?
 
+    /// Consecutive refusals with no success between (see `RefusalOutageTracker`).
+    ///
+    /// `isInfrastructureFailure` catches the one shape of a broken model asset
+    /// we can recognise from the reflected error string. This generalises it:
+    /// whatever the cause, N refusals in a row with nothing succeeding is an
+    /// outage, not a content decision. Guarded by `stateLock`.
+    private var refusalOutage = RefusalOutageTracker()
+
     /// The speculatively prewarmed next-turn session (spec 029 Amendment A).
     /// Built ahead of time from an `AskTranscriptPlan` — instructions PLUS the
     /// history tail as real transcript turns — so a matching turn pays neither
@@ -222,6 +230,138 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func cachePositiveAvailability(_ value: IntelligenceAvailability) {
         stateLock.lock(); defer { stateLock.unlock() }
         cachedAvailability = value
+    }
+
+    /// Clears the run of refusals. Called whenever the model actually produced
+    /// output, so an occasional genuine refusal never accumulates toward the
+    /// outage threshold across an otherwise healthy session.
+    private func noteGenerationSucceeded() {
+        stateLock.lock(); defer { stateLock.unlock() }
+        refusalOutage.recordSuccess()
+    }
+
+    /// `mapGenerationError`, plus the outage tracking that needs instance state.
+    ///
+    /// Escalating to `.unavailable` is what makes the outage visible: it is the
+    /// one branch `ChatViewModel.isDesignedEmptyState` returns `false` for, so
+    /// the reply falls through to the real error path — a failed send, an alert,
+    /// and a retry affordance — instead of another silent authored bubble.
+    /// The single funnel every model call's `catch` goes through.
+    ///
+    /// iOS 27 **retired** `LanguageModelSession.GenerationError` and split it
+    /// across four unrelated types. Every deprecated case carries the successor
+    /// in its own message — `guardrailViolation` → `LanguageModelError`,
+    /// `decodingFailure` → `GeneratedContent.ParsingError`, `assetsUnavailable`
+    /// → `SystemLanguageModel.Error`, `concurrentRequests` →
+    /// `LanguageModelSession.Error`.
+    ///
+    /// Until now every `catch` here bound only the old type, so on iOS 27 the
+    /// typed arm never matched and *everything* fell to the untyped `catch` and
+    /// became `generationFailed(localizedDescription)`. Measured 2026-08-23: the
+    /// eval gate reported `generationFailed("The model refused to answer.")` for
+    /// a refusal even though `mapGenerationError` has a `case .refusal` arm that
+    /// maps refusals to the designed empty state. That arm could not run.
+    ///
+    /// Everything downstream that keys off a *classified* error was therefore
+    /// dead on iOS 27: the infrastructure-vs-content guardrail split, the
+    /// designed `.emptyObservation` bubble, the persisted refusal turn, the
+    /// context-window split, and `RefusalOutageTracker`'s consecutive-refusal
+    /// counter — which was counting a case that could no longer occur.
+    ///
+    /// Order matters: `IntelligenceError` first (already classified, e.g. a
+    /// Safety route thrown by `prepareAsk`), then the iOS 27 families, then the
+    /// legacy type so iOS 26 keeps working, then an honest fallback.
+    func mapAnyGenerationError(_ error: Error) -> IntelligenceError {
+        if let alreadyClassified = error as? IntelligenceError { return alreadyClassified }
+
+        if #available(iOS 27.0, *) {
+            if let modern = error as? LanguageModelError {
+                return mapModernErrorTrackingOutage(modern)
+            }
+            // Guided decoding failed to parse the model's object. This is the
+            // `citedRefs` failure mode — the model writes the field name into
+            // its prose and never emits the property — which is why the field
+            // is optional. Still a real failure when it reaches here.
+            if let parsing = error as? GeneratedContent.ParsingError {
+                noteGenerationSucceeded()
+                return .generationFailed("Failed to parse generated content: \(parsing.localizedDescription)")
+            }
+            if let assets = error as? SystemLanguageModel.Error {
+                return .unavailable(.other(assets.errorDescription ?? "Model assets are unavailable."))
+            }
+        }
+
+        if let legacy = error as? LanguageModelSession.GenerationError {
+            return mapGenerationErrorTrackingOutage(legacy)
+        }
+        return .generationFailed(error.localizedDescription)
+    }
+
+    /// iOS 27's `LanguageModelError`, mapped to the same `IntelligenceError`
+    /// vocabulary the legacy path produces, then run through the identical
+    /// outage bookkeeping so the two paths cannot drift.
+    @available(iOS 27.0, *)
+    private func mapModernErrorTrackingOutage(_ error: LanguageModelError) -> IntelligenceError {
+        let mapped: IntelligenceError
+        switch error {
+        case .guardrailViolation(let violation):
+            // Same distinction the legacy path draws: a guardrail that could not
+            // *run* is infrastructure, not a judgement about what the person
+            // wrote, and must stay retryable rather than becoming a permanent
+            // "I don't have an observation for this one."
+            mapped = Self.isInfrastructureFailure(String(reflecting: violation))
+                ? .generationFailed(error.localizedDescription)
+                : .guardrailRefusal
+        case .refusal:
+            mapped = .guardrailRefusal
+        case .contextSizeExceeded:
+            mapped = .generationFailed("Context window exceeded: \(error.localizedDescription)")
+        case .rateLimited:
+            mapped = .generationFailed("Rate limited: \(error.localizedDescription)")
+        case .timeout:
+            mapped = .generationTimedOut
+        default:
+            mapped = .generationFailed(error.localizedDescription)
+        }
+        return recordOutcome(mapped)
+    }
+
+    private func mapGenerationErrorTrackingOutage(
+        _ error: LanguageModelSession.GenerationError
+    ) -> IntelligenceError {
+        return recordOutcome(Self.mapGenerationError(error))
+    }
+
+    /// The outage bookkeeping, shared by the legacy and iOS 27 mappers so the
+    /// two cannot drift. Takes an already-classified error and returns it,
+    /// escalating to `.unavailable` once refusals have run long enough to mean
+    /// the pipeline is down rather than this turn being declined.
+    private func recordOutcome(_ mapped: IntelligenceError) -> IntelligenceError {
+        guard case .guardrailRefusal = mapped else {
+            // Anything that is not a refusal means the pipeline is alive, even
+            // if this turn failed. Do not let unrelated failures accumulate.
+            if case .generationFailed = mapped { noteGenerationSucceeded() }
+            return mapped
+        }
+
+        stateLock.lock()
+        let tripped = refusalOutage.recordRefusal()
+        let run = refusalOutage.consecutiveRefusals
+        if tripped {
+            // Drop the cached positive so the next `availability()` re-queries
+            // instead of serving a `.available` that this run just disproved.
+            cachedAvailability = nil
+        }
+        stateLock.unlock()
+
+        guard tripped else { return mapped }
+
+        SafetyMetrics.recordAFMRefusalOutage()
+        AppLogger.log(
+            "[Intelligence] \(run) consecutive refusals — treating as an outage, not an empty state",
+            type: .error
+        )
+        return .unavailable(.other("Chat isn't available on this device right now."))
     }
 
     /// Maps the pure plan 1:1 onto a FoundationModels transcript session.
@@ -594,6 +734,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// or the last streamed snapshot.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String, latency: Duration) throws -> AskResult {
+        // The model produced output, so whatever else this turn does — including
+        // an output-safety throw below — the pipeline is not in an outage.
+        noteGenerationSucceeded()
         let cleanedBody = Self.strippingReferenceMarkers(body)
         if let hit = OutputSafetyScanner.scan(cleanedBody) {
             SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
@@ -642,10 +785,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             return result
         } catch let error as IntelligenceError {
             throw error
-        } catch let error as LanguageModelSession.GenerationError {
-            throw Self.mapGenerationError(error)
         } catch {
-            throw IntelligenceError.generationFailed(error.localizedDescription)
+            throw mapAnyGenerationError(error)
         }
     }
 
@@ -941,12 +1082,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     // just-updated history.
                 } catch let error as IntelligenceError {
                     continuation.finish(throwing: error)
-                } catch let error as LanguageModelSession.GenerationError {
-                    continuation.finish(throwing: Self.mapGenerationError(error))
                 } catch is CancellationError {
                     continuation.finish()
                 } catch {
-                    continuation.finish(throwing: IntelligenceError.generationFailed(error.localizedDescription))
+                    continuation.finish(throwing: self.mapAnyGenerationError(error))
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
@@ -1019,10 +1158,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 modelIdentifier: Self.modelIdentifier(for: zone),
                 latency: latency
             )
-        } catch let error as LanguageModelSession.GenerationError {
-            throw Self.mapGenerationError(error)
         } catch {
-            throw IntelligenceError.generationFailed(error.localizedDescription)
+            throw mapAnyGenerationError(error)
         }
     }
 
@@ -1107,10 +1244,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             )
         } catch let error as IntelligenceError {
             throw error
-        } catch let error as LanguageModelSession.GenerationError {
-            throw Self.mapGenerationError(error)
         } catch {
-            throw IntelligenceError.generationFailed(error.localizedDescription)
+            throw mapAnyGenerationError(error)
         }
     }
 
@@ -1197,6 +1332,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // Tamalpais and a friend's remark about feeling calm, never once
             // saying it had nothing. Name the entries as unrelated instead of
             // hoping the stance line outweighs the evidence.
+            //
+            // NOTE (2026-08-23): withholding the text entirely was tried here
+            // and reverted. It fixed the bait cases outright — 8/8 no-match
+            // turns stopped quoting and stopped citing — but broke ordinary
+            // recall in the same run: "How have I been sleeping?", "What did I
+            // write about the hike?" and "What happened with Priya?" all came
+            // back "I don't see anything from that stretch" against a journal
+            // that answers all three. Those turns are `.noMatch` only because
+            // retrieval under-scores them, and the ambient text was the one
+            // thing making them answerable. Fix the scoring first; see the
+            // retrieval-recall issue.
             let framing = stance == .noMatch
                 ? "Journal evidence — NOTHING HERE MATCHES WHAT THEY ASKED ABOUT. "
                 + "These are recent entries for background only. Say plainly you don't see "
@@ -1404,6 +1550,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ///
     /// `body` is nil on the pre-generation call that seeds the "Reviewed your
     /// journals" link, where there is no reply text to check yet.
+    ///
+    /// Gating citations on a `.noMatch` stance was tried on 2026-08-23 and
+    /// reverted with the context-block change above: too many turns that the
+    /// journal genuinely answers are labelled `.noMatch` by retrieval, so the
+    /// gate silently stripped citations from correct, grounded replies.
     private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult,
                                            question: String, body: String? = nil) -> [AskCitation] {
         guard !retrieval.isEmpty else { return [] }
@@ -1493,7 +1644,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // only when the guardrail actually judged the content.
         switch error {
         case .guardrailViolation:
-            guard !isInfrastructureFailure(error) else {
+            guard !isInfrastructureFailure(String(describing: error)) else {
                 // The safety classifier could not run at all. Reported by the
                 // SDK as a guardrail violation, it is really a broken model
                 // asset, and treating it as a content decision is the worst
@@ -1558,12 +1709,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// (`ModelManager`, `InferenceError`, `hostFailed`) rather than prose, so
     /// they should not drift with wording changes — and the failure mode of a
     /// miss is simply the old behaviour.
-    private static func isInfrastructureFailure(
-        _ error: LanguageModelSession.GenerationError
-    ) -> Bool {
-        let reflected = String(describing: error)
-        return ["ModelManager", "InferenceError", "hostFailed",
-                "promptTemplateNotFound", "Failed model manager query"]
+    static func isInfrastructureFailure(_ reflected: String) -> Bool {
+        ["ModelManager", "InferenceError", "hostFailed",
+         "promptTemplateNotFound", "Failed model manager query"]
             .contains { reflected.contains($0) }
     }
 

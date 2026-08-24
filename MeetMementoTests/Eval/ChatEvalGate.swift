@@ -89,6 +89,7 @@ final class ChatEvalGate: XCTestCase {
         var body: String = ""
         var citations: Int = 0
         var promptVersion: String = ""
+        var citedFixtureIDs: [String] = []
         var seconds: Double = 0
         var error: String?
         var violations: [ChatEvalScoring.Violation] = []
@@ -124,7 +125,8 @@ final class ChatEvalGate: XCTestCase {
             samples.append(await run(
                 service: service, scenario: "gold/\(question.category)", question: question.query,
                 history: [], isCasual: false, rep: 1,
-                corpus: persona, corpusName: "persona", index: personaIndex))
+                corpus: persona, corpusName: "persona", index: personaIndex,
+                gold: question, fixtureIDs: fixtureIDs))
         }
 
         // --- Half 2: conversational shapes, repeated, against the attribution corpus.
@@ -158,7 +160,9 @@ final class ChatEvalGate: XCTestCase {
                      scenario: String, question: String, history: [ChatTurn],
                      isCasual: Bool, rep: Int,
                      corpus: [Entry], corpusName: String,
-                     index: ChatEvalScoring.QuoteIndex) async -> Sample {
+                     index: ChatEvalScoring.QuoteIndex,
+                     gold: ChatEvalCorpus.GoldQuestion? = nil,
+                     fixtureIDs: [UUID: String] = [:]) async -> Sample {
         var sample = Sample(scenario: scenario, question: question, rep: rep, corpus: corpusName)
         let clock = ContinuousClock()
         let started = clock.now
@@ -195,11 +199,24 @@ final class ChatEvalGate: XCTestCase {
 
         sample.violations =
             ChatEvalScoring.leaks(result.body)
-            + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual)
+            + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: index)
             + ChatEvalScoring.fabricatedQuotes(result.body, index: index)
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
+
+        // Is the answer right, not merely well-formed? Only the gold half can
+        // be judged this way — the conversational scenarios have no expected
+        // answer to compare against.
+        if let gold {
+            let citedFixtureIDs = result.citations.compactMap { fixtureIDs[$0.entryId] }
+            sample.citedFixtureIDs = citedFixtureIDs
+            sample.violations += ChatEvalScoring.goldOutcome(
+                citedFixtureIDs: citedFixtureIDs,
+                expected: gold.expectedEntryIDs,
+                match: gold.match
+            )
+        }
 
         return sample
     }

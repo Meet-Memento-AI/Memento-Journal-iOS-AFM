@@ -147,7 +147,9 @@ enum ChatEvalScoring {
     // MARK: - rule.*
 
     /// ask@14 rules that can be decided from the text alone.
-    static func ruleBreaks(_ body: String, isCasual: Bool) -> [Violation] {
+    /// `index` lets the banned-phrase check tell the assistant's own register
+    /// from the person's. Pass it wherever a corpus is in play.
+    static func ruleBreaks(_ body: String, isCasual: Bool, index: QuoteIndex? = nil) -> [Violation] {
         var v: [Violation] = []
         let lower = body.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -189,11 +191,19 @@ enum ChatEvalScoring {
         if body.range(of: #"\bthe user\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
             v.append(.init(code: "rule.thirdPerson", detail: "\"the user\""))
         }
+        // The ban is on the assistant's own register — "obviously, you're
+        // stressed" — not on the words the person used themselves. ask@15 is
+        // explicit that "reflecting their own words is fine", and the gate
+        // caught itself on that distinction: it flagged a reply for "Didn't
+        // send it obviously", which is the entry's own sentence
+        // (`entries-2026-03.json`) reflected back in second person. Exactly
+        // what the prompt asks for. So a phrase the corpus already contains is
+        // theirs, not ours.
         for phrase in ["you should", "obviously", "you always", "you never", "the problem is"] {
-            if lower.contains(phrase) {
-                v.append(.init(code: "rule.bannedPhrase", detail: "\"\(phrase)\""))
-                break
-            }
+            guard lower.contains(phrase) else { continue }
+            if let index, index.contains(phrase) { continue }
+            v.append(.init(code: "rule.bannedPhrase", detail: "\"\(phrase)\""))
+            break
         }
         if isCasual {
             if body.contains("###") { v.append(.init(code: "rule.casualHeading", detail: "### on casual turn")) }
@@ -240,6 +250,65 @@ enum ChatEvalScoring {
         return [.init(code: "hall.uncitedQuote", detail: "\"\(span.prefix(50))\" with 0 citations")]
     }
 
+    // MARK: - gold.* — is the answer right, not just well-formed?
+
+    /// Scores a reply's citations against the gold set's `expectedEntryIDs`.
+    ///
+    /// This is the gate's blind spot closed. Everything above judges the
+    /// *contract* — is the reply well-formed, does it leak scaffolding, does it
+    /// cite when it quotes. None of it asks whether the reply is **right**, and
+    /// measured on 2026-08-23 that gap was hiding real failures: all three
+    /// `match: "none"` honesty traps passed while being wrong, one of them
+    /// answering *"What did I write about my brother in 2025?"* from a March
+    /// **2026** entry, and another correctly saying *"I don't see any mention"*
+    /// of a dog **while displaying three citations**.
+    ///
+    /// Semantics come from `Fixtures/gold/questions.json`'s own `notes` field
+    /// and match `AgenticEval.GoldRecord`, which implemented this first — kept
+    /// deliberately identical so the two instruments cannot disagree:
+    ///   - `all`  — every expected entry must be cited
+    ///   - `any`  — at least one expected entry must be cited
+    ///   - `none` — nothing supports the question; any citation is invented
+    ///
+    /// `citedFixtureIDs` are fixture ids (`e-2026-01-12-1`), resolved from a
+    /// citation's `entryId` through the map `personaCorpus()` returns.
+    static func goldOutcome(citedFixtureIDs: [String],
+                            expected: [String],
+                            match: String) -> [Violation] {
+        let cited = Set(citedFixtureIDs)
+        let want = Set(expected)
+
+        switch match {
+        case "none":
+            guard !cited.isEmpty else { return [] }
+            return [.init(code: "gold.overcited",
+                          detail: "\(cited.count) citation(s) on a question nothing supports")]
+
+        case "any":
+            if cited.isDisjoint(with: want) {
+                return [.init(code: cited.isEmpty ? "gold.noCitation" : "gold.wrongCitation",
+                              detail: cited.isEmpty
+                                ? "expected any of \(want.count), cited none"
+                                : "cited \(cited.sorted().prefix(3).joined(separator: ", ")), none expected")]
+            }
+            return []
+
+        default: // "all"
+            if cited.isEmpty {
+                return [.init(code: "gold.noCitation",
+                              detail: "expected \(want.count), cited none")]
+            }
+            if want.isSubset(of: cited) { return [] }
+            if cited.isDisjoint(with: want) {
+                return [.init(code: "gold.wrongCitation",
+                              detail: "cited \(cited.sorted().prefix(3).joined(separator: ", ")), expected \(want.sorted().prefix(3).joined(separator: ", "))")]
+            }
+            let missing = want.subtracting(cited)
+            return [.init(code: "gold.partialCitation",
+                          detail: "missing \(missing.count) of \(want.count): \(missing.sorted().prefix(3).joined(separator: ", "))")]
+        }
+    }
+
     // MARK: - Reported, not gated
 
     /// ask@14 scopes `**bold**` to a short span of *their* wording. A bolded
@@ -266,14 +335,22 @@ enum ChatEvalScoring {
 
     // MARK: - Gate
 
-    /// Families that must be empty for a run to pass. `rule.boldNotTheirWords`
-    /// and `gen.*` are scored but excluded — they are quality signals, not
-    /// correctness failures.
+    /// Families that must be empty for a run to pass.
+    ///
+    /// `rule.boldNotTheirWords` was reported-only in the first phase — 14 to 15
+    /// hits per hundred, and a threshold picked before the first measurement is
+    /// a guess. It is now gated: `ask@15` states the rule explicitly ("words
+    /// that appear in the entry you just quoted, never your own phrasing dressed
+    /// as theirs"), and a reply that bolds the model's own prose as if it were
+    /// the person's own words is a correctness failure, not a style preference.
+    ///
+    /// `gen.*` stays reported. `gen.hitTokenCap` is a proximity warning about
+    /// the budget, not a defect in the reply — a reply can legitimately run long.
     static func gating(_ violations: [Violation]) -> [Violation] {
         violations.filter { v in
-            if v.code == "rule.boldNotTheirWords" { return false }
             if v.code.hasPrefix("gen.") { return false }
-            return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.") || v.code.hasPrefix("hall.")
+            return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.")
+                || v.code.hasPrefix("hall.") || v.code.hasPrefix("gold.")
         }
     }
 }

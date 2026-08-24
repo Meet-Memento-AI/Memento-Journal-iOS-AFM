@@ -12,6 +12,23 @@
 //  person as a dated list above the reply (AIOutputComponent), not as inline
 //  markers — inline citations return in a later release.
 //
+//  ask@15: three fixes measured in the 2026-08-23 chat diagnostics, plus the
+//  earlier same-version edits this bump finally accounts for.
+//    - Second person means the journal's author only: an entry's sentence about
+//      someone else keeps that person as its subject. "Who is Maya?" was coming
+//      back as "You came by with pastries" — the model applying the
+//      second-person rule to a sentence whose subject was Maya (6/12 correct).
+//    - Meet them answers the question first when the evidence can answer it.
+//      Direct lookups were returning stance instead of substance: "what is Maya
+//      thinking of doing?" named the nonprofit in 2 of 12 replies, with
+//      retrieval and decode both verifiably fine.
+//    - Bold must be words from the quoted entry, and an entry's sentences may
+//      never be pasted into the reply as prose. Follow-ups were echoing the
+//      entry back in its own first person ("I have not felt that light in a
+//      long time.") and never reaching the closing question.
+//  Also folds in three edits made under the ask@14 label without a bump:
+//  markdown literals spelled in prose, the exactly-one-question-mark rule, and
+//  the span rule de-quotified so the worked example stopped being parroted.
 //  ask@14: Open required; notebook Sit names a pattern from evidence then asks.
 //  chat-light@4 (spec 039): one short spoken sentence then one question
 //  except goodbye; no Notebook/Sit recipe; [Name:] may address first or last.
@@ -201,7 +218,7 @@ enum PromptRegistry {
     /// never the heavy prompt behind a smaller model. `personalization` appends
     /// the "About this person" section when the user gave refinement data.
     /// `channel` selects `chat-light@4` on phatic/continuer (spec 039); nil
-    /// keeps the heavy ask@14 path so existing call sites stay pinned.
+    /// keeps the heavy ask@15 path so existing call sites stay pinned.
     static func instructions(
         for intent: GenerationIntent,
         degraded: Bool = false,
@@ -216,12 +233,13 @@ enum PromptRegistry {
                 return ResolvedPrompt(text: text, version: version)
             }
             let base = degraded ? askDegraded : ask
-            // ask@14: Open required; Sit names a pattern from evidence.
+            // ask@15: Open required; Sit names a pattern from evidence; the
+            // answer comes first when the evidence has one.
             // History still arrives as real transcript turns (spec 029
             // Amendment A). Ref numbers remain internal to `citedRefs`.
             // The version tracks prompt content — bump it whenever the text
             // changes, or it stops being a claim about anything.
-            let version = degraded ? "ask-degraded@14" : "ask@14"
+            let version = degraded ? "ask-degraded@15" : "ask@15"
             guard personalization.hasAskPersonalization else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -278,7 +296,7 @@ enum PromptRegistry {
     Output: plain spoken prose only — no markdown, no emoji, no lists.
     """
 
-    // MARK: - Ask (journal chat) — ask@14
+    // MARK: - Ask (journal chat) — ask@15
 
     private static let ask = """
     You are Memento. Sit with their notebook beside them — a quiet companion, \
@@ -288,7 +306,10 @@ enum PromptRegistry {
 
     This is a conversation, not a report about their journal. Answer their \
     latest message as the next turn in the same thread. Use second person \
-    (you, your) — never third person about them. Greet only when there is \
+    (you, your) — never third person about them. Second person means the \
+    person writing the journal, and only them: when an entry's sentence is \
+    about someone else, that person stays its subject. If they wrote "Maya \
+    came by", it was Maya who came by, not you. Greet only when there is \
     no history. Never reintroduce yourself. Never repeat a question you \
     already asked. Their onboarding journal goals are not the subject of \
     the conversation.
@@ -297,7 +318,13 @@ enum PromptRegistry {
 
     - Meet them — answer what they just said, in their words, without a \
     report opener. Do not skip continuers. A paragraph on a notebook turn; \
-    one or two sentences when the notebook is off.
+    one or two sentences when the notebook is off. If they asked something \
+    the evidence answers, the answer goes here, in plain words, before any \
+    pattern or stance work — name the thing they asked about. A reply that \
+    circles a question it could have answered has not met them. Answer with \
+    the fact itself, never by narrating that they wrote it: "Nonna died on \
+    February 9th" — never "You wrote on February 9th that…". Answering \
+    first is not a licence to use a banned opener.
     - Notebook — if this turn uses the journal, put one dated moment in \
     front of them as one ### heading (the date or subject) plus a short \
     exact quote in *italics*. Skip on casual, about-the-app, no-match, and \
@@ -308,7 +335,9 @@ enum PromptRegistry {
     a pattern, not a count, not an emotion label, not advice. This is the \
     conversation, not padding. A journal question must not skip Sit; a \
     one-sentence caption of the evidence is incomplete. You may \
-    put a few of their own words in bold, never an emotion label. Notebook-off \
+    put a few of their own words in bold — words that appear in the entry \
+    you just quoted, never your own phrasing dressed as theirs, never an \
+    emotion label. Notebook-off \
     turns still Open after Meet them.
     - Open — one specific question, required. Skip the question only on \
     goodbye. The whole reply contains exactly one question mark, and it is \
@@ -326,6 +355,11 @@ enum PromptRegistry {
     their wording in Sit. Never tables, images, code fences, links, nested \
     lists, emoji, or a heading named Question. Italic is not for your own \
     emphasis.
+
+    Never copy an entry's sentences into your own prose. A line from the \
+    journal is either an italic quote or restated in your own words in \
+    second person — never pasted in as if you had written it, and never \
+    left in their "I"/"my". Replaying an entry back is not a reply.
 
     When to use lists and headings:
     - Casual / continuer — Meet them; do not skip continuers. Then one \
