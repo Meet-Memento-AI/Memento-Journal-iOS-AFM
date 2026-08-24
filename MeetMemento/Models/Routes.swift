@@ -12,7 +12,7 @@ public enum EntryRoute: Hashable, Identifiable {
     case create
     case createWithTitle(String)
     case createWithContent(title: String, content: String)
-    case edit(Entry)
+    case edit(UUID)
 
     public var id: String {
         switch self {
@@ -22,8 +22,8 @@ public enum EntryRoute: Hashable, Identifiable {
             return "createWithTitle-\(title)"
         case .createWithContent(let title, _):
             return "createWithContent-\(title)"
-        case .edit(let entry):
-            return "edit-\(entry.id)"
+        case .edit(let id):
+            return "edit-\(id)"
         }
     }
 
@@ -39,8 +39,8 @@ public enum EntryRoute: Hashable, Identifiable {
             return Self.createZoomSourceID
         case .createWithContent:
             return Self.createFromChatZoomSourceID
-        case .edit(let entry):
-            return "edit-\(entry.id.uuidString)"
+        case .edit(let id):
+            return "edit-\(id.uuidString)"
         }
     }
 }

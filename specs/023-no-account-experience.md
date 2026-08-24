@@ -100,7 +100,9 @@ ATTACH-06), and **"Delete everything"** replacing Delete Account — wired to
 `REQ-DATA-013`'s five-store deletion (interim scope before spec 015 lands: local
 entry storage + Keychain security/encryption entries + UserDefaults + caches;
 015 extends it to SwiftData/Spotlight/TTS-cache/CloudKit and owns the mechanics;
-this spec owns the UI entry point and copy). Sign Out row deleted.
+spec [040](040-ipad-backend-readiness.md) includes `StoredProfile` and issues
+the CloudKit wipe). **iCloud is not a Memento account** — it is the user's
+Apple ID private DB for replica only. Sign Out row deleted.
 **Acceptance:** post-deletion cold launch is indistinguishable from a fresh
 install; `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/` returns
 nothing.
@@ -115,6 +117,8 @@ check): if the real TestFlight user count is ~zero, **document and skip** the
 remote-entry pull per the source doc's own escape clause; otherwise a one-time
 pull while the session is still valid, re-materializing entries locally under
 their existing UUIDs before the server is decommissioned.
+Local encrypted files / `LocalChatStore` / `LocalProfileStore` import into
+SwiftData once (spec 040 R4); the other device only ever sees mirrored rows.
 **Acceptance:** upgrade fixture (session + entries + PIN + name) lands directly
 in an unchanged Journal with lock intact; Keychain entries byte-identical
 before/after migration.

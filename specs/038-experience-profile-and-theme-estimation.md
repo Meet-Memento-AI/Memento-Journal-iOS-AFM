@@ -19,8 +19,12 @@ visible, not only hidden inside prompts.
   chars in ask prompts; lens ≤ 400 chars.
 - **R4 Fallback.** If AFM is unavailable or fails, use keyword overlap against
   catalog synonyms, then browse-all. Onboarding must still complete offline.
-- **R5 Local only.** ExperienceProfile persists in `LocalProfileStore` /
-  UserDefaults. No accounts, no sync. Delete-everything clears the profile.
+- **R5 Profile persistence.** ExperienceProfile persists locally and
+  replicates as `StoredProfile` through the user's CloudKit private DB
+  (spec [040](040-ipad-backend-readiness.md) R2) so iPhone and iPad share
+  name, about, goals, themes, `aiEnabled`, and `processOnDeviceOnly`. No
+  Memento account. Delete-everything clears the profile on-device and in
+  CloudKit.
 - **R6 Prompt composition.** Companion/notebook Ask prompts (`ask@14`) use
   version suffix `+p4` when an ExperienceProfile is present. **Phatic and
   continuer** (`chat-light@4`, spec 039) MUST NOT append L1. Names, if stored,

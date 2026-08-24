@@ -227,7 +227,7 @@ Completeness."*
 | 8. Substandard user interface | 🟢 Liquid Glass adoption, design system, HIG-aligned |
 | 9. Web clippings / aggregators | 🟢 N/A |
 | 10. Copycat apps | 🟢 N/A |
-| 11. **Misleading users** | 🟠 The `REQ-POS-001` risk exactly — overstating the privacy boundary. Held by CI over both app strings and store copy (`04` §"three rules") |
+| 11. **Misleading users** | 🟠 The `REQ-POS-001` risk exactly — overstating the privacy boundary (including "100% on-device" while CloudKit private replica and PCC exist). Held by CI over both app strings and store copy (`04` §"three rules") |
 | 12. Insufficient lasting value | 🟢 N/A |
 | 13. **Submitted by the incorrect entity** | 🟠 Guideline 5.1.1(ix). Individual account + journaling = fine. Individual account + health positioning = rejection (`01` §1.4.1) |
 

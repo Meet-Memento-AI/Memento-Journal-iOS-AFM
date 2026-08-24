@@ -109,13 +109,18 @@ struct EntryEditorDestination: View {
                 entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
                 onSaved()
             }
-        case .edit(let entry):
-            AddEntryView(state: .edit(entry)) { title, text, photoAction in
-                var updated = entry
-                updated.title = title
-                updated.text = text
-                entryViewModel.updateEntry(updated, photoAction: photoAction)
-                onSaved()
+        case .edit(let id):
+            if let entry = entryViewModel.entry(id: id) {
+                AddEntryView(state: .edit(entry)) { title, text, photoAction in
+                    var updated = entry
+                    updated.title = title
+                    updated.text = text
+                    entryViewModel.updateEntry(updated, photoAction: photoAction)
+                    onSaved()
+                }
+            } else {
+                Color.clear
+                    .onAppear { onSaved() }
             }
         }
     }

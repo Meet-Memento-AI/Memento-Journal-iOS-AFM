@@ -10,8 +10,16 @@ final class JournalServiceTests: XCTestCase {
         JournalService(encryptionService: EncryptionService(keychain: InMemoryKeychainStore()))
     }
 
+    override func setUp() {
+        super.setUp()
+        MementoDataStore.clearImportFlag()
+        JournalContainer.resetCacheForTests(to: JournalContainer.makeInMemory())
+    }
+
     override func tearDown() {
         LocalJournalStorage.shared.clearAll()
+        MementoDataStore.clearImportFlag()
+        JournalContainer.resetCacheForTests(to: nil)
         super.tearDown()
     }
 

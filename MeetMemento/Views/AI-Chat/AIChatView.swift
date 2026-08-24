@@ -24,6 +24,7 @@ public struct AIChatView: View {
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @ObservedObject var viewModel: ChatViewModel
     @StateObject private var narrationCoordinator = NarrationCoordinator()
@@ -151,7 +152,10 @@ public struct AIChatView: View {
         .navigationBarBackButtonHidden(true)
         .onDisappear {
             stopNarration()
-            viewModel.cancelActiveTasks()
+            // Spec 040 R5: keep in-flight work on regular-width (later split view).
+            if horizontalSizeClass != .regular {
+                viewModel.cancelActiveTasks()
+            }
             viewModel.markAllMessagesSeen()
         }
         .onChange(of: scenePhase) { _, newPhase in

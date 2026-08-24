@@ -236,17 +236,19 @@ class ChatService {
             // Persist locally so the conversation survives relaunch and shows in the
             // history list (multiple chat windows). The assistant turn is stored in
             // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
-            LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
-            LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
-            LocalChatStore.shared.appendMessage(
-                role: "assistant",
-                content: Self.assistantContentJSON(
+            persistTurnPair(
+                conversationId: conversationId,
+                title: String(text.prefix(100)),
+                userText: text,
+                assistantJSON: Self.assistantContentJSON(
                     body: result.body, heading1: result.heading1, heading2: result.heading2,
                     sources: sources, promptVersion: result.promptVersion,
                     modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
                     wasDegraded: result.wasDegraded
                 ),
-                to: conversationId
+                zone: result.zoneUsed.identifier,
+                wasDegraded: result.wasDegraded,
+                promptVersion: result.promptVersion
             )
 
             return ChatResponse(
@@ -299,13 +301,12 @@ class ChatService {
 
         let body = error.errorDescription ?? ""
 
-        LocalChatStore.shared.upsertSession(id: conversationId, title: String(userText.prefix(100)))
-        LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
-        LocalChatStore.shared.appendMessage(
-            role: "assistant",
-            content: assistantContentJSON(body: body, heading1: nil, heading2: nil, sources: [],
-                                          safetyPresentation: presentation),
-            to: conversationId
+        persistTurnPair(
+            conversationId: conversationId,
+            title: String(userText.prefix(100)),
+            userText: userText,
+            assistantJSON: assistantContentJSON(body: body, heading1: nil, heading2: nil, sources: [],
+                                                safetyPresentation: presentation)
         )
 
         return ChatResponse(
@@ -368,17 +369,19 @@ class ChatService {
                     // `.final` of a new conversation and must see the upsert.
                     LiveTurnClock.shared.start(.persist)
                     let persistState = PerfSignposts.chatTurn.beginInterval("persist.turn")
-                    LocalChatStore.shared.upsertSession(id: conversationId, title: String(text.prefix(100)))
-                    LocalChatStore.shared.appendMessage(role: "user", content: text, to: conversationId)
-                    LocalChatStore.shared.appendMessage(
-                        role: "assistant",
-                        content: Self.assistantContentJSON(
-                body: result.body, heading1: result.heading1, heading2: result.heading2,
-                sources: sources, promptVersion: result.promptVersion,
-                modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
-                wasDegraded: result.wasDegraded
-            ),
-                        to: conversationId
+                    persistTurnPair(
+                        conversationId: conversationId,
+                        title: String(text.prefix(100)),
+                        userText: text,
+                        assistantJSON: Self.assistantContentJSON(
+                            body: result.body, heading1: result.heading1, heading2: result.heading2,
+                            sources: sources, promptVersion: result.promptVersion,
+                            modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
+                            wasDegraded: result.wasDegraded
+                        ),
+                        zone: result.zoneUsed.identifier,
+                        wasDegraded: result.wasDegraded,
+                        promptVersion: result.promptVersion
                     )
                     self.rememberUserImages(images, for: conversationId)
                     PerfSignposts.chatTurn.endInterval("persist.turn", persistState)
@@ -422,6 +425,7 @@ class ChatService {
     func clearHistory() async throws {
         forgetAllSessionUserImages()
         LocalChatStore.shared.clear()
+        MementoDataStore.deleteAllConversations()
                 AppLogger.log("🗑️ [ChatService] Local chat history cleared")
     }
 
@@ -429,14 +433,18 @@ class ChatService {
 
     /// All chat sessions, most recently updated first.
     func fetchSessions() async throws -> [ChatSession] {
-        let sessions = LocalChatStore.shared.sessions()
+        let sessions = MementoDataStore.hasCompletedLegacyImport
+            ? MementoDataStore.conversations()
+            : LocalChatStore.shared.sessions()
                 AppLogger.log("📋 [ChatService] Fetched \(sessions.count) local sessions")
         return sessions
     }
 
     /// All messages for a session, oldest first.
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO] {
-        let messages = LocalChatStore.shared.messages(for: sessionId)
+        let messages = MementoDataStore.hasCompletedLegacyImport
+            ? MementoDataStore.turns(conversationId: sessionId)
+            : LocalChatStore.shared.messages(for: sessionId)
                 AppLogger.log("📖 [ChatService] Loaded \(messages.count) local messages for \(sessionId.uuidString.prefix(8))")
         return messages
     }
@@ -445,7 +453,34 @@ class ChatService {
     func deleteSession(sessionId: UUID) async throws {
         forgetSessionUserImages(sessionId)
         LocalChatStore.shared.deleteSession(sessionId)
+        MementoDataStore.deleteConversation(id: sessionId)
                 AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
+    }
+
+    private func persistTurnPair(
+        conversationId: UUID,
+        title: String,
+        userText: String,
+        assistantJSON: String,
+        zone: String = "z0Device",
+        wasDegraded: Bool = false,
+        promptVersion: String = ""
+    ) {
+        MementoDataStore.upsertConversation(id: conversationId, title: title)
+        MementoDataStore.appendTurn(conversationId: conversationId, role: "user", text: userText)
+        MementoDataStore.appendTurn(
+            conversationId: conversationId,
+            role: "assistant",
+            text: assistantJSON,
+            zoneRaw: zone,
+            wasDegraded: wasDegraded,
+            promptVersion: promptVersion
+        )
+        if !MementoDataStore.hasCompletedLegacyImport {
+            LocalChatStore.shared.upsertSession(id: conversationId, title: title)
+            LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
+            LocalChatStore.shared.appendMessage(role: "assistant", content: assistantJSON, to: conversationId)
+        }
     }
 
     /// Recent store history with in-session photo bytes reattached to user turns.
@@ -496,7 +531,15 @@ class ChatService {
     /// The model-facing history for a conversation, rebuilt from the store's
     /// trailing records (single source of truth, spec 017 R9).
     static func recentHistory(for conversationId: UUID) -> [ChatTurn] {
-        LocalChatStore.shared
+        if MementoDataStore.hasCompletedLegacyImport {
+            return Array(MementoDataStore.turns(conversationId: conversationId).suffix(historyMessageLimit))
+                .map { dto in
+                    dto.role == "user"
+                        ? ChatTurn(role: .user, text: dto.content)
+                        : ChatTurn(role: .assistant, text: unwrapAssistantBody(dto.content))
+                }
+        }
+        return LocalChatStore.shared
             .recentTurnRecords(for: conversationId, limit: historyMessageLimit)
             .map { record in
                 record.role == "user"

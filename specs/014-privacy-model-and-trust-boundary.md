@@ -61,8 +61,10 @@ enforces that every content-touching operation states where it ran:
 /// receipts + anonymous ID only, spec 021) never carries anything this
 /// enum tags.
 enum TrustZone: Equatable, Codable {
-    /// Never leaves the device. Works in airplane mode. Transcription,
+    /// Never leaves this device. Works in airplane mode. Transcription,
     /// entry reflection, mood/tag inference, retrieval, search, TTS.
+    /// Multi-device replica of journals/chats/profile is the user's
+    /// CloudKit private DB (Z1, spec 040) — not a Memento account.
     case z0Device
 
     /// Leaves the device to Apple's attested infrastructure, carrying
@@ -134,10 +136,10 @@ async flows — this one is the quota lifecycle a Z1 affordance moves through):
 **Error taxonomy** (design copy, not developer strings — architecture §17):
 | State | Copy (draft — final wording owned by design) |
 |---|---|
-| `.unavailable` | *"This reflection runs on your iPhone — deeper synthesis needs a newer device."* |
+| `.unavailable` | *"This reflection runs on this device — deeper synthesis needs a newer device."* |
 | `.approachingLimit` | *"Nearing today's reflection limit."* (persistent, dismissible, never a modal alert — `technology/02-private-cloud-compute.md` §6, Apple's own explicit guidance) |
 | `.limitReached`, pre-degradation | *"Today's deeper-reflection limit is used up."* |
-| Degraded Z1→Z0 (post-hoc, rendered on the artifact itself) | *"Written on your iPhone. Shorter than usual — your daily reflection allowance is used up until tomorrow."* (verbatim draft already in the tech doc; this spec adopts it as the canonical degradation string, editable by design but not by each surface independently) |
+| Degraded Z1→Z0 (post-hoc, rendered on the artifact itself) | *"Written on this device. Shorter than usual — your daily reflection allowance is used up until tomorrow."* (`DeviceCopy.writtenOnDevice`; editable by design but not by each surface independently) |
 
 **Degradation behavior** (architecture §17's requirement, non-negotiable per
 `technology/02-private-cloud-compute.md` §8): Z1→Z0 degradation is attempted

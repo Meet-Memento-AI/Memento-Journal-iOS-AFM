@@ -52,6 +52,12 @@ page commits, whether swiped or tapped (`RootPager.swift:82-86`), preserving
 `RootPage` replaces `JournalTopTab`, whose `title` strings existed only to label
 the pills.
 
+**Compact-width only.** `RootPager` and `ChatHeaderActionCluster` are the
+current compact chrome. Regular-width selection IDs (`selectedEntryId`,
+`EntryRoute.edit(UUID)`, `AppNavigationState`) are owned by spec
+[040](040-ipad-backend-readiness.md). This spec does not implement iPad
+split view.
+
 ### R2. Mirrored corner icons replace the pills
 **Acceptance:** each page carries a one-tap equivalent of the swipe, in the corner
 facing its destination so the two agree directionally — Journal's top-right chat

@@ -5,7 +5,7 @@ tier: P3
 status: parked
 effort: n/a — harvest items into new numbered specs when picked up
 depends_on: []
-findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, structured-logging-platform, self-hosted-runner-migration, multi-device-sync-cloudkit]
+findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, structured-logging-platform, self-hosted-runner-migration]
 ---
 
 # 012 — Post-Launch Backlog (Parking Lot)
@@ -91,15 +91,11 @@ chat. This item's adversarial-evaluation work moves into spec 019's Requirements
 (and/or spec [022](022-evaluation-and-quality-study.md)'s adversarial persona-
 adherence pass) rather than staying parked here.
 
-### 10. Multi-device sync conflict resolution — reworded 2026-07-23
-~~Spec 007 ships last-write-wins.~~ Spec 007 is obsolete (superseded by spec
-[015](015-data-layer-swiftdata-cloudkit.md)); its custom last-write-wins queue
-premise no longer applies. 2.0's CloudKit private-DB mirroring (`REQ-DATA-001`)
-handles multi-device sync via CloudKit's native conflict resolution instead —
-verify during spec 015 that CloudKit's native behavior is acceptable for this
-product's needs; if not, revisit with proper conflict handling then. Lower
-urgency than before (CloudKit's mechanism is a reasonable default, not an
-acknowledged gap).
+### 10. ~~Multi-device sync conflict resolution~~ — discharged 2026-08-23
+CloudKit private-DB mirroring uses native last-writer-wins (`REQ-DATA-001`).
+Specs [015](015-data-layer-swiftdata-cloudkit.md) R2 and
+[040](040-ipad-backend-readiness.md) R2 adopt that as the product policy.
+No custom conflict UI. Reopen only if LWW proves insufficient in use.
 
 ### 11. Launch-screen content design
 The 2026-07 merge adopted upstream's spinner + "Starting…" launch loading view over

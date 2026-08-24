@@ -77,7 +77,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "iphone",
                 title: "Stored On Your Device",
-                description: "Your journal lives on your iPhone, encrypted at rest. There's no account, no server copy, and no cross-device sync."
+                description: "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account. If you are signed into iCloud, a private replica can appear on your other Apple devices."
             )
 
             SettingsRowDivider()
@@ -85,7 +85,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "brain.head.profile",
                 title: "Ground the AI Companion",
-                description: "When you chat, relevant entries are retrieved on your iPhone and used as context, so answers come from what you actually wrote."
+                description: "When you chat, relevant entries are retrieved on \(DeviceCopy.thisDevice) and used as context, so answers come from what you actually wrote."
             )
 
             SettingsRowDivider()
@@ -103,7 +103,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "iphone.gen3",
                 title: "On-Device Processing",
-                description: "Speech-to-text, search, retrieval, and the AI companion all run on your iPhone using Apple's on-device models. No third-party AI service is used, and nothing you write is used to train any model."
+                description: "Speech-to-text, search, retrieval, and lighter companion turns run on \(DeviceCopy.thisDevice). Heavier reflections may use Apple's Private Cloud Compute, which stores nothing. No third-party AI. PIN, audio, and search index stay on this device."
             )
 
             SettingsRowDivider()
@@ -121,7 +121,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "lock.shield.fill",
                 title: "Encrypted at Rest",
-                description: "Your journal is encrypted on your device with a key held in the device Keychain. There is no server copy anywhere."
+                description: "On \(DeviceCopy.thisDevice), the journal uses Data Protection. iCloud, when signed in, holds a private replica we cannot read. There is no Memento server copy."
             )
 
             SettingsRowDivider()

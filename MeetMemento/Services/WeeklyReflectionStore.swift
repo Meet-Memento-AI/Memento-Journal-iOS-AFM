@@ -23,6 +23,7 @@ enum WeeklyReflectionStore {
     static func save(body: String, weekStart: Date) {
         UserDefaults.standard.set(body, forKey: bodyKey)
         UserDefaults.standard.set(weekStart, forKey: weekStartKey)
+        MementoDataStore.upsertWeeklyReflection(body: body, weekStart: weekStart)
     }
 
     static func clear() {

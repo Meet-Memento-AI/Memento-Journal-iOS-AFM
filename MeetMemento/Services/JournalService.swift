@@ -1,11 +1,8 @@
 
 import Foundation
 
-/// On-device journal persistence (no accounts, spec 023). Entries live
-/// exclusively in encrypted local storage — this service has no backend
-/// dependency, so there is no network or API key in the path. The
-/// server-backed CRUD that used to live here was dead code from the
-/// pre-023 architecture and has been removed.
+/// Journal persistence (spec 023 / 040). After legacy import, live writes
+/// go to SwiftData + CloudKit private DB — not EncryptedJournals files.
 class JournalService {
     static let shared = JournalService()
 
@@ -67,6 +64,18 @@ class JournalService {
         updatedAt: Date,
         hasPhoto: Bool = false
     ) -> Bool {
+        MementoDataStore.upsertEntry(
+            id: entryId,
+            title: title,
+            transcript: content,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            hasPhoto: hasPhoto
+        )
+        if MementoDataStore.hasCompletedLegacyImport {
+            noteMutation()
+            return true
+        }
         let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt, hasPhoto: hasPhoto)
         guard let json = try? JSONEncoder().encode(envelope),
               let jsonString = String(data: json, encoding: .utf8),
@@ -105,8 +114,15 @@ class JournalService {
     /// correct, but only this path purges the persisted embedding.
     func deleteEntryLocally(entryId: UUID) {
         LocalJournalStorage.shared.deleteEncrypted(entryId: entryId)
+        MementoDataStore.deleteEntry(id: entryId)
         EmbeddingService.shared.removeEmbeddings(for: [entryId])
         noteMutation()
+    }
+
+    /// File-store decrypt used only by `LegacyStoreImporter` so import cannot
+    /// recurse into SwiftData.
+    func loadLegacyFilesOnly(legacyPIN: String?) -> [Entry] {
+        performFullLoad(legacyPIN: legacyPIN)
     }
 
     /// Loads and decrypts every entry stored locally — the sole source of
@@ -128,6 +144,9 @@ class JournalService {
     /// picked up next launch. Pass `legacyPIN: nil` once no legacy content can
     /// exist.
     func loadAllEntriesLocally(legacyPIN: String?) -> [Entry] {
+        if MementoDataStore.hasCompletedLegacyImport {
+            return MementoDataStore.allEntries()
+        }
         if let cached = cachedEntriesIfFresh(legacyPIN: legacyPIN) { return cached }
 
         // In-flight dedupe (spec 029 Amendment A, audit F7): a cold cache can

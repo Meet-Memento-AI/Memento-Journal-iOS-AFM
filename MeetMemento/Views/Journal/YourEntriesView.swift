@@ -200,17 +200,17 @@ struct YourEntriesView: View {
                                     date: entry.createdAt,
                                     photoImage: thumbnail(for: entry),
                                     onTap: {
-                                        onNavigateToEntry(.edit(entry))
+                                        onNavigateToEntry(.edit(entry.id))
                                     },
                                     onEditTapped: {
-                                        onNavigateToEntry(.edit(entry))
+                                        onNavigateToEntry(.edit(entry.id))
                                     },
                                     onDeleteTapped: {
                                         entryToDelete = entry
                                         showDeleteConfirmation = true
                                     }
                                 )
-                                .entryZoomSource(EntryRoute.edit(entry).zoomSourceID)
+                                .entryZoomSource(EntryRoute.edit(entry.id).zoomSourceID)
                                 .frame(maxWidth: .infinity) // Stretch to full width
                                 .id(entry.id) // Explicit ID for better diffing
                                 // Keyed on updatedAt as well as id: replacing an

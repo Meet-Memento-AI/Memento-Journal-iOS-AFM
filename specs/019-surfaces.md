@@ -356,7 +356,7 @@ crisis-adjacent input detected at any point ──▶ resourceCard (R7)
 |---|---|
 | `doneGrounded-empty` | *"I don't find anything about that. I searched your entries from March to July."* |
 | `failed` turn | *"Failed to send · Retry"* (PRES-047, preserved verbatim) |
-| Degraded retrieval (016 R9) | *"Search may be incomplete while your iPhone finishes indexing."* |
+| Degraded retrieval (016 R9) | *"Search may be incomplete while this device finishes indexing."* (`DeviceCopy.indexingIncomplete`) |
 | Quota-degraded turn | 014 R2's canonical degradation copy — never forked here |
 
 **Acceptance (Given/When/Then):**

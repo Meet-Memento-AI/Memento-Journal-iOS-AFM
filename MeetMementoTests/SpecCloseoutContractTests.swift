@@ -162,7 +162,29 @@ final class AppIntentContractTests: XCTestCase {
 
 final class SchemaMirroringComplianceTests: XCTestCase {
     func test_schemaContainsRequiredModels() {
-        XCTAssertEqual(JournalSchema.models.count, 6)
+        XCTAssertEqual(JournalSchema.models.count, 7)
+        XCTAssertTrue(JournalSchema.models.contains { $0 == StoredProfile.self })
+    }
+
+    func test_storedProfileDefaultsAreCloudKitCompatible() {
+        let profile = StoredProfile()
+        XCTAssertEqual(profile.firstName, "")
+        XCTAssertEqual(profile.lastName, "")
+        XCTAssertEqual(profile.personalizationText, "")
+        XCTAssertTrue(profile.aiEnabled)
+        XCTAssertFalse(profile.processOnDeviceOnly)
+        XCTAssertNil(profile.experienceJSON)
+    }
+
+    func test_mirroredModelsHaveDefaultsNotUniques() {
+        let entry = StoredEntry()
+        XCTAssertEqual(entry.transcript, "")
+        XCTAssertEqual(entry.title, "")
+        let conversation = StoredConversation()
+        XCTAssertEqual(conversation.title, "")
+        let turn = StoredTurn()
+        XCTAssertEqual(turn.text, "")
+        XCTAssertEqual(turn.roleRaw, TurnRole.user.rawValue)
     }
 
     func test_trustZoneRoundTrip() throws {
@@ -220,8 +242,8 @@ final class EntryZoomSourceIDTests: XCTestCase {
     }
 
     func test_editZoomsFromThatEntry() {
-        let entry = Entry(id: UUID(), title: "T", text: "Body text for the card.")
-        XCTAssertEqual(EntryRoute.edit(entry).zoomSourceID, "edit-\(entry.id.uuidString)")
+        let id = UUID()
+        XCTAssertEqual(EntryRoute.edit(id).zoomSourceID, "edit-\(id.uuidString)")
     }
 }
 

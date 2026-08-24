@@ -2,16 +2,14 @@
 //  Entry.swift
 //  MeetMemento
 //
-//  The journal entry model used throughout the app. The app is on-device only
-//  (no accounts, no backend), so this is the single entry model — persisted as
-//  an encrypted local envelope by JournalService. (A separate server DTO used
-//  to exist for the server backend; it was removed with the backend.)
+//  UI projection of a journal entry (spec 040). Persistence is SwiftData
+//  `StoredEntry` mirrored to the user's CloudKit private DB. No Memento account.
 //
 
 import Foundation
 
-/// Journal entry model for UI rendering and local persistence. Entries live
-/// only on this device — there is no server and therefore no sync state.
+/// Journal entry model for UI rendering. The device is the system of record;
+/// CloudKit private DB is the user's replica, not a Memento server.
 public struct Entry: Identifiable, Hashable {
     public let id: UUID
     public var title: String

@@ -241,7 +241,7 @@ Z1→Z0 degradation is attempted automatically, completed successfully, and
 disclosed (`REQ-INT-009`): persisted in spec 015's `Reflection.zone` /
 `Turn.wasDegraded` fields and rendered via spec 014 R2's
 zone-at-point-of-use component. The canonical degradation copy is **owned
-by 014 R2's error-taxonomy table** ("Written on your iPhone. Shorter than
+by 014 R2's error-taxonomy table** ("Written on this device. Shorter than
 usual — your daily reflection allowance is used up until tomorrow.") — this
 spec consumes it, never forks it per surface.
 
