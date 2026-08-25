@@ -360,7 +360,15 @@ struct SettingsView: View {
             return
         }
         do {
-            exportURLs = try JournalExporter.writeExportFiles(entries: ownEntries)
+            var urls = try JournalExporter.writeExportFiles(entries: ownEntries)
+            if let feedback = try AnswerFeedbackStore.shared.exportJSONData() {
+                let stamp = Date().formatted(as: "yyyy-MM-dd")
+                let feedbackURL = JournalExporter.exportDirectory
+                    .appendingPathComponent("Memento-Answer-Feedback-\(stamp).json")
+                try feedback.write(to: feedbackURL, options: [.atomic, .completeFileProtection])
+                urls.append(feedbackURL)
+            }
+            exportURLs = urls
             showExportSheet = true
         } catch {
             AppLogger.log("⚠️ [Settings] Journal export failed: \(error.localizedDescription)")

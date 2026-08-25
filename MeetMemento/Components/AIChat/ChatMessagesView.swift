@@ -337,6 +337,9 @@ struct ChatMessagesView: View {
     private var emptyStateLayer: some View {
         emptyState
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Same 16pt column as the transcript. Padding is ignored under
+            // RootPageScaffold's `.ignoresSafeArea()`; this is not.
+            .rootEdgeInset()
             .opacity(showsEmptyState ? 1 : 0)
             .allowsHitTesting(showsEmptyState)
             .accessibilityHidden(!showsEmptyState)
@@ -658,23 +661,27 @@ struct ChatMessagesView: View {
             onThumbsDown: message.isFromUser ? nil : {
                 viewModel.toggleThumbsDown(for: message.id)
             },
+            isReported: viewModel.isReported(message.id),
+            onReportAnswer: message.isFromUser ? nil : {
+                viewModel.beginFeedback(messageID: message.id, source: .report)
+            },
             onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil,
             onAnimationComplete: { viewModel.markMessageSeen(message.id) }
         )
     }
 
     private var emptyState: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: Spacing.md) {
+            Spacer(minLength: 0)
 
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.md) {
                 VStack(spacing: Spacing.xs) {
                     Image("LaunchLogo")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 48, height: 48)
 
-                    Text(emptyStateHeading)
+                    Text("Let\u{2019}s dive deeper\ninto your journal")
                         .font(type.h2)
                         .foregroundStyle(PrimaryScale.primary600)
                         .multilineTextAlignment(.center)
@@ -690,46 +697,23 @@ struct ChatMessagesView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, AppHeaderMetrics.edgeInset)
                 } else if !suggestions.isEmpty {
-                    // Starter prompts. `AIChatView` has been computing these on
-                    // every appear since they were written — rotating the pool
-                    // and reading the local profile — but nothing rendered them,
-                    // so the whole feature (ThemeAwareChatStarters,
-                    // AISuggestionPrompts.json, AISuggestionCard) was paid for
-                    // and never shown. Only offered when there is something to
-                    // ask *about*; the no-entries copy above takes precedence.
-                    //
-                    // Horizontal, because `AISuggestionCard` is a fixed
-                    // 164×210 — three of them stacked is 630pt and would push
-                    // the heading off screen.
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: Spacing.sm) {
+                        HStack(alignment: .top, spacing: Spacing.md) {
                             ForEach(suggestions, id: \.self) { suggestion in
                                 AISuggestionCard(suggestion: suggestion) {
                                     onSuggestionTap(suggestion)
                                 }
                             }
                         }
-                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
                     }
                     .scrollClipDisabled()
                 }
             }
             .frame(maxWidth: .infinity)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
         .padding(.top, AppHeaderMetrics.contentTopPadding)
-    }
-
-    /// Greets by name when onboarding captured one. `ChatEmptyState` was written
-    /// to do this and was never rendered, so the shipping empty state had been
-    /// dropping the name since it was introduced.
-    private var emptyStateHeading: String {
-        guard let name = viewModel.userName?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !name.isEmpty else {
-            return "Let\u{2019}s dive deeper\ninto your journal"
-        }
-        return "Welcome \(name),\nlet\u{2019}s dive deeper into your journal"
     }
 }
 

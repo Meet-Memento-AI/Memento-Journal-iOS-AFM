@@ -24,6 +24,7 @@ specs/
 ├── 038-*.md           ← experience profile and theme estimation (L1 lens)
 ├── 039-*.md           ← reply channels and phatic generation (effort curve, chat-light@4)
 ├── 040-*.md           ← iPad backend readiness (SwiftData live writes, CloudKit private replica, selection IDs)
+├── 041-*.md           ← in-chat answer feedback (persisted thumbs, reason sheet, report overflow)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

@@ -24,6 +24,8 @@ public struct ChatMessageBubble: View {
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
+    var isReported: Bool
+    var onReportAnswer: (() -> Void)?
     /// spec-010: tapped when a failed-to-send user message's retry row is tapped.
     var onRetry: (() -> Void)?
     /// Forwarded from AIOutputComponent when the reply finishes typing.
@@ -44,6 +46,8 @@ public struct ChatMessageBubble: View {
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
         onThumbsDown: (() -> Void)? = nil,
+        isReported: Bool = false,
+        onReportAnswer: (() -> Void)? = nil,
         onRetry: (() -> Void)? = nil,
         onAnimationComplete: (() -> Void)? = nil
     ) {
@@ -58,6 +62,8 @@ public struct ChatMessageBubble: View {
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
+        self.isReported = isReported
+        self.onReportAnswer = onReportAnswer
         self.onRetry = onRetry
         self.onAnimationComplete = onAnimationComplete
     }
@@ -101,32 +107,39 @@ public struct ChatMessageBubble: View {
                 CrisisResourceCard()
             }
         } else if message.safetyPresentation == .hardRefuse {
-            // Authored refusal copy only — no typewriter, citations, or feedback
-            // actions (regenerating a hard refuse is not a meaningful affordance).
-            Text(message.content)
-                .font(type.body1)
-                .foregroundStyle(theme.foreground)
-                .lineSpacing(type.bodyLineSpacing)
+            // Authored refusal copy — overflow is still useful so a bad refuse
+            // can be flagged (spec 041 R1). No typewriter, citations, or thumbs.
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text(message.content)
+                    .font(type.body1)
+                    .foregroundStyle(theme.foreground)
+                    .lineSpacing(type.bodyLineSpacing)
+                if let onReportAnswer {
+                    ReplyOverflowMenu(isReported: isReported, onReportAnswer: onReportAnswer)
+                }
+            }
         } else if message.safetyPresentation == .emptyObservation {
-            // Also authored copy, but unlike a hard refuse this one is worth
-            // retrying — the model simply produced nothing for this turn. So:
-            // muted text plus a single Try again, and none of copy / read aloud
-            // / thumbs, which used to render here because the presentation was
-            // `.none` and this fell through to the full AIOutputComponent bar.
+            // Authored copy plus Try again. Overflow sits beside Try again so a
+            // failed generation can be reported (spec 041 R1).
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(message.content)
                     .font(type.body1)
                     .foregroundStyle(theme.mutedForeground)
                     .lineSpacing(type.bodyLineSpacing)
-                if let onRedo {
-                    Button(action: onRedo) {
-                        Label("Try again", systemImage: "arrow.clockwise")
-                            .font(type.body2Medium)
-                            .foregroundStyle(theme.accent)
+                HStack(spacing: 8) {
+                    if let onRedo {
+                        Button(action: onRedo) {
+                            Label("Try again", systemImage: "arrow.clockwise")
+                                .font(type.body2Medium)
+                                .foregroundStyle(theme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Try again")
+                        .accessibilityHint("Double-tap to ask again")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Try again")
-                    .accessibilityHint("Double-tap to ask again")
+                    if let onReportAnswer {
+                        ReplyOverflowMenu(isReported: isReported, onReportAnswer: onReportAnswer)
+                    }
                 }
             }
         } else if let aiContent = message.aiOutputContent, !isEmptyStreamingPlaceholder(aiContent) {
@@ -143,6 +156,8 @@ public struct ChatMessageBubble: View {
                 onRedo: onRedo,
                 onThumbsUp: onThumbsUp,
                 onThumbsDown: onThumbsDown,
+                isReported: isReported,
+                onReportAnswer: onReportAnswer,
                 onAnimationComplete: onAnimationComplete
             )
         } else {
@@ -155,8 +170,21 @@ public struct ChatMessageBubble: View {
                 // line's height, which is the gap above the loading indicator.
                 EmptyView()
             } else {
-                MarkdownBodyView(
-                    blocks: RichTextParser.parseBlocks(cleanContent, lastLineClosed: true)
+                AIOutputComponent(
+                    content: AIOutputContent(body: cleanContent),
+                    animate: animate,
+                    isStreaming: isStreaming,
+                    feedbackType: feedbackType,
+                    isSpeaking: isSpeaking,
+                    isPaused: isPaused,
+                    onCitationsTapped: onCitationsTapped,
+                    onSpeak: onSpeak,
+                    onRedo: onRedo,
+                    onThumbsUp: onThumbsUp,
+                    onThumbsDown: onThumbsDown,
+                    isReported: isReported,
+                    onReportAnswer: onReportAnswer,
+                    onAnimationComplete: onAnimationComplete
                 )
             }
         }

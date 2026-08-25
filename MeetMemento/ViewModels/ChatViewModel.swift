@@ -69,6 +69,9 @@ class ChatViewModel: ObservableObject {
     // Feedback state per message (thumbs up/down) - using Sets for boolean-like behavior
     @Published var thumbsUpMessages: Set<UUID> = []
     @Published var thumbsDownMessages: Set<UUID> = []
+    @Published var reportedMessageIDs: Set<UUID> = []
+    @Published var feedbackDraft: FeedbackDraft?
+    @Published var feedbackToast: String?
 
     /// Whether there is an active chat conversation (1+ messages)
     var hasActiveChat: Bool {
@@ -110,6 +113,7 @@ class ChatViewModel: ObservableObject {
     @Published var userName: String?
 
     private let chatService: ChatServiceProtocol
+    private let feedbackStore: AnswerFeedbackStore
     private let maxMessagesInMemory = 100
 
     /// Per-session message cache to avoid re-fetching on tab switches
@@ -152,8 +156,10 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(chatService: ChatServiceProtocol = ChatService.shared) {
+    init(chatService: ChatServiceProtocol = ChatService.shared,
+         feedbackStore: AnswerFeedbackStore = .shared) {
         self.chatService = chatService
+        self.feedbackStore = feedbackStore
         seedUITestTranscriptIfRequested()
     }
 
@@ -218,9 +224,18 @@ class ChatViewModel: ObservableObject {
     /// Extracts clean body text from potentially JSON-formatted content
     /// Handles: raw JSON strings, legacy plain text, nested JSON
     /// Also extracts sources/citations for display
-    private func extractBodyContent(from content: String, role: String) -> (body: String, aiContent: AIOutputContent?, citations: [JournalCitation]?, safety: ChatSafetyPresentation) {
+    private func extractBodyContent(from content: String, role: String) -> (
+        body: String,
+        aiContent: AIOutputContent?,
+        citations: [JournalCitation]?,
+        safety: ChatSafetyPresentation,
+        promptVersion: String?,
+        modelIdentifier: String?,
+        zone: String?,
+        wasDegraded: Bool?
+    ) {
         guard role == "assistant" else {
-            return (content, nil, nil, .none)
+            return (content, nil, nil, .none, nil, nil, nil, nil)
         }
 
         // Try parsing as generic JSON with body field and sources. One parse
@@ -234,6 +249,10 @@ class ChatViewModel: ObservableObject {
             let heading2 = json["heading2"] as? String
             let safety = (json["safety_presentation"] as? String)
                 .flatMap(ChatSafetyPresentation.init(rawValue:)) ?? .none
+            let promptVersion = json["prompt_version"] as? String
+            let modelIdentifier = json["model_identifier"] as? String
+            let zone = json["zone"] as? String
+            let wasDegraded = json["was_degraded"] as? Bool
 
             // Extract sources/citations from stored message
             var citations: [JournalCitation]? = nil
@@ -259,13 +278,13 @@ class ChatViewModel: ObservableObject {
             }
 
             let aiContent = AIOutputContent(heading1: heading1, heading2: heading2, body: body, citations: citations)
-            return (body, aiContent, citations, safety)
+            return (body, aiContent, citations, safety, promptVersion, modelIdentifier, zone, wasDegraded)
         }
 
         // Try parsing as AIOutputContent JSON (legacy format without sources)
         if let data = content.data(using: .utf8),
            let parsed = try? JSONDecoder().decode(AIOutputContent.self, from: data) {
-            return (parsed.body, parsed, parsed.citations, .none)
+            return (parsed.body, parsed, parsed.citations, .none, nil, nil, nil, nil)
         }
 
         // Check if content looks like JSON but parsing failed - try to extract body
@@ -280,7 +299,7 @@ class ChatViewModel: ObservableObject {
                     .replacingOccurrences(of: "\\n", with: "\n")
                 if !extracted.isEmpty {
                     let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: extracted)
-                    return (extracted, aiContent, nil, .none)
+                    return (extracted, aiContent, nil, .none, nil, nil, nil, nil)
                 }
             }
 
@@ -288,7 +307,7 @@ class ChatViewModel: ObservableObject {
             AppLogger.log("[ChatViewModel] Raw JSON detected but body extraction failed", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
-            return (fallbackBody, aiContent, nil, .none)
+            return (fallbackBody, aiContent, nil, .none, nil, nil, nil, nil)
         }
 
         // Final check: if content still looks like raw JSON (starts with '{'), sanitize
@@ -297,12 +316,12 @@ class ChatViewModel: ObservableObject {
             AppLogger.log("[ChatViewModel] Unexpected JSON-like content in message", type: .error)
             let fallbackBody = "I had trouble processing this response. Please try again."
             let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: fallbackBody)
-            return (fallbackBody, aiContent, nil, .none)
+            return (fallbackBody, aiContent, nil, .none, nil, nil, nil, nil)
         }
 
         // Not JSON - return as-is (legacy plain text)
         let aiContent = AIOutputContent(heading1: nil, heading2: nil, body: content)
-        return (content, aiContent, nil, .none)
+        return (content, aiContent, nil, .none, nil, nil, nil, nil)
     }
 
     // MARK: - Send Message
@@ -633,22 +652,27 @@ class ChatViewModel: ObservableObject {
                 // silently downgrading it to prose) all come from the same
                 // extraction (spec 029 Amendment A — this used to parse the
                 // JSON twice per assistant message).
-                let (body, aiContent, citations, safety) = extractBodyContent(from: dto.content, role: dto.role)
+                let extracted = extractBodyContent(from: dto.content, role: dto.role)
 
-                if dto.role == "assistant", let aiContent = aiContent {
+                if dto.role == "assistant", let aiContent = extracted.aiContent {
                     // Loaded messages: isNew = false (default) - no animation
                     // Citations are now persisted and extracted from stored message
                     return ChatMessage.aiMessage(
+                        id: dto.id,
                         heading1: aiContent.heading1,
                         heading2: aiContent.heading2,
-                        body: body,
-                        citations: citations,
-                        safetyPresentation: safety
+                        body: extracted.body,
+                        citations: extracted.citations,
+                        safetyPresentation: extracted.safety,
+                        promptVersion: extracted.promptVersion,
+                        modelIdentifier: extracted.modelIdentifier,
+                        zone: extracted.zone,
+                        wasDegraded: extracted.wasDegraded
                     )
                 }
 
                 // User messages: isNew = false (default)
-                return ChatMessage(content: dto.content, isFromUser: dto.role == "user")
+                return ChatMessage(id: dto.id, content: dto.content, isFromUser: dto.role == "user")
             }
             messages = loadedMessages
             // Cache the loaded messages
@@ -678,6 +702,8 @@ class ChatViewModel: ObservableObject {
         inputText = ""
         thumbsUpMessages = []
         thumbsDownMessages = []
+        reportedMessageIDs = []
+        feedbackDraft = nil
         prewarmNextTurn()
     }
 
@@ -756,60 +782,105 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Feedback
 
-    /// Toggles thumbs up for a message (boolean: on or off)
-    func toggleThumbsUp(for messageId: UUID) {
-        // Toggle the boolean state
-        if thumbsUpMessages.contains(messageId) {
-            // Turn off
-            thumbsUpMessages.remove(messageId)
-        } else {
-            // Turn on (and turn off thumbs down if it was on)
-            thumbsUpMessages.insert(messageId)
-            thumbsDownMessages.remove(messageId)
-        }
-
-        // Persist to backend (fire and forget, don't affect UI state)
-        track(Task { [weak self] in
-            guard let self else { return }
-            do {
-                if thumbsUpMessages.contains(messageId) {
-                    _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .positive)
-                } else {
-                    // Clear feedback by sending the same type again (toggle behavior on backend)
-                    _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .positive)
-                }
-            } catch {
-                AppLogger.log("[ChatViewModel] toggleThumbsUp error: \(error)", type: .error)
-            }
-        })
+    func isReported(_ messageId: UUID) -> Bool {
+        reportedMessageIDs.contains(messageId)
     }
 
-    /// Toggles thumbs down for a message (boolean: on or off)
-    func toggleThumbsDown(for messageId: UUID) {
-        // Toggle the boolean state
-        if thumbsDownMessages.contains(messageId) {
-            // Turn off
-            thumbsDownMessages.remove(messageId)
-        } else {
-            // Turn on (and turn off thumbs up if it was on)
-            thumbsDownMessages.insert(messageId)
+    /// Toggles thumbs up. Persists immediately (spec 041 R2).
+    func toggleThumbsUp(for messageId: UUID) {
+        if thumbsUpMessages.contains(messageId) {
             thumbsUpMessages.remove(messageId)
+            persistFeedback(
+                messageID: messageId,
+                rating: .none,
+                flaggedForReview: isReported(messageId),
+                category: isReported(messageId) ? feedbackStore.feedback(for: messageId)?.category : nil,
+                note: isReported(messageId) ? feedbackStore.feedback(for: messageId)?.note : nil,
+                source: .thumbsUp
+            )
+        } else {
+            thumbsUpMessages.insert(messageId)
+            thumbsDownMessages.remove(messageId)
+            persistFeedback(
+                messageID: messageId,
+                rating: .positive,
+                flaggedForReview: isReported(messageId),
+                category: nil,
+                note: nil,
+                source: .thumbsUp
+            )
         }
+    }
 
-        // Persist to backend (fire and forget, don't affect UI state)
-        track(Task { [weak self] in
-            guard let self else { return }
-            do {
-                if thumbsDownMessages.contains(messageId) {
-                    _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .negative)
-                } else {
-                    // Clear feedback
-                    _ = try await (chatService as? ChatService)?.submitFeedback(messageId: messageId, type: .negative)
-                }
-            } catch {
-                AppLogger.log("[ChatViewModel] toggleThumbsDown error: \(error)", type: .error)
+    /// Opens the reason sheet unless this message is already downvoted (undo).
+    func toggleThumbsDown(for messageId: UUID) {
+        if thumbsDownMessages.contains(messageId) {
+            thumbsDownMessages.remove(messageId)
+            let reported = isReported(messageId)
+            persistFeedback(
+                messageID: messageId,
+                rating: .none,
+                flaggedForReview: reported,
+                category: reported ? feedbackStore.feedback(for: messageId)?.category : nil,
+                note: reported ? feedbackStore.feedback(for: messageId)?.note : nil,
+                source: .thumbsDown
+            )
+            return
+        }
+        beginFeedback(messageID: messageId, source: .thumbsDown)
+    }
+
+    func beginFeedback(messageID: UUID, source: FeedbackDraft.Source) {
+        let existing = feedbackStore.feedback(for: messageID)
+        feedbackDraft = FeedbackDraft(
+            messageID: messageID,
+            source: source,
+            category: existing?.category,
+            note: existing?.note ?? ""
+        )
+    }
+
+    func cancelFeedbackDraft() {
+        feedbackDraft = nil
+    }
+
+    func submitFeedbackDraft(category: AnswerFeedbackCategory, note: String) {
+        guard let draft = feedbackDraft else { return }
+        feedbackDraft = nil
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch draft.source {
+        case .thumbsDown:
+            thumbsDownMessages.insert(draft.messageID)
+            thumbsUpMessages.remove(draft.messageID)
+            persistFeedback(
+                messageID: draft.messageID,
+                rating: .negative,
+                flaggedForReview: isReported(draft.messageID),
+                category: category,
+                note: trimmed.isEmpty ? nil : trimmed,
+                source: .thumbsDown
+            )
+            feedbackToast = "Thanks — we'll use this to improve."
+        case .report:
+            reportedMessageIDs.insert(draft.messageID)
+            let rating: AnswerFeedbackRating
+            if thumbsUpMessages.contains(draft.messageID) {
+                rating = .positive
+            } else if thumbsDownMessages.contains(draft.messageID) {
+                rating = .negative
+            } else {
+                rating = .none
             }
-        })
+            persistFeedback(
+                messageID: draft.messageID,
+                rating: rating,
+                flaggedForReview: true,
+                category: category,
+                note: trimmed.isEmpty ? nil : trimmed,
+                source: .report
+            )
+            feedbackToast = "Reported for review."
+        }
     }
 
     /// Returns the current feedback type for a message (for UI binding)
@@ -824,26 +895,89 @@ class ChatViewModel: ObservableObject {
 
     /// Loads feedback state for the current messages
     private func loadFeedbackForMessages() async {
-        let assistantMessageIds = messages.filter { !$0.isFromUser }.map { $0.id }
-        guard !assistantMessageIds.isEmpty else { return }
+        let assistantMessages = messages.filter { !$0.isFromUser }
+        guard !assistantMessages.isEmpty else { return }
 
-        do {
-            let feedback = try await (chatService as? ChatService)?.fetchFeedback(messageIds: assistantMessageIds) ?? [:]
-            await MainActor.run {
-                for (messageId, type) in feedback {
-                    switch type {
-                    case .positive:
-                        thumbsUpMessages.insert(messageId)
-                        thumbsDownMessages.remove(messageId)
-                    case .negative:
-                        thumbsDownMessages.insert(messageId)
-                        thumbsUpMessages.remove(messageId)
-                    }
-                }
+        let byID = feedbackStore.feedback(forMessageIDs: assistantMessages.map(\.id))
+        thumbsUpMessages = []
+        thumbsDownMessages = []
+        reportedMessageIDs = []
+        for message in assistantMessages {
+            let row = byID[message.id]
+                ?? feedbackStore.feedbackMatching(assistantReply: message.content)
+            guard let row else { continue }
+            switch row.rating {
+            case .positive:
+                thumbsUpMessages.insert(message.id)
+            case .negative:
+                thumbsDownMessages.insert(message.id)
+            case .none:
+                break
             }
-        } catch {
-            AppLogger.log("[ChatViewModel] loadFeedbackForMessages error: \(error)", type: .error)
+            if row.flaggedForReview {
+                reportedMessageIDs.insert(message.id)
+            }
         }
+    }
+
+    private func persistFeedback(
+        messageID: UUID,
+        rating: AnswerFeedbackRating,
+        flaggedForReview: Bool,
+        category: AnswerFeedbackCategory?,
+        note: String?,
+        source: AnswerFeedbackSource
+    ) {
+        let snapshot = snapshot(for: messageID)
+        _ = feedbackStore.upsert(AnswerFeedback(
+            messageID: messageID,
+            sessionID: currentSessionId,
+            rating: rating,
+            flaggedForReview: flaggedForReview,
+            category: category,
+            note: note,
+            source: source,
+            userPrompt: snapshot.prompt,
+            assistantReply: snapshot.reply,
+            citationEntryIDs: snapshot.citationIDs,
+            promptVersion: snapshot.promptVersion,
+            modelIdentifier: snapshot.modelIdentifier,
+            zone: snapshot.zone,
+            wasDegraded: snapshot.wasDegraded,
+            safetyPresentation: snapshot.safety
+        ))
+    }
+
+    private func snapshot(for messageID: UUID) -> (
+        prompt: String,
+        reply: String,
+        citationIDs: [UUID],
+        promptVersion: String?,
+        modelIdentifier: String?,
+        zone: String?,
+        wasDegraded: Bool?,
+        safety: String
+    ) {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }) else {
+            return ("", "", [], nil, nil, nil, nil, ChatSafetyPresentation.none.rawValue)
+        }
+        let assistant = messages[index]
+        let prompt: String
+        if index > 0, messages[index - 1].isFromUser {
+            prompt = messages[index - 1].content
+        } else {
+            prompt = ""
+        }
+        return (
+            prompt,
+            assistant.content,
+            assistant.citations?.map(\.entryId) ?? [],
+            assistant.promptVersion,
+            assistant.modelIdentifier,
+            assistant.zone,
+            assistant.wasDegraded,
+            assistant.safetyPresentation.rawValue
+        )
     }
 
     // MARK: - Private Helpers

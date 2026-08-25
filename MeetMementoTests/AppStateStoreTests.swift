@@ -121,6 +121,22 @@ final class AppStateStoreTests: XCTestCase {
         XCTAssertTrue(store.messages(for: sessionId).isEmpty, "message bodies carry journal excerpts")
     }
 
+    func test_deleteEverything_clearsAnswerFeedback() {
+        let feedback = AnswerFeedbackStore.shared
+        let messageID = UUID()
+        _ = feedback.upsert(AnswerFeedback(
+            messageID: messageID,
+            rating: .negative,
+            source: .thumbsDown,
+            assistantReply: "You wrote about eggs."
+        ))
+        XCTAssertNotNil(feedback.feedback(for: messageID))
+
+        AppStateStore().deleteEverything()
+
+        XCTAssertNil(feedback.feedback(for: messageID), "spec 041 R6: Delete Everything must clear answer feedback")
+    }
+
     func test_bypassToMainApp_setsOnboardedWithoutNetwork() {
         let store = AppStateStore()
         store.bypassToMainApp()

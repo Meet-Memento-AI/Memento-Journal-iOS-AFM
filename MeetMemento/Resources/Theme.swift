@@ -68,6 +68,10 @@ struct GrayScale {
     /// Figma gray-50 — sits between white and `gray100`. Journal canvas.
     static let gray75  = Color(hex: "#FAFAFA")
     static let gray100 = Color(hex: "#F5F5F5") // surface-sunken
+    /// Figma `neutral/150` — the journal card's gradient floor, one step under
+    /// `gray100`. Named for the same reason as `gray75`: a Figma-sourced shade
+    /// that sits between two existing steps.
+    static let gray150 = Color(hex: "#EEEEEE")
     static let gray200 = Color(hex: "#E5E5E5") // border
     static let gray300 = Color(hex: "#D4D4D4") // border-strong
     static let gray400 = Color(hex: "#A3A3A3") // text-tertiary (dark)
@@ -193,6 +197,13 @@ struct Theme {
     let chart4: Color
     let chart5: Color
 
+    // Journal entry card — the timeline's content surface (Figma node 702:2190).
+    // A flat neutral panel: gradient darkens downward, no border, no shadow.
+    let journalCardGradientStart: Color
+    let journalCardGradientEnd: Color
+    let journalCardChipBackground: Color
+    let journalCardChipForeground: Color
+
     // Follow-up card gradient
     let followUpGradientStart: Color
     let followUpGradientEnd: Color
@@ -291,6 +302,11 @@ struct Theme {
         chart4: Color(hex: "#FFB900"),
         chart5: Color(hex: "#FE9A00"),
 
+        journalCardGradientStart: GrayScale.gray100,
+        journalCardGradientEnd: GrayScale.gray150,
+        journalCardChipBackground: GrayScale.gray200,
+        journalCardChipForeground: GrayScale.gray800,
+
         followUpGradientStart: BaseColors.white,
         followUpGradientEnd: BaseColors.white,
         followUpTagBackground: GrayScale.gray100,
@@ -359,6 +375,15 @@ struct Theme {
         chart3: Color(hex: "#FE9A00"),
         chart4: Color(hex: "#AD46FF"),
         chart5: Color(hex: "#FF2056"),
+
+        // Derived from the dark ramp: `#1A1A1A` is `cardBackground`, `#2A2A2A`
+        // is `border`, `#A3A3A3` is `mutedForeground`. `#141414` is the one new
+        // value — it reproduces Figma's downward darkening while staying
+        // clearly above the `#0A0A0A` journal canvas.
+        journalCardGradientStart: Color(hex: "#1A1A1A"),
+        journalCardGradientEnd: Color(hex: "#141414"),
+        journalCardChipBackground: Color(hex: "#2A2A2A"),
+        journalCardChipForeground: GrayScale.gray400,
 
         followUpGradientStart: Color(hex: "#111111"),
         followUpGradientEnd: Color(hex: "#111111"),

@@ -144,6 +144,8 @@ public struct Typography {
     public var h3: Font { headingFont(size: size2XL) }
     /// 20pt - Subsection heading
     public var h4: Font { headingFont(size: sizeXL) }
+    /// 20pt semibold — one weight below `h4` (Figtree Bold)
+    public var h4Medium: Font { bodyFont(size: sizeXL, weight: .semibold) }
     /// 16pt - Minor heading
     public var h5: Font { headingFont(size: sizeLG) }
     /// 16pt bold (body weight) - Smallest heading
@@ -190,6 +192,8 @@ public struct Typography {
     /// Sits between body1 (16) and h4 (20); the composer is the only surface
     /// that asks for it, so it lives here rather than in the size scale.
     public var inputLarge: Font { bodyFont(size: 18, weight: .medium) }
+    /// 18pt bold — suggestion-card prompt (Figma 709:2320).
+    public var promptTitle: Font { bodyFont(size: 18, weight: .bold) }
 
     /// 16pt Figtree Medium — loading-state heading (chat thinking row).
     public var loadingHeading: Font {

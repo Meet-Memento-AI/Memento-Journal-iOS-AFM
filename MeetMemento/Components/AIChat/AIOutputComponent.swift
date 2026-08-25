@@ -83,6 +83,10 @@ public struct AIOutputComponent: View {
     var onRedo: (() -> Void)?
     var onThumbsUp: (() -> Void)?
     var onThumbsDown: (() -> Void)?
+    /// Spec 041: overflow Report answer. Nil hides the ellipsis (previews,
+    /// surfaces that are not chat).
+    var isReported: Bool
+    var onReportAnswer: (() -> Void)?
     /// Called once when the typewriter finishes. Lets the owner mark the message
     /// "seen" so a LazyVStack recycle (scroll / keyboard / re-render) doesn't
     /// replay the whole reply — the fix for a reply appearing to repeat.
@@ -200,6 +204,8 @@ public struct AIOutputComponent: View {
         onRedo: (() -> Void)? = nil,
         onThumbsUp: (() -> Void)? = nil,
         onThumbsDown: (() -> Void)? = nil,
+        isReported: Bool = false,
+        onReportAnswer: (() -> Void)? = nil,
         onAnimationComplete: (() -> Void)? = nil
     ) {
         self.content = content
@@ -213,6 +219,8 @@ public struct AIOutputComponent: View {
         self.onRedo = onRedo
         self.onThumbsUp = onThumbsUp
         self.onThumbsDown = onThumbsDown
+        self.isReported = isReported
+        self.onReportAnswer = onReportAnswer
         self.onAnimationComplete = onAnimationComplete
     }
 
@@ -395,6 +403,7 @@ public struct AIOutputComponent: View {
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
                 .accessibilityLabel(feedbackType == .positive ? "Remove thumbs up" : "Thumbs up")
+                .accessibilityIdentifier("chat.reply.thumbsUp")
 
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -406,6 +415,7 @@ public struct AIOutputComponent: View {
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
                 .accessibilityLabel(feedbackType == .negative ? "Remove thumbs down" : "Thumbs down")
+                .accessibilityIdentifier("chat.reply.thumbsDown")
 
                 // Conditional like read-aloud above: narration mode passes nil
                 // (regenerating mid-voice-loop would fight the TTS chunker, and
@@ -420,6 +430,10 @@ public struct AIOutputComponent: View {
                             .foregroundStyle(theme.mutedForeground)
                     }
                     .accessibilityLabel("Regenerate")
+                }
+
+                if let onReportAnswer {
+                    ReplyOverflowMenu(isReported: isReported, onReportAnswer: onReportAnswer)
                 }
             }
             .padding(.top, 8)

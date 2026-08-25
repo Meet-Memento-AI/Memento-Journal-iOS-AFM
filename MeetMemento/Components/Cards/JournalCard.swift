@@ -64,34 +64,18 @@ struct JournalCard: View {
 
     // MARK: - Card chrome (photo vs. plain)
 
-    /// Today's shipped card — unchanged. Used when there's no photo.
+    /// The no-photo card. Figma node 702:2190: a 16pt-padded column with a 12pt
+    /// gap between the text block and the date chip, and a 4pt gap inside the
+    /// text block. No border and no shadow — the gradient alone lifts the card
+    /// off the journal canvas.
     private var plainCardBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .hPadding(Spacing.lg)
-                .padding(.top, Spacing.lg)
-
-            Text(excerpt)
-                .typographyBody1()
-                .foregroundStyle(theme.mutedForeground)
-                .lineLimit(5)
-                .multilineTextAlignment(.leading)
-                .hPadding(Spacing.lg)
-                .padding(.top, Spacing.sm)
-
-            footer
-                .hPadding(Spacing.lg)
-                .vPadding(Spacing.md)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            textBlock
+            dateChip
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(journalCardGradient)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(theme.border, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 3)
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardSurface)
     }
 
     /// With-photo layout: a cover image inset evenly inside the card with the
@@ -104,7 +88,7 @@ struct JournalCard: View {
     /// own 24pt radius (24 − 4 = 20), so the image's curve stays parallel to
     /// the card's rather than visually fighting it.
     private func photoCardBody(_ image: Image) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             image
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -113,42 +97,34 @@ struct JournalCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
                 .padding(JournalCard.photoInset)
 
-            header
-                .hPadding(Spacing.md)
-                .padding(.top, Spacing.sm)
-
-            Text(excerpt)
-                .typographyBody1()
-                .foregroundStyle(theme.mutedForeground)
-                .lineLimit(5)
-                .multilineTextAlignment(.leading)
-                .hPadding(Spacing.md)
-                .padding(.top, Spacing.xs)
-
-            footer
-                .hPadding(Spacing.md)
-                .padding(.top, Spacing.xs)
-                .padding(.bottom, Spacing.md)
+            textBlock
+            dateChip
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(journalCardGradient)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(theme.border, lineWidth: 1)
-        )
-        .shadow(color: Color(red: 51 / 255, green: 51 / 255, blue: 51 / 255).opacity(0.16), radius: 8, x: 0, y: 4)
+        // Asymmetric on purpose: the image carries its own 4pt inset and sits
+        // flush to the card's top edge, so only the sides and bottom take the
+        // plain card's 16pt padding.
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardSurface)
     }
 
-    /// Vertical wash: gray100 at the top into gray50 at the bottom.
-    /// Shared by the plain and photo cards so they stay the same surface.
+    /// Vertical wash that *darkens* downward, per Figma. Both stops are theme
+    /// tokens, so the card follows light/dark instead of staying near-white on
+    /// the dark canvas as it used to.
     private var journalCardGradient: LinearGradient {
         LinearGradient(
-            colors: [GrayScale.gray100, GrayScale.gray50],
+            colors: [theme.journalCardGradientStart, theme.journalCardGradientEnd],
             startPoint: .top,
             endPoint: .bottom
         )
+    }
+
+    /// Shared by the plain and photo cards so they stay the same surface.
+    /// `theme.radius.xl` is 24 — the literal this replaces.
+    private var cardSurface: some View {
+        RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
+            .fill(journalCardGradient)
     }
 
     /// Even inset around the cover photo. Shared with the composer's preview
@@ -165,18 +141,42 @@ struct JournalCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var footer: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "calendar")
-                .font(type.body2)
-                .fontWeight(.bold)
-                .foregroundStyle(theme.foreground)
-                .cornerRadius(16)
-            Text(formattedDate)
-                .typographyCaptionBold()
-                .foregroundStyle(theme.mutedForeground)
+    /// Title over excerpt at Figma's 4pt gap.
+    private var textBlock: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            header
+            excerptText
+        }
+    }
 
-            Spacer()
+    private var excerptText: some View {
+        Text(excerpt)
+            .typographyBody1()
+            .foregroundStyle(theme.cardForeground)
+            .lineLimit(4)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The date as a capsule chip. `Spacer(minLength: 0)` keeps the chip hugging
+    /// its content instead of stretching to the card's width.
+    private var dateChip: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: Spacing.xxs) {
+                // Figma draws `tabler:calendar`; the SF Symbol is the same
+                // outlined-calendar glyph and keeps the card on the project's
+                // SF Symbols convention.
+                Image(systemName: "calendar")
+                    .font(type.body2)
+                Text(formattedDate)
+                    .font(type.body2Medium)
+            }
+            .foregroundStyle(theme.journalCardChipForeground)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xxs)
+            .background(Capsule().fill(theme.journalCardChipBackground))
+
+            Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Journal entry date \(formattedDate)")
@@ -186,11 +186,13 @@ struct JournalCard: View {
     private var formattedDate: String {
         let calendar = Calendar.current
         let day = calendar.component(.day, from: date)
-        let monthFormatter = DateFormatter()
-        monthFormatter.dateFormat = "MMMM"
-        let monthName = monthFormatter.string(from: date)
+        // One formatter for both fields — Figma reads "Saturday, October 4th".
+        // The ordinal suffix below is English-only, as it already was.
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM"
+        let weekdayAndMonth = formatter.string(from: date)
 
-        return "\(monthName) \(day)\(ordinalSuffix(for: day))"
+        return "\(weekdayAndMonth) \(day)\(ordinalSuffix(for: day))"
     }
 
     private func ordinalSuffix(for day: Int) -> String {
@@ -321,7 +323,10 @@ private struct JournalCardHarness: View {
             onDeleteTapped: { /* no-op for harness */ }
         )
         .frame(maxWidth: .infinity) // allow card to stretch
-        .background(Color(uiColor: .systemBackground))
+        .padding()
+        // The real journal canvas, not `.systemBackground`: with the border and
+        // shadow gone, the card only separates from `secondaryBackground`.
+        .background(Theme.light.secondaryBackground)
         .useTheme()
         .useTypography()
     }
@@ -341,7 +346,7 @@ private struct JournalCardHarness: View {
         date: .now.addingTimeInterval(-36_00)
     )
     .padding()
-    .background(Color(uiColor: .systemBackground))
+    .background(Theme.light.secondaryBackground)
     .useTheme()
     .useTypography()
 }
@@ -374,7 +379,7 @@ private enum JournalCardPreviewAssets {
         photoImage: JournalCardPreviewAssets.photo
     )
     .padding()
-    .background(Color(uiColor: .systemBackground))
+    .background(Theme.light.secondaryBackground)
     .useTheme()
     .useTypography()
 }
@@ -387,7 +392,20 @@ private enum JournalCardPreviewAssets {
         photoImage: JournalCardPreviewAssets.photo
     )
     .padding()
-    .background(Color(uiColor: .systemBackground))
+    .background(Theme.dark.secondaryBackground)
+    .useTheme()
+    .useTypography()
+    .preferredColorScheme(.dark)
+}
+
+#Preview("JournalCard · dark") {
+    JournalCard(
+        title: JournalCard.sampleTitle,
+        excerpt: JournalCard.sampleExcerpt,
+        date: .now
+    )
+    .padding()
+    .background(Theme.dark.secondaryBackground)
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)

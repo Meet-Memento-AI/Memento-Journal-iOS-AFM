@@ -472,4 +472,187 @@ final class ChatViewModelTests: XCTestCase {
         vm.messages = []
         XCTAssertFalse(vm.canSummarizeChat)
     }
+
+    // MARK: - Answer feedback (spec 041)
+
+    private func makeFeedbackStore() -> AnswerFeedbackStore {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AnswerFeedback-\(UUID().uuidString)", isDirectory: true)
+        return AnswerFeedbackStore(directory: dir)
+    }
+
+    private func seededViewModel(store: AnswerFeedbackStore,
+                                 prompt: String = "How was Tuesday?",
+                                 reply: String = "You wrote about eggs.",
+                                 citations: [JournalCitation]? = nil)
+    -> (ChatViewModel, UUID) {
+        let vm = ChatViewModel(chatService: MockChatService(), feedbackStore: store)
+        let user = ChatMessage(content: prompt, isFromUser: true)
+        let assistant = ChatMessage.aiMessage(
+            body: reply,
+            citations: citations,
+            promptVersion: "ask@14",
+            modelIdentifier: "on-device"
+        )
+        vm.messages = [user, assistant]
+        return (vm, assistant.id)
+    }
+
+    func test_thumbsUp_persistsPositive() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.toggleThumbsUp(for: id)
+        XCTAssertEqual(vm.feedbackType(for: id), .positive)
+        let row = store.feedback(for: id)
+        XCTAssertEqual(row?.rating, .positive)
+        XCTAssertEqual(row?.userPrompt, "How was Tuesday?")
+        XCTAssertEqual(row?.assistantReply, "You wrote about eggs.")
+        XCTAssertEqual(row?.promptVersion, "ask@14")
+        XCTAssertEqual(row?.modelIdentifier, "on-device")
+        XCTAssertFalse(row?.flaggedForReview ?? true)
+    }
+
+    func test_thumbsUp_secondTapClearsRating() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.toggleThumbsUp(for: id)
+        vm.toggleThumbsUp(for: id)
+        XCTAssertNil(vm.feedbackType(for: id))
+        XCTAssertEqual(store.feedback(for: id)?.rating, AnswerFeedbackRating.none)
+    }
+
+    func test_thumbsDown_doesNotPersistUntilSubmit() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.toggleThumbsDown(for: id)
+        XCTAssertNil(store.feedback(for: id))
+        XCTAssertNotNil(vm.feedbackDraft)
+        XCTAssertNil(vm.feedbackType(for: id))
+        vm.cancelFeedbackDraft()
+        XCTAssertNil(vm.feedbackDraft)
+        XCTAssertNil(store.feedback(for: id))
+    }
+
+    func test_thumbsDown_submitPersistsNegativeAndCategory() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.toggleThumbsDown(for: id)
+        vm.submitFeedbackDraft(category: .wrongRecall, note: "Cited the wrong day")
+        XCTAssertEqual(vm.feedbackType(for: id), .negative)
+        let row = store.feedback(for: id)
+        XCTAssertEqual(row?.rating, .negative)
+        XCTAssertEqual(row?.category, .wrongRecall)
+        XCTAssertEqual(row?.note, "Cited the wrong day")
+        XCTAssertEqual(vm.feedbackToast, "Thanks — we'll use this to improve.")
+    }
+
+    func test_report_flagsWithoutForcingRating() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.beginFeedback(messageID: id, source: .report)
+        vm.submitFeedbackDraft(category: .tone, note: "")
+        XCTAssertTrue(vm.isReported(id))
+        XCTAssertNil(vm.feedbackType(for: id))
+        let row = store.feedback(for: id)
+        XCTAssertEqual(row?.rating, AnswerFeedbackRating.none)
+        XCTAssertTrue(row?.flaggedForReview ?? false)
+        XCTAssertEqual(row?.category, .tone)
+    }
+
+    func test_report_onDownvotedMessage_keepsRating() {
+        let store = makeFeedbackStore()
+        let (vm, id) = seededViewModel(store: store)
+        vm.toggleThumbsDown(for: id)
+        vm.submitFeedbackDraft(category: .didntAnswer, note: "")
+        vm.beginFeedback(messageID: id, source: .report)
+        vm.submitFeedbackDraft(category: .didntAnswer, note: "still wrong")
+        let row = store.feedback(for: id)
+        XCTAssertEqual(row?.rating, .negative)
+        XCTAssertTrue(row?.flaggedForReview ?? false)
+        XCTAssertEqual(vm.feedbackType(for: id), .negative)
+        XCTAssertTrue(vm.isReported(id))
+    }
+
+    func test_payload_omitsCitationExcerpts() throws {
+        let store = makeFeedbackStore()
+        let citation = JournalCitation(
+            entryId: UUID(),
+            entryTitle: "Secret",
+            entryDate: Date(),
+            excerpt: "SECRET JOURNAL TEXT"
+        )
+        let (vm, id) = seededViewModel(store: store, citations: [citation])
+        vm.toggleThumbsUp(for: id)
+        let row = store.feedback(for: id)
+        XCTAssertEqual(row?.citationEntryIDs, [citation.entryId])
+        let data = try XCTUnwrap(store.exportJSONData())
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(json.contains("SECRET JOURNAL TEXT"))
+        XCTAssertTrue(json.contains(citation.entryId.uuidString))
+    }
+
+    func test_loadSession_restoresThumbsAndReported() async {
+        let store = makeFeedbackStore()
+        let assistantID = UUID()
+        _ = store.upsert(AnswerFeedback(
+            messageID: assistantID,
+            rating: .positive,
+            flaggedForReview: true,
+            source: .thumbsUp,
+            assistantReply: "You wrote about eggs."
+        ))
+        let mock = MockChatService()
+        mock.loadSessionMessagesImpl = { _ in
+            [
+                ChatMessageDTO(
+                    id: UUID(),
+                    role: "user",
+                    content: "How was Tuesday?",
+                    createdAt: "2026-08-24T00:00:00Z"
+                ),
+                ChatMessageDTO(
+                    id: assistantID,
+                    role: "assistant",
+                    content: "You wrote about eggs.",
+                    createdAt: "2026-08-24T00:00:01Z"
+                ),
+            ]
+        }
+        let vm = ChatViewModel(chatService: mock, feedbackStore: store)
+        await vm.loadSession(ChatSession(title: "Tuesday", createdAt: Date()))
+        XCTAssertEqual(vm.feedbackType(for: assistantID), .positive)
+        XCTAssertTrue(vm.isReported(assistantID))
+    }
+
+    func test_loadSession_restoresByAssistantReplyWhenIdsDiffer() async {
+        let store = makeFeedbackStore()
+        _ = store.upsert(AnswerFeedback(
+            messageID: UUID(),
+            rating: .negative,
+            category: .wrongRecall,
+            source: .thumbsDown,
+            assistantReply: "You wrote about eggs."
+        ))
+        let persistedID = UUID()
+        let mock = MockChatService()
+        mock.loadSessionMessagesImpl = { _ in
+            [
+                ChatMessageDTO(
+                    id: UUID(),
+                    role: "user",
+                    content: "How was Tuesday?",
+                    createdAt: "2026-08-24T00:00:00Z"
+                ),
+                ChatMessageDTO(
+                    id: persistedID,
+                    role: "assistant",
+                    content: "You wrote about eggs.",
+                    createdAt: "2026-08-24T00:00:01Z"
+                ),
+            ]
+        }
+        let vm = ChatViewModel(chatService: mock, feedbackStore: store)
+        await vm.loadSession(ChatSession(title: "Tuesday", createdAt: Date()))
+        XCTAssertEqual(vm.feedbackType(for: persistedID), .negative)
+    }
 }

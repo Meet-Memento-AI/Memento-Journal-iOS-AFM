@@ -138,6 +138,14 @@ public struct ChatMessage: Identifiable, Hashable {
     /// completes once the full reply has been drained.
     public var isStreaming: Bool
 
+    /// Spec 041: generation metadata copied from the stored assistant JSON so
+    /// a reported turn can be attributed (REQ-PRM-004). Optional — older
+    /// transcripts and in-session streams may not have them yet.
+    public var promptVersion: String?
+    public var modelIdentifier: String?
+    public var zone: String?
+    public var wasDegraded: Bool?
+
     public init(
         id: UUID = UUID(),
         content: String,
@@ -149,7 +157,11 @@ public struct ChatMessage: Identifiable, Hashable {
         safetyPresentation: ChatSafetyPresentation = .none,
         isNew: Bool = false,
         sendFailed: Bool = false,
-        isStreaming: Bool = false
+        isStreaming: Bool = false,
+        promptVersion: String? = nil,
+        modelIdentifier: String? = nil,
+        zone: String? = nil,
+        wasDegraded: Bool? = nil
     ) {
         self.id = id
         self.content = content
@@ -162,6 +174,10 @@ public struct ChatMessage: Identifiable, Hashable {
         self.isNew = isNew
         self.sendFailed = sendFailed
         self.isStreaming = isStreaming
+        self.promptVersion = promptVersion
+        self.modelIdentifier = modelIdentifier
+        self.zone = zone
+        self.wasDegraded = wasDegraded
     }
 
     // Convenience initializer for AI messages with structured content
@@ -174,7 +190,11 @@ public struct ChatMessage: Identifiable, Hashable {
         safetyPresentation: ChatSafetyPresentation = .none,
         timestamp: Date = Date(),
         isNew: Bool = false,
-        isStreaming: Bool = false
+        isStreaming: Bool = false,
+        promptVersion: String? = nil,
+        modelIdentifier: String? = nil,
+        zone: String? = nil,
+        wasDegraded: Bool? = nil
     ) -> ChatMessage {
         let outputContent = AIOutputContent(
             heading1: heading1,
@@ -191,7 +211,11 @@ public struct ChatMessage: Identifiable, Hashable {
             aiOutputContent: outputContent,
             safetyPresentation: safetyPresentation,
             isNew: isNew,
-            isStreaming: isStreaming
+            isStreaming: isStreaming,
+            promptVersion: promptVersion,
+            modelIdentifier: modelIdentifier,
+            zone: zone,
+            wasDegraded: wasDegraded
         )
     }
 }

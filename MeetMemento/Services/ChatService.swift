@@ -616,24 +616,41 @@ class ChatService {
         return ChatSummaryResponse(title: nil, content: outcome.value)
     }
 
-    // MARK: - Chat Feedback (local-only stub)
+    // MARK: - Chat Feedback (spec 041 — on-device store)
 
-    // Thumbs up/down had a server backend (a feedback endpoint + table).
-    // The backend was removed from the product, so feedback is now
-    // UI-only: `ChatViewModel` already tracks the up/down state in memory for
-    // the session. These stubs keep that surface working without persistence —
-    // reimplement on-device if feedback needs to survive relaunches.
-
-    /// No-op: records nothing server-side, echoes the submitted type back so the
-    /// in-memory UI state is treated as applied.
+    /// Rating-only write for leftover callers. The chat UI uses
+    /// `AnswerFeedbackStore` directly so category/note can travel with the row.
     func submitFeedback(messageId: UUID, type: FeedbackType) async throws -> FeedbackType? {
-        AppLogger.log("👍 [ChatService] Feedback \(type.rawValue) (local-only, not persisted) for \(messageId.uuidString.prefix(8))")
+        let rating: AnswerFeedbackRating = type == .positive ? .positive : .negative
+        let existing = AnswerFeedbackStore.shared.feedback(for: messageId)
+        _ = AnswerFeedbackStore.shared.upsert(AnswerFeedback(
+            messageID: messageId,
+            sessionID: nil,
+            rating: rating,
+            flaggedForReview: existing?.flaggedForReview ?? false,
+            category: existing?.category,
+            note: existing?.note,
+            source: type == .positive ? .thumbsUp : .thumbsDown,
+            userPrompt: existing?.userPrompt ?? "",
+            assistantReply: existing?.assistantReply ?? "",
+            citationEntryIDs: existing?.citationEntryIDs ?? []
+        ))
+        AppLogger.log("👍 [ChatService] Feedback \(type.rawValue) stored for \(messageId.uuidString.prefix(8))")
         return type
     }
 
-    /// No persisted feedback to restore (no backend) — always empty.
+    /// Restores thumbs from the on-device store.
     func fetchFeedback(messageIds: [UUID]) async throws -> [UUID: FeedbackType] {
-        [:]
+        let rows = AnswerFeedbackStore.shared.feedback(forMessageIDs: messageIds)
+        var result: [UUID: FeedbackType] = [:]
+        for (id, row) in rows {
+            switch row.rating {
+            case .positive: result[id] = .positive
+            case .negative: result[id] = .negative
+            case .none: break
+            }
+        }
+        return result
     }
 }
 

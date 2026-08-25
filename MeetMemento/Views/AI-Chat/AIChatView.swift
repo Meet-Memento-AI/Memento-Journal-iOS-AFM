@@ -185,6 +185,26 @@ public struct AIChatView: View {
                 isSummarizing: viewModel.isSummarizing
             )
         }
+        .sheet(item: $viewModel.feedbackDraft, onDismiss: {
+            viewModel.cancelFeedbackDraft()
+        }) { draft in
+            ReplyFeedbackSheet(
+                draft: draft,
+                onCancel: { viewModel.cancelFeedbackDraft() },
+                onSubmit: { category, note in
+                    viewModel.submitFeedbackDraft(category: category, note: note)
+                }
+            )
+        }
+        .overlay(alignment: .bottom) {
+            if let toast = viewModel.feedbackToast {
+                JournalToast(message: toast) {
+                    viewModel.feedbackToast = nil
+                }
+                .padding(.bottom, bottomReserve + 16)
+                .transition(.opacity)
+            }
+        }
         .alert("Summary Failed", isPresented: .init(
             get: { summaryError != nil },
             set: { if !$0 { summaryError = nil } }
@@ -241,9 +261,6 @@ public struct AIChatView: View {
             }
             Task {
                 await viewModel.fetchSessions()
-                if viewModel.userName == nil {
-                    await viewModel.fetchUserName()
-                }
             }
         }
         .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
