@@ -192,6 +192,14 @@ public struct ContentView: View {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
+                    // Both of these clear the navigation container so the pager
+                    // shows through the zoom morph instead of a blank plate.
+                    // `containerBackground` is read by the enclosing container
+                    // from its content, so it only counts in here — on the
+                    // NavigationStack itself it was offered to the outer ZStack
+                    // and the container kept its opaque default fill.
+                    .containerBackground(.clear, for: .navigation)
+                    .transparentNavigationContainer()
                     .navigationDestination(for: SettingsRoute.self) { route in
                         settingsDestination(for: route)
                     }
@@ -204,9 +212,6 @@ public struct ContentView: View {
                         }
                     }
             }
-            .toolbar(.hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .containerBackground(.clear, for: .navigation)
             .allowsHitTesting(overlayActive)
             .opacity(overlayActive ? 1 : 0)
             .animation(nil, value: overlayActive)
