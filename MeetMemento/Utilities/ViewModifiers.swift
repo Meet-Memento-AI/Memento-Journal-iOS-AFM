@@ -273,7 +273,10 @@ private struct DismissKeyboardOnOutsideTap: UIViewRepresentable {
     }
 }
 
-private extension UIView {
+extension UIView {
+    /// Walks the responder chain for the controller hosting this view.
+    /// Shared with `TransparentNavigationContainer`, which needs the same walk
+    /// to reach the enclosing `UINavigationController`.
     func nearestViewController() -> UIViewController? {
         var responder: UIResponder? = self
         while let current = responder {
