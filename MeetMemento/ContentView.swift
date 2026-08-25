@@ -200,11 +200,6 @@ public struct ContentView: View {
                     // and the container kept its opaque default fill.
                     .containerBackground(.clear, for: .navigation)
                     .transparentNavigationContainer()
-                    // Also inside for the same reason: the root's bar would
-                    // otherwise paint an empty opaque band across the top of the
-                    // backdrop while the morph runs. `toolbarBackground` is gone
-                    // with it — a hidden bar has no background to hide.
-                    .toolbar(.hidden, for: .navigationBar)
                     .navigationDestination(for: SettingsRoute.self) { route in
                         settingsDestination(for: route)
                     }
