@@ -236,7 +236,7 @@ class ChatService {
             // Persist locally so the conversation survives relaunch and shows in the
             // history list (multiple chat windows). The assistant turn is stored in
             // the {heading1,heading2,body,sources} JSON shape the chat UI parses on load.
-            persistTurnPair(
+            Self.persistTurnPair(
                 conversationId: conversationId,
                 title: String(text.prefix(100)),
                 userText: text,
@@ -301,7 +301,7 @@ class ChatService {
 
         let body = error.errorDescription ?? ""
 
-        persistTurnPair(
+        Self.persistTurnPair(
             conversationId: conversationId,
             title: String(userText.prefix(100)),
             userText: userText,
@@ -369,7 +369,7 @@ class ChatService {
                     // `.final` of a new conversation and must see the upsert.
                     LiveTurnClock.shared.start(.persist)
                     let persistState = PerfSignposts.chatTurn.beginInterval("persist.turn")
-                    persistTurnPair(
+                    Self.persistTurnPair(
                         conversationId: conversationId,
                         title: String(text.prefix(100)),
                         userText: text,
@@ -457,7 +457,7 @@ class ChatService {
                 AppLogger.log("🗑️ [ChatService] Deleted local session \(sessionId.uuidString.prefix(8))")
     }
 
-    private func persistTurnPair(
+    private static func persistTurnPair(
         conversationId: UUID,
         title: String,
         userText: String,
