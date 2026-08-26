@@ -191,34 +191,38 @@ struct YourEntriesView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 16)
 
-                        // Entries for this month
-                        VStack(spacing: 16) {
-                            ForEach(monthGroup.entries) { entry in
-                                JournalCard(
-                                    title: entry.displayTitle,
-                                    excerpt: entry.excerpt,
-                                    date: entry.createdAt,
-                                    photoImage: thumbnail(for: entry),
-                                    onTap: {
-                                        onNavigateToEntry(.edit(entry.id))
-                                    },
-                                    onEditTapped: {
-                                        onNavigateToEntry(.edit(entry.id))
-                                    },
-                                    onDeleteTapped: {
-                                        entryToDelete = entry
-                                        showDeleteConfirmation = true
+                        // Entries for this month. One container so neighbouring
+                        // glass cards share a sampling region (PRES-092); spacing
+                        // 0 keeps them separate at rest (layout gap is 16).
+                        GlassEffectContainer(spacing: 0) {
+                            VStack(spacing: 16) {
+                                ForEach(monthGroup.entries) { entry in
+                                    JournalCard(
+                                        title: entry.displayTitle,
+                                        excerpt: entry.excerpt,
+                                        date: entry.createdAt,
+                                        photoImage: thumbnail(for: entry),
+                                        onTap: {
+                                            onNavigateToEntry(.edit(entry.id))
+                                        },
+                                        onEditTapped: {
+                                            onNavigateToEntry(.edit(entry.id))
+                                        },
+                                        onDeleteTapped: {
+                                            entryToDelete = entry
+                                            showDeleteConfirmation = true
+                                        }
+                                    )
+                                    .entryZoomSource(EntryRoute.edit(entry.id).zoomSourceID)
+                                    .frame(maxWidth: .infinity) // Stretch to full width
+                                    .id(entry.id) // Explicit ID for better diffing
+                                    // Keyed on updatedAt as well as id: replacing an
+                                    // entry's photo keeps the same id, so an id-only
+                                    // task would never re-fire and the list would keep
+                                    // showing the old photo until relaunch.
+                                    .task(id: thumbnailToken(for: entry)) {
+                                        await loadThumbnailIfNeeded(for: entry)
                                     }
-                                )
-                                .entryZoomSource(EntryRoute.edit(entry.id).zoomSourceID)
-                                .frame(maxWidth: .infinity) // Stretch to full width
-                                .id(entry.id) // Explicit ID for better diffing
-                                // Keyed on updatedAt as well as id: replacing an
-                                // entry's photo keeps the same id, so an id-only
-                                // task would never re-fire and the list would keep
-                                // showing the old photo until relaunch.
-                                .task(id: thumbnailToken(for: entry)) {
-                                    await loadThumbnailIfNeeded(for: entry)
                                 }
                             }
                         }

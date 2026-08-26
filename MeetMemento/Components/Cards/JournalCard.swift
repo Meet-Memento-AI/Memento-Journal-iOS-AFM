@@ -59,15 +59,16 @@ struct JournalCard: View {
             }
         }
         .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
-        .contentShape(Rectangle())
+        .contentShape(RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous))
     }
 
     // MARK: - Card chrome (photo vs. plain)
 
     /// The no-photo card. Figma node 702:2190: a 16pt-padded column with a 12pt
     /// gap between the text block and the date chip, and a 4pt gap inside the
-    /// text block. No border and no shadow — the gradient alone lifts the card
-    /// off the journal canvas.
+    /// text block. Glass — not an opaque gradient — lifts the card off the
+    /// journal canvas. Applied to this stack (the view that contains the type),
+    /// never as a sibling `.background`, so title and excerpt get vibrancy.
     private var plainCardBody: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             textBlock
@@ -75,7 +76,7 @@ struct JournalCard: View {
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardSurface)
+        .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xl, style: .continuous))
     }
 
     /// With-photo layout: a cover image inset evenly inside the card with the
@@ -106,25 +107,7 @@ struct JournalCard: View {
         .padding(.horizontal, Spacing.md)
         .padding(.bottom, Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardSurface)
-    }
-
-    /// Vertical wash that *darkens* downward, per Figma. Both stops are theme
-    /// tokens, so the card follows light/dark instead of staying near-white on
-    /// the dark canvas as it used to.
-    private var journalCardGradient: LinearGradient {
-        LinearGradient(
-            colors: [theme.journalCardGradientStart, theme.journalCardGradientEnd],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-
-    /// Shared by the plain and photo cards so they stay the same surface.
-    /// `theme.radius.xl` is 24 — the literal this replaces.
-    private var cardSurface: some View {
-        RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
-            .fill(journalCardGradient)
+        .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xl, style: .continuous))
     }
 
     /// Even inset around the cover photo. Shared with the composer's preview
@@ -324,8 +307,7 @@ private struct JournalCardHarness: View {
         )
         .frame(maxWidth: .infinity) // allow card to stretch
         .padding()
-        // The real journal canvas, not `.systemBackground`: with the border and
-        // shadow gone, the card only separates from `secondaryBackground`.
+        // Journal canvas behind the card so glass has something to refract.
         .background(Theme.light.secondaryBackground)
         .useTheme()
         .useTypography()

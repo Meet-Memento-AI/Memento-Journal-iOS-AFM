@@ -707,6 +707,7 @@ struct ChatMessagesView: View {
                         }
                     }
                     .scrollClipDisabled()
+                    .isolateFromPagingScroll()
                 }
             }
             .frame(maxWidth: .infinity)
