@@ -127,6 +127,28 @@ enum Motion {
     /// Empty state ↔ transcript cross-fade.
     static let transcriptCrossFade: Animation = .easeOut(duration: 0.2)
 
+    static let narrationDissolveOutDuration: TimeInterval = 0.42
+    static let narrationDissolveInDuration: TimeInterval = 0.55
+    static let narrationDissolveInDelay: TimeInterval = 0.08
+    static let narrationDissolveReducedDuration: TimeInterval = 0.18
+
+    /// Composer ↔ narration: outgoing plate. Ease-in so copy is gone
+    /// before the incoming plate is readable — a symmetric easeInOut
+    /// double-exposes the two h2 headlines at different positions.
+    static let narrationDissolveOut: Animation = .easeIn(duration: narrationDissolveOutDuration)
+
+    /// Composer ↔ narration: incoming plate. Delayed ease-out so it
+    /// resolves into a mostly clear field.
+    static let narrationDissolveIn: Animation = .easeOut(duration: narrationDissolveInDuration)
+        .delay(narrationDissolveInDelay)
+
+    /// Reduce Motion: opacity-only cut, no delay, no blur (PRES-094).
+    static let narrationDissolveReduced: Animation = .easeOut(duration: narrationDissolveReducedDuration)
+
+    /// Peak blur (pt) at the mix of the two plates. Envelope is
+    /// `4 * p * (1 - p) * narrationDissolveBlur`, so 0 at both rest states.
+    static let narrationDissolveBlur: CGFloat = 12
+
     /// Beat 2 of the send choreography: the transcript easing the just-landed
     /// message up to the pin.
     ///

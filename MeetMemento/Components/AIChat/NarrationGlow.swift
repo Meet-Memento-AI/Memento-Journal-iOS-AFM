@@ -46,10 +46,9 @@ struct NarrationGlow: View {
     private static let pointCount = 48
     /// Soft enough to read as a wash, sharp enough that the crest still moves.
     private static let waveBlur: CGFloat = 64
-    /// Composer ↔ narration content dissolve. Shared with `AIChatView`'s
-    /// thread/prompt fade and footer swap — not with this glow's rise.
-    static let dissolveDuration: TimeInterval = 0.55
-    /// Decelerating rise from below the fold.
+    /// Decelerating rise from below the fold. Content plates dissolve on
+    /// `Motion.narrationDissolve*` instead — never share a `withAnimation`
+    /// with this offset, or the rise reads as a fade.
     private static let riseDuration: TimeInterval = 0.7
 
     /// Sits just past the bottom edge so the bloom reads as a floor wash.
@@ -78,7 +77,7 @@ struct NarrationGlow: View {
     }
 
     private var opacityAnimation: Animation? {
-        reduceMotion ? .easeInOut(duration: Self.dissolveDuration) : nil
+        reduceMotion ? Motion.narrationDissolveReduced : nil
     }
 
     private var offsetAnimation: Animation? {

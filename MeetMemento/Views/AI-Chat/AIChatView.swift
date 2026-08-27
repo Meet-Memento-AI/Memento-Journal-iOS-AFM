@@ -150,10 +150,7 @@ public struct AIChatView: View {
         scaffold
         .overlay {
             flightOverlay
-                .opacity(isNarrating ? 0 : 1)
-                .allowsHitTesting(!isNarrating)
-                .accessibilityHidden(isNarrating)
-                .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
+                .narrationDissolve(isVisible: !isNarrating, blurs: true)
         }
         // Outermost, and after `.overlay`, so the composer capsule, the
         // transcript column, and the ghost all resolve into the same space and
@@ -348,16 +345,13 @@ public struct AIChatView: View {
                             viewModel.sendMessage(prompt: suggestion)
                         }
                     )
-                    .opacity(isNarrating ? 0 : 1)
-                    .allowsHitTesting(!isNarrating)
-                    .accessibilityHidden(isNarrating)
+                    .narrationDissolve(isVisible: !isNarrating, blurs: true)
 
                     NarrationListeningCanvas()
                         .padding(.top, AppHeaderMetrics.contentTopPadding)
                         .padding(.bottom, bottomReserve)
-                        .opacity(isNarrating ? 1 : 0)
+                        .narrationDissolve(isVisible: isNarrating, blurs: true)
                         .allowsHitTesting(false)
-                        .accessibilityHidden(!isNarrating)
 
                     if keyboardObserver.isKeyboardVisible && !isNarrating {
                         Color.clear
@@ -370,7 +364,6 @@ public struct AIChatView: View {
                     aiDisabledView
                 }
             }
-            .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
         }
     }
 
@@ -412,19 +405,14 @@ public struct AIChatView: View {
                     onNarrate: startNarration,
                     onComposerFrame: { choreographer.composerFrame = $0 }
                 )
-                .opacity(isNarrating ? 0 : 1)
-                .allowsHitTesting(!isNarrating)
-                .accessibilityHidden(isNarrating)
+                .narrationDissolve(isVisible: !isNarrating, blurs: false)
 
                 NarrationFooter(
                     coordinator: narrationCoordinator,
                     onExit: stopNarration
                 )
-                .opacity(isNarrating ? 1 : 0)
-                .allowsHitTesting(isNarrating)
-                .accessibilityHidden(!isNarrating)
+                .narrationDissolve(isVisible: isNarrating, blurs: false)
             }
-            .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
             .background(
                 GeometryReader { proxy in
                     Color.clear.preference(
