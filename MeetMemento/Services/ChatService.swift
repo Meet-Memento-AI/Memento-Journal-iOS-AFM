@@ -111,7 +111,8 @@ protocol ChatServiceProtocol: AnyObject {
     func prewarmConversation(sessionId: UUID?)
     /// Streaming send: emits the reply as it generates, then a final response.
     /// `images` are JPEG bytes attached to this turn (empty for text-only).
-    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data]) -> AsyncThrowingStream<ChatStreamEvent, Error>
+    /// `spoken` is the narration fork (shorter caps + spoken shape).
+    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
@@ -119,11 +120,15 @@ extension ChatServiceProtocol {
 
     func prewarmConversation(sessionId: UUID?) {}
 
+    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data] = []) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        sendMessageStream(text, sessionId: sessionId, images: images, spoken: false)
+    }
+
     /// Default streaming: run the one-shot `sendMessage` and emit a single
     /// delta + final. Mocks that only implement `sendMessage` still work.
     /// Images are ignored on this fallback — the live `ChatService` overrides
     /// the images-aware requirement.
-    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data] = []) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -333,7 +338,7 @@ class ChatService {
     /// events (so the bubble fills as it generates), then persists the turn and
     /// emits `.final`. Persistence and citation mapping run *after* the stream
     /// so nothing blocks first-token.
-    func sendMessageStream(_ text: String, sessionId: UUID? = nil, images: [Data] = []) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func sendMessageStream(_ text: String, sessionId: UUID? = nil, images: [Data] = [], spoken: Bool = false) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let conversationId = sessionId ?? UUID()
@@ -345,7 +350,7 @@ class ChatService {
                     // once instead of per delta (spec 029 Amendment A).
                     var deltaSources: [ChatSource]?
                     for try await event in self.intelligence.askStream(
-                        text, history: history, entries: entries, images: images
+                        text, history: history, entries: entries, images: images, spoken: spoken
                     ) {
                         switch event {
                         case .delta(let bodySoFar, let h1, let h2, let reviewed):

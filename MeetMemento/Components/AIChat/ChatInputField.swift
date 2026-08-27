@@ -100,6 +100,10 @@ struct ChatInputField: View {
     private let photoThumbHeight: CGFloat = 112
     private static let maxAttachments = 3
     private static let photoThumbSpacing: CGFloat = 8
+    /// Canvas tint through `.regular` glass — densifies frost so typed text
+    /// stays readable over the thread. Lighter than Welcome's 0.24 CTA tint
+    /// so the bar stays a surface, not a filled button.
+    private static let glassFrostTintOpacity: Double = 0.2
     /// Figma close control, inset from the thumb's top-trailing corner.
     private let photoCloseInset: CGFloat = 10
     private let photoCloseSize: CGFloat = 24
@@ -258,8 +262,9 @@ struct ChatInputField: View {
         //
         // No `.fill(...)` underneath: an opaque fill beneath glass renders it as
         // a flat panel and defeats it. That exact mistake on this very component
-        // is the HIGH-severity row in spec 024's audit, and `.regular` already
-        // supplies its own backing.
+        // is the HIGH-severity row in spec 024's audit. A light canvas tint
+        // through the material (same pattern as Welcome's Get Started) densifies
+        // the frost so placeholder and typed text stay readable over the thread.
         //
         // No `GlassEffectContainer`: containers exist to blend *multiple*
         // neighbouring glass effects, and this is a single surface — the trailing
@@ -274,7 +279,10 @@ struct ChatInputField: View {
         // its height, so at the resting 64pt the two are identical — but the
         // field grows to five lines, and the capsule's corners would swell with
         // it. Pinning the token keeps the silhouette constant while typing.
-        .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xxl, style: .continuous))
+        .glassEffect(
+            .regular.tint(theme.background.opacity(Self.glassFrostTintOpacity)),
+            in: .rect(cornerRadius: theme.radius.xxl, style: .continuous)
+        )
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { onComposerFrame?($0) }
     }
@@ -484,6 +492,7 @@ struct ChatInputField: View {
     /// narration on the chat page (`AIChatView.startNarration`).
     private var voiceModeButton: some View {
         Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             onNarrate?()
         } label: {
             Image(systemName: "waveform")

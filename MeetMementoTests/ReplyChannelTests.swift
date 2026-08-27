@@ -74,6 +74,15 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 512)
     }
 
+    func test_spokenCaps_neverRaiseAndShortenNotebookThread() {
+        XCTAssertEqual(ReplyChannel.companion.maximumResponseTokens(retrievalRan: false, spoken: true), 128)
+        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: false, spoken: true), 256)
+        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: true, spoken: true), 256)
+        XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: false, spoken: true), 256)
+        XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true, spoken: true), 256)
+        XCTAssertEqual(ReplyChannel.phatic.maximumResponseTokens(retrievalRan: false, spoken: true), 80)
+    }
+
     func test_temperature() {
         XCTAssertEqual(ReplyChannel.phatic.temperature, 0.9)
         XCTAssertEqual(ReplyChannel.continuer.temperature, 0.9)

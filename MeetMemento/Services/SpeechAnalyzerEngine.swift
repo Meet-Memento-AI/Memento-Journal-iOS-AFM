@@ -24,11 +24,15 @@ final class SpeechAnalyzerEngine {
     private var converter: AVAudioConverter?
     private var analyzerFormat: AVAudioFormat?
     private var onLevel: ((Float) -> Void)?
+    private var onSpeechDetected: ((Bool) -> Void)?
+    private var onUpdate: ((TranscriptionUpdate) -> Void)?
+    /// True when the analyzer is allocated but the mic tap is down (TTS half-duplex).
+    private(set) var isCapturePaused = false
 
     var lastAssetState: TranscriptionAssetState = .missing
 
-    func assetState(for locale: Locale) async -> TranscriptionAssetState {
-        let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+    func assetState(for locale: Locale, style: TranscriptionStyle = .dictation) async -> TranscriptionAssetState {
+        let transcriber = makeTranscriber(locale: locale, style: style)
         let status = await AssetInventory.status(forModules: [transcriber])
         let mapped: TranscriptionAssetState
         switch status {
@@ -42,8 +46,8 @@ final class SpeechAnalyzerEngine {
         return mapped
     }
 
-    func ensureAssets(for locale: Locale) async {
-        let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+    func ensureAssets(for locale: Locale, style: TranscriptionStyle = .dictation) async {
+        let transcriber = makeTranscriber(locale: locale, style: style)
         if let request = try? await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
             lastAssetState = .downloading
             try? await request.downloadAndInstall()
@@ -53,19 +57,18 @@ final class SpeechAnalyzerEngine {
 
     func start(
         locale: Locale,
+        style: TranscriptionStyle = .dictation,
         onUpdate: @escaping (TranscriptionUpdate) -> Void,
         onLevel: @escaping (Float) -> Void,
         onSpeechDetected: @escaping (Bool) -> Void
     ) async throws {
         await cancel()
+        isCapturePaused = false
         self.onLevel = onLevel
+        self.onSpeechDetected = onSpeechDetected
+        self.onUpdate = onUpdate
 
-        let transcriber = SpeechTranscriber(
-            locale: locale,
-            transcriptionOptions: [],
-            reportingOptions: [.volatileResults],
-            attributeOptions: [.audioTimeRange]
-        )
+        let transcriber = makeTranscriber(locale: locale, style: style)
         // SpeechDetector is the 034 VAD type. On iOS 26 SDK 3500.107 it does
         // not publicly conform to SpeechModule, so it cannot join `modules:`.
         // Keep a live instance so the type stays in the capture path; barge-in
@@ -88,9 +91,9 @@ final class SpeechAnalyzerEngine {
                     guard !Task.isCancelled else { break }
                     let text = String(result.text.characters)
                     if result.isFinal {
-                        onUpdate(.finalized(text))
+                        self?.onUpdate?(.finalized(text))
                     } else {
-                        onUpdate(.volatile(text))
+                        self?.onUpdate?(.volatile(text))
                     }
                 }
             } catch {
@@ -110,6 +113,60 @@ final class SpeechAnalyzerEngine {
         try startMic(format: format, onLevel: onLevel, onSpeechDetected: onSpeechDetected)
     }
 
+    /// Mic tap off, analyzer kept. Pause is allocation, not a live tap —
+    /// TTS takes `.playback` while the transcriber stays warm for the next listen.
+    func pauseCapture() {
+        guard analyzer != nil else { return }
+        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioEngine?.stop()
+        audioEngine = nil
+        converter = nil
+        isCapturePaused = true
+    }
+
+    /// Re-arm the mic into the still-running analyzer. Returns false when
+    /// there is nothing paused — caller should cold-start.
+    @discardableResult
+    func resumeCapture(
+        onUpdate: @escaping (TranscriptionUpdate) -> Void,
+        onLevel: @escaping (Float) -> Void,
+        onSpeechDetected: @escaping (Bool) -> Void
+    ) throws -> Bool {
+        guard isCapturePaused, analyzer != nil, inputContinuation != nil else {
+            return false
+        }
+        self.onUpdate = onUpdate
+        self.onLevel = onLevel
+        self.onSpeechDetected = onSpeechDetected
+        try startMic(format: analyzerFormat, onLevel: onLevel, onSpeechDetected: onSpeechDetected)
+        isCapturePaused = false
+        return true
+    }
+
+    private func makeTranscriber(locale: Locale, style: TranscriptionStyle) -> SpeechTranscriber {
+        switch style {
+        case .dictation:
+            return SpeechTranscriber(
+                locale: locale,
+                transcriptionOptions: [],
+                reportingOptions: [.volatileResults],
+                attributeOptions: [.audioTimeRange]
+            )
+        case .conversation:
+            // `.transcription` is the punctuation-oriented preset. Keep
+            // volatile results so the live bubble still streams.
+            let preset = SpeechTranscriber.Preset.transcription
+            return SpeechTranscriber(
+                locale: locale,
+                transcriptionOptions: preset.transcriptionOptions.union([.etiquetteReplacements]),
+                reportingOptions: preset.reportingOptions.union([.volatileResults]),
+                attributeOptions: preset.attributeOptions.union([
+                    .audioTimeRange, .transcriptionConfidence
+                ])
+            )
+        }
+    }
+
     func finish() async {
         inputContinuation?.finish()
         inputContinuation = nil
@@ -125,6 +182,10 @@ final class SpeechAnalyzerEngine {
         analyzerTask = nil
         analyzer = nil
         transcriber = nil
+        isCapturePaused = false
+        onUpdate = nil
+        onSpeechDetected = nil
+        onLevel = nil
     }
 
     func cancel() async {
@@ -142,6 +203,10 @@ final class SpeechAnalyzerEngine {
         analyzerTask = nil
         analyzer = nil
         transcriber = nil
+        isCapturePaused = false
+        onUpdate = nil
+        onSpeechDetected = nil
+        onLevel = nil
     }
 
     func pause() {

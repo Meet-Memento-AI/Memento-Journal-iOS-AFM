@@ -219,7 +219,16 @@ enum TurnClassifier {
 
     /// Classifies ONLY the current message. `hasHistory` gates `followup` —
     /// without prior turns there is nothing to follow up on.
-    static func classify(_ message: String, hasHistory: Bool) -> TurnType {
+    ///
+    /// `lastAssistantAskedQuestion` is the narration fork: a spoken answer to
+    /// "How did work feel?" ("it was actually pretty heavy") is a follow-up,
+    /// not a fresh share. Typed chat leaves this false so existing routing
+    /// stays put.
+    static func classify(
+        _ message: String,
+        hasHistory: Bool,
+        lastAssistantAskedQuestion: Bool = false
+    ) -> TurnType {
         let normalized = normalize(message)
         let words = normalized.split(separator: " ").map(String.init)
         let isQuestion = message.contains("?")
@@ -262,6 +271,8 @@ enum TurnClassifier {
         let carriesOwnJournalAsk =
             words.contains(where: { journalWords.contains($0) })
             || (matches(normalized, anyOf: retrospectiveRegexes) && mentionsSelf(words))
+            || matches(normalized, anyOf: journalPossessiveRegexes)
+            || matches(normalized, anyOf: summaryRequestRegexes)
 
         if hasHistory, !carriesOwnJournalAsk {
             if followupPhrases.contains(where: { normalized == $0 || normalized.hasPrefix($0 + " ") || normalized.hasSuffix(" " + $0) }) {
@@ -274,6 +285,16 @@ enum TurnClassifier {
             if isQuestion, words.count <= 8 {
                 let content = words.filter { !stopwordsForDeixis.contains($0) }
                 if !content.isEmpty, content.allSatisfy({ deicticWords.contains($0) }) {
+                    return .followup
+                }
+            }
+            // Spoken answer to the question just asked — no continuer phrase,
+            // no deixis. Still not a follow-up when this turn is its own
+            // journal ask, a world question, or a reflective one.
+            if lastAssistantAskedQuestion {
+                let isOffdomain = isQuestion && matches(normalized, anyOf: offdomainRegexes)
+                let isReflective = isQuestion && matches(normalized, anyOf: reflectiveRegexes)
+                if !isOffdomain, !isReflective {
                     return .followup
                 }
             }

@@ -557,7 +557,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Availability → safety gate → classify → channel → retrieval → stance → prompt.
     /// Pure aside from the availability await.
-    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskPreparation {
+    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false) async throws -> AskPreparation {
         let availability = await availability()
         guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
@@ -601,7 +601,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // the prompt obeys it.
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
-        let turn = TurnClassifier.classify(question, hasHistory: !history.isEmpty)
+        let answeringLastQuestion = spoken
+            && ConversationalMove.lastAssistantQuestion(in: history) != nil
+        let turn = TurnClassifier.classify(
+            question,
+            hasHistory: !history.isEmpty,
+            lastAssistantAskedQuestion: answeringLastQuestion
+        )
         signposter.endInterval("prep.classify", classifyState)
         LiveTurnClock.shared.end(.prepClassify)
 
@@ -683,7 +689,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             visionBlock: visionBlock,
             channel: channel,
             move: move,
-            personalization: storedPersonalization
+            personalization: storedPersonalization,
+            spoken: spoken
         )
         // The degraded variant is a registry entry, never the heavy prompt
         // behind a lighter model (REQ-INT-010). Phatic/continuer/redirect omit
@@ -706,7 +713,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             instructions: resolved.text, history: history, budget: budget
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
-        let generationOptions = Self.askOptions(for: channel, retrievalRan: retrievalRan)
+        let generationOptions = Self.askOptions(for: channel, retrievalRan: retrievalRan, spoken: spoken)
         return AskPreparation(request: request, route: route, retrieval: retrieval, stance: stance,
                               channel: channel, prompt: prompt, resolved: resolved, budget: budget,
                               plan: plan, generationOptions: generationOptions)
@@ -800,10 +807,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Ask generation options (spec 029 Amendment A / 039 R1). Temperature
     /// and token cap come from ReplyChannel — 0.9 / 64–128 on light and
     /// companion, 0.7 / 512 on notebook and RAG thread.
-    private static func askOptions(for channel: ReplyChannel, retrievalRan: Bool) -> GenerationOptions {
+    private static func askOptions(for channel: ReplyChannel, retrievalRan: Bool, spoken: Bool) -> GenerationOptions {
         GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
-            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan)
+            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
         )
     }
 
@@ -929,7 +936,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         var citedRefs: [Int] = []
     }
 
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let clock = ContinuousClock()
@@ -938,7 +945,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 let spid = signposter.makeSignpostID()
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
-                    let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images)
+                    let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images, spoken: spoken)
                     signposter.endInterval("prep", prepState)
 
                     // Spec 029 Amendment A: adopt the speculative session when
@@ -1281,7 +1288,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        visionBlock: String? = nil,
                                        channel: ReplyChannel = .companion,
                                        move: ConversationalMove? = nil,
-                                       personalization: PromptPersonalization = .none) -> String {
+                                       personalization: PromptPersonalization = .none,
+                                       spoken: Bool = false) -> String {
         // Spec 039 ranks 0–1: Move cue + latest message + optional don't-repeat.
         // No [Turn:] / [Shape:] stack, no evidence, no L1. Names ride [Name:].
         if channel.usesLightPrompt {
@@ -1294,6 +1302,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let skipName = move?.avoidsName == true || usedNameLastTurn
             if !skipName, let name = personalization.nameCueLine {
                 light.append(name)
+            }
+            if spoken, channel == .continuer,
+               let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
+                light.append(answering)
             }
             if let anti = ConversationalMove.antiRepeatLine(from: history) {
                 light.append(anti)
@@ -1314,6 +1326,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance,
                                                       isGrounded: grounded) {
             parts.append(overlay)
+        }
+        if spoken {
+            parts.append(PromptRegistry.spokenTurnShapeLine)
+            if channel == .thread,
+               let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
+                parts.append(answering)
+            }
+            if let anti = ConversationalMove.antiRepeatLine(from: history) {
+                parts.append(anti)
+            }
         }
         if safetyConstrained {
             parts.insert(SafetyRouter.constrainedStanceLine, at: 0)

@@ -187,6 +187,11 @@ enum PromptRegistry {
     /// Ask-time cap so journal goals stay faint background.
     static let maxAskPromptLensChars = 80
 
+    /// Narration-only user-prompt overlay. Light channels already match this
+    /// shape (`chat-light@4`); do not append it there.
+    static let spokenTurnShapeLine =
+        "[Spoken: Two spoken sentences, then one question. No headings, no lists. Evidence is one concrete beat, not a recap.]"
+
     /// `REQ-PRM-001`: resolve `(intent, zone, degraded) → (prompt text,
     /// promptVersion)`. This is the entry point the boundary calls; the degraded
     /// variants R4 requires are registry entries selected here, never string

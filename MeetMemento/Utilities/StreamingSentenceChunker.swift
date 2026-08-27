@@ -29,19 +29,36 @@ struct StreamingSentenceChunker {
     /// staccato utterances of their own.
     private static let minSentenceLength = 15
 
-    /// First-audio: speak a clause once it has this many complete words.
-    static let firstClauseMinWords = 12
+    /// First-audio: speak a clause once it has this many complete words
+    /// (read-back / typed). Conversation profile uses a shorter bar.
+    static let firstClauseMinWords = FirstChunkProfile.readBack.firstClauseMinWords
     /// First-audio fallback: speak a stable prefix of this many complete words
-    /// when no clause punctuation has appeared yet.
-    static let firstPrefixMinWords = 10
+    /// when no clause punctuation has appeared yet (read-back / typed).
+    static let firstPrefixMinWords = FirstChunkProfile.readBack.firstPrefixMinWords
     /// Subsequent-sentence dead-air prefetch (P6): emit a held tail this long.
     static let stableTailMinWords = 12
+
+    /// Word bars for the first speakable chunk. Conversation speaks sooner;
+    /// read-back keeps the original 12 / 10 so typed playback is unchanged.
+    struct FirstChunkProfile: Equatable, Sendable {
+        var firstClauseMinWords: Int
+        var firstPrefixMinWords: Int
+
+        static let readBack = FirstChunkProfile(firstClauseMinWords: 12, firstPrefixMinWords: 10)
+        static let conversation = FirstChunkProfile(firstClauseMinWords: 6, firstPrefixMinWords: 5)
+    }
+
+    private let profile: FirstChunkProfile
 
     /// A short opener ("Sure.") emitted immediately via the first-sentence
     /// fast path (spec 029 R4). The forward-merge rule will later fold it into
     /// the next sentence; `reconcileOpener` splits it back out so the already-
     /// spoken prefix keeps its identity and the remainder is emitted fresh.
     private var pendingOpenerPrefix: String?
+
+    init(profile: FirstChunkProfile = .readBack) {
+        self.profile = profile
+    }
 
     /// Feed the latest cumulative text. Returns the sentences that have
     /// completed since the previous call, in order. While `isFinal` is false
@@ -65,7 +82,7 @@ struct StreamingSentenceChunker {
         // re-speak the prefix.
         if !isFinal, emittedCount == 0, sentences.count == 1, let growing = sentences.first {
             let completeSentence = Self.endsAtBoundary(growing) && Self.isLikelySentence(growing)
-            if !completeSentence, let prefix = Self.firstChunkPrefix(growing) {
+            if !completeSentence, let prefix = firstChunkPrefix(growing) {
                 pendingOpenerPrefix = prefix
                 emittedCount = 1
                 return [prefix]
@@ -180,6 +197,16 @@ struct StreamingSentenceChunker {
     /// First speakable chunk of a still-growing opener: a clause of at least
     /// `firstClauseMinWords`, or a stable prefix of `firstPrefixMinWords`.
     static func firstChunkPrefix(_ text: String) -> String? {
+        firstChunkPrefix(text, profile: .readBack)
+    }
+
+    private func firstChunkPrefix(_ text: String) -> String? {
+        Self.firstChunkPrefix(text, profile: profile)
+    }
+
+    static func firstChunkPrefix(_ text: String, profile: FirstChunkProfile) -> String? {
+        let firstPrefixMinWords = profile.firstPrefixMinWords
+        let firstClauseMinWords = profile.firstClauseMinWords
         let complete = completeWordCount(text)
         guard complete >= firstPrefixMinWords else { return nil }
 

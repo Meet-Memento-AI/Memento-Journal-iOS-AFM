@@ -6,8 +6,16 @@ import XCTest
 /// (share/journalQuery), never silently in a no-retrieval one.
 final class TurnClassifierTests: XCTestCase {
 
-    private func classify(_ message: String, hasHistory: Bool = true) -> TurnType {
-        TurnClassifier.classify(message, hasHistory: hasHistory)
+    private func classify(
+        _ message: String,
+        hasHistory: Bool = true,
+        lastAssistantAskedQuestion: Bool = false
+    ) -> TurnType {
+        TurnClassifier.classify(
+            message,
+            hasHistory: hasHistory,
+            lastAssistantAskedQuestion: lastAssistantAskedQuestion
+        )
     }
 
     // MARK: - Social
@@ -138,6 +146,39 @@ final class TurnClassifierTests: XCTestCase {
     func test_statements_defaultToShare() {
         XCTAssertEqual(classify("today was exhausting, back to back meetings all day"), .share)
         XCTAssertEqual(classify("I finally talked to my sister"), .share)
+    }
+
+    func test_answerWithoutDeixis_afterOpenQuestion_isFollowup() {
+        XCTAssertEqual(
+            classify("it was actually pretty heavy", lastAssistantAskedQuestion: true),
+            .followup
+        )
+        XCTAssertEqual(
+            classify("pretty good honestly", lastAssistantAskedQuestion: true),
+            .followup
+        )
+    }
+
+    func test_answerWithoutLastQuestion_staysShare() {
+        XCTAssertEqual(classify("it was actually pretty heavy"), .share)
+    }
+
+    func test_journalAsk_afterOpenQuestion_staysJournalQuery() {
+        XCTAssertEqual(
+            classify("what did I write last week?", lastAssistantAskedQuestion: true),
+            .journalQuery
+        )
+    }
+
+    func test_offdomain_afterOpenQuestion_staysOffdomain() {
+        XCTAssertEqual(
+            classify("who won the game last night?", lastAssistantAskedQuestion: true),
+            .offdomain
+        )
+    }
+
+    func test_social_afterOpenQuestion_staysSocial() {
+        XCTAssertEqual(classify("hey", lastAssistantAskedQuestion: true), .social)
     }
 
     func test_ambiguousQuestions_defaultToJournalQuery() {

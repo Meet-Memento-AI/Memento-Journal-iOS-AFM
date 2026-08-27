@@ -26,7 +26,7 @@ private final class MockNarrationSpeech: NarrationSpeechListening {
 
     func isOwner(_ ownerId: String) -> Bool { owner == ownerId }
 
-    func startRecording(ownerId: String) async throws {
+    func startRecording(ownerId: String, style: TranscriptionStyle) async throws {
         if let startError { throw startError }
         startCount += 1
         owner = ownerId
@@ -128,9 +128,30 @@ final class NarrationCoordinatorTests: XCTestCase {
         ))
     }
 
-    func test_stableTranscriptAndSilence_fires() {
+    func test_stableIncompleteTranscript_holdsAtCompletePause() {
+        XCTAssertFalse(NarrationCoordinator.shouldAutoSend(
+            transcript: "I want to talk about my week",
+            secondsSinceChange: NarrationCoordinator.autoSendPause,
+            audioLevel: 0
+        ))
+    }
+
+    func test_stableIncompleteTranscript_firesAtIncompletePause() {
         XCTAssertTrue(NarrationCoordinator.shouldAutoSend(
             transcript: "I want to talk about my week",
+            secondsSinceChange: NarrationCoordinator.autoSendIncompletePause,
+            audioLevel: 0
+        ))
+    }
+
+    func test_completeSentence_firesAtCompletePause() {
+        XCTAssertTrue(NarrationCoordinator.transcriptLooksComplete("I want to talk about my week."))
+        XCTAssertTrue(NarrationCoordinator.transcriptLooksComplete("How did last week feel?"))
+        XCTAssertTrue(NarrationCoordinator.transcriptLooksComplete("That was a lot!"))
+        XCTAssertTrue(NarrationCoordinator.transcriptLooksComplete("And then\u{2026}"))
+        XCTAssertFalse(NarrationCoordinator.transcriptLooksComplete("I want to talk about my week"))
+        XCTAssertTrue(NarrationCoordinator.shouldAutoSend(
+            transcript: "I want to talk about my week.",
             secondsSinceChange: NarrationCoordinator.autoSendPause,
             audioLevel: 0
         ))
@@ -294,7 +315,7 @@ final class NarrationCoordinatorTests: XCTestCase {
         await waitUntil { speech.startCount == 1 }
         speech.partialSubject.send("Hello there")
         speech.bestAvailableTranscript = "Hello there"
-        coordinator.micTapped() // send-now
+        coordinator.sendNow() // send-now
         await waitUntil { coordinator.phase == .speaking }
     }
 
@@ -394,7 +415,7 @@ final class NarrationCoordinatorTests: XCTestCase {
         await waitUntil { speech.startCount == 1 }
         speech.partialSubject.send("Hello there")
         speech.bestAvailableTranscript = "Hello there"
-        coordinator.micTapped()
+        coordinator.sendNow()
 
         await waitUntil { speech.startCount == 2 }
         XCTAssertEqual(voice.preactivateCount, 1)
@@ -414,7 +435,7 @@ final class NarrationCoordinatorTests: XCTestCase {
         // finalized — the turn must re-listen, not send an empty prompt.
         speech.partialSubject.send("uh")
         speech.bestAvailableTranscript = ""
-        coordinator.micTapped()
+        coordinator.sendNow()
 
         await waitUntil { speech.startCount == 2 }
         XCTAssertEqual(coordinator.phase, .listening)

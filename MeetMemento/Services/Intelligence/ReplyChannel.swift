@@ -85,12 +85,16 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// outcome only — a reply cut off before it finished a sentence.
     /// `retrievalRan` still selects the temperature, where the distinction is
     /// real.
-    func maximumResponseTokens(retrievalRan: Bool) -> Int {
+    ///
+    /// Narration (`spoken: true`) never raises a cap. Companion stays at 128;
+    /// notebook/thread drop to 256 so Meet + one Sit beat + Open still fit
+    /// without a spoken essay.
+    func maximumResponseTokens(retrievalRan: Bool, spoken: Bool = false) -> Int {
         switch self {
         case .phatic: return 80
         case .continuer: return 64
         case .meta, .companion: return 128
-        case .thread, .notebook: return 512
+        case .thread, .notebook: return spoken ? 256 : 512
         case .redirect: return 80
         }
     }

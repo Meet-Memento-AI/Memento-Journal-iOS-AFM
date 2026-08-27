@@ -32,7 +32,7 @@ protocol NarrationSpeechListening: AnyObject {
     var partialTranscriptPublisher: AnyPublisher<String, Never> { get }
     var isRecordingPublisher: AnyPublisher<Bool, Never> { get }
     func isOwner(_ ownerId: String) -> Bool
-    func startRecording(ownerId: String) async throws
+    func startRecording(ownerId: String, style: TranscriptionStyle) async throws
     func stopRecording() async
     func cancelRecording() async
     func clearTranscription()
@@ -124,10 +124,12 @@ final class NarrationCoordinator: ObservableObject {
 
     // MARK: - Tuning
 
-    /// A pause this long (with the transcript stable) counts as "done talking".
+    /// A pause this long after a *complete* sentence counts as "done talking".
     /// Deliberately conversational — SpeechService's own 20s silence timeout is
     /// journaling-paced and stays untouched. Expect to tune this by feel.
     static let autoSendPause: TimeInterval = 1.5
+    /// Incomplete fragments wait longer so a clause pause does not send.
+    static let autoSendIncompletePause: TimeInterval = 2.8
     /// The transcript-stability signal is primary; this amplitude gate only
     /// stops a send from firing mid-word. SpeechService publishes
     /// `min(1, rms * 3)`, where normal speech lands around 0.05–0.45.
@@ -179,7 +181,7 @@ final class NarrationCoordinator: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private var watchdog: Task<Void, Never>?
-    private var chunker = StreamingSentenceChunker()
+    private var chunker = StreamingSentenceChunker(profile: .conversation)
     /// Whether `beginUtteranceSession` has run for the current reply.
     private var ttsSessionBegun = false
     /// Set once the current reply has fully settled (final consumed) so the
@@ -215,9 +217,21 @@ final class NarrationCoordinator: ObservableObject {
         secondsSinceChange: TimeInterval,
         audioLevel: Float
     ) -> Bool {
-        !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && secondsSinceChange >= autoSendPause
-            && audioLevel < autoSendMaxAudioLevel
+        guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        guard audioLevel < autoSendMaxAudioLevel else { return false }
+        let needed = transcriptLooksComplete(transcript)
+            ? autoSendPause
+            : autoSendIncompletePause
+        return secondsSinceChange >= needed
+    }
+
+    /// Sentence-final punctuation: period, question, exclamation, or ellipsis.
+    static func transcriptLooksComplete(_ transcript: String) -> Bool {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let last = trimmed.last else { return false }
+        return last == "." || last == "?" || last == "!" || last == "\u{2026}"
     }
 
     /// Whether the current listening turn is dead (spec 028 R4): never showed
@@ -242,7 +256,10 @@ final class NarrationCoordinator: ObservableObject {
         didRecoverDeadListen = false
         sessionActive = true
         subscribe()
+        // Catalog + synthesizer warm overlap the listen spin-up, not serial
+        // with it. warmSynthesizer awaits the catalog internally.
         Task { await voiceService.ensureVoiceCatalogWarmed() }
+        voiceService.warmSynthesizer()
         chatViewModel.prewarmNextTurn()
         beginListening()
     }
@@ -273,21 +290,28 @@ final class NarrationCoordinator: ObservableObject {
 
     // MARK: - User actions
 
-    /// The footer mic button. While listening it sends what's been heard
-    /// without waiting out the pause; while speaking it barges in — cuts the
-    /// narration and reopens the mic.
+    /// The footer mic. While speaking it barges in — cuts the narration and
+    /// reopens the mic. While listening it is idle; the transcript bubble
+    /// is send-now (`sendNow()`).
     func micTapped() {
         switch phase {
-        case .listening:
-            guard !liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            finishListeningAndSend()
         case .speaking:
             // stop() clears speakingMessageID, which the loop-close sink
             // translates into a fresh listening turn.
             voiceService.stop()
-        case .idle, .finalizing, .awaitingResponse:
+        case .idle, .listening, .finalizing, .awaitingResponse:
             break
         }
+    }
+
+    /// Live-transcript bubble. Sends the current speech immediately, even
+    /// mid-sentence — auto-send still waits for a complete pause.
+    func sendNow() {
+        guard phase == .listening else { return }
+        guard !liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+        finishListeningAndSend()
     }
 
     /// Alert "Try Again" path.
@@ -319,7 +343,7 @@ final class NarrationCoordinator: ObservableObject {
                 await micReleaseTask?.value
                 await voiceService.waitForSessionRelease()
                 guard sessionActive else { return }
-                try await speechService.startRecording(ownerId: speechOwnerId)
+                try await speechService.startRecording(ownerId: speechOwnerId, style: .conversation)
                 guard sessionActive else {
                     // Torn down while the mic was spinning up — don't leave it open.
                     await speechService.cancelRecording()
@@ -490,7 +514,7 @@ final class NarrationCoordinator: ObservableObject {
             phase = .idle
             return
         }
-        chunker = StreamingSentenceChunker()
+        chunker = StreamingSentenceChunker(profile: .conversation)
         replyMessageID = nil
         ttsSessionBegun = false
         responseSettled = false

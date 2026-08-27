@@ -86,12 +86,16 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
                 .clipLeadingSheet(elevated, shape: leadingSheetShape)
 
             content
-
-            // Voice glow (and any other page wash) sits on the canvas, above
-            // content, under the footer — never composited into a backing rect.
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            // Out of the ZStack so a wide wash (NarrationGlow is 880pt) cannot
+            // widen the Chat page and overlap Journal during pager swipes.
             backgroundOverlay
                 .clipLeadingSheet(elevated, shape: leadingSheetShape)
-
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottom) {
             footer
                 .padding(.bottom, footerPad)
         }

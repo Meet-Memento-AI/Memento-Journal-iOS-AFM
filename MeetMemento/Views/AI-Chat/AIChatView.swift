@@ -3,7 +3,7 @@
 //  MeetMemento
 //
 //  Chat page: typing and hands-free narration are modes of the same surface.
-//  Header, thread, and scroll chrome stay put; the footer (and glow) swap.
+//  Header stays; the thread dissolves for a listening canvas; footer and glow swap.
 //
 
 import SwiftUI
@@ -148,7 +148,13 @@ public struct AIChatView: View {
 
     public var body: some View {
         scaffold
-        .overlay { flightOverlay }
+        .overlay {
+            flightOverlay
+                .opacity(isNarrating ? 0 : 1)
+                .allowsHitTesting(!isNarrating)
+                .accessibilityHidden(isNarrating)
+                .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
+        }
         // Outermost, and after `.overlay`, so the composer capsule, the
         // transcript column, and the ghost all resolve into the same space and
         // their rects are directly comparable.
@@ -342,6 +348,16 @@ public struct AIChatView: View {
                             viewModel.sendMessage(prompt: suggestion)
                         }
                     )
+                    .opacity(isNarrating ? 0 : 1)
+                    .allowsHitTesting(!isNarrating)
+                    .accessibilityHidden(isNarrating)
+
+                    NarrationListeningCanvas()
+                        .padding(.top, AppHeaderMetrics.contentTopPadding)
+                        .padding(.bottom, bottomReserve)
+                        .opacity(isNarrating ? 1 : 0)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(!isNarrating)
 
                     if keyboardObserver.isKeyboardVisible && !isNarrating {
                         Color.clear
@@ -354,6 +370,7 @@ public struct AIChatView: View {
                     aiDisabledView
                 }
             }
+            .animation(.easeInOut(duration: NarrationGlow.dissolveDuration), value: isNarrating)
         }
     }
 
@@ -475,10 +492,9 @@ public struct AIChatView: View {
 
     private func startNarration() {
         dismissKeyboard()
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
-            isNarrating = true
-        }
+        // Content, footer, and glow each own their curve. A wrapping
+        // `withAnimation` would also drive NarrationGlow's offset as a fade.
+        isNarrating = true
         // Neural catalog is the only voice path (DEC-011); no compact-voice tip.
         Task { await voiceService.warmVoiceCatalog() }
         narrationCoordinator.start(chatViewModel: viewModel)
@@ -489,12 +505,9 @@ public struct AIChatView: View {
             narrationCoordinator.stop()
             return
         }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         narrationCoordinator.stop()
-        withAnimation(.easeInOut(duration: NarrationGlow.dissolveDuration)) {
-            isNarrating = false
-            // Hide without persisting: only the explicit X commits dismissal.
-        }
+        isNarrating = false
+        // Hide without persisting: only the explicit X commits dismissal.
     }
 
     private func refreshSuggestionsIfNeeded(force: Bool = false) {

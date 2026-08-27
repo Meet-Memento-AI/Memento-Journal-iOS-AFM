@@ -80,6 +80,9 @@ final class SpeechService: ObservableObject {
     private var pendingTeardown: Task<Void, Never>?
     private var interruptionObserver: NSObjectProtocol?
     private var isPausedForInterruption = false
+    /// Last capture style. Conversation pauses the analyzer between turns
+    /// instead of tearing it down; dictation still finishes on stop.
+    private var activeStyle: TranscriptionStyle = .dictation
 
     private init() {
         observeInterruptions()
@@ -168,7 +171,16 @@ final class SpeechService: ObservableObject {
 
     // MARK: - Recording
 
-    func startRecording(ownerId: String) async throws {
+    func startRecording(ownerId: String, style: TranscriptionStyle = .dictation) async throws {
+        if analyzerEngine.isCapturePaused, activeStyle == style {
+            do {
+                try await resumeCapture(ownerId: ownerId, style: style)
+                return
+            } catch {
+                await analyzerEngine.cancel()
+            }
+        }
+
         teardownEngine(clearOwnership: true)
 
         errorMessage = nil
@@ -176,6 +188,7 @@ final class SpeechService: ObservableObject {
         partialTranscribedText = ""
         speechDetected = false
         activeSessionOwner = ownerId
+        activeStyle = style
         silenceStartTime = nil
         ignoreRecognitionResults = false
         sessionGeneration &+= 1
@@ -215,10 +228,10 @@ final class SpeechService: ObservableObject {
         }
 
         let locale = Locale.current
-        assetState = await analyzerEngine.assetState(for: locale)
+        assetState = await analyzerEngine.assetState(for: locale, style: style)
         if assetState == .missing || assetState == .downloading {
-            await analyzerEngine.ensureAssets(for: locale)
-            assetState = await analyzerEngine.assetState(for: locale)
+            await analyzerEngine.ensureAssets(for: locale, style: style)
+            assetState = await analyzerEngine.assetState(for: locale, style: style)
         }
         if assetState == .unsupported {
             errorMessage = SpeechError.onDeviceUnavailable.errorDescription
@@ -231,6 +244,7 @@ final class SpeechService: ObservableObject {
         do {
             try await analyzerEngine.start(
                 locale: locale,
+                style: style,
                 onUpdate: { [weak self] update in
                     Task { @MainActor in
                         self?.handleUpdate(update, generation: generation)
@@ -270,6 +284,58 @@ final class SpeechService: ObservableObject {
         }
     }
 
+    /// Re-arm a paused conversation capture without reallocating SpeechAnalyzer.
+    private func resumeCapture(ownerId: String, style: TranscriptionStyle) async throws {
+        errorMessage = nil
+        transcribedText = ""
+        partialTranscribedText = ""
+        speechDetected = false
+        activeSessionOwner = ownerId
+        activeStyle = style
+        silenceStartTime = nil
+        ignoreRecognitionResults = false
+        sessionGeneration &+= 1
+        let generation = sessionGeneration
+
+        await pendingTeardown?.value
+
+        let resumed = try analyzerEngine.resumeCapture(
+            onUpdate: { [weak self] update in
+                Task { @MainActor in
+                    self?.handleUpdate(update, generation: generation)
+                }
+            },
+            onLevel: { [weak self] rms in
+                Task { @MainActor in
+                    self?.updateAudioLevel(rms)
+                }
+            },
+            onSpeechDetected: { [weak self] present in
+                Task { @MainActor in
+                    self?.speechDetected = present
+                    ConversationAudioController.shared.handleVoiceActivity(present)
+                }
+            }
+        )
+        guard resumed else {
+            throw SpeechError.engineStartFailed("speech analyzer was not paused")
+        }
+
+        isProcessing = true
+        isRecording = true
+        let startTime = Date()
+        durationTimer?.invalidate()
+        durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isRecording else { return }
+                self.currentDuration = Date().timeIntervalSince(startTime)
+            }
+        }
+        if let durationTimer {
+            RunLoop.main.add(durationTimer, forMode: .common)
+        }
+    }
+
     func stopRecording() async {
         guard isRecording else {
             isRecording = false
@@ -283,6 +349,14 @@ final class SpeechService: ObservableObject {
         audioLevel = 0
         smoothedLevel = 0
         isRecording = false
+
+        if activeStyle == .conversation {
+            // Keep SpeechAnalyzer allocated across narration turns. Mic tap
+            // is down (half-duplex) so TTS can take playback; resume on re-arm.
+            analyzerEngine.pauseCapture()
+            isProcessing = false
+            return
+        }
 
         await analyzerEngine.finish()
         scheduleFinalizationTimeout()

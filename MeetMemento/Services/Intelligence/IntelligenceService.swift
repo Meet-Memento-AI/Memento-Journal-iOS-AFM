@@ -229,7 +229,15 @@ protocol IntelligenceService: Sendable {
 
     /// Streaming variant of `ask` (spec 017 R6): emits the reply as it
     /// generates so the UI shows text immediately instead of after completion.
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error>
+    /// `spoken` is the narration fork — shorter token caps and a spoken shape
+    /// line. Typed chat always passes false.
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        entries: [Entry],
+        images: [Data],
+        spoken: Bool
+    ) -> AsyncThrowingStream<AskStreamEvent, Error>
 
     /// Turn a conversation into a first-person journal-entry summary.
     ///
@@ -268,14 +276,24 @@ extension IntelligenceService {
     }
 
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
-        askStream(question, history: history, entries: entries, images: [])
+        askStream(question, history: history, entries: entries, images: [], spoken: false)
+    }
+
+    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        askStream(question, history: history, entries: entries, images: images, spoken: false)
     }
 
     /// Default streaming implementation: run the one-shot `ask` and emit a
     /// single delta + final. Mocks and any non-streaming implementation get
     /// correct (if non-incremental) behavior for free; the real Foundation
     /// Models service overrides this with true snapshot streaming.
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        entries: [Entry],
+        images: [Data],
+        spoken: Bool
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {

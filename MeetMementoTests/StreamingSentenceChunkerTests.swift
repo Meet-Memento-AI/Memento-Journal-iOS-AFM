@@ -128,4 +128,36 @@ final class StreamingSentenceChunkerTests: XCTestCase {
         let fresh = chunker.consume("You said **rest** felt impossible.", isFinal: true)
         XCTAssertEqual(fresh, ["You said **rest** felt impossible."])
     }
+
+    // MARK: - Conversation first-chunk (narration)
+
+    func test_conversationProfile_emitsPrefixAtFiveWords() {
+        var chunker = StreamingSentenceChunker(profile: .conversation)
+        let prefix = "Work felt pretty heavy today"
+        XCTAssertEqual(
+            StreamingSentenceChunker.completeWordCount(prefix + " and"),
+            StreamingSentenceChunker.FirstChunkProfile.conversation.firstPrefixMinWords
+        )
+        XCTAssertEqual(chunker.consume(prefix + " and", isFinal: false), [prefix])
+    }
+
+    func test_readBackProfile_holdsFiveWordPrefix() {
+        var chunker = StreamingSentenceChunker()
+        XCTAssertEqual(
+            chunker.consume("Work felt pretty heavy today and", isFinal: false),
+            []
+        )
+    }
+
+    func test_conversationProfile_emitsClauseAtSixWords() {
+        var chunker = StreamingSentenceChunker(profile: .conversation)
+        let clause = "Work felt pretty heavy today lately, "
+        XCTAssertGreaterThanOrEqual(
+            StreamingSentenceChunker.completeWordCount(clause),
+            StreamingSentenceChunker.FirstChunkProfile.conversation.firstClauseMinWords
+        )
+        let emitted = chunker.consume(clause + "and I keep thinking", isFinal: false)
+        XCTAssertEqual(emitted.count, 1)
+        XCTAssertTrue(emitted[0].hasSuffix(",") || emitted[0].contains("lately"))
+    }
 }

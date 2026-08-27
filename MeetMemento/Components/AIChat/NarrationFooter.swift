@@ -29,9 +29,11 @@ struct NarrationFooter: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            transcriptCard
-            footerBar
+        GlassEffectContainer(spacing: 16) {
+            VStack(spacing: 16) {
+                transcriptCard
+                footerBar
+            }
         }
         .rootEdgeInset()
     }
@@ -41,20 +43,30 @@ struct NarrationFooter: View {
         let transcript = coordinator.liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         if !transcript.isEmpty,
            coordinator.phase == .listening || coordinator.phase == .finalizing {
-            Text(transcript)
-                .font(type.body1)
-                .foregroundStyle(transcriptColor)
-                .lineLimit(4)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(theme.cardBackground)
-                        .shadow(color: buttonShadow, radius: 16, y: 4)
-                )
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                .accessibilityLabel("Transcription: \(transcript)")
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                coordinator.sendNow()
+            } label: {
+                Text(transcript)
+                    .font(type.body1)
+                    .foregroundStyle(transcriptColor)
+                    .lineLimit(4)
+                    .truncationMode(.head)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .glassEffect(
+                        .regular.interactive(),
+                        in: .rect(cornerRadius: 16, style: .continuous)
+                    )
+                    .shadow(color: buttonShadow, radius: 16, y: 4)
+                    .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(coordinator.phase != .listening)
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .accessibilityLabel("Send now")
+            .accessibilityHint("Double-tap to send what you've said")
+            .accessibilityValue(transcript)
         }
     }
 
@@ -73,10 +85,10 @@ struct NarrationFooter: View {
                 systemName: "mic",
                 size: AppHeaderMetrics.footerButtonSize,
                 shadow: buttonShadow,
-                accessibilityLabel: coordinator.phase == .speaking ? "Interrupt" : "Send now",
+                accessibilityLabel: coordinator.phase == .speaking ? "Interrupt" : "Microphone",
                 accessibilityHint: coordinator.phase == .speaking
                     ? "Double-tap to stop Memento speaking and talk"
-                    : "Double-tap to send what you've said without waiting"
+                    : "Listening. Double-tap the transcript to send."
             ) {
                 coordinator.micTapped()
             }

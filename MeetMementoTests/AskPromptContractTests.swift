@@ -437,6 +437,50 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertFalse(prompt.contains("[Turn:"))
     }
 
+    func test_spokenFollowupPrompt_answersLastQuestionAndShapesShort() {
+        let history = [
+            ChatTurn(role: .user, text: "work was a lot"),
+            ChatTurn(role: .assistant, text: "That sounds like a full day. How did work feel?")
+        ]
+        let prompt = FoundationModelsIntelligenceService.buildAskPrompt(
+            question: "it was actually pretty heavy",
+            history: history,
+            retrieval: .empty,
+            stance: .followupThread,
+            shape: .answerOpen,
+            archiveEmpty: true,
+            budget: ContextBudget(window: .unavailable),
+            channel: .thread,
+            move: .answerThenAsk,
+            spoken: true
+        )
+        XCTAssertTrue(prompt.contains("[They are answering your last question:"))
+        XCTAssertTrue(prompt.contains("How did work feel?"))
+        XCTAssertTrue(prompt.contains("[Don't ask that again:"))
+        XCTAssertTrue(prompt.contains(PromptRegistry.spokenTurnShapeLine))
+        XCTAssertTrue(prompt.contains("Two spoken sentences, then one question"))
+    }
+
+    func test_typedFollowupPrompt_doesNotInjectSpokenCues() {
+        let history = [
+            ChatTurn(role: .user, text: "work was a lot"),
+            ChatTurn(role: .assistant, text: "That sounds like a full day. How did work feel?")
+        ]
+        let prompt = FoundationModelsIntelligenceService.buildAskPrompt(
+            question: "it was actually pretty heavy",
+            history: history,
+            retrieval: .empty,
+            stance: .followupThread,
+            shape: .answerOpen,
+            archiveEmpty: true,
+            budget: ContextBudget(window: .unavailable),
+            channel: .thread,
+            move: .answerThenAsk
+        )
+        XCTAssertFalse(prompt.contains("[They are answering your last question:"))
+        XCTAssertFalse(prompt.contains(PromptRegistry.spokenTurnShapeLine))
+    }
+
     func test_ask6_safetyHardBans_onFullAndDegraded() {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text

@@ -384,11 +384,17 @@ class ChatViewModel: ObservableObject {
     private func performSend(text: String, images: [Data] = [], userMessageId: UUID, origin: SendOrigin) {
         isLoading = true
         let generation = sendGeneration
-        let turn = TurnClassifier.classify(text, hasHistory: messages.count > 1)
         // Prior turns only — the current user message is already appended.
         let priorHistory: [ChatTurn] = messages.dropLast().map {
             ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content)
         }
+        let answeringLastQuestion = origin == .narration
+            && ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
+        let turn = TurnClassifier.classify(
+            text,
+            hasHistory: messages.count > 1,
+            lastAssistantAskedQuestion: answeringLastQuestion
+        )
         loadingPhrase = LoadingStatus.phrase(for: turn, history: priorHistory)
         if let second = LoadingStatus.followUpPhrase(for: turn, history: priorHistory) {
             track(Task { [weak self] in
@@ -439,9 +445,13 @@ class ChatViewModel: ObservableObject {
             // re-diffs the transcript. Bodies are cumulative, so intermediate
             // snapshots are safely superseded — apply at most every 33ms, with
             // a trailing flush so a stream stall can't leave the bubble stale.
+            // Narration applies the first delta immediately and coalesces at
+            // ~16ms so the chunker can speak a clause as soon as one exists.
             let deltaClock = ContinuousClock()
-            let minDeltaInterval: Duration = .milliseconds(33)
+            let isNarration = origin == .narration
+            let minDeltaInterval: Duration = isNarration ? .milliseconds(16) : .milliseconds(33)
             var lastDeltaApply = deltaClock.now - minDeltaInterval
+            var appliedFirstNarrationDelta = false
             var pendingDelta: (body: String, heading1: String?, heading2: String?,
                                citations: [JournalCitation]?)?
             // Mapped once per turn — the reviewed set is constant across deltas.
@@ -461,7 +471,7 @@ class ChatViewModel: ObservableObject {
 
             do {
                 for try await event in chatService.sendMessageStream(
-                    text, sessionId: currentSessionId, images: images
+                    text, sessionId: currentSessionId, images: images, spoken: origin == .narration
                 ) {
                     // Cancelled or superseded mid-flight (user left / switched
                     // conversations): stop writing into whatever is on screen now.
@@ -483,10 +493,12 @@ class ChatViewModel: ObservableObject {
                             reviewedCitations = mapped.isEmpty ? nil : mapped
                         }
                         pendingDelta = (body, heading1, heading2, reviewedCitations)
-                        if deltaClock.now - lastDeltaApply >= minDeltaInterval {
+                        let applyFirstImmediately = isNarration && !appliedFirstNarrationDelta
+                        if applyFirstImmediately || deltaClock.now - lastDeltaApply >= minDeltaInterval {
                             deltaFlushTask?.cancel()
                             deltaFlushTask = nil
                             applyPendingDelta()
+                            appliedFirstNarrationDelta = true
                         } else if deltaFlushTask == nil {
                             deltaFlushTask = Task { [weak self] in
                                 try? await Task.sleep(for: minDeltaInterval)

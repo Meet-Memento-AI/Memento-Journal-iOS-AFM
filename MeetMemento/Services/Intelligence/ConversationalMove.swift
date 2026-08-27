@@ -116,6 +116,12 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
         return "[Don't ask that again: \"\(question)\"]"
     }
 
+    /// Narration cue: they are answering the question Memento just asked.
+    static func answeringLastQuestionLine(from history: [ChatTurn]) -> String? {
+        guard let question = lastAssistantQuestion(in: history) else { return nil }
+        return "[They are answering your last question: \"\(question)\"]"
+    }
+
     // MARK: - Social sub-kinds
 
     private static let farewellNeedles: [String] = [

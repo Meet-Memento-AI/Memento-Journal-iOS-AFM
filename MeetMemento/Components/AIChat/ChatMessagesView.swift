@@ -124,9 +124,9 @@ struct ChatMessagesView: View {
         ScrollViewReader { proxy in
             ZStack(alignment: .top) {
                 transcript(proxy: proxy)
-                    // Reserve is for the transcript pin only. The empty state
-                    // must extend under the composer so the third starter
-                    // peeks behind the input bar (product empty-state frame).
+                    // Reserve is for the transcript pin only. The empty-state
+                    // overlay fills the page; its own ScrollView pads by
+                    // `bottomReserve` so the last tile can scroll above the bar.
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         Color.clear
                             .frame(height: bottomReserve)
@@ -675,37 +675,41 @@ struct ChatMessagesView: View {
     }
 
     private var emptyState: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 0) {
-                VStack(spacing: ChatEmptyHeroMetrics.logoToTitle) {
-                    Image("LaunchLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 48, height: 48)
+        GeometryReader { geo in
+            let height = geo.size.height
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    VStack(spacing: ChatEmptyHeroMetrics.logoToTitle) {
+                        Image("LaunchLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 48, height: 48)
 
-                    Text("Let\u{2019}s dive deeper\ninto your journal")
-                        .font(type.h2)
-                        .foregroundStyle(PrimaryScale.primary600)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, ChatEmptyHeroMetrics.belowHeader)
-                .padding(.bottom, ChatEmptyHeroMetrics.titleToCards)
+                        Text("Let\u{2019}s dive deeper\ninto your journal")
+                            .font(type.h2)
+                            .foregroundStyle(PrimaryScale.primary600)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, ChatEmptyHeroMetrics.belowHeader(for: height))
+                    .padding(.bottom, ChatEmptyHeroMetrics.titleToCards(for: height))
 
-                VStack(spacing: ChatEmptyHeroMetrics.cardGap) {
-                    ForEach(displayedSuggestions) { suggestion in
-                        AISuggestionCard(suggestion) {
-                            onSuggestionTap(suggestion.prompt)
+                    VStack(spacing: ChatEmptyHeroMetrics.cardGap) {
+                        ForEach(displayedSuggestions) { suggestion in
+                            AISuggestionCard(suggestion) {
+                                onSuggestionTap(suggestion.prompt)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.top, AppHeaderMetrics.contentTopPadding)
+                .padding(.bottom, bottomReserve)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, AppHeaderMetrics.contentTopPadding)
-            // No extra bottom pad — the composer overlays the third card.
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollIndicators(.hidden)
     }
 
     /// Empty chat always shows three starter tiles under the headline.
@@ -716,17 +720,36 @@ struct ChatMessagesView: View {
     }
 }
 
-/// Vertical rhythm for Chat's empty-state hero. Values are 1.5× the previous
-/// frame so the glyph and headline sit with more air above the prompt cards.
+/// Vertical rhythm for Chat's empty-state hero. Top and bottom air around the
+/// logo + headline is authored at iPhone 17 height (~16pt more than the
+/// previous 60 / 108), then scaled with the viewport so SE stays tight and
+/// Pro Max / iPad open up in proportion.
 private enum ChatEmptyHeroMetrics {
-    /// Extra air below the header row (on top of `contentTopPadding`'s 16pt).
-    static let belowHeader: CGFloat = Spacing.xxxl * 1.5
-    /// Logo to headline.
-    static let logoToTitle: CGFloat = Spacing.lg * 1.5
-    /// Headline to first card — about three lines of `h2` after the 50% bump.
-    static let titleToCards: CGFloat = (Spacing.xxxl + Spacing.xxl) * 1.5
+    /// Portrait height of iPhone 17 — the extra 16pt is designed here.
+    static let referenceHeight: CGFloat = 852
+    /// Extra top/bottom air at the reference height.
+    static let extraAir: CGFloat = Spacing.md
+
+    static func scale(for height: CGFloat) -> CGFloat {
+        guard height > 0 else { return 1 }
+        return min(max(height / referenceHeight, 0.84), 1.30)
+    }
+
+    /// Extra air below the header row (on top of `contentTopPadding`).
+    static func belowHeader(for height: CGFloat) -> CGFloat {
+        (Spacing.xxxl * 1.5 + extraAir) * scale(for: height)
+    }
+
+    /// Logo to headline. About half the previous 30pt gap.
+    static let logoToTitle: CGFloat = Spacing.lg * 0.75
+
+    /// Headline to first card.
+    static func titleToCards(for height: CGFloat) -> CGFloat {
+        ((Spacing.xxxl + Spacing.xxl) * 1.5 + extraAir) * scale(for: height)
+    }
+
     /// Gap between stacked suggestion tiles.
-    static let cardGap: CGFloat = Spacing.sm
+    static let cardGap: CGFloat = Spacing.md
 }
 
 // MARK: - Geometry reporting

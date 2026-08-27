@@ -8,32 +8,34 @@
 import Combine
 import SwiftUI
 
-/// A 440×220 blurred gradient anchored past the bottom edge whose silhouette
-/// is the voice — a scrolling ring buffer of envelope samples shapes the
-/// glow's top edge. While Memento thinks/speaks the buffer is fed a slow sine
-/// instead, so the wave stays alive without a live mic.
+/// An 880×440 blurred gradient anchored past the bottom edge whose silhouette
+/// is the voice — a traveling multi-sine wave, lifted by the mic while the
+/// user speaks and by a slow breath while Memento thinks/speaks.
 ///
 /// One brown silhouette, blurred, composited straight onto the page fill.
-/// A second bloom + `drawingGroup()` used to rasterize a light backing rect
-/// behind the wave — that is gone.
+/// Entrance is a rise from fully below the fold at full opacity, not a fade
+/// shared with the thread dissolve. Reduce Motion (PRES-094) skips the rise
+/// and cross-fades opacity only.
 ///
 /// Driven by a 20 Hz clock, NOT `.onChange(of: audioLevel)` — SpeechService's
 /// smoothed level decays to exactly 0 in silence and stops publishing changes.
 struct NarrationGlow: View {
     /// False while Chat is in the typing composer — the glow stays mounted
-    /// so it can dissolve in and out, rather than popping on `if`.
+    /// so it can rise in and out, rather than popping on `if`.
     var isActive: Bool
     var audioLevel: Float
     /// True while TTS speaks/thinks: ignore the (dead) mic level and roll.
     var isAutonomous: Bool
 
-    @Environment(\.theme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var displayLevel: Double = 0
     @State private var samples: [Double] = []
     @State private var breathPhase: Double = 0
+    /// Opacity latch: on for the whole rise, held through the exit slide,
+    /// then dropped once the silhouette is off-screen. Reduce Motion uses
+    /// `isActive` directly instead.
+    @State private var isDrawn: Bool = false
 
     private static let tick: TimeInterval = 0.05
     private static let attack: Double = 0.6
@@ -42,35 +44,32 @@ struct NarrationGlow: View {
     /// gain makes spoken syllables occupy most of the wave's height.
     private static let gain: Double = 2.6
     private static let pointCount = 48
-    /// Soft enough to read as a wave, not a hard edge — without a second
-    /// bloom layer that painted a light backing behind it.
-    private static let waveBlur: CGFloat = 24
-    /// Composer ↔ narration dissolve. Shared with `AIChatView`'s footer swap.
+    /// Soft enough to read as a wash, sharp enough that the crest still moves.
+    private static let waveBlur: CGFloat = 64
+    /// Composer ↔ narration content dissolve. Shared with `AIChatView`'s
+    /// thread/prompt fade and footer swap — not with this glow's rise.
     static let dissolveDuration: TimeInterval = 0.55
+    /// Decelerating rise from below the fold.
+    private static let riseDuration: TimeInterval = 0.7
 
     /// Sits just past the bottom edge so the bloom reads as a floor wash.
     private static let restingOffset: CGFloat = 40
-    /// Off-screen start for the rise-from-below dissolve (PRES-094 skips this).
-    private static let hiddenOffset: CGFloat = 100
+    /// Frame height + former blur + slack so the blurred rect starts off-screen.
+    private static let hiddenOffset: CGFloat = 560
 
     private var gradient: LinearGradient {
-        let bottom: Color = colorScheme == .dark
-            ? theme.accent.opacity(0.55)
-            : BrandColors.brandOnText
-        return LinearGradient(
-            colors: [theme.accent, bottom],
+        LinearGradient(
+            colors: [PrimaryScale.primary600, PrimaryScale.primary700],
             startPoint: .top,
             endPoint: .bottom
         )
     }
 
-    private var waveBaseOpacity: Double {
-        colorScheme == .dark ? 0.60 : 0.75
-    }
-
     private var waveOpacity: Double {
-        guard isActive else { return 0 }
-        return waveBaseOpacity + 0.20 * displayLevel
+        if reduceMotion { return isActive ? 0.50 : 0 }
+        // Visible the whole time it is on-screen, including the exit slide.
+        if isActive { return 0.50 }
+        return isDrawn ? 0.50 : 0
     }
 
     private var glowOffset: CGFloat {
@@ -78,23 +77,34 @@ struct NarrationGlow: View {
         return isActive ? Self.restingOffset : Self.hiddenOffset
     }
 
+    private var opacityAnimation: Animation? {
+        reduceMotion ? .easeInOut(duration: Self.dissolveDuration) : nil
+    }
+
+    private var offsetAnimation: Animation? {
+        reduceMotion ? nil : .easeOut(duration: Self.riseDuration)
+    }
+
     private let clock = Timer.publish(every: tick, on: .main, in: .common).autoconnect()
 
     var body: some View {
         silhouette
-            .frame(width: 440, height: 220)
+            .frame(width: 880, height: 440)
             .blur(radius: Self.waveBlur)
-            .opacity(waveOpacity)
             .offset(y: glowOffset)
+            .animation(offsetAnimation, value: isActive)
+            .opacity(waveOpacity)
+            .animation(opacityAnimation, value: reduceMotion ? isActive : isDrawn)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            .animation(.easeInOut(duration: Self.dissolveDuration), value: isActive)
             .animation(.linear(duration: Self.tick), value: samples)
             .onReceive(clock) { _ in advance() }
             .onAppear {
-                if samples.count < Self.pointCount {
-                    samples = Array(repeating: 0, count: Self.pointCount - samples.count) + samples
-                }
+                seedSamplesIfNeeded()
+                if isActive { isDrawn = true }
+            }
+            .onChange(of: isActive) { _, active in
+                handleActiveChange(active)
             }
     }
 
@@ -109,23 +119,56 @@ struct NarrationGlow: View {
         }
     }
 
+    private func handleActiveChange(_ active: Bool) {
+        guard !reduceMotion else {
+            isDrawn = active
+            return
+        }
+        if active {
+            isDrawn = true
+        } else {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Self.riseDuration))
+                if !isActive { isDrawn = false }
+            }
+        }
+    }
+
+    private func seedSamplesIfNeeded() {
+        if samples.count != Self.pointCount {
+            samples = travelingWave(at: breathPhase, lift: displayLevel)
+        }
+    }
+
     private func advance() {
-        guard isActive else { return }
+        breathPhase += Self.tick
+
         let target: Double
         if isAutonomous {
-            breathPhase += Self.tick
             target = 0.40 + 0.32 * sin(breathPhase * 2 * .pi * 0.2)
-        } else {
+        } else if isActive {
             target = min(1, max(0, Double(audioLevel) * Self.gain))
+        } else {
+            target = 0
         }
         let coefficient = target > displayLevel ? Self.attack : Self.release
         displayLevel += (target - displayLevel) * coefficient
 
         guard !reduceMotion else { return }
+        samples = travelingWave(at: breathPhase, lift: displayLevel)
+    }
 
-        samples.append(displayLevel)
-        if samples.count > Self.pointCount {
-            samples.removeFirst(samples.count - Self.pointCount)
+    /// Idle traveling sines, scaled up when the mic or autonomous breath lifts.
+    private func travelingWave(at time: Double, lift: Double) -> [Double] {
+        let amplitude = 0.72 + 0.28 * min(1, max(0, lift))
+        return (0..<Self.pointCount).map { index in
+            let x = Double(index) / Double(Self.pointCount - 1)
+            let idle =
+                0.45
+                + 0.22 * sin(2 * .pi * (x * 1.2 + time * 0.45))
+                + 0.14 * sin(2 * .pi * (x * 2.4 - time * 0.70))
+                + 0.10 * sin(2 * .pi * (x * 0.6 + time * 0.15))
+            return min(1, max(0, idle * amplitude))
         }
     }
 }

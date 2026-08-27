@@ -104,12 +104,17 @@ final class ConversationalMoveTests: XCTestCase {
         )
         let line = ConversationalMove.antiRepeatLine(from: history)
         XCTAssertEqual(line, "[Don't ask that again: \"How has the week been treating you?\"]")
+        XCTAssertEqual(
+            ConversationalMove.answeringLastQuestionLine(from: history),
+            "[They are answering your last question: \"How has the week been treating you?\"]"
+        )
     }
 
     func test_antiRepeat_nilWhenNoQuestion() {
         let history = [ChatTurn(role: .assistant, text: "Take care.")]
         XCTAssertNil(ConversationalMove.lastAssistantQuestion(in: history))
         XCTAssertNil(ConversationalMove.antiRepeatLine(from: history))
+        XCTAssertNil(ConversationalMove.answeringLastQuestionLine(from: history))
     }
 
     func test_everyMove_hasACue() {

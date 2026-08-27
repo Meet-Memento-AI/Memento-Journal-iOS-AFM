@@ -16,3 +16,13 @@ enum TranscriptionUpdate: Equatable, Sendable {
 enum TranscriptionAssetState: Equatable, Sendable {
     case installed, downloading, missing, unsupported
 }
+
+/// How the on-device transcriber is configured for this session.
+/// Journal dictation stays progressive; narration uses the transcription
+/// preset so punctuation and sentence boundaries land in the live transcript.
+enum TranscriptionStyle: Equatable, Sendable {
+    /// Composer / journal capture — progressive, volatile captions.
+    case dictation
+    /// Hands-free narration — transcription preset plus volatile live results.
+    case conversation
+}
