@@ -7,7 +7,15 @@ import XCTest
 /// expectations so the result is scored, not eyeballed.
 final class DiagGroundingEval: XCTestCase {
 
-    private static let reps = 4
+    /// Reps per case. Four is enough to spot a total failure and far too few to
+    /// verify a fix: the attribution and responsiveness cases are intermittent,
+    /// and their run-to-run spread is wider than the effect being measured
+    /// ("Who is Maya?" scored 2/4, 1/4 and 3/4 across three runs of identical
+    /// code). MEM-203 asks for at least 8; use 12 or more when confirming a
+    /// prompt change, via `TEST_RUNNER_GROUNDING_REPS`.
+    private static var reps: Int {
+        ProcessInfo.processInfo.environment["GROUNDING_REPS"].flatMap(Int.init).map { max(1, $0) } ?? 4
+    }
 
     struct Expect {
         /// Substrings that must NOT appear (case-insensitive).

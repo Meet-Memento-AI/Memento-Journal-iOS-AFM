@@ -25,6 +25,8 @@ specs/
 ├── 039-*.md           ← reply channels and phatic generation (effort curve, chat-light@4)
 ├── 040-*.md           ← iPad backend readiness (SwiftData live writes, CloudKit private replica, selection IDs)
 ├── 041-*.md           ← in-chat answer feedback (persisted thumbs, reason sheet, report overflow)
+├── 042-*.md           ← feedback telemetry to Supabase (consent tiers, write-only RLS) — draft
+├── 043-*.md           ← eval run warehouse and origin labeling (run identity, real vs synthetic)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

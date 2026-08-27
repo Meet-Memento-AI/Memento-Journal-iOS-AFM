@@ -437,6 +437,41 @@ $$);
 
 ---
 
+### 2.8 Relationship to spec 043 (added 2026-08-27)
+
+Spec [043](043-eval-run-warehouse.md) builds an `eval` schema plus a warehouse
+copy of `answer_feedback` in `public`, on the same project. The two do not
+merge, and 043 does not fork this design:
+
+- **This spec stays the landing zone.** `feedback.*` is written by a client
+  holding the publishable anon key, through a `security definer` RPC that
+  re-derives consent server-side. 043 is service-role/psql only, with
+  `anon`/`authenticated` revoked on tables, functions, and schema usage.
+- **Opposite retention.** §2.7 purges `user_prompt`/`assistant_reply` after 90
+  days. A warehouse whose value is that a six-month-old baseline is still
+  comparable cannot share that policy.
+- **Different blockers.** This spec is gated behind five compliance guards;
+  043 touches no app-target code and no user content, so it ships now.
+- **One bridge, one direction.** A `promote_device_feedback()` function reads
+  from here into the warehouse with `origin = 'device_human'`. It is written
+  only when this spec ships. The warehouse never writes back.
+
+**Two collisions this spec creates, recorded here rather than discovered later:**
+
+1. **`search_path` hazard.** `public.import_answer_feedback` referenced
+   `answer_feedback` unqualified with no `set search_path`. The moment
+   `feedback.answer_feedback` exists, any caller whose `search_path` starts
+   with `feedback` — which §2.4's own functions set — writes to the wrong
+   table. 043 closed this by schema-qualifying and pinning `search_path`, but
+   the hazard originates here.
+2. **Two tables named `answer_feedback`,** distinguished only by schema. That
+   is a permanent readability tax on every future query and every future
+   session. Renaming this spec's to `feedback.submission` is free while these
+   migrations remain unapplied; renaming the warehouse's would mean rewriting
+   applied migrations. **Recommend renaming this one.**
+
+---
+
 ## 3. Identity: anonymous auth, no accounts
 
 Spec 023 removed account creation; this must not bring it back. Supabase

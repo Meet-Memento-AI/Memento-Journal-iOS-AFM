@@ -100,6 +100,23 @@ the framework provides (`technology/04` §1). Contract:
   endpoint, no credentials. The only permitted network egress is the Z1
   legs' Apple PCC calls, and those legs are skippable: a Z0-only run MUST
   complete with the network fully disabled.
+
+  > **Amended 2026-08-27 (spec [043](043-eval-run-warehouse.md)).** This clause
+  > binds the *run*, not the *record*. The harness itself remains exactly as
+  > written above: it runs from a clean checkout with Xcode alone, acquires no
+  > credential, and a Z0-only run still MUST complete with the network fully
+  > disabled. What 043 adds is an out-of-band export, performed after the fact,
+  > of artifacts the harness already wrote to `.eval-runs/`. No harness reads a
+  > credential, no gate depends on a database, and a missing credential must
+  > never fail a CI check. The exported data is synthetic fixture content only.
+  >
+  > R1's provenance requirement is also widened in the same breath: a run now
+  > records `{runId, promptVersion, modelIdentifier, gitSha, corpusId}` and
+  > writes into a per-run directory. `promptVersion` is recorded **per
+  > generation, not per run** — verified 2026-08-27, every shard of the
+  > thousand-prompt sweep contains both `ask@15` and `chat-light@4`, because
+  > spec 039 channel routing picks the prompt per turn. A run-level pin would
+  > average two prompts and call it one number.
 - **Verify-first (🔴):** trajectory expectations need the registered tool
   name for `SpotlightSearchTool` — that is V12, owned by spec 016 R5/R10;
   this harness consumes the confirmed string (one named constant, shared

@@ -168,6 +168,18 @@ when any rows exist. No in-app review inbox.
 
 ## Regression Guards
 
+> **Amended 2026-08-27 (spec [043](043-eval-run-warehouse.md)).** The
+> warehouse copy of this row in `public.answer_feedback` gains an `origin`
+> label and a `run_id`, and relaxes two constraints so non-device judgments can
+> share the table: `source` and `message_id` become nullable, and `message_id`
+> uniqueness becomes a partial index over non-null values. The on-device store
+> and R5's one-row-per-`messageID` rule are unchanged, and the CHECK
+> `device_rows_keep_041_shape` holds every `origin = 'device_human'` row to the
+> original contract. REQ-PRIV-001 is unaffected: 043 stores synthetic fixture
+> data and developer/LLM critique only.
+
+
+
 - PRES-043 action bar still hidden while streaming
 - Regenerates still last-reply-only
 - Crisis card (spec 026) unchanged — no overflow, no thumbs
