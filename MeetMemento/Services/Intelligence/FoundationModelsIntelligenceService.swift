@@ -274,6 +274,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     func mapAnyGenerationError(_ error: Error) -> IntelligenceError {
         if let alreadyClassified = error as? IntelligenceError { return alreadyClassified }
 
+        #if compiler(>=6.3)
         if #available(iOS 27.0, *) {
             if let modern = error as? LanguageModelError {
                 return mapModernErrorTrackingOutage(modern)
@@ -290,6 +291,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 return .unavailable(.other(assets.errorDescription ?? "Model assets are unavailable."))
             }
         }
+        #endif
 
         if let legacy = error as? LanguageModelSession.GenerationError {
             return mapGenerationErrorTrackingOutage(legacy)
@@ -300,6 +302,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// iOS 27's `LanguageModelError`, mapped to the same `IntelligenceError`
     /// vocabulary the legacy path produces, then run through the identical
     /// outage bookkeeping so the two paths cannot drift.
+    ///
+    /// Same `compiler(>=6.3)` gate as image attachments — `#available` cannot
+    /// see a type the iOS 26 SDK does not declare.
+    #if compiler(>=6.3)
     @available(iOS 27.0, *)
     private func mapModernErrorTrackingOutage(_ error: LanguageModelError) -> IntelligenceError {
         let mapped: IntelligenceError
@@ -325,6 +331,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         return recordOutcome(mapped)
     }
+    #endif
 
     private func mapGenerationErrorTrackingOutage(
         _ error: LanguageModelSession.GenerationError

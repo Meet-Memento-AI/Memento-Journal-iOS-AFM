@@ -50,12 +50,18 @@ public struct AIChatView: View {
     @State private var showChatHistorySheet = false
     @State private var showSummarySheet = false
     @State private var summaryError: String?
-    @State private var currentSuggestions: [String] = []
+    @State private var currentSuggestions: [ChatSuggestion] = []
+    /// Confirmed theme ids the current chips were built from. Re-rotate when
+    /// the user edits journal goals so pills stay in sync.
+    @State private var suggestionThemeSignature: [String] = []
 
     private let hasEntries: Bool
     /// When set, the view opens already in Narration Mode with this phase —
     /// used by canvas previews so QA does not have to start the mic.
     private let narrationPreview: AIChatNarrationPreviewConfiguration?
+    /// Canvas seed for the empty-state tiles. Nil in production — `rotateSuggestions`
+    /// reads confirmed themes from the local profile instead.
+    private let seededSuggestions: [ChatSuggestion]?
 
     private static var allPrompts: [String] = {
         if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
@@ -97,7 +103,8 @@ public struct AIChatView: View {
         hasEntries: Bool = true,
         onOpenJournal: (() -> Void)? = nil,
         onPresentEntry: ((EntryRoute) -> Void)? = nil,
-        narrationPreview: AIChatNarrationPreviewConfiguration? = nil
+        narrationPreview: AIChatNarrationPreviewConfiguration? = nil,
+        seededSuggestions: [ChatSuggestion]? = nil
     ) {
         self.viewModel = viewModel
         self.isEmbedded = isEmbedded
@@ -105,7 +112,11 @@ public struct AIChatView: View {
         self.onOpenJournal = onOpenJournal
         self.onPresentEntry = onPresentEntry
         self.narrationPreview = narrationPreview
+        self.seededSuggestions = seededSuggestions
         _isNarrating = State(initialValue: narrationPreview != nil)
+        if let seededSuggestions {
+            _currentSuggestions = State(initialValue: seededSuggestions)
+        }
     }
 
     private var footerBottomPadding: CGFloat {
@@ -256,15 +267,13 @@ public struct AIChatView: View {
             // measures from process start to this point of interest.
             PerfSignposts.appLoad.emitEvent("chat.appeared")
             viewModel.prewarm()
-            if currentSuggestions.isEmpty {
-                rotateSuggestions()
-            }
+            refreshSuggestionsIfNeeded()
             Task {
                 await viewModel.fetchSessions()
             }
         }
         .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
-            if isEmpty { rotateSuggestions() }
+            if isEmpty { refreshSuggestionsIfNeeded(force: true) }
         }
     }
 
@@ -488,8 +497,19 @@ public struct AIChatView: View {
         }
     }
 
+    private func refreshSuggestionsIfNeeded(force: Bool = false) {
+        if let seededSuggestions {
+            currentSuggestions = seededSuggestions
+            return
+        }
+        let ids = LocalProfileStore.ensureMigratedProfile().confirmedThemeIds
+        guard force || currentSuggestions.isEmpty || suggestionThemeSignature != ids else { return }
+        rotateSuggestions()
+    }
+
     private func rotateSuggestions() {
         currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
+        suggestionThemeSignature = LocalProfileStore.ensureMigratedProfile().confirmedThemeIds
     }
 
     private func dismissKeyboard() {
@@ -529,7 +549,12 @@ private struct ChatFooterHeightKey: PreferenceKey {
 #Preview("Empty State") {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
-        AIChatView(viewModel: viewModel)
+        AIChatView(
+            viewModel: viewModel,
+            isEmbedded: true,
+            hasEntries: true,
+            seededSuggestions: ChatSuggestion.previewSamples
+        )
     }
     .useTheme()
     .useTypography()
@@ -547,7 +572,12 @@ private struct ChatFooterHeightKey: PreferenceKey {
 #Preview("Dark Mode") {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {
-        AIChatView(viewModel: viewModel)
+        AIChatView(
+            viewModel: viewModel,
+            isEmbedded: true,
+            hasEntries: true,
+            seededSuggestions: ChatSuggestion.previewSamples
+        )
     }
     .useTheme()
     .useTypography()

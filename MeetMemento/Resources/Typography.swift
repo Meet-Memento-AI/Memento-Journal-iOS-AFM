@@ -192,8 +192,9 @@ public struct Typography {
     /// Sits between body1 (16) and h4 (20); the composer is the only surface
     /// that asks for it, so it lives here rather than in the size scale.
     public var inputLarge: Font { bodyFont(size: 18, weight: .medium) }
-    /// 18pt bold — suggestion-card prompt (Figma 709:2320).
-    public var promptTitle: Font { bodyFont(size: 18, weight: .bold) }
+    /// 18pt semibold — suggestion-card prompt (Figma 709:2320 / 395:5565).
+    /// One step below bold so the stacked tiles don't compete with the hero.
+    public var promptTitle: Font { bodyFont(size: 18, weight: .semibold) }
 
     /// 16pt Figtree Medium — loading-state heading (chat thinking row).
     public var loadingHeading: Font {

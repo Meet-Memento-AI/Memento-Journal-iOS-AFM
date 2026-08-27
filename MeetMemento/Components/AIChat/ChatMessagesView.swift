@@ -16,9 +16,9 @@ struct ChatMessagesView: View {
     var hasEntries: Bool
     var bottomReserve: CGFloat
     var followTail: Bool
-    /// Starter prompts for the empty state. Empty hides the chips entirely —
-    /// which is what an archive with nothing in it should show.
-    var suggestions: [String] = []
+    /// Starter prompts for the empty state. The three tiles always render
+    /// under the headline; this array supplies prompts and theme pills.
+    var suggestions: [ChatSuggestion] = []
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
     var onSuggestionTap: (String) -> Void = { _ in }
@@ -122,17 +122,20 @@ struct ChatMessagesView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack {
+            ZStack(alignment: .top) {
                 transcript(proxy: proxy)
+                    // Reserve is for the transcript pin only. The empty state
+                    // must extend under the composer so the third starter
+                    // peeks behind the input bar (product empty-state frame).
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        Color.clear
+                            .frame(height: bottomReserve)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                 emptyStateLayer
             }
             .accessibleAnimation(Motion.transcriptCrossFade, value: showsEmptyState)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear
-                    .frame(height: bottomReserve)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
             .onChange(of: viewModel.lastSend) { _, ticket in
                 handleSend(ticket, proxy: proxy)
             }
@@ -335,10 +338,11 @@ struct ChatMessagesView: View {
     /// its geometry could not be trusted for the very first message — and the
     /// first message is exactly the case the reserve exists to serve.
     private var emptyStateLayer: some View {
+        // Overlay is sized by the ZStack, then inset. Do not put
+        // `rootEdgeInset()` (`containerRelativeFrame`) *inside* the ScrollView —
+        // that circularly depends on content width and collapses to zero.
         emptyState
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Same 16pt column as the transcript. Padding is ignored under
-            // RootPageScaffold's `.ignoresSafeArea()`; this is not.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .rootEdgeInset()
             .opacity(showsEmptyState ? 1 : 0)
             .allowsHitTesting(showsEmptyState)
@@ -671,11 +675,9 @@ struct ChatMessagesView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.md) {
-            Spacer(minLength: 0)
-
-            VStack(spacing: Spacing.md) {
-                VStack(spacing: Spacing.xs) {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                VStack(spacing: ChatEmptyHeroMetrics.logoToTitle) {
                     Image("LaunchLogo")
                         .resizable()
                         .scaledToFit()
@@ -686,36 +688,45 @@ struct ChatMessagesView: View {
                         .foregroundStyle(PrimaryScale.primary600)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
                 }
+                .padding(.top, ChatEmptyHeroMetrics.belowHeader)
+                .padding(.bottom, ChatEmptyHeroMetrics.titleToCards)
 
-                if !hasEntries {
-                    Text("Write a journal entry first — then I can reflect it back to you, and show you which entries I drew from.")
-                        .font(type.body1)
-                        .foregroundStyle(theme.mutedForeground)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, AppHeaderMetrics.edgeInset)
-                } else if !suggestions.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: Spacing.md) {
-                            ForEach(suggestions, id: \.self) { suggestion in
-                                AISuggestionCard(suggestion: suggestion) {
-                                    onSuggestionTap(suggestion)
-                                }
-                            }
+                VStack(spacing: ChatEmptyHeroMetrics.cardGap) {
+                    ForEach(displayedSuggestions) { suggestion in
+                        AISuggestionCard(suggestion) {
+                            onSuggestionTap(suggestion.prompt)
                         }
                     }
-                    .scrollClipDisabled()
-                    .isolateFromPagingScroll()
                 }
+                .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
-
-            Spacer(minLength: 0)
+            .padding(.top, AppHeaderMetrics.contentTopPadding)
+            // No extra bottom pad — the composer overlays the third card.
         }
-        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .scrollIndicators(.hidden)
     }
+
+    /// Empty chat always shows three starter tiles under the headline.
+    /// Falls back to the generic pool if rotation has not landed yet.
+    private var displayedSuggestions: [ChatSuggestion] {
+        if !suggestions.isEmpty { return Array(suggestions.prefix(3)) }
+        return ChatSuggestion.fallbackStarters
+    }
+}
+
+/// Vertical rhythm for Chat's empty-state hero. Values are 1.5× the previous
+/// frame so the glyph and headline sit with more air above the prompt cards.
+private enum ChatEmptyHeroMetrics {
+    /// Extra air below the header row (on top of `contentTopPadding`'s 16pt).
+    static let belowHeader: CGFloat = Spacing.xxxl * 1.5
+    /// Logo to headline.
+    static let logoToTitle: CGFloat = Spacing.lg * 1.5
+    /// Headline to first card — about three lines of `h2` after the 50% bump.
+    static let titleToCards: CGFloat = (Spacing.xxxl + Spacing.xxl) * 1.5
+    /// Gap between stacked suggestion tiles.
+    static let cardGap: CGFloat = Spacing.sm
 }
 
 // MARK: - Geometry reporting

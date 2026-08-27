@@ -15,8 +15,6 @@
 //  Nothing else in the app may own a horizontal edge drag while this is on
 //  screen. The left drawer used to, and its edge gesture was attached to the
 //  entire NavigationStack — that is why it was removed rather than hidden.
-//  Bounded exception: Chat's suggestion carousel consumes pans in its own hit
-//  rect (`isolateFromPagingScroll`) so its rubber-band cannot slide this pager.
 //
 
 import SwiftUI

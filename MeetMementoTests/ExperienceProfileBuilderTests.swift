@@ -123,8 +123,10 @@ final class ExperienceProfileBuilderTests: XCTestCase {
 
         let starters = ThemeAwareChatStarters.starters(limit: 3)
         XCTAssertEqual(starters.count, 3)
-        let joined = starters.joined(separator: " ").lowercased()
+        let joined = starters.map(\.prompt).joined(separator: " ").lowercased()
         XCTAssertTrue(joined.contains("stress") || joined.contains("goals"))
+        let allowedPills = Set(ThemeCatalog.displayNames(for: ["stress", "goals"]))
+        XCTAssertTrue(starters.allSatisfy { allowedPills.contains($0.themeName ?? "") })
     }
 
     func test_themeAwareChatStarters_fallbackWhenNoThemes() {
@@ -134,7 +136,9 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             limit: 3
         )
         XCTAssertEqual(rotated.count, 3)
-        XCTAssertTrue(rotated.allSatisfy { $0.hasPrefix("Generic") })
+        XCTAssertTrue(rotated.allSatisfy { $0.prompt.hasPrefix("Generic") })
+        let defaultPills = Set(["Mindfulness", "Goals", "Sleep"])
+        XCTAssertTrue(rotated.allSatisfy { defaultPills.contains($0.themeName ?? "") })
     }
 
     func test_themeAwareChatStarters_rotate_isGenericFirstWithAtMostOneThemed() {
@@ -152,9 +156,12 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             limit: 3
         )
         XCTAssertEqual(rotated.count, 3)
-        let themedCount = rotated.filter { !$0.hasPrefix("Generic") }.count
+        let themedCount = rotated.filter { !$0.prompt.hasPrefix("Generic") }.count
         XCTAssertEqual(themedCount, 1)
-        XCTAssertEqual(rotated.filter { $0.hasPrefix("Generic") }.count, 2)
+        XCTAssertEqual(rotated.filter { $0.prompt.hasPrefix("Generic") }.count, 2)
+        let allowedPills = Set(ThemeCatalog.displayNames(for: ["stress", "goals"]))
+        XCTAssertTrue(rotated.allSatisfy { allowedPills.contains($0.themeName ?? "") })
+        XCTAssertEqual(Set(rotated.compactMap(\.themeName)).count, 2)
     }
 
     func test_deterministicLens_doesNotEnumerateThemes() {
@@ -249,8 +256,8 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         XCTAssertTrue(askA.text.contains("not a search engine and not a therapist"))
         XCTAssertTrue(askB.text.contains("not a search engine and not a therapist"))
 
-        let aJoined = startersA.joined().lowercased()
-        let bJoined = startersB.joined().lowercased()
+        let aJoined = startersA.map(\.prompt).joined().lowercased()
+        let bJoined = startersB.map(\.prompt).joined().lowercased()
         XCTAssertTrue(aJoined.contains("stress") || aJoined.contains("anxiety"))
         XCTAssertTrue(bJoined.contains("creative") || bJoined.contains("inspiration"))
     }
