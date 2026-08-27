@@ -131,9 +131,10 @@ final class NarrationCoordinator: ObservableObject {
     /// Incomplete fragments wait longer so a clause pause does not send.
     static let autoSendIncompletePause: TimeInterval = 2.8
     /// The transcript-stability signal is primary; this amplitude gate only
-    /// stops a send from firing mid-word. SpeechService publishes
-    /// `min(1, rms * 3)`, where normal speech lands around 0.05–0.45.
-    static let autoSendMaxAudioLevel: Float = 0.05
+    /// vetoes while the user is clearly still talking. SpeechService publishes
+    /// `min(1, rms * 3)`, where speech lands around 0.05–0.45 and room tone
+    /// often sits above 0.05 — a floor that low hung the live bubble forever.
+    static let autoSendMaxAudioLevel: Float = 0.22
     /// Watchdog cadence — 4 Hz normally; the tick tightens to 10 Hz once the
     /// pause is close to firing, so auto-send jitter drops from ~125ms average
     /// to ~50ms without polling fast the whole time (spec 029 R4).
@@ -466,8 +467,11 @@ final class NarrationCoordinator: ObservableObject {
         // Fast-partial by design: take the best transcript available right
         // now instead of waiting ~1.8s for finalization. The pause already
         // cost 1.5s; narration favors loop snappiness over a rare
-        // last-word correction.
-        let text = speechService.bestAvailableTranscript
+        // last-word correction. Fall back to the live bubble so tap-to-send
+        // matches what is on screen when `bestAvailableTranscript` is empty.
+        let best = speechService.bestAvailableTranscript
+        let live = liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = best.isEmpty ? live : best
         // Releases ownership AND clears isProcessing — the latter is what
         // VoicePlaybackService's isRecordingProvider checks, so this must
         // precede any TTS session.
@@ -604,9 +608,11 @@ final class NarrationCoordinator: ObservableObject {
             .sink { [weak self] text in
                 guard let self, self.speechService.isOwner(self.speechOwnerId) else { return }
                 guard self.phase == .listening else { return }
-                self.liveTranscript = text
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                self.liveTranscript = trimmed
                 self.lastTranscriptChange = Date()
-                if !text.isEmpty { self.sawListeningActivity = true }
+                self.sawListeningActivity = true
             }
             .store(in: &cancellables)
 

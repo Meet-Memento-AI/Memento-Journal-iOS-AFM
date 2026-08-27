@@ -28,6 +28,10 @@ final class SpeechAnalyzerEngine {
     private var onUpdate: ((TranscriptionUpdate) -> Void)?
     /// True when the analyzer is allocated but the mic tap is down (TTS half-duplex).
     private(set) var isCapturePaused = false
+    /// Mic RMS hops to MainActor at 20 Hz so transcript updates are not queued
+    /// behind ~43 level Tasks/sec.
+    nonisolated(unsafe) private var lastLevelHop: CFTimeInterval = 0
+    private static let levelHopInterval: CFTimeInterval = 0.05
 
     var lastAssetState: TranscriptionAssetState = .missing
 
@@ -85,21 +89,24 @@ final class SpeechAnalyzerEngine {
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         inputContinuation = continuation
 
-        resultsTask = Task { [weak self] in
+        // Off the main actor so `for try await` does not share it with SwiftUI.
+        // One MainActor hop per transcript update — SpeechService.handleUpdate
+        // is called directly from that hop (no second Task).
+        resultsTask = Task.detached { [weak self, transcriber] in
             do {
                 for try await result in transcriber.results {
                     guard !Task.isCancelled else { break }
                     let text = String(result.text.characters)
-                    if result.isFinal {
-                        self?.onUpdate?(.finalized(text))
-                    } else {
-                        self?.onUpdate?(.volatile(text))
+                    let update: TranscriptionUpdate = result.isFinal
+                        ? .finalized(text)
+                        : .volatile(text)
+                    await MainActor.run { [weak self] in
+                        self?.onUpdate?(update)
                     }
                 }
             } catch {
                 AppLogger.log("[SpeechAnalyzer] transcriber results: \(error.localizedDescription)")
             }
-            _ = self
         }
 
         analyzerTask = Task {
@@ -144,27 +151,19 @@ final class SpeechAnalyzerEngine {
     }
 
     private func makeTranscriber(locale: Locale, style: TranscriptionStyle) -> SpeechTranscriber {
-        switch style {
-        case .dictation:
-            return SpeechTranscriber(
-                locale: locale,
-                transcriptionOptions: [],
-                reportingOptions: [.volatileResults],
-                attributeOptions: [.audioTimeRange]
-            )
-        case .conversation:
-            // `.transcription` is the punctuation-oriented preset. Keep
-            // volatile results so the live bubble still streams.
-            let preset = SpeechTranscriber.Preset.transcription
-            return SpeechTranscriber(
-                locale: locale,
-                transcriptionOptions: preset.transcriptionOptions.union([.etiquetteReplacements]),
-                reportingOptions: preset.reportingOptions.union([.volatileResults]),
-                attributeOptions: preset.attributeOptions.union([
-                    .audioTimeRange, .transcriptionConfidence
-                ])
-            )
-        }
+        // Both styles are live captions. `.conversation` used to use
+        // `Preset.transcription` (punctuation, high latency). Progressive +
+        // fastResults is the low-latency path; RunningTranscript reconstructs
+        // the utterance from segment finals. `style` still selects pause vs
+        // finish on the session, not these options.
+        _ = style
+        let preset = SpeechTranscriber.Preset.progressiveTranscription
+        return SpeechTranscriber(
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: preset.reportingOptions.union([.volatileResults, .fastResults]),
+            attributeOptions: [.audioTimeRange]
+        )
     }
 
     func finish() async {
@@ -242,8 +241,12 @@ final class SpeechAnalyzerEngine {
         input.installTap(onBus: 0, bufferSize: 1024, format: micFormat) { [weak self] buffer, _ in
             guard let self else { return }
             let rms = SpeechService.computeRMS(from: buffer)
-            onLevel(rms)
-            onSpeechDetected(rms > 0.03)
+            let now = CFAbsoluteTimeGetCurrent()
+            if now - self.lastLevelHop >= Self.levelHopInterval {
+                self.lastLevelHop = now
+                onLevel(rms)
+                onSpeechDetected(rms > 0.03)
+            }
             let toSend: AVAudioPCMBuffer
             if let converter = self.converter, let format = self.analyzerFormat,
                let converted = Self.convert(buffer, with: converter, to: format) {

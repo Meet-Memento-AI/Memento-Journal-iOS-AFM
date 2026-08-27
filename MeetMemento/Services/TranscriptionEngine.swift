@@ -18,11 +18,11 @@ enum TranscriptionAssetState: Equatable, Sendable {
 }
 
 /// How the on-device transcriber is configured for this session.
-/// Journal dictation stays progressive; narration uses the transcription
-/// preset so punctuation and sentence boundaries land in the live transcript.
+/// Both styles use progressive + fastResults for live captions; they differ
+/// in session lifetime (dictation finishes on stop; conversation pauses).
 enum TranscriptionStyle: Equatable, Sendable {
     /// Composer / journal capture — progressive, volatile captions.
     case dictation
-    /// Hands-free narration — transcription preset plus volatile live results.
+    /// Hands-free narration — same live-caption transcriber; analyzer stays warm.
     case conversation
 }

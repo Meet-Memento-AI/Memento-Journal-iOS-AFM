@@ -142,8 +142,7 @@ public struct AIChatView: View {
     }
 
     private var followTail: Bool {
-        isNarrating && (narrationCoordinator.phase == .awaitingResponse
-            || narrationCoordinator.phase == .speaking)
+        isNarrating && !viewModel.messages.isEmpty
     }
 
     public var body: some View {
@@ -345,12 +344,18 @@ public struct AIChatView: View {
                             viewModel.sendMessage(prompt: suggestion)
                         }
                     )
-                    .narrationDissolve(isVisible: !isNarrating, blurs: true)
+                    .narrationDissolve(
+                        isVisible: !isNarrating || !viewModel.messages.isEmpty,
+                        blurs: true
+                    )
 
                     NarrationListeningCanvas()
                         .padding(.top, AppHeaderMetrics.contentTopPadding)
                         .padding(.bottom, bottomReserve)
-                        .narrationDissolve(isVisible: isNarrating, blurs: true)
+                        .narrationDissolve(
+                            isVisible: isNarrating && viewModel.messages.isEmpty,
+                            blurs: true
+                        )
                         .allowsHitTesting(false)
 
                     if keyboardObserver.isKeyboardVisible && !isNarrating {

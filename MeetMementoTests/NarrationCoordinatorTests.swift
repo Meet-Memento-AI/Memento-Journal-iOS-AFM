@@ -165,17 +165,20 @@ final class NarrationCoordinatorTests: XCTestCase {
         ))
     }
 
-    func test_ambientNoise_blocksTheSend() {
-        // The transcript went quiet but the room hasn't — don't cut in.
-        XCTAssertTrue(
-            NarrationCoordinator.autoSendMaxAudioLevel < 0.06,
-            "gate must sit below normal speech levels (0.05–0.45)"
-        )
+    func test_roomTone_doesNotBlockAStableTranscript() {
+        XCTAssertTrue(NarrationCoordinator.shouldAutoSend(
+            transcript: "I want to talk about my week.",
+            secondsSinceChange: NarrationCoordinator.autoSendPause,
+            audioLevel: 0.08
+        ), "room tone must not hang the live bubble")
+    }
+
+    func test_midSpeech_blocksTheSend() {
         XCTAssertFalse(NarrationCoordinator.shouldAutoSend(
-            transcript: "I want to talk about my week",
+            transcript: "I want to talk about my week.",
             secondsSinceChange: NarrationCoordinator.autoSendPause + 1,
-            audioLevel: 0.2
-        ))
+            audioLevel: 0.35
+        ), "clear speech still vetoes — the user is mid-word")
     }
 
     // MARK: - Transcript scoping
@@ -424,22 +427,60 @@ final class NarrationCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.phase, .listening)
     }
 
-    func test_emptyTranscriptTurn_loopsBackWithoutSending() async {
+    func test_watchdog_autoSendsOnStablePauseWithoutSendNow() async {
         let (coordinator, speech, voice, vm) = makeLoop()
         defer { coordinator.stop() }
+        _ = voice
 
         coordinator.start(chatViewModel: vm)
         await waitUntil { speech.startCount == 1 }
 
-        // A partial appeared (so send-now is offered) but nothing salvageable
-        // finalized — the turn must re-listen, not send an empty prompt.
-        speech.partialSubject.send("uh")
+        speech.partialSubject.send("Hello there.")
+        speech.bestAvailableTranscript = "Hello there."
+        speech.audioLevel = 0.08
+
+        await waitUntil(timeout: 4.0) { coordinator.phase != .listening }
+        XCTAssertNotEqual(coordinator.phase, .listening,
+                          "watchdog must auto-send after a stable punctuated pause")
+        XCTAssertTrue(
+            vm.messages.contains(where: { $0.isFromUser && $0.content == "Hello there." }),
+            "the live transcript must be sent as a narration turn"
+        )
+    }
+
+    func test_sendNow_fallsBackToLiveTranscriptWhenBestAvailableIsEmpty() async {
+        let (coordinator, speech, voice, vm) = makeLoop()
+        defer { coordinator.stop() }
+        _ = voice
+
+        coordinator.start(chatViewModel: vm)
+        await waitUntil { speech.startCount == 1 }
+        speech.partialSubject.send("Hello there")
         speech.bestAvailableTranscript = ""
         coordinator.sendNow()
 
-        await waitUntil { speech.startCount == 2 }
+        await waitUntil { vm.messages.contains(where: { $0.isFromUser }) }
+        XCTAssertEqual(
+            vm.messages.first(where: { $0.isFromUser })?.content,
+            "Hello there",
+            "tap-to-send must use the bubble text when bestAvailable is empty"
+        )
+        XCTAssertNotEqual(coordinator.phase, .listening)
+    }
+
+    func test_sendNow_emptyLiveTranscript_isANoOp() async {
+        let (coordinator, speech, voice, vm) = makeLoop()
+        defer { coordinator.stop() }
+        _ = voice
+
+        coordinator.start(chatViewModel: vm)
+        await waitUntil { speech.startCount == 1 }
+        speech.bestAvailableTranscript = ""
+        coordinator.sendNow()
+
+        try? await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(coordinator.phase, .listening)
-        XCTAssertTrue(vm.messages.isEmpty, "an empty transcript must not be sent")
-        XCTAssertTrue(voice.beganSessions.isEmpty)
+        XCTAssertTrue(vm.messages.isEmpty, "an empty bubble must not send")
+        XCTAssertEqual(speech.startCount, 1, "must not tear down and re-arm")
     }
 }

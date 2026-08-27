@@ -20,7 +20,7 @@ final class SpeechService: ObservableObject {
     @Published var isProcessing = false
     /// Finalized transcript for the current (or just-finished) session.
     @Published var transcribedText = ""
-    /// Live volatile hypothesis while recording. Cleared when a final arrives or the session ends.
+    /// Live running utterance (committed segments + current volatile tail).
     @Published var partialTranscribedText = ""
     @Published var errorMessage: String?
     @Published var currentDuration: TimeInterval = 0
@@ -83,6 +83,8 @@ final class SpeechService: ObservableObject {
     /// Last capture style. Conversation pauses the analyzer between turns
     /// instead of tearing it down; dictation still finishes on stop.
     private var activeStyle: TranscriptionStyle = .dictation
+    /// Segment finals + current volatile, published as one utterance.
+    private var running = RunningTranscript()
 
     private init() {
         observeInterruptions()
@@ -186,6 +188,7 @@ final class SpeechService: ObservableObject {
         errorMessage = nil
         transcribedText = ""
         partialTranscribedText = ""
+        running.reset()
         speechDetected = false
         activeSessionOwner = ownerId
         activeStyle = style
@@ -246,9 +249,7 @@ final class SpeechService: ObservableObject {
                 locale: locale,
                 style: style,
                 onUpdate: { [weak self] update in
-                    Task { @MainActor in
-                        self?.handleUpdate(update, generation: generation)
-                    }
+                    self?.handleUpdate(update, generation: generation)
                 },
                 onLevel: { [weak self] rms in
                     Task { @MainActor in
@@ -289,6 +290,7 @@ final class SpeechService: ObservableObject {
         errorMessage = nil
         transcribedText = ""
         partialTranscribedText = ""
+        running.reset()
         speechDetected = false
         activeSessionOwner = ownerId
         activeStyle = style
@@ -301,9 +303,7 @@ final class SpeechService: ObservableObject {
 
         let resumed = try analyzerEngine.resumeCapture(
             onUpdate: { [weak self] update in
-                Task { @MainActor in
-                    self?.handleUpdate(update, generation: generation)
-                }
+                self?.handleUpdate(update, generation: generation)
             },
             onLevel: { [weak self] rms in
                 Task { @MainActor in
@@ -371,6 +371,7 @@ final class SpeechService: ObservableObject {
 
         transcribedText = ""
         partialTranscribedText = ""
+        running.reset()
         errorMessage = nil
         isProcessing = false
         isRecording = false
@@ -382,9 +383,7 @@ final class SpeechService: ObservableObject {
     }
 
     var bestAvailableTranscript: String {
-        let final = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !final.isEmpty { return final }
-        return partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        running.display
     }
 
     func isOwner(_ ownerId: String) -> Bool {
@@ -394,6 +393,7 @@ final class SpeechService: ObservableObject {
     func clearTranscription() {
         transcribedText = ""
         partialTranscribedText = ""
+        running.reset()
         activeSessionOwner = nil
         isProcessing = false
     }
@@ -402,18 +402,17 @@ final class SpeechService: ObservableObject {
 
     private func handleUpdate(_ update: TranscriptionUpdate, generation: UInt64) {
         guard generation == sessionGeneration, !ignoreRecognitionResults else { return }
-        switch update {
-        case .volatile(let text):
-            if !text.isEmpty { partialTranscribedText = text }
-        case .finalized(let text):
+        running.apply(update)
+        transcribedText = running.committed
+        let display = running.display
+        // Never flash empty while committed text remains — a segment final
+        // used to clear the partial and empty the live bubble.
+        if !display.isEmpty {
+            partialTranscribedText = display
+        }
+        if case .finalized = update, !isRecording {
             finalizationTimeoutTask?.cancel()
             finalizationTimeoutTask = nil
-            if !text.isEmpty {
-                transcribedText = text
-            } else if transcribedText.isEmpty, !partialTranscribedText.isEmpty {
-                transcribedText = partialTranscribedText
-            }
-            partialTranscribedText = ""
             isProcessing = false
             let leftover = AudioAssetStore.applyRetentionAfterTranscription(assetID: nil)
             _ = leftover
@@ -428,11 +427,10 @@ final class SpeechService: ObservableObject {
             guard !Task.isCancelled else { return }
             guard generation == self.sessionGeneration else { return }
             guard self.isProcessing else { return }
-            if self.transcribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-               !self.partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                self.transcribedText = self.partialTranscribedText
-            }
-            self.partialTranscribedText = ""
+            if self.running.display.isEmpty { return }
+            self.running.apply(.finalized(""))
+            self.transcribedText = self.running.committed
+            self.partialTranscribedText = self.running.display
             self.isProcessing = false
             AppLogger.log("⚠️ [SpeechService] Finalization timed out; promoted partial transcript if available")
         }
