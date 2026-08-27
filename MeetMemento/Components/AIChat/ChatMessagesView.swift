@@ -670,6 +670,7 @@ struct ChatMessagesView: View {
                 viewModel.beginFeedback(messageID: message.id, source: .report)
             },
             onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil,
+            isUnanswered: message.isFromUser && viewModel.isUnansweredUserMessage(message),
             onAnimationComplete: { viewModel.markMessageSeen(message.id) }
         )
     }

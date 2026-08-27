@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 public struct ChatMessageBubble: View {
     let message: ChatMessage
@@ -26,8 +27,12 @@ public struct ChatMessageBubble: View {
     var onThumbsDown: (() -> Void)?
     var isReported: Bool
     var onReportAnswer: (() -> Void)?
-    /// spec-010: tapped when a failed-to-send user message's retry row is tapped.
+    /// spec-010: tapped when a failed-to-send user message's retry row is tapped,
+    /// and when Resend is chosen from the unanswered-message context menu.
     var onRetry: (() -> Void)?
+    /// True when this user turn has no assistant reply yet (failed send, or
+    /// the reply never arrived). Shows Resend / Copy Message on long-press.
+    var isUnanswered: Bool
     /// Forwarded from AIOutputComponent when the reply finishes typing.
     var onAnimationComplete: (() -> Void)?
 
@@ -49,6 +54,7 @@ public struct ChatMessageBubble: View {
         isReported: Bool = false,
         onReportAnswer: (() -> Void)? = nil,
         onRetry: (() -> Void)? = nil,
+        isUnanswered: Bool = false,
         onAnimationComplete: (() -> Void)? = nil
     ) {
         self.message = message
@@ -65,6 +71,7 @@ public struct ChatMessageBubble: View {
         self.isReported = isReported
         self.onReportAnswer = onReportAnswer
         self.onRetry = onRetry
+        self.isUnanswered = isUnanswered
         self.onAnimationComplete = onAnimationComplete
     }
 
@@ -78,6 +85,11 @@ public struct ChatMessageBubble: View {
                     // Shared with the send choreography's flying ghost so the
                     // two cannot drift apart — see `UserBubbleSurface`.
                     UserBubbleSurface(text: message.content, imageJPEGs: message.imageJPEGs)
+                        .modifier(UnansweredUserMessageMenu(
+                            isUnanswered: isUnanswered,
+                            text: message.content,
+                            onResend: onRetry
+                        ))
 
                     if message.sendFailed {
                         retryRow
@@ -242,6 +254,46 @@ public struct ChatMessageBubble: View {
     }
 }
 
+// MARK: - Unanswered user-turn menu (Resend / Copy)
+
+private struct UnansweredUserMessageMenu: ViewModifier {
+    let isUnanswered: Bool
+    let text: String
+    var onResend: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if isUnanswered {
+            content
+                .contextMenu {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        onResend?()
+                    } label: {
+                        Label("Resend", systemImage: "arrow.clockwise")
+                    }
+                    Button {
+                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        UIPasteboard.general.string = trimmed
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    } label: {
+                        Label("Copy Message", systemImage: "doc.on.doc")
+                    }
+                }
+                .accessibilityAction(named: "Resend") {
+                    onResend?()
+                }
+                .accessibilityAction(named: "Copy Message") {
+                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    UIPasteboard.general.string = trimmed
+                }
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Previews
 
 #Preview("User Message") {
@@ -250,6 +302,20 @@ public struct ChatMessageBubble: View {
             content: "Enter an AI user input here. This will be used as part of component design",
             isFromUser: true
         )
+    )
+    .padding()
+    .useTheme()
+    .useTypography()
+}
+
+#Preview("User Message · unanswered") {
+    ChatMessageBubble(
+        message: ChatMessage(
+            content: "This one never got a reply.",
+            isFromUser: true,
+            sendFailed: true
+        ),
+        isUnanswered: true
     )
     .padding()
     .useTheme()

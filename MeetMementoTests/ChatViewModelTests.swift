@@ -655,4 +655,63 @@ final class ChatViewModelTests: XCTestCase {
         await vm.loadSession(ChatSession(title: "Tuesday", createdAt: Date()))
         XCTAssertEqual(vm.feedbackType(for: persistedID), .negative)
     }
+
+    // MARK: - Unanswered user turn
+
+    func test_isUnanswered_failedSend() async throws {
+        let mock = MockChatService()
+        mock.fetchSessionsImpl = { [] }
+        mock.sendMessageImpl = { _, _ in throw URLError(.notConnectedToInternet) }
+        let vm = ChatViewModel(chatService: mock)
+        vm.sendMessage(prompt: "hello")
+        await waitForLoadingFalse(vm)
+        let user = try XCTUnwrap(vm.messages.first(where: \.isFromUser))
+        XCTAssertTrue(vm.isUnansweredUserMessage(user))
+        vm.cancelActiveTasks()
+    }
+
+    func test_isUnanswered_lastUserWithNoAssistant() {
+        let vm = ChatViewModel(chatService: MockChatService())
+        let user = ChatMessage(content: "hello", isFromUser: true)
+        vm.messages = [user]
+        XCTAssertTrue(vm.isUnansweredUserMessage(user))
+    }
+
+    func test_isUnanswered_falseWhenAssistantReplied() {
+        let vm = ChatViewModel(chatService: MockChatService())
+        let user = ChatMessage(content: "hello", isFromUser: true)
+        vm.messages = [user, ChatMessage.aiMessage(body: "hi there")]
+        XCTAssertFalse(vm.isUnansweredUserMessage(user))
+    }
+
+    func test_isUnanswered_falseWhileLoading() {
+        let vm = ChatViewModel(chatService: stalledService())
+        vm.sendMessage(prompt: "hello")
+        let user = vm.messages[0]
+        XCTAssertTrue(user.isFromUser)
+        XCTAssertTrue(vm.isLoading)
+        XCTAssertFalse(vm.isUnansweredUserMessage(user), "menu must not appear mid-send")
+        vm.cancelActiveTasks()
+    }
+
+    func test_retryMessage_unansweredWithoutSendFailed_reusesBubble() async throws {
+        let mock = MockChatService()
+        mock.fetchSessionsImpl = { [] }
+        mock.sendMessageImpl = { _, _ in
+            ChatResponse(reply: "ok", heading1: nil, heading2: nil,
+                         citedEntryIds: nil, sources: [], sessionId: UUID().uuidString)
+        }
+        let vm = ChatViewModel(chatService: mock)
+        let user = ChatMessage(content: "hello", isFromUser: true)
+        vm.messages = [user]
+        XCTAssertTrue(vm.isUnansweredUserMessage(user))
+
+        vm.retryMessage(user)
+        XCTAssertEqual(vm.lastSend?.origin, .retry)
+        XCTAssertEqual(vm.lastSend?.userMessageID, user.id)
+        await waitForLoadingFalse(vm)
+        XCTAssertEqual(vm.messages.filter(\.isFromUser).count, 1, "must not duplicate the bubble")
+        XCTAssertEqual(vm.messages.last?.content, "ok")
+        vm.cancelActiveTasks()
+    }
 }

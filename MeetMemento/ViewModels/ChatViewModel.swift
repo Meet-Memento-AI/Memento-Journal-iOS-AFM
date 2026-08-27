@@ -360,16 +360,49 @@ class ChatViewModel: ObservableObject {
         return "I've attached \(count) photos. Look at them carefully and respond to what you see."
     }
 
-    /// Retries a user message that previously failed to send (spec-010),
-    /// reusing its existing id/bubble instead of appending a duplicate.
+    /// Retries a user message that never got a reply — a failed send
+    /// (spec-010) or an unanswered last turn. Reuses the existing bubble
+    /// instead of appending a duplicate.
     func retryMessage(_ message: ChatMessage) {
-        guard message.isFromUser, message.sendFailed, !isLoading else { return }
+        guard message.isFromUser, !isLoading else { return }
+        guard isUnansweredUserMessage(message) else { return }
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            let next = index + 1
+            if next < messages.count, !messages[next].isFromUser {
+                messages.remove(at: next)
+            }
+        }
         setSendFailed(false, forMessageId: message.id)
         let typed = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
         let modelText = typed.isEmpty
             ? Self.attachedPhotosPrompt(count: message.imageJPEGs.count)
             : typed
         performSend(text: modelText, images: message.imageJPEGs, userMessageId: message.id, origin: .retry)
+    }
+
+    /// True when this user turn has no assistant reply to show: a failed send,
+    /// or the last user message with no (or empty) follow-up while idle.
+    func isUnansweredUserMessage(_ message: ChatMessage) -> Bool {
+        guard message.isFromUser else { return false }
+        if message.sendFailed { return true }
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return false }
+        if messages[(index + 1)...].contains(where: \.isFromUser) { return false }
+        if isLoading { return false }
+        guard let reply = messages[(index + 1)...].first(where: { !$0.isFromUser }) else {
+            return true
+        }
+        if reply.isStreaming { return false }
+        return assistantHasNoVisibleContent(reply)
+    }
+
+    private func assistantHasNoVisibleContent(_ message: ChatMessage) -> Bool {
+        let body = (message.aiOutputContent?.body ?? message.content)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let heading1 = (message.aiOutputContent?.heading1 ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let heading2 = (message.aiOutputContent?.heading2 ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return body.isEmpty && heading1.isEmpty && heading2.isEmpty
     }
 
     private func setSendFailed(_ failed: Bool, forMessageId id: UUID) {
