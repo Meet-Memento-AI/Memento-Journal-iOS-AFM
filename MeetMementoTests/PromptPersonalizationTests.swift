@@ -81,8 +81,10 @@ final class PromptPersonalizationTests: XCTestCase {
     func test_summaryPrompt_ignoresPersonalization() {
         let p = PromptPersonalization(firstName: "Sam", reflection: nil, goals: ["Honesty"], promptLens: nil)
         let resolved = PromptRegistry.instructions(for: .summary, personalization: p)
-        XCTAssertEqual(resolved.version, "summarize@1")
+        XCTAssertEqual(resolved.version, "summarize@2")
         XCTAssertFalse(resolved.text.contains("About this person"))
+        XCTAssertTrue(resolved.text.contains("title:"))
+        XCTAssertTrue(resolved.text.contains("Chat Reflection"))
     }
 
     func test_profileEstimatePrompt_isBundled() {

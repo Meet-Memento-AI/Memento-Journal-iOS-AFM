@@ -765,7 +765,7 @@ class ChatViewModel: ObservableObject {
             messages: messages,
             sessionId: currentSessionId
         )
-        return (summary.title ?? "Chat Reflection", summary.content)
+        return (summary.title, summary.content)
     }
 
     // MARK: - Regenerate

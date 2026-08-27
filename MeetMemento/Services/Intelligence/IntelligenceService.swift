@@ -57,6 +57,57 @@ struct GenerationOutcome<T: Sendable>: Sendable {
     let latency: Duration
 }
 
+/// Title + body for a chat-to-journal summary. Both fields prefill the
+/// entry editor so the save loop is complete (PRES-046).
+struct ConversationSummary: Sendable, Equatable {
+    var title: String
+    var body: String
+
+    /// Drops placeholder titles ("Chat", "Chat Reflection") and empty
+    /// strings, deriving a short title from the body when the model misses.
+    func resolved() -> ConversationSummary {
+        ConversationSummary(title: Self.resolvedTitle(title, body: body), body: body)
+    }
+
+    static func resolvedTitle(_ raw: String, body: String) -> String {
+        let cleaned = collapseWhitespace(raw)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’"))
+        if isUsableJournalTitle(cleaned) { return cleaned }
+        return titleFromBody(body)
+    }
+
+    private static let bannedTitles: Set<String> = [
+        "chat", "chat reflection", "conversation", "summary",
+        "journal entry", "untitled", "untitled entry"
+    ]
+
+    private static func isUsableJournalTitle(_ title: String) -> Bool {
+        guard title.count >= 2, title.count <= 80 else { return false }
+        let lowered = title.lowercased()
+        if bannedTitles.contains(lowered) { return false }
+        if lowered.hasPrefix("chat ") { return false }
+        return true
+    }
+
+    private static func titleFromBody(_ body: String) -> String {
+        let trimmed = collapseWhitespace(body)
+        guard !trimmed.isEmpty else { return "Journal Entry" }
+        let sentenceEnd = trimmed.firstIndex(where: { ".!?".contains($0) }) ?? trimmed.endIndex
+        let sentence = String(trimmed[..<sentenceEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = sentence.isEmpty ? trimmed : sentence
+        if source.count <= 48 { return source }
+        let prefix = String(source.prefix(48))
+        if let lastSpace = prefix.lastIndex(of: " "), lastSpace > prefix.startIndex {
+            return String(prefix[..<lastSpace])
+        }
+        return prefix
+    }
+
+    private static func collapseWhitespace(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+}
+
 // MARK: - Conversation input
 
 /// One turn of a conversation, in the intelligence layer's own vocabulary
@@ -239,11 +290,13 @@ protocol IntelligenceService: Sendable {
         spoken: Bool
     ) -> AsyncThrowingStream<AskStreamEvent, Error>
 
-    /// Turn a conversation into a first-person journal-entry summary.
+    /// Turn a conversation into a first-person journal-entry summary **and**
+    /// a title. The title is part of the loop: the editor prefills both
+    /// fields so the person can save without renaming "Chat Reflection".
     ///
     /// Returns a `GenerationOutcome` rather than a bare `String` so the summary
     /// carries the zone it ran in like every other generation (REQ-INT-002).
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String>
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<ConversationSummary>
 
     /// Map a user's onboarding reflection onto ThemeCatalog ids and a short
     /// prompt lens. Callers must validate ids through `ThemeCatalog.validate`.

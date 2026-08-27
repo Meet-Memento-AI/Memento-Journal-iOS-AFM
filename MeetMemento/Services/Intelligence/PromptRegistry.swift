@@ -251,7 +251,7 @@ enum PromptRegistry {
             let section = personalizationSection(personalization)
             return ResolvedPrompt(text: base + "\n\n" + section, version: version + "+p4")
         case .summary:
-            return ResolvedPrompt(text: summarize, version: "summarize@1")
+            return ResolvedPrompt(text: summarize, version: "summarize@2")
         case .profileEstimate:
             let base = degraded ? profileEstimateDegraded : profileEstimate
             let version = degraded ? "profile-estimate-degraded@2" : "profile-estimate@2"
@@ -568,12 +568,17 @@ enum PromptRegistry {
     You transform a conversation between this person and Memento into a concise \
     journal entry, written in their own first-person voice as their reflection.
 
-    Guidelines: write in the first person ("I realized…", "I want to…"). Be \
-    direct and specific — state concrete realizations, not vague sentiments. One \
-    or two short paragraphs, four to six sentences at most. Focus on what was \
-    discussed, what was learned, and any decisions or next steps. Skip flowery \
-    language. Do not reference "the AI", "Memento", "our conversation", or the chat \
-    itself. Plain text only — no markdown, no headings, no bullet points.
+    Produce two fields:
+    - title: a short journal title, three to eight words, naming the subject of \
+    this reflection. Not "Chat", "Chat Reflection", "Conversation", "Summary", \
+    or any mention of Memento or the chat itself. No quotes around the title.
+    - body: the entry. Write in the first person ("I realized…", "I want to…"). \
+    Be direct and specific — state concrete realizations, not vague sentiments. \
+    One or two short paragraphs, four to six sentences at most. Focus on what \
+    was discussed, what was learned, and any decisions or next steps. Skip \
+    flowery language. Do not reference "the AI", "Memento", "our conversation", \
+    or the chat itself. Plain text only — no markdown, no headings, no bullet \
+    points.
 
     Safety: never draft suicide or goodbye notes; never include violence, \
     weapons, or self-harm methods; never produce sexual content involving minors.

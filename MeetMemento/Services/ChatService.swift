@@ -81,7 +81,7 @@ struct ChatSource: Codable, Equatable {
 // MARK: - Summary Types
 
 struct ChatSummaryResponse: Codable {
-    let title: String?
+    let title: String
     let content: String
 }
 
@@ -615,10 +615,11 @@ class ChatService {
         let turns = messages.map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
         let outcome = try await intelligence.summarizeConversation(turns)
 
-                AppLogger.log("✅ [ChatService] Summary generated (\(outcome.value.count) chars), "
+                AppLogger.log("✅ [ChatService] Summary generated title=\(outcome.value.title.prefix(40)) "
+                              + "(\(outcome.value.body.count) chars), "
                               + "zone: \(outcome.zoneUsed.identifier), degraded: \(outcome.wasDegraded)")
 
-        return ChatSummaryResponse(title: nil, content: outcome.value)
+        return ChatSummaryResponse(title: outcome.value.title, content: outcome.value.body)
     }
 
     // MARK: - Chat Feedback (spec 041 — on-device store)

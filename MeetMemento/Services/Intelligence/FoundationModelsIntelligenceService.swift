@@ -100,6 +100,17 @@ struct ProfileEstimateAnswer {
     let promptLens: String
 }
 
+/// Chat-to-journal summary. Title leads so a missing title cannot steal the
+/// body — both fields prefill the entry editor (PRES-046).
+@Generable
+struct ConversationSummaryAnswer {
+    @Guide(description: "A short journal title, 3 to 8 words, naming the subject of this reflection. Not Chat, Chat Reflection, Conversation, Summary, or any mention of Memento or the chat. Plain text, no quotes.")
+    let title: String
+
+    @Guide(description: "The journal entry in first person. One or two short paragraphs, four to six sentences. No markdown, no headings, no mention of the chat or Memento.")
+    let body: String
+}
+
 // MARK: - Service
 
 final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked Sendable {
@@ -1199,7 +1210,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     // MARK: Summarize
 
-    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<String> {
+    func summarizeConversation(_ turns: [ChatTurn]) async throws -> GenerationOutcome<ConversationSummary> {
         let clock = ContinuousClock()
         let started = clock.now
         let availability = await availability()
@@ -1237,20 +1248,28 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt = "Here is the conversation to summarize:\n\n\(conversation)"
 
         do {
-            let response = try await session.respond(to: prompt, options: GenerationOptions(temperature: 0.7))
-            let trimmedOut = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let hit = OutputSafetyScanner.scan(trimmedOut) {
-                SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
-                switch hit.action {
-                case .showCrisisCard: throw IntelligenceError.crisisResource
-                default: throw IntelligenceError.safetyRefusal(hit.category)
+            let response = try await session.respond(
+                to: prompt,
+                generating: ConversationSummaryAnswer.self,
+                options: GenerationOptions(temperature: 0.7)
+            )
+            let answer = response.content
+            let summary = ConversationSummary(title: answer.title, body: answer.body).resolved()
+            for field in [summary.title, summary.body] {
+                let trimmed = field.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let hit = OutputSafetyScanner.scan(trimmed) {
+                    SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
+                    switch hit.action {
+                    case .showCrisisCard: throw IntelligenceError.crisisResource
+                    default: throw IntelligenceError.safetyRefusal(hit.category)
+                    }
                 }
             }
             let latency = clock.now - started
             Self.logOutcome(intent: .summary, route: route, promptVersion: resolved.version,
                             latency: latency, window: budget.window, entryCount: 0)
             return GenerationOutcome(
-                value: trimmedOut,
+                value: summary,
                 zoneUsed: route.executionZone,
                 modelIdentifier: Self.modelIdentifier(for: route.executionZone),
                 wasDegraded: route.wasDegraded,

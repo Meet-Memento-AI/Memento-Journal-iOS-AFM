@@ -86,14 +86,17 @@ final class IntelligenceServiceTests: XCTestCase {
             ChatTurn(role: .assistant, text: "You mentioned wanting to build it for months. What makes starting hard?"),
             ChatTurn(role: .user, text: "I think I'm afraid it won't be good enough, so I avoid it.")
         ]
-        let summary: String
+        let summary: ConversationSummary
         do {
             summary = try await service.summarizeConversation(turns).value
         } catch {
             throw XCTSkip("On-device generation not runnable in this environment (needs a physical device): \(error)")
         }
-        print("[IntelligenceTest] summary: \(summary)")
-        XCTAssertFalse(summary.isEmpty)
+        print("[IntelligenceTest] title: \(summary.title)")
+        print("[IntelligenceTest] summary: \(summary.body)")
+        XCTAssertFalse(summary.body.isEmpty)
+        XCTAssertFalse(summary.title.isEmpty)
+        XCTAssertFalse(summary.title.lowercased().hasPrefix("chat"))
     }
 
     /// The retriever is pure Swift and always runs (no model needed).
