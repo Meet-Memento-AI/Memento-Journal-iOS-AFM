@@ -48,6 +48,7 @@ struct UserBubbleSurface: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.colorScheme) private var colorScheme
 
     init(text: String, cornerRadius: CGFloat? = nil, imageJPEGs: [Data] = []) {
         self.text = text
@@ -74,13 +75,22 @@ struct UserBubbleSurface: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.md)
-        .background(theme.secondary)
+        .background(bubbleFill)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: cornerRadius ?? theme.radius.lg,
                 style: .continuous
             )
         )
+    }
+
+    /// Vertical `gray50` (`#FAFAFA`) → `gray100` (`#F5F5F5`). Dark uses the
+    /// night card wash so the bubble does not flash as a light-gray panel.
+    private var bubbleFill: LinearGradient {
+        let colors: [Color] = colorScheme == .dark
+            ? [theme.journalCardGradientStart, theme.journalCardGradientEnd]
+            : [GrayScale.gray50, GrayScale.gray100]
+        return LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
     }
 
     /// Compact thumbs in the transcript — the composer uses 112pt inside the

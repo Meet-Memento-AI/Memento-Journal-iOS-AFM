@@ -2,13 +2,9 @@
 //  JournalPhotoThumbnail.swift
 //  MeetMemento
 //
-//  The composer's cover-photo preview (AddEntryView). It is NOT literally the
-//  same view the saved card uses — `JournalCard.photoCardBody` inlines its own
-//  layered treatment, where the photo's bottom edge is tucked under the content
-//  panel. This view deliberately mirrors that treatment's visible half
-//  (full-bleed, 160pt, 24pt outer rounding) so the composer previews what the
-//  saved card will actually show. **Keep the two in visual sync** — if the
-//  card's photo chrome changes, change this too.
+//  The composer's cover-photo preview (AddEntryView). Mirrors the saved
+//  JournalCard photo: 160pt tall, corners concentric with a 24pt card at
+//  `JournalCard.photoInset`. **Keep the two in visual sync.**
 //
 
 import SwiftUI
@@ -27,10 +23,11 @@ struct JournalPhotoThumbnail: View {
             .aspectRatio(contentMode: .fill)
             .frame(height: 160)
             .frame(maxWidth: .infinity)
-            // Same uniform radius and inset the card uses for its cover photo,
-            // so the composer previews exactly what the saved card renders.
-            .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-            .padding(JournalCard.photoInset)
+            // Same concentric radius the card uses for its cover photo.
+            .clipShape(RoundedRectangle(
+                cornerRadius: theme.radius.xl - JournalCard.photoInset,
+                style: .continuous
+            ))
             .overlay(alignment: .topTrailing) {
                 if removable {
                     removeBadge

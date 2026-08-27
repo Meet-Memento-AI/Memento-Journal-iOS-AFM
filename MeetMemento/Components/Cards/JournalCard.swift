@@ -23,9 +23,12 @@ struct JournalCard: View {
     // MARK: - Environment
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-     
-    // MARK: - State
-    @State private var isPressed = false
+
+    /// Densifies `.regular` frost the same way the composer and Welcome CTA do:
+    /// a light canvas tint *through* the material, never an opaque fill under it.
+    /// `.interactive()` is intentionally off — it scales the glass and paints a
+    /// second rim, which is the radius mismatch on press.
+    private static let glassFrostTintOpacity: Double = 0.24
 
     // MARK: - Body
     // Kept deliberately short: the previous single ~14-modifier chain exceeded
@@ -36,7 +39,6 @@ struct JournalCard: View {
         card
             .modifier(JournalCardInteractionModifier(
                 isInteractive: isInteractive,
-                isPressed: $isPressed,
                 onTap: onTap,
                 onEditTapped: onEditTapped,
                 onDeleteTapped: onDeleteTapped
@@ -50,6 +52,17 @@ struct JournalCard: View {
             ))
     }
 
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
+    }
+
+    /// Untinted interactive glass is what made the fill and the specular edge
+    /// disagree on press. This is static `.regular` frost, tinted for density,
+    /// in the same continuous 24pt rect every other state uses.
+    private var glassMaterial: Glass {
+        .regular.tint(theme.background.opacity(Self.glassFrostTintOpacity))
+    }
+
     private var card: some View {
         Group {
             if let photoImage {
@@ -58,8 +71,18 @@ struct JournalCard: View {
                 plainCardBody
             }
         }
-        .pressEffect(isPressed: $isPressed, scale: 0.98, duration: Spacing.Duration.fast)
-        .contentShape(RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous))
+    }
+
+    /// One continuous 24pt rect for content clip, glass, hit target, and the
+    /// system container (press highlight, context-menu preview). No
+    /// `.interactive()` — it re-paints a second rim.
+    private func cardChrome<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipShape(cardShape)
+            .glassEffect(glassMaterial, in: cardShape)
+            .contentShape(cardShape)
+            .containerShape(cardShape)
     }
 
     // MARK: - Card chrome (photo vs. plain)
@@ -70,49 +93,47 @@ struct JournalCard: View {
     /// journal canvas. Applied to this stack (the view that contains the type),
     /// never as a sibling `.background`, so title and excerpt get vibrancy.
     private var plainCardBody: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            textBlock
-            dateChip
+        cardChrome {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                textBlock
+                dateChip
+            }
+            .padding(Spacing.md)
         }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xl, style: .continuous))
     }
 
-    /// With-photo layout: a cover image inset evenly inside the card with the
-    /// SAME corner radius on all four corners, sitting above the text content.
-    /// (This deliberately departs from Figma node 395:5120, which tucked the
-    /// image's bottom edge under an overlapping panel so only its top corners
-    /// were rounded — uniform rounding was preferred.)
+    /// With-photo layout: cover image above the same text block and date chip
+    /// as the plain card. One `Spacing.md` pad on every edge — including the
+    /// top — so the photo shares the title's margin instead of sitting 4pt
+    /// from the glass while the type sits 16pt in.
     ///
-    /// The 4pt inset and `theme.radius.lg` (20) are concentric with the card's
-    /// own 24pt radius (24 − 4 = 20), so the image's curve stays parallel to
-    /// the card's rather than visually fighting it.
+    /// Photo corners are concentric with the card: radius is
+    /// `theme.radius.xl − photoInset` (24 − 16 = 8).
     private func photoCardBody(_ image: Image) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(height: 160)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: theme.radius.lg, style: .continuous))
-                .padding(JournalCard.photoInset)
+        cardChrome {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 160)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(
+                        cornerRadius: theme.radius.xl - JournalCard.photoInset,
+                        style: .continuous
+                    ))
 
-            textBlock
-            dateChip
+                textBlock
+                dateChip
+            }
+            .padding(Spacing.md)
         }
-        // Asymmetric on purpose: the image carries its own 4pt inset and sits
-        // flush to the card's top edge, so only the sides and bottom take the
-        // plain card's 16pt padding.
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: theme.radius.xl, style: .continuous))
     }
 
-    /// Even inset around the cover photo. Shared with the composer's preview
-    /// (`JournalPhotoThumbnail`) so the two stay visually identical.
-    static let photoInset: CGFloat = 4
+    /// Inset from the card edge to the cover photo. Same token as the text
+    /// padding (`Spacing.md`) so photo and type share one margin. Shared with
+    /// the composer's preview (`JournalPhotoThumbnail`) for the concentric
+    /// corner radius.
+    static let photoInset: CGFloat = Spacing.md
 
     // MARK: - Subviews
     private var header: some View {
@@ -199,28 +220,44 @@ struct JournalCard: View {
 
 // MARK: - Gestures & hit-testing (split out of `body` for type-checker performance)
 private struct JournalCardInteractionModifier: ViewModifier {
+    @Environment(\.theme) private var theme
     let isInteractive: Bool
-    @Binding var isPressed: Bool
     var onTap: (() -> Void)?
     var onEditTapped: (() -> Void)?
     var onDeleteTapped: (() -> Void)?
 
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
+    }
+
     func body(content: Content) -> some View {
-        content
-            .onTapGesture {
-                guard isInteractive else { return }
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
+        if isInteractive {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onTap?()
+            } label: {
+                content
             }
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-                guard isInteractive else { return }
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isPressed = pressing
-                }
-            }, perform: {})
-            .modifier(JournalCardContextMenuModifier(isInteractive: isInteractive, onEditTapped: onEditTapped, onDeleteTapped: onDeleteTapped))
-            .allowsHitTesting(isInteractive)
+            // Identity style: `.plain` can still dim, and `.interactive()` glass
+            // paints a second rim. The fill must not change on press.
+            .buttonStyle(JournalCardButtonStyle())
+            .buttonBorderShape(.roundedRectangle(radius: theme.radius.xl))
+            .containerShape(cardShape)
+            .modifier(JournalCardContextMenuModifier(
+                isInteractive: true,
+                onEditTapped: onEditTapped,
+                onDeleteTapped: onDeleteTapped
+            ))
+        } else {
+            content
+                .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct JournalCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
     }
 }
 
@@ -257,20 +294,27 @@ private struct JournalCardAccessibilityModifier: ViewModifier {
 
 // MARK: - Context menu only when interactive
 private struct JournalCardContextMenuModifier: ViewModifier {
+    @Environment(\.theme) private var theme
     let isInteractive: Bool
     var onEditTapped: (() -> Void)?
     var onDeleteTapped: (() -> Void)?
 
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
+    }
+
     func body(content: Content) -> some View {
         if isInteractive {
-            content.contextMenu {
-                Button(action: { onEditTapped?() }) {
-                    Label("Edit", systemImage: "pencil")
+            content
+                .contentShape(.contextMenuPreview, cardShape)
+                .contextMenu {
+                    Button(action: { onEditTapped?() }) {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    Button(role: .destructive, action: { onDeleteTapped?() }) {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
-                Button(role: .destructive, action: { onDeleteTapped?() }) {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
         } else {
             content
         }

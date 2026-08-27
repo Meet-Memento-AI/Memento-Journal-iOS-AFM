@@ -213,7 +213,10 @@ struct YourEntriesView: View {
                                             showDeleteConfirmation = true
                                         }
                                     )
-                                    .entryZoomSource(EntryRoute.edit(entry.id).zoomSourceID)
+                                    .entryZoomSource(
+                                        EntryRoute.edit(entry.id).zoomSourceID,
+                                        cornerRadius: theme.radius.xl
+                                    )
                                     .frame(maxWidth: .infinity) // Stretch to full width
                                     .id(entry.id) // Explicit ID for better diffing
                                     // Keyed on updatedAt as well as id: replacing an
