@@ -337,23 +337,26 @@ enum EntryRetriever {
         let (keywordByEntry, documentFrequency) = Self.keywordScores(
             entries: entries, terms: terms, hashes: hashes
         )
-        // Does the journal contain *any* of the words the question is about?
+        // Does *this entry* contain any of the words the question is about?
         //
         // "What have I said about my dog?" and "When did I go skiing last
         // winter?" are questions this corpus cannot answer, and the honest
         // reply is to say so. Semantic similarity alone will not say so — NL
         // embeddings score every entry warmly against any well-formed English
         // sentence, so μ + σ always crowns *something* and the reply came back
-        // grounded in an unrelated entry, with citations. Zero lexical support
-        // across every content term is the signal that nothing is on topic.
+        // grounded in an unrelated entry, with citations. Lexical support is
+        // the signal that separates a real topic from a warm embedding.
         //
-        // With no date named this falls through to ambient rather than
-        // `.empty`, deliberately: the person still gets recent life as
-        // background and a conversational reply, and the `.noMatch` stance line
-        // already tells the model to say plainly that it does not see the thing
-        // they asked about. With a date named there is nothing left to offer,
-        // and the windowed branch below returns `.empty`.
-        let lexicallySupported = terms.isEmpty || documentFrequency.contains { $0 > 0 }
+        // That test lives per entry, in `lexicalWhereRequired` below. It was
+        // once a corpus-wide boolean here and that was too coarse — see the
+        // note at the `hasSignal` site.
+        //
+        // When nothing qualifies and no date was named, this falls through to
+        // ambient rather than `.empty`, deliberately: the person still gets
+        // recent life as background and a conversational reply, and the
+        // `.noMatch` stance line already tells the model to say plainly that it
+        // does not see the thing they asked about. With a date named there is
+        // nothing left to offer, and the windowed branch below returns `.empty`.
         struct Measured { let entry: Entry; let cosine: Double?; let keyword: Double }
         let measured: [Measured] = entries.enumerated().map { index, entry in
             let hash = hashes[index]
@@ -423,9 +426,26 @@ enum EntryRetriever {
             // mentions him. When the person names both a period and a subject,
             // an entry from the period that never touches the subject is not
             // the answer.
-            let lexicalWhereRequired = window == nil || terms.isEmpty || m.keyword > 0
+            //
+            // The same requirement holds with no window named (2026-08-27).
+            // It replaces a corpus-wide `lexicallySupported` flag — a single
+            // boolean asking whether *any* entry contained *any* query term,
+            // which then gated every entry. One incidental mention anywhere in
+            // the journal flipped it true and unlocked semantic-only matching
+            // for the whole corpus. "What have I said about my dog?" came back
+            // with all 262 entries as a topical match, non-ambient, because one
+            // June entry reads "a couple of people walking a dog along the
+            // path". That is the honesty trap behind the no-match dumping in
+            // the chat: retrieval reported a real topical hit, so the reply
+            // had five quotable entries in front of it.
+            //
+            // Support has to be per entry. An entry that never touches the
+            // question's words is not the answer to it, however warmly NL
+            // embeddings score it — and they score everything warmly, which is
+            // the whole reason the lexical check exists.
+            let lexicalWhereRequired = terms.isEmpty || m.keyword > 0
             return Scored(entry: m.entry, score: score,
-                          hasSignal: clears && inWindow && lexicalWhereRequired && lexicallySupported,
+                          hasSignal: clears && inWindow && lexicalWhereRequired,
                           touched: inWindow && m.keyword > 0)
         }
         .sorted { $0.score > $1.score }
@@ -485,11 +505,29 @@ enum EntryRetriever {
         // Only tops up a result that already cleared the bar somewhere — an
         // ungrounded turn stays ungrounded, and ambient stays recent-life
         // background — and never crosses a named date window.
+        //
+        // The fill must also *touch the question's words* (2026-08-27). It used
+        // to draw from the whole ranking, which meant a turn with one or two
+        // real hits had its remaining slots packed with the best-scoring
+        // unrelated entries — and NL embeddings always score something warmly.
+        // "What have I said about my dog?" found the two entries that mention a
+        // dog in passing, then filled the other three slots with the top of the
+        // ranking, and the reply quoted and cited those three. That is the
+        // no-match dumping in the chat: the turn is `journalGrounded`, not
+        // `.noMatch`, so no stance-level gate ever fires for it — which is why
+        // gating on `.noMatch` did not fix it and could not have.
+        //
+        // `touched` is the same lexical test the windowed branch already uses.
+        // It keeps the recall this top-up was added for — the four gold
+        // questions whose expected entry sat just under the σ bar all contain
+        // the question's words — while refusing to invent evidence for a
+        // question the journal does not answer.
         if !ambient, ordered.count < cap {
             let taken = Set(ordered.map(\.id))
             let fill = scored.lazy
                 .filter { candidate in
                     guard !taken.contains(candidate.entry.id) else { return false }
+                    guard candidate.touched else { return false }
                     return window.map { $0.contains(candidate.entry.createdAt) } ?? true
                 }
                 .prefix(cap - ordered.count)
