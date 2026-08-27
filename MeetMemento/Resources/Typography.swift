@@ -201,56 +201,6 @@ public struct Typography {
         bodyFont(size: sizeLG, weight: .medium)
     }
 
-    // MARK: - Deprecated Aliases (for backward compatibility)
-    @available(*, deprecated, renamed: "body1")
-    public var body: Font { body1 }
-
-    @available(*, deprecated, renamed: "body1Medium")
-    public var bodyMedium: Font { body1Medium }
-
-    @available(*, deprecated, renamed: "body1Bold")
-    public var bodyBold: Font { body1Bold }
-
-    @available(*, deprecated, renamed: "body2")
-    public var bodySmall: Font { body2 }
-
-    @available(*, deprecated, renamed: "body2Bold")
-    public var bodySmallBold: Font { body2Bold }
-
-    @available(*, deprecated, renamed: "caption")
-    public var captionText: Font { caption }
-
-    @available(*, deprecated, renamed: "micro")
-    public var microText: Font { micro }
-
-    // Deprecated size aliases
-    @available(*, deprecated, renamed: "sizeXS")
-    public var micro_size: CGFloat { sizeXS }
-
-    @available(*, deprecated, renamed: "sizeSM")
-    public var caption_size: CGFloat { sizeSM }
-
-    @available(*, deprecated, renamed: "sizeMD")
-    public var bodyS: CGFloat { sizeMD }
-
-    @available(*, deprecated, renamed: "sizeLG")
-    public var bodyL: CGFloat { sizeLG }
-
-    @available(*, deprecated, renamed: "sizeLG")
-    public var titleXS: CGFloat { sizeLG }
-
-    @available(*, deprecated, renamed: "sizeXL")
-    public var titleS: CGFloat { sizeXL }
-
-    @available(*, deprecated, renamed: "size2XL")
-    public var titleM: CGFloat { size2XL }
-
-    @available(*, deprecated, renamed: "size3XL")
-    public var displayL: CGFloat { size3XL }
-
-    @available(*, deprecated, renamed: "size4XL")
-    public var displayXL: CGFloat { size4XL }
-
     // MARK: - Line Height Modifiers
     public func lineSpacingModifier(for size: CGFloat) -> some ViewModifier {
         LineHeight(spacing: lineSpacing(for: size))

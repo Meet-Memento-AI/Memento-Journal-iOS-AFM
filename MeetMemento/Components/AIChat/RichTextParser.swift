@@ -198,20 +198,6 @@ struct RichTextParser {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Legacy parse method that accepts citation parameters (ignored)
-    @available(*, deprecated, message: "Citation refs are no longer used. Use parse(_:baseFont:boldFont:textColor:) instead.")
-    static func parse(
-        _ text: String,
-        validCitationRefs: Set<Int>,
-        baseFont: Font,
-        boldFont: Font,
-        citationFont: Font,
-        textColor: Color,
-        citationColor: Color
-    ) -> AttributedString {
-        return parse(text, baseFont: baseFont, boldFont: boldFont, textColor: textColor)
-    }
-
     // MARK: - Line split
 
     /// Splits on `\n` and drops the empty trailing element that Swift adds when

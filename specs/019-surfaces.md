@@ -165,9 +165,10 @@ seconds of opening.
 - **Citations with tap-through:** every claim traces to `groundedEntryIDs`
   (017 R5); the rendered card exposes citations that navigate to the cited
   entry — the one sanctioned *upgrade* to PRES-044's sheet-based citations
-  (preservation contract §1). Citation UI may revive the orphaned
-  `InlineCitationBadge`/`CitationFlowText` components or consciously delete
-  them (§4 reuse ledger — no third option).
+  (preservation contract §1). Citation UI on the weekly card is new;
+  `InlineCitationBadge`/`CitationFlowText` were **deleted 2026-08-27**
+  (§4 reuse ledger) rather than revived. Ask keeps the sheet path
+  (`CitationsBottomSheet`).
 - **`hasNothingToSay` is a designed state, not an error** (`REQ-INT-013`,
   017 R5 — cited): when true, the card renders a deliberate, quiet empty state
   (draft copy: *"A quiet week. Not every week has something worth saying."*),
@@ -299,8 +300,8 @@ edge functions.
   **notebook-channel** Ask runs only. Loading copy on no-RAG turns MUST NOT
   say “Reviewing your past entries…” (`LoadingStatus` uses “Memento is
   thinking…” when `RetrievalPolicy.mode` is `.none`). The retrieval-
-  transparency affordance SHOULD start from the orphaned
-  `JournalReviewIndicator` ("Reviewed N journals" — §4 reuse ledger).
+  transparency affordance is **new** when that UI ships —
+  `JournalReviewIndicator` was deleted 2026-08-27 (§4 reuse ledger).
   Enforcement is mechanical and owned by spec 022's `RetrievalGate`:
   `TrajectoryExpectation` asserts the search tool was called on 100% of
   **notebook** Ask runs, and the honesty questions (q-16–q-18) must both

@@ -41,7 +41,6 @@
 		A55633722E8F75090007E35E /* Exceptions for "MeetMemento" folder in "MeetMemento" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Components/Cards/MonthlyInsightCard+Usage.md",
 				Config/Debug.xcconfig,
 				Config/Release.xcconfig,
 				Info.plist,

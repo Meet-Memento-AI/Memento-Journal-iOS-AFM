@@ -240,7 +240,7 @@ var body: some View {
 
 ## Advanced: Custom Gradient Card
 
-For cards with custom backgrounds (like MonthlyInsightCard), you can skip `.cardStyle()` and use custom styling while still using spacing and typography:
+For cards with custom backgrounds, you can skip `.cardStyle()` and use custom styling while still using spacing and typography:
 
 ```swift
 VStack {
