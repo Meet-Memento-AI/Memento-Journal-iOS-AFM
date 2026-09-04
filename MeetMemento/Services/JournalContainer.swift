@@ -34,7 +34,11 @@ enum JournalContainer {
         let schema = JournalSchema.schema
         return try! ModelContainer(
             for: schema,
-            configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            configurations: ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: true,
+                cloudKitDatabase: .none
+            )
         )
     }
 

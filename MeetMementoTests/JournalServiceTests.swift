@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import MeetMemento
 
@@ -6,20 +7,25 @@ import XCTest
 /// local envelope persistence, legacy-file migration to envelopes,
 /// and the retry/error classification logic `withRetry` depends on.
 final class JournalServiceTests: XCTestCase {
+    private var container: ModelContainer!
+
     private func makeService() -> JournalService {
         JournalService(encryptionService: EncryptionService(keychain: InMemoryKeychainStore()))
     }
 
     override func setUp() {
         super.setUp()
+        container = JournalContainer.makeInMemory()
+        JournalContainer.resetCacheForTests(to: container)
+        LocalJournalStorage.shared.clearAll()
         MementoDataStore.clearImportFlag()
-        JournalContainer.resetCacheForTests(to: JournalContainer.makeInMemory())
     }
 
     override func tearDown() {
         LocalJournalStorage.shared.clearAll()
         MementoDataStore.clearImportFlag()
         JournalContainer.resetCacheForTests(to: nil)
+        container = nil
         super.tearDown()
     }
 
@@ -370,6 +376,122 @@ final class JournalServiceTests: XCTestCase {
         XCTAssertEqual(matching.count, 1, "an edit must overwrite, not duplicate, the local entry")
         XCTAssertEqual(matching.first?.text, "v2 edited")
         XCTAssertEqual(matching.first?.updatedAt, t2)
+    }
+
+    // MARK: - Leftover onboarding seed purge
+
+    func test_purgeOnboardingSeedEntries_deletesSeed_keepsUserTitledEntry() {
+        let service = makeService()
+        let seedId = UUID()
+        let userId = UUID()
+        let now = Date()
+
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: seedId,
+            title: JournalService.onboardingSeedTitle,
+            content: "I want to understand my week.",
+            createdAt: now,
+            updatedAt: now
+        ))
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: userId,
+            title: "Tuesday walk",
+            content: "I want to understand my week.",
+            createdAt: now,
+            updatedAt: now
+        ))
+
+        let loaded = service.loadAllEntriesLocally(legacyPIN: nil)
+        let kept = service.purgeOnboardingSeedEntries(from: loaded)
+
+        XCTAssertFalse(kept.contains { $0.id == seedId })
+        XCTAssertTrue(kept.contains { $0.id == userId })
+        XCTAssertFalse(kept.contains { $0.title == JournalService.onboardingSeedTitle })
+
+        let after = service.loadAllEntriesLocally(legacyPIN: nil)
+        XCTAssertFalse(after.contains { $0.id == seedId })
+        XCTAssertTrue(after.contains { $0.id == userId })
+        XCTAssertEqual(after.first { $0.id == userId }?.title, "Tuesday walk")
+    }
+
+    func test_purgeOnboardingSeedEntries_swiftDataStore_deletesSeedAfterImport() {
+        let service = makeService()
+        let seedId = UUID()
+        let userId = UUID()
+        let now = Date()
+
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: seedId,
+            title: JournalService.onboardingSeedTitle,
+            content: "Seeded reflection",
+            createdAt: now,
+            updatedAt: now
+        ))
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: userId,
+            title: "Real entry",
+            content: "Kept",
+            createdAt: now,
+            updatedAt: now
+        ))
+
+        MementoDataStore.markLegacyImportComplete()
+        let loaded = service.loadAllEntriesLocally(legacyPIN: nil)
+        XCTAssertEqual(Set(loaded.map(\.id)), Set([seedId, userId]))
+
+        _ = service.purgeOnboardingSeedEntries(from: loaded)
+
+        let after = service.loadAllEntriesLocally(legacyPIN: nil)
+        XCTAssertFalse(after.contains { $0.id == seedId })
+        XCTAssertTrue(after.contains { $0.id == userId })
+        XCTAssertEqual(after.first { $0.id == userId }?.title, "Real entry")
+    }
+
+    /// Title is the fingerprint we shipped. A user-titled row with the same
+    /// body as the onboarding reflection must not be deleted.
+    func test_purgeOnboardingSeedEntries_ignoresMatchingBodyWithDifferentTitle() {
+        let service = makeService()
+        let userId = UUID()
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: userId,
+            title: "About this week",
+            content: "I want to understand my week.",
+            createdAt: Date(),
+            updatedAt: Date()
+        ))
+
+        let loaded = service.loadAllEntriesLocally(legacyPIN: nil)
+        let kept = service.purgeOnboardingSeedEntries(from: loaded)
+        XCTAssertTrue(kept.contains { $0.id == userId })
+        XCTAssertTrue(service.loadAllEntriesLocally(legacyPIN: nil).contains { $0.id == userId })
+    }
+
+    func test_onboardingSources_doNotCreateFirstJournalEntry() throws {
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let vmSource = try String(
+            contentsOf: repo.appendingPathComponent("MeetMemento/ViewModels/OnboardingViewModel.swift"),
+            encoding: .utf8
+        )
+        XCTAssertFalse(
+            vmSource.contains("createFirstJournalEntry"),
+            "the deleted seed-journal helper must not return"
+        )
+        XCTAssertFalse(
+            vmSource.contains("saveEntryLocally"),
+            "OnboardingViewModel must not write journal rows"
+        )
+
+        let coordinator = try String(
+            contentsOf: repo.appendingPathComponent("MeetMemento/Views/Onboarding/OnboardingCoordinatorView.swift"),
+            encoding: .utf8
+        )
+        XCTAssertFalse(coordinator.contains("createFirstJournalEntry"))
+        XCTAssertFalse(
+            coordinator.contains("createEntry("),
+            "onboarding coordinator must not call createEntry"
+        )
     }
 
 }

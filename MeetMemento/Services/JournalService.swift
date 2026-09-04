@@ -119,6 +119,26 @@ class JournalService {
         noteMutation()
     }
 
+    /// Title the deleted onboarding path used for the auto-created first
+    /// journal entry. Leftover rows still sit in SwiftData/files after that
+    /// write was removed; this is the fingerprint for purging them.
+    static let onboardingSeedTitle = "My First Reflection"
+
+    /// Deletes leftover onboarding-seeded journal rows (title exactly
+    /// `onboardingSeedTitle`) from files + SwiftData. User-titled entries
+    /// are left alone. Returns the list with seeds removed.
+    @discardableResult
+    func purgeOnboardingSeedEntries(from entries: [Entry]) -> [Entry] {
+        let seeds = entries.filter { $0.title == Self.onboardingSeedTitle }
+        for seed in seeds {
+            deleteEntryLocally(entryId: seed.id)
+        }
+        if !seeds.isEmpty {
+            AppLogger.log("🧹 [JournalService] Purged \(seeds.count) leftover onboarding seed entries")
+        }
+        return entries.filter { $0.title != Self.onboardingSeedTitle }
+    }
+
     /// File-store decrypt used only by `LegacyStoreImporter` so import cannot
     /// recurse into SwiftData.
     func loadLegacyFilesOnly(legacyPIN: String?) -> [Entry] {

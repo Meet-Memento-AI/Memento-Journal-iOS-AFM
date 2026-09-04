@@ -168,7 +168,10 @@ public struct JournalView: View {
 
     @ViewBuilder
     private var coreContentView: some View {
-        let showsFAB = isEmbedded && !entryViewModel.entries.isEmpty
+        let showsFAB = isEmbedded
+        let fabTitle = entryViewModel.entries.isEmpty
+            ? "Write your first entry"
+            : "New entry"
 
         RootPageScaffold(
             footerBottomPadding: showsFAB ? 16 : 0,
@@ -178,14 +181,15 @@ public struct JournalView: View {
                 if showsFAB {
                     HStack {
                         Spacer(minLength: 0)
-                        NewEntryFAB(size: AppHeaderMetrics.footerButtonSize) {
+                        NewEntryFAB(
+                            size: AppHeaderMetrics.footerButtonSize,
+                            title: fabTitle
+                        ) {
                             presentEntry(.create)
                         }
-                        // Circular platter: the FAB is round glass, and the
-                        // default square source plate shows through behind it.
                         .entryZoomSource(
                             EntryRoute.createZoomSourceID,
-                            cornerRadius: AppHeaderMetrics.footerButtonSize / 2
+                            cornerRadius: NewEntryFAB.labeledCornerRadius
                         )
                     }
                     .padding(.horizontal, 16)
@@ -448,11 +452,12 @@ public struct JournalView: View {
     @Previewable @StateObject var entryViewModel = EntryViewModel()
     @Previewable @StateObject var appState = AppStateStore()
 
-    JournalView()
+    JournalView(isEmbedded: true)
         .environmentObject(entryViewModel)
         .environmentObject(appState)
         .onAppear {
             entryViewModel.entries = []
+            entryViewModel.hasInitiallyLoaded = true
         }
         .useTheme()
         .useTypography()

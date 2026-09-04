@@ -55,8 +55,9 @@ grouped by `ThemeFamily` (164 themes).
 ## Persistence timing
 
 The Experience Profile is persisted when the user confirms themes (before
-security setup). The first journal entry is created after security in
-`finishSecuritySetup`, still from the LearnAboutYourself reflection.
+security setup). The Learn About Yourself reflection is stored only as
+profile preferences (`LocalProfileStore.personalizationText` /
+`ExperienceProfile.reflection`); onboarding does not create a journal entry.
 
 ## Acceptance criteria
 

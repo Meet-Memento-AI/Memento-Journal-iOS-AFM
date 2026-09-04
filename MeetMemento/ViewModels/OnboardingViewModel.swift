@@ -153,18 +153,6 @@ class OnboardingViewModel: ObservableObject {
         AppLogger.log("✅ [OnboardingViewModel] Experience profile saved: \(validated)")
     }
 
-    /// Creates the first journal entry from the personalization text via the
-    /// shared `EntryViewModel` local-first create path (spec 023 — no
-    /// account, and per `createEntry`'s comment, the network attempt fails
-    /// gracefully and queues for retry rather than losing the entry).
-    func createFirstJournalEntry(text: String, using entryViewModel: EntryViewModel) async throws {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        entryViewModel.createEntry(title: "My First Reflection", text: trimmed)
-
-                AppLogger.log("✅ [OnboardingViewModel] First journal entry created locally")
-    }
-
     /// Marks onboarding as complete locally.
     func completeOnboarding() async throws {
                 AppLogger.log("✅ [OnboardingViewModel] Onboarding marked complete locally")

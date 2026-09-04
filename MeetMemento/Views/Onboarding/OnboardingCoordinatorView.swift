@@ -336,20 +336,10 @@ public struct OnboardingCoordinatorView: View {
     }
 
     private func finishSecuritySetup() {
-        // Move to the loading / finish screen right away; journal seed can follow.
+        // Reflection already lives in LocalProfileStore from Learn About
+        // Yourself. Do not seed a journal entry — a fresh install should land
+        // on the empty journal with "Write your first entry".
         pushRoute(.loading)
-        Task {
-            if !onboardingViewModel.personalizationText.isEmpty {
-                do {
-                    try await onboardingViewModel.createFirstJournalEntry(
-                        text: onboardingViewModel.personalizationText,
-                        using: entryViewModel
-                    )
-                } catch {
-                    AppLogger.log("⚠️ Failed to create first journal entry: \(error)")
-                }
-            }
-        }
     }
 
     private func handleOnboardingComplete() {

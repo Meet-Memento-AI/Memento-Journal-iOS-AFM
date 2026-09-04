@@ -82,13 +82,17 @@ anywhere in the app.
 ### R3. Onboarding preserved; app lock default-on, skippable (PRES-061…066)
 Same step order: YourName → LearnAboutYourself → YourGoals → app-lock setup →
 LoadingStateView. Name, personalization text, and goals persist **locally only**;
-the personalization text still becomes the first (local) journal entry. The
+the personalization text is stored as About yourself / Experience Profile
+reflection and is **not** written as a journal entry (PRES-063). Journal load
+purges leftover rows titled exactly `My First Reflection` (the old seed title)
+so a prior onboarding write cannot reappear after a rebuild. The
 FaceID/PIN step defaults **on** but gains an explicit-friction skip ("Your
 journal will open without protection") per `REQ-DATA-004` — with no account,
 mandatory lock plus a forgotten PIN would mean data loss. Back from the first
 step returns to Welcome (no sign-out concept exists).
 **Acceptance:** completing onboarding in airplane mode yields: populated name
-cache (avatar initial renders, PRES-006), first entry present locally, lock
+cache (avatar initial renders, PRES-006), empty journal with the footer pill
+**Write your first entry** (PRES-007 / PRES-020), lock
 configured (or explicitly skipped), local onboarding flag set.
 
 ### R4. Settings: one "Your Data" section (PRES-085)
@@ -320,29 +324,16 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       touched, therefore not regressed by this diff," not "actively
       re-verified."
 
-      **Zero-network-calls claim (R1's acceptance criterion): corrected, not
-      fully true as originally stated.** Static trace of every file in the
-      launch → Welcome → onboarding → Journal path (`AppStateStore`,
-      `MeetMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
+      **Zero-network-calls claim (R1's acceptance criterion): corrected.** Static
+      trace of every file in the launch → Welcome → onboarding → Journal path
+      (`AppStateStore`, `MeetMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
       `OnboardingViewModel`, the onboarding step views, `ContentView`) for
       `URLSession`/`SupabaseService`/`import Supabase` returns zero hits —
       the app-state bootstrap machinery itself is genuinely network-free.
-      **However**, onboarding's last step creates the user's first journal
-      entry (`OnboardingViewModel.createFirstJournalEntry` →
-      `EntryViewModel.createEntry`), which — because `DISABLE_SUPABASE` is
-      not defined in any current build configuration
-      (`grep DISABLE_SUPABASE MeetMemento.xcodeproj/project.pbxproj` → 0
-      hits, confirmed 2026-07-23) — always takes the production branch and
-      does attempt one real `JournalService.shared.createEntry` network call
-      before landing on Journal. This is not a new bug: it's the deliberate,
-      already-tested Phase 1a design (documented earlier in this file's
-      history and in the plan) where the network attempt fails gracefully
-      and is queued via the pending-sync path rather than blocking or losing
-      the entry. It does mean the literal claim "reaches the Journal with
-      zero network calls" has one narrow, known, non-blocking exception until
-      spec 015 replaces `JournalService`'s network layer with SwiftData —
-      the Verification checklist item below is left unchecked to reflect
-      this honestly rather than overclaiming.
+      Onboarding no longer calls `EntryViewModel.createEntry`: the Learn About
+      Yourself reflection is stored only in `LocalProfileStore` / Experience
+      Profile, so the former first-entry `JournalService.createEntry` network
+      attempt is gone.
 
 ## Verification
 - [ ] Fresh install, airplane mode: Welcome → Get Started → full onboarding →
@@ -353,12 +344,10 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       above. The app-state bootstrap path is confirmed network-free by
       grepping every file in the launch→Welcome→onboarding→Journal call
       graph for `URLSession`/`SupabaseService`/`import Supabase` (0 hits).
-      One known, deliberate exception: onboarding's first-entry creation
-      does attempt one `JournalService.createEntry` network call (fails
-      gracefully, queued via pending-sync) because `DISABLE_SUPABASE` isn't
-      defined in any current build config. Left unchecked because a live
-      Instruments/proxy capture — the acceptance criterion as written — was
-      not actually performed.
+      Onboarding no longer creates a first journal entry, so the former
+      `JournalService.createEntry` network exception is gone. Left unchecked
+      because a live Instruments/proxy capture — the acceptance criterion as
+      written — was not actually performed.
 - [x] Upgrade fixture: prior session + entries + PIN + name → direct to Journal,
       lock intact, no onboarding shown, Keychain unchanged. **Verified
       2026-07-23 via a real app launch**

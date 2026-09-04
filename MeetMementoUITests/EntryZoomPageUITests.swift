@@ -85,15 +85,15 @@ final class EntryZoomPageUITests: XCTestCase {
 
     private func openEditor(in app: XCUIApplication) {
         let fab = app.buttons["journal.newEntryFAB"]
-        let emptyCTA = app.buttons["journal.emptyCreateCTA"]
-        let labeledCTA = app.buttons["Create your first entry"]
+        let labeledCTA = app.buttons["Write your first entry"]
+        let newEntryCTA = app.buttons["New entry"]
 
         if fab.waitForExistence(timeout: 6), fab.isHittable {
             fab.tap()
-        } else if emptyCTA.waitForExistence(timeout: 4) {
-            emptyCTA.tap()
         } else if labeledCTA.waitForExistence(timeout: 4) {
             labeledCTA.tap()
+        } else if newEntryCTA.waitForExistence(timeout: 4) {
+            newEntryCTA.tap()
         } else {
             XCTFail("need the new-entry FAB or empty-state CTA to open the editor")
         }

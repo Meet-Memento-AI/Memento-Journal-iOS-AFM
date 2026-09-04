@@ -145,7 +145,7 @@ class EntryViewModel: ObservableObject {
             JournalService.shared.loadAllEntriesLocally(legacyPIN: pin)
                 .sorted { $0.createdAt > $1.createdAt }
         }.value
-        self.entries = localEntries
+        self.entries = JournalService.shared.purgeOnboardingSeedEntries(from: localEntries)
         updateEntriesByMonth()
         await loadUserProfile()
         hasInitiallyLoaded = true

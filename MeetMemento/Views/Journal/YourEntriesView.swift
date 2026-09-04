@@ -122,38 +122,14 @@ struct YourEntriesView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             Spacer()
-
-            Image(systemName: "book.closed.fill")
-                .font(.system(size: 36)) // icon-size: not user text
-                .foregroundStyle(theme.foreground)
-
-            Text("No journal entries yet")
-                .font(type.h3)
-                .foregroundStyle(theme.foreground)
-                .padding(.top, 16)
-
-            Text("Start writing your first entry to see it here.")
-                .font(type.body1)
-                .foregroundStyle(theme.mutedForeground)
-
-            PrimaryButton(
-                title: "Create your first entry",
-                systemImage: "square.and.pencil"
-            ) {
-                onNavigateToEntry(.create)
-            }
-            .entryZoomSource(EntryRoute.createZoomSourceID)
-            .accessibilityIdentifier("journal.emptyCreateCTA")
-            .padding(.top, 24)
-            .padding(.horizontal, 32)
-
+            JournalEmptyMark()
             Spacer()
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("No journal entries yet")
     }
 
     private var entriesList: some View {
@@ -335,6 +311,7 @@ struct YourEntriesView: View {
     )
     .onAppear {
         viewModel.entries = []
+        viewModel.hasInitiallyLoaded = true
     }
     .useTheme()
     .useTypography()
