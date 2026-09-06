@@ -289,6 +289,12 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(facts[1].isLowConfidence, true)
         XCTAssertEqual(facts[0].n, Set(facts[0].supportingEntryIDs).count)
         XCTAssertEqual(facts[0].value, "5")
+        XCTAssertTrue(facts.allSatisfy { $0.label.hasPrefix("Around ") })
+        let cadence = InsightEngine.facts(entries: entries, now: day, calendar: calendar)
+            .filter { $0.kind == .cadence }
+        let hours = cadence.filter { $0.label.hasPrefix("Around ") }
+        XCTAssertEqual(hours.map(\.n), [5, 2])
+        XCTAssertFalse(cadence.filter { !$0.label.hasPrefix("Around ") }.isEmpty)
     }
 
     func test_constructedThreeEntryWindow_isLowConfidence() {

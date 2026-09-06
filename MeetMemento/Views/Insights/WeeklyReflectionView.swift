@@ -53,6 +53,8 @@ struct PatternsView: View {
         let stats = PatternStats.month(entries: entryViewModel.entries)
         let facts = InsightEngine.facts(entries: entryViewModel.entries)
         let cadence = facts.filter { $0.kind == .cadence }
+        let hours = cadence.filter { $0.label.hasPrefix("Around ") }
+        let cadenceRows = cadence.filter { !$0.label.hasPrefix("Around ") }
         let people = facts.filter { $0.kind == .person }
         let places = facts.filter { $0.kind == .place }
         let clusters = facts.filter { $0.kind == .cluster }
@@ -76,8 +78,16 @@ struct PatternsView: View {
                     .frame(height: 160)
                     .accessibilityIdentifier("patterns.chart")
 
-                if !cadence.isEmpty {
-                    factList(title: "Cadence", facts: cadence)
+                if !hours.isEmpty {
+                    Text("Time of day")
+                        .font(.headline)
+                    PatternCountChart(facts: hours)
+                        .frame(height: 160)
+                        .accessibilityIdentifier("patterns.hourChart")
+                }
+
+                if !cadenceRows.isEmpty {
+                    factList(title: "Cadence", facts: cadenceRows)
                 }
                 if !people.isEmpty {
                     factList(title: "People", facts: people)
