@@ -255,4 +255,3 @@ extension InsightEngine {
         return nil
     }
 }
-}
