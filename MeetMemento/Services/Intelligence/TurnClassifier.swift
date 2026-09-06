@@ -364,8 +364,11 @@ enum TurnClassifier {
         // statements are shares — both retrieve, so ambiguity is never deafness.
         return isQuestion ? .journalQuery : .share
     }
+}
 
-    // MARK: - Helpers
+// MARK: - Helpers
+
+extension TurnClassifier {
 
     private static let stopwordsForDeixis: Set<String> = [
         "what", "whats", "about", "is", "was", "does", "mean", "means", "do",
