@@ -167,6 +167,28 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(facts[0].n, 2, "Ask must not use a Sunday-first week (n=1)")
     }
 
+    func test_answer_lastWeek_matchesPriorISOWeekNotSundayFirst() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 1
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "UTC")!
+        let sunday = day(2026, 9, 6, calendar: calendar)
+        let thisWeekSaturday = day(2026, 9, 5, calendar: calendar)
+        let lastWeekSaturday = day(2026, 8, 29, calendar: calendar)
+        let last = Entry(title: "Last", text: "prior week note", createdAt: lastWeekSaturday)
+        let current = Entry(title: "Current", text: "this week note", createdAt: thisWeekSaturday)
+        let query = "How often have I written last week?"
+        XCTAssertEqual(TurnClassifier.classify(query, hasHistory: false), .quantitative)
+        let facts = InsightEngine.answer(
+            query: query, entries: [last, current], now: sunday, calendar: calendar
+        )
+        let prior = InsightEngine.weekCadence(
+            entries: [last, current], containing: lastWeekSaturday, calendar: calendar
+        )
+        XCTAssertEqual(prior.n, 1)
+        XCTAssertEqual(facts[0].n, prior.n)
+        XCTAssertEqual(facts[0].supportingEntryIDs, [last.id])
+    }
+
     func test_streakAndGap_nIsEntrySampleSizeNotDayCount() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)
