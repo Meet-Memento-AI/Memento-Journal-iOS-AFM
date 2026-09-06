@@ -80,6 +80,64 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(facts[0].n, 3, "2026 fixtures mention brother at least three times")
     }
 
+    func test_streakAndGap_nIsEntrySampleSizeNotDayCount() {
+        let calendar = isoCalendar()
+        let now = day(2026, 8, 23, calendar: calendar)
+        // Three-day streak, one entry per day — n is 3 entries, not a day label.
+        let streakEntries = (0..<3).map { offset in
+            Entry(
+                title: "S\(offset)",
+                text: "streak note \(offset)",
+                createdAt: calendar.date(byAdding: .day, value: -offset, to: now) ?? now
+            )
+        }
+        let streak = InsightEngine.streakFact(
+            sorted: streakEntries.sorted { $0.createdAt < $1.createdAt },
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertEqual(streak?.value, "3 days")
+        XCTAssertEqual(streak?.n, 3)
+        XCTAssertEqual(streak?.supportingEntryIDs.count, 3)
+        XCTAssertEqual(streak?.isLowConfidence, true)
+
+        let confidentStreakEntries = (0..<4).map { offset in
+            Entry(
+                title: "C\(offset)",
+                text: "confident streak \(offset)",
+                createdAt: calendar.date(byAdding: .day, value: -offset, to: now) ?? now
+            )
+        }
+        let confident = InsightEngine.streakFact(
+            sorted: confidentStreakEntries.sorted { $0.createdAt < $1.createdAt },
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertEqual(confident?.n, 4)
+        XCTAssertEqual(confident?.isLowConfidence, false)
+
+        // A 30-day silence is two bounding entries. n=30 would have claimed
+        // a confident pattern from two points; n=2 greys it.
+        let early = Entry(
+            title: "Before",
+            text: "first",
+            createdAt: calendar.date(byAdding: .day, value: -30, to: now) ?? now
+        )
+        let late = Entry(title: "After", text: "second", createdAt: now)
+        let gap = InsightEngine.longestGapFact(
+            sorted: [early, late],
+            calendar: calendar
+        )
+        XCTAssertEqual(gap?.value, "30 days")
+        XCTAssertEqual(gap?.n, 2)
+        XCTAssertEqual(gap?.supportingEntryIDs.count, 2)
+        XCTAssertEqual(gap?.isLowConfidence, true)
+        XCTAssertEqual(
+            InsightFact.lowConfidenceCopy(n: gap?.n ?? 0),
+            "Based on 2 entries — too few to call a pattern."
+        )
+    }
+
     func test_constructedThreeEntryWindow_isLowConfidence() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)

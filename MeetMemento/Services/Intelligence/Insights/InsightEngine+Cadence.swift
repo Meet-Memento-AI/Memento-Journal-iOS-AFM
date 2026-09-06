@@ -47,11 +47,13 @@ extension InsightEngine {
         }
         let end = calendar.startOfDay(for: now).addingTimeInterval(86_400)
         let start = calendar.date(byAdding: .day, value: -max(length, 1), to: end) ?? end
+        // n is the entry sample, not the day label — a 7-day streak of
+        // two notes is still n < 4 / low-confidence (045 R1).
         return InsightFact(
             kind: .cadence,
             label: "Streak",
             value: length == 1 ? "1 day" : "\(length) days",
-            n: length,
+            n: ids.count,
             window: orderedInterval(start: start, end: end),
             supportingEntryIDs: ids
         )
@@ -72,13 +74,14 @@ extension InsightEngine {
                 bestPair = (sorted[index - 1], sorted[index])
             }
         }
+        let boundingIDs = [bestPair.0.id, bestPair.1.id]
         return InsightFact(
             kind: .cadence,
             label: "Longest gap",
             value: bestDays == 1 ? "1 day" : "\(bestDays) days",
-            n: bestDays,
+            n: boundingIDs.count,
             window: orderedInterval(start: bestPair.0.createdAt, end: bestPair.1.createdAt),
-            supportingEntryIDs: [bestPair.0.id, bestPair.1.id]
+            supportingEntryIDs: boundingIDs
         )
     }
 
