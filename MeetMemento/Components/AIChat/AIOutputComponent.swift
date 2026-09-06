@@ -1,3 +1,4 @@
+// swiftlint:disable file_length type_body_length
 //
 //  AIOutputComponent.swift
 //  MeetMemento

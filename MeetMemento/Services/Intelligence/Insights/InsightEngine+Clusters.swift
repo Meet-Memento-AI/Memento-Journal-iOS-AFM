@@ -11,7 +11,7 @@ extension InsightEngine {
     /// Greedy groups over cached whole-entry vectors. Empty when NLEmbedding
     /// is unavailable (CI).
     static func clusterFacts(
-        entries: [Entry], now: Date, calendar: Calendar
+        entries: [Entry], now: Date, calendar _: Calendar
     ) -> [InsightFact] {
         let service = EmbeddingService.shared
         var vectors: [(Entry, [Double], Double)] = []

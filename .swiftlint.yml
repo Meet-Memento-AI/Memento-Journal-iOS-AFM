@@ -51,7 +51,7 @@ cyclomatic_complexity:
 identifier_name:
   min_length:
     warning: 2
-    excluded:
+  excluded:
     - id
     - db
     - ui

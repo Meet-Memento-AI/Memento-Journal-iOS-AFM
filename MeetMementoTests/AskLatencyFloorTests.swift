@@ -76,6 +76,21 @@ final class AskLatencyFloorTests: XCTestCase {
         XCTAssertEqual(loaded.count, Entry.sampleEntries.count)
     }
 
+    func test_statistic_doesNotUseJournalLoaderSeam() async {
+        let called = Flag()
+        let entries = await FoundationModelsIntelligenceService.resolveJournalEntries(
+            channel: .statistic,
+            provided: Entry.sampleEntries,
+            loadEntries: {
+                called.set()
+                return Entry.sampleEntries
+            }
+        )
+        XCTAssertFalse(called.isSet)
+        XCTAssertTrue(entries.isEmpty)
+        XCTAssertFalse(ReplyChannel.statistic.allowsRetrieval)
+    }
+
     func test_thread_awaitsLoader() async {
         let called = Flag()
         _ = await FoundationModelsIntelligenceService.resolveJournalEntries(

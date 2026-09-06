@@ -1,3 +1,4 @@
+// swiftlint:disable type_body_length
 //
 //  TurnClassifier.swift
 //  MeetMemento

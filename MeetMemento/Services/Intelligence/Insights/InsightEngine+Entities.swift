@@ -10,7 +10,7 @@ import NaturalLanguage
 
 extension InsightEngine {
     static func namedEntityFacts(
-        entries: [Entry], now: Date, calendar: Calendar
+        entries: [Entry], now: Date, calendar _: Calendar
     ) -> [InsightFact] {
         var people: [String: [Entry]] = [:]
         var places: [String: [Entry]] = [:]
