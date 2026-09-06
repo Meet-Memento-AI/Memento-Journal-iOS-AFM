@@ -689,7 +689,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let hasImages = !images.isEmpty || history.contains { !$0.imageJPEGs.isEmpty }
-        let budget = ContextBudget(window: Self.currentWindow())
 
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
@@ -705,6 +704,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
             .applyingSpokenFollowUpRecipe(turn: turn, history: history, spoken: spoken)
+        // Statistic never reads SystemLanguageModel — not for availability,
+        // not for contextSize. The count is Swift.
+        let budget = ContextBudget(
+            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable
+        )
         if channel.requiresOnDeviceModel {
             let availability = await availability()
             guard case .available = availability else {
