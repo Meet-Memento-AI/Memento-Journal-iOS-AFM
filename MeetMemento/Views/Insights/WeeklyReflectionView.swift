@@ -53,6 +53,8 @@ struct PatternsView: View {
         let stats = PatternStats.month(entries: entryViewModel.entries)
         let facts = InsightEngine.facts(entries: entryViewModel.entries)
         let cadence = facts.filter { $0.kind == .cadence }
+        let hours = cadence.filter { $0.label.hasPrefix("Around ") }
+        let cadenceRows = cadence.filter { !$0.label.hasPrefix("Around ") }
         let people = facts.filter { $0.kind == .person }
         let places = facts.filter { $0.kind == .place }
         let clusters = facts.filter { $0.kind == .cluster }
@@ -64,14 +66,28 @@ struct PatternsView: View {
                 Text("\(stats.entryCount) entries this month")
                     .font(.subheadline)
                     .foregroundStyle(theme.mutedForeground)
+                    .opacity(stats.entryCount < InsightEngine.lowConfidenceThreshold ? 0.55 : 1)
                     .accessibilityIdentifier("patterns.entryCount")
+                if stats.entryCount < InsightEngine.lowConfidenceThreshold {
+                    Text(InsightFact.lowConfidenceCopy(n: stats.entryCount))
+                        .font(.caption)
+                        .foregroundStyle(theme.mutedForeground)
+                }
 
-                PatternCountChart(weeks: stats.weeklyCounts)
+                PatternCountChart(facts: stats.weekFacts)
                     .frame(height: 160)
                     .accessibilityIdentifier("patterns.chart")
 
-                if !cadence.isEmpty {
-                    factList(title: "Cadence", facts: cadence)
+                if !hours.isEmpty {
+                    Text("Time of day")
+                        .font(.headline)
+                    PatternCountChart(facts: hours)
+                        .frame(height: 160)
+                        .accessibilityIdentifier("patterns.hourChart")
+                }
+
+                if !cadenceRows.isEmpty {
+                    factList(title: "Cadence", facts: cadenceRows)
                 }
                 if !people.isEmpty {
                     factList(title: "People", facts: people)
@@ -128,44 +144,71 @@ struct PatternsView: View {
 struct PatternStats: Equatable {
     let entryCount: Int
     let weeklyCounts: [Int]
+    /// Per-week cadence facts for the Patterns chart. `n` is unique entries
+    /// in that week-of-month; `n < 4` greys the bar (045 R2).
+    let weekFacts: [InsightFact]
 
     static func week(entries: [Entry], now: Date = Date(), calendar: Calendar = .current) -> PatternStats {
         let fact = InsightEngine.weekCadence(entries: entries, containing: now, calendar: calendar)
-        return PatternStats(entryCount: fact.n, weeklyCounts: [fact.n])
+        return PatternStats(entryCount: fact.n, weeklyCounts: [fact.n], weekFacts: [fact])
     }
 
     static func month(entries: [Entry], now: Date = Date(), calendar: Calendar = .current) -> PatternStats {
         let fact = InsightEngine.monthCadence(entries: entries, containing: now, calendar: calendar)
         let inMonth = entries.filter { fact.window.contains($0.createdAt) }
-        var buckets = Array(repeating: 0, count: 5)
+        var buckets = Array(repeating: [Entry](), count: 5)
         for entry in inMonth {
             let week = min(4, calendar.component(.weekOfMonth, from: entry.createdAt) - 1)
-            if week >= 0 { buckets[week] += 1 }
+            if week >= 0 { buckets[week].append(entry) }
         }
-        return PatternStats(entryCount: fact.n, weeklyCounts: buckets)
+        let weekFacts = buckets.enumerated().map { index, hits in
+            InsightFact(
+                kind: .cadence,
+                label: "W\(index + 1)",
+                value: "\(hits.count)",
+                n: hits.count,
+                window: fact.window,
+                supportingEntryIDs: hits.map(\.id)
+            )
+        }
+        return PatternStats(
+            entryCount: fact.n,
+            weeklyCounts: weekFacts.map(\.n),
+            weekFacts: weekFacts
+        )
     }
 }
 
 struct PatternCountChart: View {
-    let weeks: [Int]
+    let facts: [InsightFact]
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let weeks = facts.map(\.n)
         let maxValue = max(weeks.max() ?? 0, 1)
-        HStack(alignment: .bottom, spacing: Spacing.sm) {
-            ForEach(Array(weeks.enumerated()), id: \.offset) { index, value in
-                VStack {
-                    Text("\(value)")
-                        .font(.caption2)
-                        .foregroundStyle(theme.mutedForeground)
-                    Capsule()
-                        .fill(theme.foreground.opacity(0.7))
-                        .frame(width: 22, height: max(8, CGFloat(value) / CGFloat(maxValue) * 120))
-                    Text("W\(index + 1)")
-                        .font(.caption2)
-                        .foregroundStyle(theme.mutedForeground)
+        let sparse = facts.first { $0.n > 0 && $0.isLowConfidence }
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .bottom, spacing: Spacing.sm) {
+                ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+                    VStack {
+                        Text("n = \(fact.n)")
+                            .font(.caption2)
+                            .foregroundStyle(theme.mutedForeground)
+                        Capsule()
+                            .fill(theme.foreground.opacity(fact.isLowConfidence ? 0.35 : 0.7))
+                            .frame(width: 22, height: max(8, CGFloat(fact.n) / CGFloat(maxValue) * 120))
+                        Text(fact.label)
+                            .font(.caption2)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                    .opacity(fact.isLowConfidence ? 0.55 : 1)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+            }
+            if let sparse {
+                Text(InsightFact.lowConfidenceCopy(n: sparse.n))
+                    .font(.caption)
+                    .foregroundStyle(theme.mutedForeground)
             }
         }
         .accessibilityLabel("Entries per week this month")

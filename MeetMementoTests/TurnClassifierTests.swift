@@ -138,6 +138,7 @@ final class TurnClassifierTests: XCTestCase {
         XCTAssertEqual(classify("What have I written about sleep lately?"), .journalQuery)
         XCTAssertEqual(classify("When did I start pottery classes?"), .journalQuery)
         XCTAssertEqual(classify("When did I first say I was burnt out?"), .journalQuery)
+        XCTAssertEqual(classify("How has sleep shown up for me this month?"), .journalQuery)
         XCTAssertEqual(classify("How tall is Everest?"), .offdomain)
     }
 
