@@ -76,7 +76,7 @@ public struct AIChatView: View {
             "What emotions have I been experiencing most frequently?",
             "Help me identify patterns in my daily routines",
             "What are the recurring themes in my recent reflections?",
-            "How has my mood shifted over the past two weeks?",
+            "What have I written about sleep lately?",
             "What am I most grateful for based on my entries?",
             "Find moments of joy I've captured in my journals",
             "What challenges have I overcome recently?",

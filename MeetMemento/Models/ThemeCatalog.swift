@@ -122,6 +122,13 @@ enum ThemeCatalog {
         byId[id]
     }
 
+    /// Display name plus catalog synonyms — the needles `themeBoost` matches
+    /// against a selected passage (spec 044 R3). Unknown ids yield `[]`.
+    static func synonyms(for id: String) -> [String] {
+        guard let theme = byId[id] else { return [] }
+        return [theme.displayName] + theme.synonyms
+    }
+
     static func themes(ids: [String]) -> [JournalTheme] {
         ids.compactMap { byId[$0] }
     }

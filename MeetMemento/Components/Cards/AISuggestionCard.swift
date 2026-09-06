@@ -145,7 +145,7 @@ private struct AISuggestionCardHarness: View {
                 onTap: { }
             )
             AISuggestionCard(
-                suggestion: "How has my mood shifted over the past two weeks?",
+                suggestion: "What have I written about sleep lately?",
                 themeName: "Sleep",
                 onTap: { }
             )
