@@ -127,6 +127,15 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertTrue(ChatEvalScoring.gating(suppressed).isEmpty)
     }
 
+    func test_facts_withNowBeforeCorpus_doesNotTrap() throws {
+        let (entries, _) = try ChatEvalCorpus.personaCorpus()
+        let calendar = isoCalendar()
+        let now = day(2025, 1, 1, calendar: calendar)
+        let facts = InsightEngine.facts(entries: entries, now: now, calendar: calendar)
+        XCTAssertFalse(facts.isEmpty)
+        XCTAssertTrue(facts.allSatisfy { $0.window.duration >= 0 })
+    }
+
     func test_plainText_includesNAndLowConfidenceCopy() {
         let window = DateInterval(start: Date(), duration: 86_400)
         let fact = InsightFact(

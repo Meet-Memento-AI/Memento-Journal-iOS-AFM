@@ -83,7 +83,7 @@ enum InsightEngine {
         calendar: Calendar = .current
     ) -> [InsightFact] {
         let window = QueryDateWindowParser.parse(query, now: now, calendar: calendar)
-        let interval = window.map { DateInterval(start: $0.start, end: $0.end) }
+        let interval = window.map { orderedInterval(start: $0.start, end: $0.end) }
             ?? DateInterval(start: .distantPast, end: now.addingTimeInterval(1))
         let pool = entries.filter { interval.contains($0.createdAt) }
         let subject = extractSubject(query, window: window)
@@ -157,6 +157,14 @@ enum InsightEngine {
         var iso = Calendar(identifier: .iso8601)
         iso.timeZone = calendar.timeZone
         return iso
+    }
+
+    /// `DateInterval(start:end:)` traps when `end < start`. Patterns and Ask
+    /// can see a pinned `now` before the newest entry (or a future-dated one).
+    static func orderedInterval(start: Date, end: Date) -> DateInterval {
+        start <= end
+            ? DateInterval(start: start, end: end)
+            : DateInterval(start: end, end: start)
     }
 
     static func tokens(_ text: String) -> [String] {

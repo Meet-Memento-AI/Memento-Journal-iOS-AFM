@@ -38,7 +38,7 @@ extension InsightEngine {
                 return true
             }
         }
-        let window = DateInterval(
+        let window = orderedInterval(
             start: entries.map(\.createdAt).min() ?? now,
             end: now.addingTimeInterval(1)
         )

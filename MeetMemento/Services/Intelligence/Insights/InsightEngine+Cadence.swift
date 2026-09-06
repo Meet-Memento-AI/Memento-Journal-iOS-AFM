@@ -52,7 +52,7 @@ extension InsightEngine {
             label: "Streak",
             value: length == 1 ? "1 day" : "\(length) days",
             n: length,
-            window: DateInterval(start: start, end: end),
+            window: orderedInterval(start: start, end: end),
             supportingEntryIDs: ids
         )
     }
@@ -77,7 +77,7 @@ extension InsightEngine {
             label: "Longest gap",
             value: bestDays == 1 ? "1 day" : "\(bestDays) days",
             n: bestDays,
-            window: DateInterval(start: bestPair.0.createdAt, end: bestPair.1.createdAt),
+            window: orderedInterval(start: bestPair.0.createdAt, end: bestPair.1.createdAt),
             supportingEntryIDs: [bestPair.0.id, bestPair.1.id]
         )
     }
@@ -102,7 +102,7 @@ extension InsightEngine {
             label: "Most often around",
             value: labelHour,
             n: peak.value.count,
-            window: DateInterval(start: entries.map(\.createdAt).min() ?? now, end: now),
+            window: orderedInterval(start: entries.map(\.createdAt).min() ?? now, end: now),
             supportingEntryIDs: peak.value
         )
     }
