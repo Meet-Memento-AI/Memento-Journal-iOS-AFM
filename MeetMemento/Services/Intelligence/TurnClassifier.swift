@@ -27,6 +27,7 @@ enum TurnType: String, Sendable, Equatable, CaseIterable {
     case share              // states feelings/events without asking anything
     case followup           // refers to the assistant's previous turn
     case journalQuery       // explicit ask about entries/patterns/their past
+    case quantitative       // how many / how often / when last — InsightEngine (045 R5)
     case reflectiveQuestion // "why do I keep doing this?"
     case offdomain          // general-knowledge question about the world
 }
@@ -210,6 +211,18 @@ enum TurnClassifier {
     static let summaryRequestRegexes = compile(summaryRequestPatterns)
     static let journalPossessiveRegexes = compile(journalPossessivePatterns)
     static let assistantTaskRegexes = compile(assistantTaskPatterns)
+    static let quantitativeRegexes = compile(quantitativePatterns)
+
+    /// High-precision count / last-mention / change questions. Must run
+    /// before `retrospectivePatterns` so "how often" / "when did I last"
+    /// do not steal the 512-token notebook path (045 R5).
+    static let quantitativePatterns: [String] = [
+        #"\bhow many( times)?\b"#,
+        #"\bhow often\b"#,
+        #"\bwhen did i last\b"#,
+        #"\bwhen was the last time\b"#,
+        #"\bhow has (my )?.{0,40}\b(changed|shifted)\b"#
+    ]
 
     static func compile(_ patterns: [String]) -> [NSRegularExpression] {
         patterns.compactMap { try? NSRegularExpression(pattern: $0, options: []) }
@@ -299,6 +312,10 @@ enum TurnClassifier {
                 }
             }
         }
+
+        // 4b. quantitative — count / last-mention / change. Precision-biased
+        // and before journalQuery so "how often" does not load ask@15.
+        if matches(normalized, anyOf: quantitativeRegexes) { return .quantitative }
 
         // 5. journalQuery — journal lexicon or retrospective shape.
         //

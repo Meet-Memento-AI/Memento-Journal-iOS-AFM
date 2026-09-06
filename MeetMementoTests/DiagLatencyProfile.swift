@@ -38,7 +38,7 @@ final class DiagLatencyProfile: XCTestCase {
         do {
             for try await ev in service.askStream(q, history: history, entries: entries, images: [], spoken: spoken) {
                 switch ev {
-                case let .delta(soFar, _, _, _):
+                case let .delta(soFar, _, _, _, _):
                     if ttft == nil { ttft = Diag.secs(clock.now - started) }
                     deltas += 1; body = soFar
                 case let .final(r): body = r.body

@@ -88,6 +88,8 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
             return hasEvidence ? .patternThenAsk : .reflectAndAsk
         case .journalQuery:
             return hasEvidence ? .patternThenAsk : .emptyThenAsk
+        case .quantitative:
+            return .answerThenAsk
         case .offdomain:
             return .redirectThenAsk
         }

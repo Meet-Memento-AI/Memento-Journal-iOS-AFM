@@ -93,7 +93,7 @@ final class DiagOutputIntegrity: XCTestCase {
                             for try await ev in service.askStream(probe.question, history: probe.history,
                                                                   entries: probe.entries, images: []) {
                                 switch ev {
-                                case let .delta(soFar, _, _, _): body = soFar
+                                case let .delta(soFar, _, _, _, _): body = soFar
                                 case let .final(r):
                                     body = r.body; citations = r.citations.count; version = r.promptVersion
                                 }

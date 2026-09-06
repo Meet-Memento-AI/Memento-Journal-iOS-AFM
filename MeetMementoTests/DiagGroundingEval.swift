@@ -156,7 +156,7 @@ final class DiagGroundingEval: XCTestCase {
                     for try await ev in service.askStream(c.question, history: [],
                                                           entries: c.entries, images: []) {
                         switch ev {
-                        case let .delta(soFar, _, _, _): body = soFar
+                        case let .delta(soFar, _, _, _, _): body = soFar
                         case let .final(r): body = r.body; citations = r.citations.count
                         }
                     }

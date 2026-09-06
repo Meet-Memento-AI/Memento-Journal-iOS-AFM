@@ -204,6 +204,8 @@ final class ChatEvalGate: XCTestCase {
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
+            + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
+            + ChatEvalScoring.insightContradictsSuppressed(body: result.body, facts: result.facts)
 
         // Is the answer right, not merely well-formed? Only the gold half can
         // be judged this way — the conversational scenarios have no expected

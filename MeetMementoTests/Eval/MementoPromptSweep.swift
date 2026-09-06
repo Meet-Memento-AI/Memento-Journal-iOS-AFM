@@ -201,6 +201,8 @@ final class MementoPromptSweep: XCTestCase {
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
+            + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
+            + ChatEvalScoring.insightContradictsSuppressed(body: result.body, facts: result.facts)
 
         return row
     }

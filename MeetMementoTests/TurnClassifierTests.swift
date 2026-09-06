@@ -117,9 +117,28 @@ final class TurnClassifierTests: XCTestCase {
     }
 
     func test_retrospectiveShapes_areJournalQuery() {
-        for message in ["have I been stressed lately?", "how often do I mention running?", "when did I last feel this way"] {
+        for message in ["have I been stressed lately?"] {
             XCTAssertEqual(classify(message), .journalQuery, "\(message)")
         }
+    }
+
+    func test_quantitativeShapes_areQuantitative() {
+        for message in [
+            "how often do I mention running?",
+            "when did I last feel this way",
+            "How many times did I write about my brother this year?",
+            "When did I last mention my brother?",
+            "how has my sleep changed?"
+        ] {
+            XCTAssertEqual(classify(message), .quantitative, "\(message)")
+        }
+    }
+
+    func test_quantitative_doesNotStealJournalQueryOrOffdomain() {
+        XCTAssertEqual(classify("What have I written about sleep lately?"), .journalQuery)
+        XCTAssertEqual(classify("When did I start pottery classes?"), .journalQuery)
+        XCTAssertEqual(classify("When did I first say I was burnt out?"), .journalQuery)
+        XCTAssertEqual(classify("How tall is Everest?"), .offdomain)
     }
 
     // MARK: - Reflective

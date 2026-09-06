@@ -11,18 +11,20 @@ import SwiftUI
 /// Features a semi-transparent white background with subtle border on dark purple backgrounds
 struct InsightsThemeTag: View {
     let text: String
+    var isLowConfidence: Bool = false
 
     @Environment(\.typography) private var type
     @Environment(\.theme) private var theme
 
-    init(_ text: String) {
+    init(_ text: String, isLowConfidence: Bool = false) {
         self.text = text
+        self.isLowConfidence = isLowConfidence
     }
 
     var body: some View {
         Text(text)
             .font(type.h6)
-            .foregroundStyle(theme.foreground)
+            .foregroundStyle(isLowConfidence ? theme.mutedForeground : theme.foreground)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
@@ -33,6 +35,7 @@ struct InsightsThemeTag: View {
                 RoundedRectangle(cornerRadius: 999, style: .continuous)
                     .strokeBorder(theme.border, lineWidth: 1)
             )
+            .opacity(isLowConfidence ? 0.55 : 1)
     }
 }
 

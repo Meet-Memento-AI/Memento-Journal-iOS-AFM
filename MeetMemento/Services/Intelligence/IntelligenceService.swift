@@ -154,10 +154,12 @@ struct AskResult: Sendable {
     /// field, carried inline here because the chat path streams). Defaulted so
     /// mocks and fixtures that don't measure anything stay unchanged.
     let latency: Duration
+    /// Swift-computed facts for quantitative turns (045 R5). Empty on notebook.
+    let facts: [InsightFact]
 
     init(heading1: String?, heading2: String?, body: String, citations: [AskCitation],
          zoneUsed: TrustZone, wasDegraded: Bool, promptVersion: String,
-         modelIdentifier: String, latency: Duration = .zero) {
+         modelIdentifier: String, latency: Duration = .zero, facts: [InsightFact] = []) {
         self.heading1 = heading1
         self.heading2 = heading2
         self.body = body
@@ -167,6 +169,7 @@ struct AskResult: Sendable {
         self.promptVersion = promptVersion
         self.modelIdentifier = modelIdentifier
         self.latency = latency
+        self.facts = facts
     }
 }
 
@@ -179,7 +182,7 @@ struct AskResult: Sendable {
 /// appear right away instead of waiting for the model's final `citedRefs`. Empty
 /// for non-grounded turns. `final`'s reconciled citations supersede them.
 enum AskStreamEvent: Sendable {
-    case delta(bodySoFar: String, heading1: String?, heading2: String?, reviewedCitations: [AskCitation])
+    case delta(bodySoFar: String, heading1: String?, heading2: String?, reviewedCitations: [AskCitation], facts: [InsightFact] = [])
     case final(AskResult)
 }
 
@@ -408,7 +411,8 @@ extension IntelligenceService {
                 do {
                     let result = try await ask(question, history: history, entries: entries, images: images)
                     continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1,
-                                              heading2: result.heading2, reviewedCitations: result.citations))
+                                              heading2: result.heading2, reviewedCitations: result.citations,
+                                              facts: result.facts))
                     continuation.yield(.final(result))
                     continuation.finish()
                 } catch {

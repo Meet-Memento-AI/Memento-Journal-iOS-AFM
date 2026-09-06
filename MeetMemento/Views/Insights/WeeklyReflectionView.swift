@@ -47,9 +47,15 @@ struct PatternsView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let stats = PatternStats.month(entries: entryViewModel.entries)
+        let facts = InsightEngine.facts(entries: entryViewModel.entries)
+        let cadence = facts.filter { $0.kind == .cadence }
+        let people = facts.filter { $0.kind == .person }
+        let places = facts.filter { $0.kind == .place }
+        let clusters = facts.filter { $0.kind == .cluster }
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                let stats = PatternStats.month(entries: entryViewModel.entries)
                 Text("Patterns")
                     .font(.title2.weight(.semibold))
                 Text("\(stats.entryCount) entries this month")
@@ -60,6 +66,19 @@ struct PatternsView: View {
                 PatternCountChart(weeks: stats.weeklyCounts)
                     .frame(height: 160)
                     .accessibilityIdentifier("patterns.chart")
+
+                if !cadence.isEmpty {
+                    factList(title: "Cadence", facts: cadence)
+                }
+                if !people.isEmpty {
+                    factList(title: "People", facts: people)
+                }
+                if !places.isEmpty {
+                    factList(title: "Places", facts: places)
+                }
+                if !clusters.isEmpty {
+                    KeywordsCard(facts: clusters)
+                }
 
                 Text("Charts are counted in the app. The model never sees these numbers.")
                     .font(.footnote)
@@ -73,6 +92,34 @@ struct PatternsView: View {
         .navigationTitle("Patterns")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    @ViewBuilder
+    private func factList(title: String, facts: [InsightFact]) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(title)
+                .font(.headline)
+            ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(fact.label)
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Text(fact.value)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Text("n = \(fact.n)")
+                        .font(.caption)
+                        .foregroundStyle(theme.mutedForeground)
+                    if fact.isLowConfidence {
+                        Text(InsightFact.lowConfidenceCopy(n: fact.n))
+                            .font(.caption)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                }
+                .opacity(fact.isLowConfidence ? 0.55 : 1)
+            }
+        }
+    }
 }
 
 struct PatternStats: Equatable {
@@ -80,20 +127,19 @@ struct PatternStats: Equatable {
     let weeklyCounts: [Int]
 
     static func week(entries: [Entry], now: Date = Date(), calendar: Calendar = .current) -> PatternStats {
-        let start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        let count = entries.filter { $0.createdAt >= start }.count
-        return PatternStats(entryCount: count, weeklyCounts: [count])
+        let fact = InsightEngine.weekCadence(entries: entries, containing: now, calendar: calendar)
+        return PatternStats(entryCount: fact.n, weeklyCounts: [fact.n])
     }
 
     static func month(entries: [Entry], now: Date = Date(), calendar: Calendar = .current) -> PatternStats {
-        let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
-        let inMonth = entries.filter { $0.createdAt >= start }
+        let fact = InsightEngine.monthCadence(entries: entries, containing: now, calendar: calendar)
+        let inMonth = entries.filter { fact.window.contains($0.createdAt) }
         var buckets = Array(repeating: 0, count: 5)
         for entry in inMonth {
             let week = min(4, calendar.component(.weekOfMonth, from: entry.createdAt) - 1)
             if week >= 0 { buckets[week] += 1 }
         }
-        return PatternStats(entryCount: inMonth.count, weeklyCounts: buckets)
+        return PatternStats(entryCount: fact.n, weeklyCounts: buckets)
     }
 }
 
@@ -106,6 +152,9 @@ struct PatternCountChart: View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { index, value in
                 VStack {
+                    Text("\(value)")
+                        .font(.caption2)
+                        .foregroundStyle(theme.mutedForeground)
                     Capsule()
                         .fill(theme.foreground.opacity(0.7))
                         .frame(width: 22, height: max(8, CGFloat(value) / CGFloat(maxValue) * 120))

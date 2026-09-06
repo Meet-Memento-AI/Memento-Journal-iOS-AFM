@@ -234,6 +234,39 @@ final class ChatViewModelTests: XCTestCase {
                        "next-turn prewarm must run after .final with the new session")
     }
 
+    func test_sendMessage_carriesInsightFactsOntoAssistantBubble() async throws {
+        let sessionId = UUID()
+        let fact = InsightFact(
+            kind: .count,
+            label: "brother",
+            value: "3",
+            n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let mock = MockChatService()
+        mock.sendMessageImpl = { _, _ in
+            ChatResponse(
+                reply: "",
+                heading1: nil,
+                heading2: nil,
+                citedEntryIds: nil,
+                sources: [],
+                sessionId: sessionId.uuidString,
+                facts: [fact]
+            )
+        }
+        mock.fetchSessionsImpl = { [] }
+
+        let vm = ChatViewModel(chatService: mock)
+        vm.sendMessage(prompt: "How many times did I write about my brother this year?")
+        await waitForLoadingFalse(vm)
+
+        let assistant = vm.messages.last
+        XCTAssertEqual(assistant?.aiOutputContent?.facts, [fact])
+        XCTAssertEqual(assistant?.aiOutputContent?.facts?.first?.n, 3)
+    }
+
     func test_ChatViewModel_sendMessage_genericError() async throws {
         let mock = MockChatService()
         mock.sendMessageImpl = { _, _ in

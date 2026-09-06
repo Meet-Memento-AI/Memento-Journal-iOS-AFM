@@ -277,7 +277,8 @@ class ChatViewModel: ObservableObject {
                 }
             }
 
-            let aiContent = AIOutputContent(heading1: heading1, heading2: heading2, body: body, citations: citations)
+            let facts = Self.decodeFacts(json["facts"])
+            let aiContent = AIOutputContent(heading1: heading1, heading2: heading2, body: body, citations: citations, facts: facts)
             return (body, aiContent, citations, safety, promptVersion, modelIdentifier, zone, wasDegraded)
         }
 
@@ -486,9 +487,10 @@ class ChatViewModel: ObservableObject {
             var lastDeltaApply = deltaClock.now - minDeltaInterval
             var appliedFirstNarrationDelta = false
             var pendingDelta: (body: String, heading1: String?, heading2: String?,
-                               citations: [JournalCitation]?)?
+                               citations: [JournalCitation]?, facts: [InsightFact]?)?
             // Mapped once per turn — the reviewed set is constant across deltas.
             var reviewedCitations: [JournalCitation]?
+            var reviewedFacts: [InsightFact]?
             var deltaFlushTask: Task<Void, Never>?
             defer { deltaFlushTask?.cancel() }
 
@@ -499,6 +501,7 @@ class ChatViewModel: ObservableObject {
                 updateStreamingMessage(id: assistantId, body: d.body,
                                        heading1: d.heading1, heading2: d.heading2,
                                        citations: d.citations,
+                                       facts: d.facts,
                                        isStreaming: true)
             }
 
@@ -511,10 +514,10 @@ class ChatViewModel: ObservableObject {
                     guard generation == sendGeneration, !Task.isCancelled else { return }
 
                     switch event {
-                    case .delta(let body, let heading1, let heading2, let sources):
+                    case .delta(let body, let heading1, let heading2, let sources, let facts):
                         // First visible token: drop the "thinking" indicator.
                         if isLoading { isLoading = false }
-                        sawContent = sawContent || !body.isEmpty
+                        sawContent = sawContent || !body.isEmpty || !facts.isEmpty
                         // Reviewed-journals citations arrive from the first delta on
                         // grounded turns, so the "Reviewed your journals" link shows
                         // right away rather than waiting for `.final`. The set is
@@ -525,7 +528,10 @@ class ChatViewModel: ObservableObject {
                             let mapped = mapSourcesToCitations(sources)
                             reviewedCitations = mapped.isEmpty ? nil : mapped
                         }
-                        pendingDelta = (body, heading1, heading2, reviewedCitations)
+                        if reviewedFacts == nil, !facts.isEmpty {
+                            reviewedFacts = facts
+                        }
+                        pendingDelta = (body, heading1, heading2, reviewedCitations, reviewedFacts)
                         let applyFirstImmediately = isNarration && !appliedFirstNarrationDelta
                         if applyFirstImmediately || deltaClock.now - lastDeltaApply >= minDeltaInterval {
                             deltaFlushTask?.cancel()
@@ -555,6 +561,7 @@ class ChatViewModel: ObservableObject {
                             await fetchSessions()
                         }
                         let citations = mapSourcesToCitations(response.sources)
+                        let facts = response.facts.isEmpty ? reviewedFacts : response.facts
                         // Carry the Safety route through: ChatService now returns a
                         // designed crisis/refusal reply as `.final` rather than
                         // throwing, so dropping this would render the crisis card
@@ -562,9 +569,10 @@ class ChatViewModel: ObservableObject {
                         updateStreamingMessage(id: assistantId, body: response.reply,
                                                heading1: response.heading1, heading2: response.heading2,
                                                citations: citations.isEmpty ? nil : citations,
+                                               facts: facts,
                                                safetyPresentation: response.safetyPresentation,
                                                isStreaming: false)
-                        sawContent = sawContent || !response.reply.isEmpty
+                        sawContent = sawContent || !response.reply.isEmpty || !(facts?.isEmpty ?? true)
                         if let sessionId = currentSessionId { messageCache[sessionId] = messages }
                         // Next-turn prefill while the user reads / the typewriter
                         // settles — history now includes this turn (persisted
@@ -626,6 +634,7 @@ class ChatViewModel: ObservableObject {
         heading1: String?,
         heading2: String?,
         citations: [JournalCitation]?,
+        facts: [InsightFact]? = nil,
         safetyPresentation: ChatSafetyPresentation = .none,
         isStreaming: Bool
     ) {
@@ -636,6 +645,7 @@ class ChatViewModel: ObservableObject {
             heading2: heading2,
             body: body,
             citations: citations,
+            facts: facts,
             safetyPresentation: safetyPresentation,
             timestamp: messages[index].timestamp,
             isNew: true,
@@ -1108,6 +1118,14 @@ class ChatViewModel: ObservableObject {
 
     static func parseISODate(_ string: String) -> Date? {
         isoPlain.date(from: string) ?? isoFractional.date(from: string)
+    }
+
+    private static func decodeFacts(_ raw: Any?) -> [InsightFact]? {
+        guard let raw else { return nil }
+        guard let data = try? JSONSerialization.data(withJSONObject: raw),
+              let facts = try? JSONDecoder().decode([InsightFact].self, from: data),
+              !facts.isEmpty else { return nil }
+        return facts
     }
 
     private func mapSourcesToCitations(_ sources: [ChatSource]) -> [JournalCitation] {

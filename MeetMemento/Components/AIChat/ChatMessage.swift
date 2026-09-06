@@ -187,6 +187,7 @@ public struct ChatMessage: Identifiable, Hashable {
         heading2: String? = nil,
         body: String,
         citations: [JournalCitation]? = nil,
+        facts: [InsightFact]? = nil,
         safetyPresentation: ChatSafetyPresentation = .none,
         timestamp: Date = Date(),
         isNew: Bool = false,
@@ -200,7 +201,8 @@ public struct ChatMessage: Identifiable, Hashable {
             heading1: heading1,
             heading2: heading2,
             body: body,
-            citations: citations
+            citations: citations,
+            facts: facts
         )
         return ChatMessage(
             id: id,

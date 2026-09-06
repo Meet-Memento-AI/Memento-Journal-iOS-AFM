@@ -112,7 +112,7 @@ enum RetrievalPolicy {
     /// journal ask — "tell me more" after a share must not retrieve.
     static func mode(for turn: TurnType, history: [ChatTurn] = []) -> RetrievalMode {
         switch turn {
-        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion:
+        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion, .quantitative:
             return .none
         case .followup:
             return followupMode(history: history)
@@ -196,6 +196,9 @@ enum RetrievalPolicy {
         case .journalQuery:
             // An explicit journal ask with no real match gets the honest answer.
             return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .noMatch
+        case .quantitative:
+            // Counts are Swift facts; light/casual narration is optional.
+            return .casual
         case .reflectiveQuestion:
             // Reflective musings stay warm conversation; grounded reports are
             // reserved for explicit journal asks.

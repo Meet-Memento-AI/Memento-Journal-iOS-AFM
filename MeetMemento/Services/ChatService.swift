@@ -15,11 +15,14 @@ struct ChatResponse: Codable {
     /// Spec 026: how the assistant bubble should present a safety route.
     /// Defaults to `.none` for normal model replies (and for older persisted JSON).
     let safetyPresentation: ChatSafetyPresentation
+    /// Swift-computed facts for quantitative Ask (045 R5).
+    let facts: [InsightFact]
 
     enum CodingKeys: String, CodingKey {
         case reply, heading1, heading2, sources, sessionId
         case citedEntryIds = "cited_entry_ids"
         case safetyPresentation = "safety_presentation"
+        case facts
     }
 
     init(
@@ -29,7 +32,8 @@ struct ChatResponse: Codable {
         citedEntryIds: [String]? = nil,
         sources: [ChatSource],
         sessionId: String,
-        safetyPresentation: ChatSafetyPresentation = .none
+        safetyPresentation: ChatSafetyPresentation = .none,
+        facts: [InsightFact] = []
     ) {
         self.reply = reply
         self.heading1 = heading1
@@ -38,6 +42,7 @@ struct ChatResponse: Codable {
         self.sources = sources
         self.sessionId = sessionId
         self.safetyPresentation = safetyPresentation
+        self.facts = facts
     }
 
     init(from decoder: Decoder) throws {
@@ -49,6 +54,7 @@ struct ChatResponse: Codable {
         sources = try container.decodeIfPresent([ChatSource].self, forKey: .sources) ?? []
         sessionId = try container.decode(String.self, forKey: .sessionId)
         safetyPresentation = try container.decodeIfPresent(ChatSafetyPresentation.self, forKey: .safetyPresentation) ?? .none
+        facts = try container.decodeIfPresent([InsightFact].self, forKey: .facts) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -61,6 +67,9 @@ struct ChatResponse: Codable {
         try container.encode(sessionId, forKey: .sessionId)
         if safetyPresentation != .none {
             try container.encode(safetyPresentation, forKey: .safetyPresentation)
+        }
+        if !facts.isEmpty {
+            try container.encode(facts, forKey: .facts)
         }
     }
 }
@@ -92,7 +101,7 @@ enum ChatStreamEvent: Sendable {
     /// `sources` are the journals reviewed for a grounded turn, forwarded from the
     /// first delta so the "Reviewed your journals" link can show right away. Empty
     /// for non-grounded turns; the `.final` sources supersede them.
-    case delta(body: String, heading1: String?, heading2: String?, sources: [ChatSource])
+    case delta(body: String, heading1: String?, heading2: String?, sources: [ChatSource], facts: [InsightFact] = [])
     case final(ChatResponse)
 }
 
@@ -134,7 +143,8 @@ extension ChatServiceProtocol {
                 do {
                     let response = try await sendMessage(text, sessionId: sessionId)
                     continuation.yield(.delta(body: response.reply, heading1: response.heading1,
-                                              heading2: response.heading2, sources: response.sources))
+                                              heading2: response.heading2, sources: response.sources,
+                                              facts: response.facts))
                     continuation.yield(.final(response))
                     continuation.finish()
                 } catch {
@@ -360,11 +370,11 @@ class ChatService {
                         loadEntries: { await entriesTask.value }
                     ) {
                         switch event {
-                        case .delta(let bodySoFar, let h1, let h2, let reviewed):
+                        case .delta(let bodySoFar, let h1, let h2, let reviewed, let facts):
                             let sources = deltaSources ?? Self.sources(from: reviewed)
                             deltaSources = sources
                             continuation.yield(.delta(body: bodySoFar, heading1: h1, heading2: h2,
-                                                      sources: sources))
+                                                      sources: sources, facts: facts))
                         case .final(let result):
                             finalResult = result
                         }
@@ -389,7 +399,8 @@ class ChatService {
                             body: result.body, heading1: result.heading1, heading2: result.heading2,
                             sources: sources, promptVersion: result.promptVersion,
                             modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
-                            wasDegraded: result.wasDegraded
+                            wasDegraded: result.wasDegraded,
+                            facts: result.facts
                         ),
                         zone: result.zoneUsed.identifier,
                         wasDegraded: result.wasDegraded,
@@ -404,7 +415,8 @@ class ChatService {
                         heading2: result.heading2,
                         citedEntryIds: result.citations.map { $0.entryId.uuidString },
                         sources: sources,
-                        sessionId: conversationId.uuidString
+                        sessionId: conversationId.uuidString,
+                        facts: result.facts
                     )))
                     continuation.finish()
                 } catch is CancellationError {
@@ -593,7 +605,8 @@ class ChatService {
                                      modelIdentifier: String? = nil,
                                      zone: String? = nil,
                                      wasDegraded: Bool? = nil,
-                                     safetyPresentation: ChatSafetyPresentation = .none) -> String {
+                                     safetyPresentation: ChatSafetyPresentation = .none,
+                                     facts: [InsightFact] = []) -> String {
         var object: [String: Any] = ["body": body]
         if let heading1 { object["heading1"] = heading1 }
         if let heading2 { object["heading2"] = heading2 }
@@ -606,6 +619,11 @@ class ChatService {
         // Omitted when .none so existing stored messages stay byte-identical.
         if safetyPresentation != .none { object["safety_presentation"] = safetyPresentation.rawValue }
         object["sources"] = sources.map { ["id": $0.id, "created_at": $0.createdAt, "preview": $0.preview] }
+        if !facts.isEmpty,
+           let data = try? JSONEncoder().encode(facts),
+           let array = try? JSONSerialization.jsonObject(with: data) {
+            object["facts"] = array
+        }
         guard let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else {
             return body

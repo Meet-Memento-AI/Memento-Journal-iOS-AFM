@@ -68,7 +68,7 @@ final class DiagHistoryDepth: XCTestCase {
                     for try await ev in service.askStream(question, history: hist,
                                                           entries: entries, images: []) {
                         switch ev {
-                        case let .delta(soFar, _, _, _):
+                        case let .delta(soFar, _, _, _, _):
                             if ttft == nil { ttft = Diag.secs(clock.now - started) }
                             body = soFar
                         case let .final(r): body = r.body; citations = r.citations.count

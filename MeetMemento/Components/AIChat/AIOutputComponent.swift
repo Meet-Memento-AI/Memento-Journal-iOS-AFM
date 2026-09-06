@@ -13,24 +13,28 @@ public struct AIOutputContent: Hashable, Codable {
     public let heading2: String?
     public let body: String
     public let citations: [JournalCitation]?
+    public let facts: [InsightFact]?
 
     enum CodingKeys: String, CodingKey {
         case heading1
         case heading2
         case body
         case citations
+        case facts
     }
 
     public init(
         heading1: String? = nil,
         heading2: String? = nil,
         body: String,
-        citations: [JournalCitation]? = nil
+        citations: [JournalCitation]? = nil,
+        facts: [InsightFact]? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
         self.body = body
         self.citations = citations
+        self.facts = facts
     }
 
     /// Sanitizes body text that may contain leaked JSON (e.g. "{body: ...") from malformed AI output.
@@ -53,6 +57,7 @@ public struct AIOutputContent: Hashable, Codable {
         let rawBody = try container.decodeIfPresent(String.self, forKey: .body) ?? ""
         body = Self.sanitizeBody(rawBody)
         citations = try container.decodeIfPresent([JournalCitation].self, forKey: .citations)
+        facts = try container.decodeIfPresent([InsightFact].self, forKey: .facts)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -61,6 +66,7 @@ public struct AIOutputContent: Hashable, Codable {
         try container.encodeIfPresent(heading2, forKey: .heading2)
         try container.encode(body, forKey: .body)
         try container.encodeIfPresent(citations, forKey: .citations)
+        try container.encodeIfPresent(facts, forKey: .facts)
     }
 }
 
@@ -235,6 +241,7 @@ public struct AIOutputComponent: View {
         !content.body.isEmpty
             || !(content.heading1 ?? "").isEmpty
             || !(content.heading2 ?? "").isEmpty
+            || !(content.facts ?? []).isEmpty
     }
 
     /// Copy / thumbs / redo only make sense against a finished reply. Gated on
@@ -308,6 +315,11 @@ public struct AIOutputComponent: View {
             // height. Without a transition that insert snaps in and shoves the
             // answer down mid-read, so animate the insertion itself — opacity
             // alone does nothing for layout.
+            if let facts = content.facts, !facts.isEmpty {
+                InsightFactSection(facts: facts)
+                    .accessibilityIdentifier("ask.insightFacts")
+            }
+
             if let citations = content.citations, !citations.isEmpty {
                 CitationLink(count: citations.count, onTap: onCitationsTapped)
                     .opacity(showCitation ? 1 : 0)
@@ -533,6 +545,40 @@ public struct AIOutputComponent: View {
             }
             drainTask = nil
         }
+    }
+}
+
+/// Stat card for 045 R5 quantitative Ask. `n` is always visible.
+private struct InsightFactSection: View {
+    let facts: [InsightFact]
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(fact.label.capitalized)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.mutedForeground)
+                    Text(fact.value)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(theme.foreground)
+                    Text("n = \(fact.n)")
+                        .font(.caption)
+                        .foregroundStyle(theme.mutedForeground)
+                    if fact.isLowConfidence {
+                        Text(InsightFact.lowConfidenceCopy(n: fact.n))
+                            .font(.caption)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(fact.isLowConfidence ? 0.55 : 1)
+            }
+        }
+        .padding(16)
+        .background(theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

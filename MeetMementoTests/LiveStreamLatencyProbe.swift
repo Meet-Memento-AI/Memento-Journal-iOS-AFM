@@ -73,7 +73,7 @@ final class LiveStreamLatencyProbe: XCTestCase {
                 for try await event in service.askStream(sample.question, history: sample.history,
                                                          entries: sample.corpus, images: []) {
                     switch event {
-                    case let .delta(bodySoFar, _, _, reviewed):
+                    case let .delta(bodySoFar, _, _, reviewed, _):
                         if ttft == nil {
                             ttft = clock.now - started
                             grounded = reviewed.isEmpty ? "no" : "yes(\(reviewed.count))"

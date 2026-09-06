@@ -89,7 +89,8 @@ final class ThemePriorTests: XCTestCase {
             XCTAssertFalse(prompt.lowercased().contains("actionable plan"))
             XCTAssertFalse(prompt.lowercased().contains("mood shifted"))
         }
-        XCTAssertTrue(prompts.contains(where: { $0.contains("sleep lately") }))
+        XCTAssertTrue(prompts.contains(where: { $0.contains("sleep this year") }))
+        XCTAssertTrue(prompts.contains(where: { $0.lowercased().contains("how many") }))
     }
 
     // MARK: - Helpers
