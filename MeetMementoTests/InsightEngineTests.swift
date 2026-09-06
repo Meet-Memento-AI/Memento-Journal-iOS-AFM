@@ -44,6 +44,34 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(month.n, entries.filter { monthInterval.contains($0.createdAt) }.count)
         XCTAssertEqual(PatternStats.week(entries: entries, now: now, calendar: calendar).entryCount, week.n)
         XCTAssertEqual(PatternStats.month(entries: entries, now: now, calendar: calendar).entryCount, month.n)
+        let monthStats = PatternStats.month(entries: entries, now: now, calendar: calendar)
+        XCTAssertEqual(monthStats.weeklyCounts, monthStats.weekFacts.map(\.n))
+        XCTAssertEqual(monthStats.weekFacts.count, 5)
+        XCTAssertTrue(monthStats.weekFacts.allSatisfy { $0.kind == .cadence })
+        XCTAssertTrue(monthStats.weekFacts.allSatisfy { $0.n == $0.supportingEntryIDs.count })
+    }
+
+    func test_patternMonthChart_constructedSparseWeekIsLowConfidence() {
+        let calendar = isoCalendar()
+        let now = day(2026, 8, 23, calendar: calendar)
+        let entries = (0..<2).map { offset in
+            Entry(
+                title: "P\(offset)",
+                text: "pattern note \(offset)",
+                createdAt: now.addingTimeInterval(TimeInterval(offset) * 60)
+            )
+        }
+        let stats = PatternStats.month(entries: entries, now: now, calendar: calendar)
+        XCTAssertEqual(stats.entryCount, 2)
+        XCTAssertTrue(stats.entryCount < InsightEngine.lowConfidenceThreshold)
+        let occupied = stats.weekFacts.filter { $0.n > 0 }
+        XCTAssertEqual(occupied.count, 1)
+        XCTAssertEqual(occupied.first?.n, 2)
+        XCTAssertEqual(occupied.first?.isLowConfidence, true)
+        XCTAssertEqual(
+            InsightFact.lowConfidenceCopy(n: occupied.first?.n ?? 0),
+            "Based on 2 entries — too few to call a pattern."
+        )
     }
 
     func test_peopleOrBrotherCount_hasSignal() throws {
