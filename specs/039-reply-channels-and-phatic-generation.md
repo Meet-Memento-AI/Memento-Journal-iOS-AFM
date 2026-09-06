@@ -30,8 +30,23 @@ and use `chat-light@4`. Typed Chat and Narration share one pipeline
 ([`028`](028-conversational-narration.md)). Eval goldens are 022 fixtures
 and unit contracts ([`022`](022-evaluation-and-quality-study.md)).
 
-**Amendment (2026-08-23):** same guided `AskAnswer` stream on every
-channel. Warmth is prompt + `@Guide` + token cap + temperature, not a
+**Amendment (2026-09-01, narration):** spoken journal stays `AskAnswer`; spoken companion/meta stay `LightAskAnswer`. Companion / meta use body-only typed as well (they
+never emit citations). Typed notebook/thread keep `AskAnswer` + optional
+`citedRefs`. Spoken follow-ups with no journal anchor (`RetrievalPolicy`
+`.none`) use the companion recipe (`chat-companion@1`, 80 tokens) instead
+of ask@15 / 256. Journal-anchored spoken follow-ups stay on thread + RAG.
+Spoken companion cap is 80; meta stays 128; notebook/thread spoken stay
+256. Do not raise caps.
+
+**Amendment (2026-09-01):** guided family, two shapes. Light and redirect
+decode `LightAskAnswer` (body only). Rank 2 / redirect use
+`chat-companion@1` instead of ask@15. Speculative
+prewarm warms every distinct recipe (light, companion, notebook) so a
+hello does not miss an ask@15-only slot. Retrieval overlaps session
+create. Warmth is still prompt + `@Guide` + token cap + temperature, not
+a second unguided decoder.
+
+**Amendment (2026-08-23):** same guided family on every channel. Warmth is prompt + `@Guide` + token cap + temperature, not a
 second decoder. Phatic/continuer **Open** (one genuine question) except
 farewells. Light prompt is a warm companion (`chat-light@4`). Cadence is
 always Open on generated turns. Short `[Move:]` cues pick the kind of
@@ -103,10 +118,10 @@ Skipping a rank (using rank-4 work for rank 0) is a spec violation.
 |------|---------|----------|-----|--------|------------|---------|---------|----------------|
 | 0 | `phatic` | `.social` | none | `chat-light@4` | ~80 | Open (Move cue; farewell may skip the question) | omit | fastest |
 | 1 | `continuer` | `.acknowledgement` | none | `chat-light@4` | ~64 | Open (new question, no recap) | omit | fastest |
-| 2 | `meta` / `companion` | `.meta` / `.share` / `.reflectiveQuestion` | none | ask@14 (aboutApp / sharing) | tighter than 512 while RAG is off (cap ≤ 128) | Open | allowed | fast |
-| 3 | `thread` | `.followup` | none unless journal-anchored (`reusePrevious`) | ask@14 follow-up | 512 **only if** RAG ran; else ≤ 128 | Open | allowed | medium |
-| 4 | `notebook` | `.journalQuery` | `currentWeighted` | ask@14 grounded / noMatch | 512 | Open (pattern then ask) | allowed | slowest (allowed) |
-| — | `redirect` | `.offdomain` | none | ask@14 outsideScope | small (≤ 80) | Open (then ask toward them) | omit | fast |
+| 2 | `meta` / `companion` | `.meta` / `.share` / `.reflectiveQuestion` | none | `chat-companion@1` | companion 128 typed / 80 spoken; meta 128 | Open | allowed | fast |
+| 3 | `thread` | `.followup` | none unless journal-anchored (`reusePrevious`) | ask@15 follow-up; **spoken + no RAG → companion** | 512 typed / 256 spoken (companion 80 when downgraded) | Open | allowed | medium |
+| 4 | `notebook` | `.journalQuery` | `currentWeighted` | ask@15 grounded / noMatch | 512 typed / 256 spoken | Open (pattern then ask) | allowed | slowest (allowed) |
+| — | `redirect` | `.offdomain` | none | `chat-companion@1` | small (≤ 80) | Open (then ask toward them) | omit | fast |
 
 `ReplyChannel.resolve(turn:hasImages:)` is exhaustive over
 `TurnType.allCases`. **Photo rule:** any attached image on this turn, or
@@ -123,21 +138,24 @@ Casual / less-complex messages need **less work** and therefore **faster
 responses**. `prepareAsk` MUST:
 
 - Rank 0–1: skip `EntryRetriever`, evidence block, vision (unless photos
-  forced a bump), L1 “About this person,” ask@14 instructions, and
+  forced a bump), L1 “About this person,” ask@15 instructions, and
   `askOptions` (512). Use `chat-light@4` (or degraded twin) and the
   token caps in R1. User prompt is `[Move:]` cue + optional `[Name:]` +
   latest message + optional don’t-repeat / don’t-use-name. Do not stack
   `[Turn:]` + `[Shape:]` + `[Move:]` on a hello.
-- Rank 2 and no-RAG rank 3: MUST NOT wait on `EntryRetriever`. Still
-  conversation-shaped (037 Meet them; no notebook unless they asked).
-- Rank 4 is the **only default RAG path**.
+- Rank 2 and redirect: MUST NOT wait on `EntryRetriever`. Use
+  `chat-companion@1`, not ask@15. Still conversation-shaped.
+- Rank 4 is the **only default RAG path**. Thread may retrieve when journal-anchored.
 
 No RAG ⇒ stay on the left of the curve: one short spoken sentence, then
 one question; no `###`, lists, or citations on a hello. Temperature 0.9
 on light / companion; 0.7 on notebook and RAG thread.
 
 Streaming UI is unchanged (`REQ-INT-014`). Typed Chat and Narration
-consume the same stream (R8).
+consume the same stream (R8). Spoken follow-ups whose
+`RetrievalPolicy.mode` is `.none` resolve to `companion` after classify
+so the listen → answer loop uses `chat-companion@1` rather than ask@15.
+Journal-anchored follow-ups stay on thread.
 
 **Acceptance:** a unit (or contract) test that a `.social` turn’s
 assembled prompt has no evidence block, no About section, and
@@ -180,7 +198,7 @@ present on the light prompt (same strings as ask@14’s “Safety hard bans”
 block). Degraded twin `chat-light-degraded@4` carries the same bans,
 shorter.
 
-Same guided `AskAnswer` decode as notebook. No canned string replies.
+Same guided family as notebook, body-only schema (`LightAskAnswer`). No canned string replies.
 Generation failure uses the existing error path.
 
 **Acceptance:** contract tests: light prompt does **not** contain
@@ -195,13 +213,13 @@ Keep `GenerationIntent.ask` (no ModelRouter table rewrite, no
 
 `(intent, zone, degraded, channel) → ResolvedPrompt`
 
-or an equivalent: channel selects among ask@14 vs `chat-light@4` as ask
-variants. Exhaustiveness tests cover every combination the router can
-emit, including both prompt families.
+or an equivalent: channel selects among ask@15 vs `chat-light@4` vs
+`chat-companion@1` as ask variants. Exhaustiveness tests cover every combination the router can
+emit, including all prompt families.
 
-`GenerationOutcome.promptVersion` MUST distinguish `chat-light@4` from
-`ask@14` (`REQ-PRM-004`). Personalized ask@14 may still use `+p4`;
-phatic/continuer MUST NOT append L1 and MUST NOT take `+p4`.
+`GenerationOutcome.promptVersion` MUST distinguish `chat-light@4` and
+`chat-companion@1` from `ask@15` (`REQ-PRM-004`). Personalized ask@15 and
+companion may still use `+p4`; phatic/continuer/redirect MUST NOT append L1 and MUST NOT take `+p4`.
 
 `PromptStanceSyncTests` continue to pin every `TurnStance.tagPrefix` in
 **ask@14**. Light prompt is **not** required to contain those tags; it
@@ -248,9 +266,12 @@ in the same session.
 ### R8. One agent
 
 Typed Chat and Narration Mode consume the same channelled
-`AskStreamEvent` body (037 R1 / 028). Same guided `AskAnswer` stream on
-every channel. Short phatic replies are a TTS latency win; 029 records
-the caps, this spec does not retune the loop.
+`AskStreamEvent` body (037 R1 / 028). Guided family, two shapes: light,
+companion, meta, and redirect stream `LightAskAnswer` (body only); typed
+notebook/thread stream `AskAnswer` (`body` + optional `citedRefs`).
+Spoken journal stays `AskAnswer`; spoken companion/meta stay `LightAskAnswer`. TTS does not speak citations;
+`reconcileCitations` still backfills from retrieval. Short phatic replies are a TTS latency
+win; 029 records the caps, this spec does not retune the loop.
 
 ### R9. ConversationalMove cues
 
@@ -285,7 +306,7 @@ report. Second person (you, your). Contractions. One short spoken
 sentence, then one genuine question — except goodbye, which may just
 close. If they asked how you are: answer in a few words, then ask about
 them. Never echo their greeting. Never recite goals, themes, or journal.
-Leave citedRefs empty. heading1 and heading2 stay empty. If a [Name:]
+If a [Name:]
 line is present, you may use first or last when it fits — never both in
 one reply, never every reply, never Mr/Ms.
 
@@ -348,7 +369,7 @@ Degraded (`chat-light-degraded@4`): same bans, shorter constitution.
   and ask something new.
 - Farewells close warmly without interrogation.
 - No-RAG turns (share, reflective, meta, redirect) stay **fast**: no retrieval
-  wait; conversation-shaped; companion/meta may still use ask@14 at a **tighter**
+  wait; conversation-shaped; companion/meta use `chat-companion@1`.
   token cap than notebook.
 - Journal questions still get the notebook path (037): Sit names a pattern
   from the evidence, then one ask. May be slower.

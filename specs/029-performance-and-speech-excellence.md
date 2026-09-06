@@ -12,6 +12,27 @@ tech_refs: [technology/01-foundation-models.md, technology/06-speech-and-audio.m
 
 # 029 — Performance and Speech Excellence
 
+**Amendment (2026-09-01, latency floor).** Journal load is awaited only
+when `channel.allowsRetrieval`. Retrieve overlaps session adopt on RAG
+turns; generation still waits on evidence. `prewarmConversation` runs at
+`.userInitiated`. A successful TTS preactivate is not re-gated before
+the first chunk. Do not raise 039 token caps.
+
+**Amendment (2026-09-01, narration).** Spoken journal stays `AskAnswer`; spoken companion/meta stay `LightAskAnswer`. Companion/meta are body-only when typed too. Spoken
+no-RAG follow-ups use `chat-companion@1` (80 tokens) instead of ask@15.
+Journal-anchored spoken follow-ups stay on thread + RAG + 256. Do not
+raise 039 token caps.
+
+**Amendment (2026-09-01).** Speculative prewarm is a **recipe pool**, not
+one ask@15 slot: `prewarmConversation` warms every distinct fingerprint
+(light, companion, notebook) for the current history so a hello adopts
+`chat-light@4` instead of missing. Session adopt/create overlaps
+`EntryRetriever` on notebook/thread turns. Guided decode dropped unused
+heading fields; light/redirect/companion/meta stream `LightAskAnswer`. Device TTFT
+before/after lives in `DiagLatencyProfile` (`speculative.hit` rate +
+prompt version per channel, including spoken companion and spoken
+no-RAG follow-up). Do not raise 039 token caps.
+
 **Traceability:** enforces the latency budgets minted in
 `specs/019-surfaces.md` (composer interactive < 400 ms cold, `019:83`; p50
 generation < 2 s on the minimum Apple Intelligence device, `019:138`),
@@ -24,8 +45,8 @@ timing infrastructure; this spec adds only app-stage `os_signpost`
 intervals, which render in the same Instruments trace). Builds directly on
 the loop correctness of `specs/028-conversational-narration.md`. Spec
 [`039`](039-reply-channels-and-phatic-generation.md) mints per-channel
-`maximumResponseTokens` (phatic ~80, continuer ~64, no-RAG companion ≤ 128,
-notebook 512). Those caps are **normative**; later perf work MUST NOT raise
+`maximumResponseTokens` (phatic ~80, continuer ~64, companion 128 typed /
+80 spoken, meta 128, notebook 512 typed / 256 spoken). Those caps are **normative**; later perf work MUST NOT raise
 them “for consistency” on notebook. Light caps were tightened (039, 2026-08-23)
 so a hello stays one spoken sentence plus a question. Phatic/continuer skip retrieve and ask@14 prefill
 (039 R2) — that skip is a latency win this spec may measure but must not
@@ -244,7 +265,7 @@ device fill the R2 table; manual device checklist (no clipping, cadence,
 
 - Per-conversation `LanguageModelSession` transcript reuse — deferred
   unless the FM instrument shows prefill still dominating TTFT after the
-  prefill-overlap change; it contradicts 017 R9's stateless architecture
+  dual-recipe speculative pool; it contradicts 017 R9's stateless architecture
   and needs its own spec treatment.
 - Full-duplex audio (028 non-goal stands).
 - Any analytics/telemetry beyond local signposts and DEBUG logs.

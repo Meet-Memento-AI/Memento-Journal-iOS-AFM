@@ -92,10 +92,10 @@ public struct AISuggestionCard: View {
             .background(Capsule().fill(pillFill))
     }
 
-    /// Same copper family as the card: `primary100` on the `primary50` top
-    /// of the gradient. Dark uses a lifted step of the dark card surface.
+    /// Same copper family as the card, one step under the `primary50` top of
+    /// the gradient. Dark uses a lifted step of the dark card surface.
     private var pillFill: Color {
-        colorScheme == .dark ? theme.journalCardChipBackground : PrimaryScale.primary100
+        colorScheme == .dark ? theme.journalCardChipBackground : PrimaryScale.primary200
     }
 
     private var pillForeground: Color {

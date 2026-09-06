@@ -3,11 +3,13 @@
 //  MeetMemento
 //
 //  Notion-style full-page journal entry editor with title and body fields.
+//  A cover photo becomes a full-bleed max-blur backdrop (Figma 818:4006).
 //
 
 import SwiftUI
 import PhotosUI
 import AVFoundation
+import UIKit
 
 // MARK: - Entry State
 
@@ -42,6 +44,8 @@ public struct AddEntryView: View {
     // MARK: Photo state
     @State private var photoData: Data?
     @State private var photoPreviewImage: UIImage?
+    /// Downsampled average of the cover, used to adapt editor scrim/blur.
+    @State private var photoSample: JournalBackdropSample?
     /// False until the user actually touches the photo this session — lets
     /// `.edit(entry)` preselect an existing photo without `save()` treating
     /// that preselection itself as a change.
@@ -101,6 +105,29 @@ public struct AddEntryView: View {
         return .removed
     }
 
+    private var hasCoverPhoto: Bool { photoPreviewImage != nil }
+
+    /// White chrome on the treated photo; `theme.foreground` on the
+    /// plain editor. Header and footer both sit on the photo when attached.
+    private var chromeForeground: Color {
+        hasCoverPhoto ? BaseColors.white : theme.foreground
+    }
+
+    private var titleForeground: Color {
+        hasCoverPhoto ? BaseColors.white : theme.foreground
+    }
+
+    /// Filled body is 60% of the title color (Figma 818:3925 / 818:4006).
+    private var bodyForeground: Color { titleForeground.opacity(0.6) }
+
+    private var titlePlaceholderColor: Color { titleForeground.opacity(0.25) }
+
+    private var bodyPlaceholderColor: Color { titleForeground.opacity(0.25) }
+
+    private var editorBodyLineSpacing: CGFloat {
+        type.bodyLineSpacing(for: type.size2XL)
+    }
+
     /// Idle mic diameter and attachment-pill height. The mic expands to fit
     /// the duration timer while recording; the attachment cluster stays this tall.
     private static let chromeFABHeight: CGFloat = 56
@@ -153,59 +180,33 @@ public struct AddEntryView: View {
                 pageHeader
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Live WYSIWYG preview of the cover photo — mirrors
-                        // exactly what the saved JournalCard will show.
-                        if let photoPreviewImage {
-                            JournalPhotoThumbnail(
-                                image: Image(uiImage: photoPreviewImage),
-                                removable: true,
-                                onRemove: {
-                                    self.photoData = nil
-                                    self.photoPreviewImage = nil
-                                    self.photoDidChange = true
-                                }
-                            )
-                            .padding(.top, AppHeaderMetrics.contentGap)
-                        }
-
-                        // Notion-style title field
+                    VStack(alignment: .leading, spacing: AppHeaderMetrics.edgeInset) {
                         titleField
-                            .padding(.top, AppHeaderMetrics.contentGap)
-
-                        // Spacious body editor
                         bodyField
-                            .padding(.top, AppHeaderMetrics.contentGap)
-
-                        // Reserves the bottom chrome band so body text can never
-                        // crowd the FABs: home indicator + 16pt air + pill height + 16pt.
-                        Spacer(minLength: AppHeaderMetrics.windowBottom
-                               + AppHeaderMetrics.rowBottomPadding
-                               + Self.chromeFABHeight
-                               + AppHeaderMetrics.contentGap)
+                        editorBottomSpacer
                     }
+                    .padding(.top, Spacing.xxl)
                     .padding(.horizontal, AppHeaderMetrics.edgeInset)
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .overlay(alignment: .bottom) {
-                // One sampling region for the footer cluster. Glass cannot
-                // sample glass, and the attachment pill sits next to the
-                // mic pill — they must share a container (PRES-092).
-                GlassEffectContainer(spacing: Self.footerGlassSpacing) {
-                    HStack {
-                        attachmentFAB
-                        Spacer(minLength: Self.footerGlassSpacing)
-                        microphoneFAB
-                    }
-                    .padding(.horizontal, AppHeaderMetrics.edgeInset)
-                    .padding(.bottom, keyboardBottomPadding)
-                }
+                footerFABs
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.background)
+        .background {
+            if let photoPreviewImage {
+                JournalPhotoBackdrop(
+                    image: Image(uiImage: photoPreviewImage),
+                    sample: photoSample,
+                    defaults: JournalBackdropShader.editorDefaults
+                )
+            } else {
+                theme.background
+            }
+        }
         .ignoresSafeArea()
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
@@ -307,16 +308,41 @@ public struct AddEntryView: View {
     
     // MARK: - Subviews
 
+    /// Reserves the bottom chrome band so body text can never crowd the FABs.
+    private var editorBottomSpacer: some View {
+        Spacer(minLength: AppHeaderMetrics.windowBottom
+               + AppHeaderMetrics.rowBottomPadding
+               + Self.chromeFABHeight
+               + AppHeaderMetrics.contentGap)
+    }
+
+    /// One sampling region for the footer cluster. Glass cannot sample glass,
+    /// and the attachment pill sits next to the mic pill — they must share a
+    /// container (PRES-092).
+    private var footerFABs: some View {
+        GlassEffectContainer(spacing: Self.footerGlassSpacing) {
+            HStack {
+                attachmentFAB
+                Spacer(minLength: Self.footerGlassSpacing)
+                microphoneFAB
+            }
+            .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            .padding(.bottom, keyboardBottomPadding)
+        }
+    }
+
     private var pageHeader: some View {
         VStack(spacing: 0) {
             Color.clear
                 .frame(height: AppHeaderMetrics.windowTop)
                 .frame(maxWidth: .infinity)
                 .background {
-                    ProgressiveBlurEdge(
-                        edge: .top,
-                        height: AppHeaderMetrics.windowTop
-                    )
+                    if !hasCoverPhoto {
+                        ProgressiveBlurEdge(
+                            edge: .top,
+                            height: AppHeaderMetrics.windowTop
+                        )
+                    }
                 }
                 .clipped()
                 .allowsHitTesting(false)
@@ -327,7 +353,8 @@ public struct AddEntryView: View {
                     HeaderIconButton(
                         systemName: "chevron.left",
                         accessibilityLabel: "Back",
-                        accessibilityHint: "Double-tap to close without saving"
+                        accessibilityHint: "Double-tap to close without saving",
+                        foreground: chromeForeground
                     ) {
                         closeEditor()
                     }
@@ -335,18 +362,7 @@ public struct AddEntryView: View {
 
                     Spacer(minLength: 12)
 
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 13, weight: .bold)) // icon-size: not user text
-                        Text(formattedDate)
-                            .font(type.body2Medium)
-                    }
-                    .foregroundStyle(theme.foreground)
-                    .padding(.horizontal, 14)
-                    // AX5: minHeight (not fixed height) lets the pill grow instead of
-                    // clipping/overlapping when the date text scales up at large Dynamic Type sizes.
-                    .frame(minHeight: AppHeaderMetrics.controlSize)
-                    .glassEffect(.regular, in: .capsule)
+                    datePill
 
                     Spacer(minLength: 12)
 
@@ -360,10 +376,21 @@ public struct AddEntryView: View {
     }
 
     @ViewBuilder
+    private var datePill: some View {
+        Text(formattedDate)
+            .font(type.body1Bold)
+            .foregroundStyle(theme.journalCardChipForeground)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 6)
+            .background(theme.journalCardChipBackground, in: Capsule())
+            .frame(minHeight: AppHeaderMetrics.controlSize)
+    }
+
+    @ViewBuilder
     private var saveHeaderButton: some View {
         if isSaving {
             ProgressView()
-                .tint(theme.foreground)
+                .tint(chromeForeground)
                 .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
                 .glassEffect(.regular, in: .circle)
                 .accessibilityLabel("Saving entry")
@@ -372,12 +399,13 @@ public struct AddEntryView: View {
             HeaderIconButton(
                 systemName: "arrow.up",
                 accessibilityLabel: "Save entry",
-                accessibilityHint: "Double-tap to save your journal entry"
+                accessibilityHint: "Double-tap to save your journal entry",
+                foreground: chromeForeground
             ) {
                 save()
             }
             .disabled(!hasSaveableContent)
-            .opacity(hasSaveableContent ? 1 : 0.4)
+            .opacity(hasSaveableContent ? 1 : 0.2)
             .accessibilityIdentifier("journal.entryEditor.save")
         }
     }
@@ -385,7 +413,8 @@ public struct AddEntryView: View {
     private var titleField: some View {
         TextField("", text: $title, axis: .vertical)
             .font(type.h3)
-            .foregroundStyle(theme.foreground)
+            .foregroundStyle(titleForeground)
+            .tint(chromeForeground)
             .focused($focusedField, equals: .title)
             .textInputAutocapitalization(.words)
             .submitLabel(.next)
@@ -393,9 +422,9 @@ public struct AddEntryView: View {
                 focusedField = .body
             }
             .placeholder(when: title.isEmpty) {
-                Text("Journal title")
+                Text("Give your entry a title...")
                     .font(type.h3)
-                    .foregroundStyle(theme.mutedForeground.opacity(0.4))
+                    .foregroundStyle(titlePlaceholderColor)
             }
             .accessibilityIdentifier("journal.entryEditor.title")
     }
@@ -403,18 +432,21 @@ public struct AddEntryView: View {
     private var bodyField: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
-                Text("Write your entry here, or speak below to share what you're thinking & feeling...")
-                    .font(type.body1)
-                    .lineSpacing(type.bodyLineSpacing)
-                    .foregroundStyle(theme.mutedForeground.opacity(0.5))
+                Text("Start writing your journal...")
+                    .font(type.h3)
+                    .fontWeight(.medium)
+                    .lineSpacing(editorBodyLineSpacing)
+                    .foregroundStyle(bodyPlaceholderColor)
                     .padding(.top, 8)
                     .allowsHitTesting(false)
             }
 
             TextEditor(text: $text)
-                .font(type.body1)
-                .lineSpacing(type.bodyLineSpacing)
-                .foregroundStyle(theme.foreground)
+                .font(type.h3)
+                .fontWeight(.medium)
+                .lineSpacing(editorBodyLineSpacing)
+                .foregroundStyle(bodyForeground)
+                .tint(chromeForeground)
                 .focused($focusedField, equals: .body)
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 300)
@@ -448,7 +480,7 @@ public struct AddEntryView: View {
             HStack(spacing: 8) {
                 Image(systemName: speechService.isRecording ? "stop.fill" : "mic.fill")
                     .font(.system(size: 22, weight: .bold)) // icon-size: not user text
-                    .foregroundStyle(speechService.isRecording ? Color.red : theme.foreground)
+                    .foregroundStyle(speechService.isRecording ? Color.red : chromeForeground)
 
                 // Duration timer appears inside button when recording
                 if speechService.isRecording {
@@ -477,9 +509,9 @@ public struct AddEntryView: View {
     /// Extra air between the three 44pt glyph slots inside the attachment pill.
     private static let clusterIconSpacing: CGFloat = 12
 
-    /// Camera, library, and a non-interactive location placeholder in one
-    /// capsule — same 56pt height as the idle microphone FAB. Glass lives on
-    /// this surface, not on each glyph; the bar holds buttons rather than
+    /// Camera, library, and either a location placeholder or a remove control
+    /// in one capsule — same 56pt height as the idle microphone FAB. Glass lives
+    /// on this surface, not on each glyph; the bar holds buttons rather than
     /// being pressed as a whole, so it is not `.interactive()`.
     private var attachmentFAB: some View {
         HStack(spacing: Self.clusterIconSpacing) {
@@ -499,11 +531,22 @@ public struct AddEntryView: View {
             .accessibilityLabel("Choose photo from library")
             .accessibilityHint(photoData == nil ? "Double-tap to choose a photo from your library" : "Double-tap to replace the current photo with one from your library")
 
-            // Visible-but-disabled placeholder for Figma parity (boxicons:location).
-            // A plain Image, not a disabled Button — that's what makes "disabled"
-            // structurally true for VoiceOver instead of announcing an inert control.
-            clusterGlyph("location", opacity: 0.3)
-                .accessibilityHidden(true)
+            if hasCoverPhoto {
+                Button {
+                    removePhoto()
+                } label: {
+                    clusterGlyph("xmark")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove photo")
+                .accessibilityHint("Double-tap to remove the attached photo")
+            } else {
+                // Visible-but-disabled placeholder for Figma parity (boxicons:location).
+                // A plain Image, not a disabled Button — that's what makes "disabled"
+                // structurally true for VoiceOver instead of announcing an inert control.
+                clusterGlyph("location", opacity: 0.3)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.horizontal, 16)
         .frame(height: Self.chromeFABHeight)
@@ -513,7 +556,7 @@ public struct AddEntryView: View {
     private func clusterGlyph(_ systemName: String, opacity: Double = 1) -> some View {
         Image(systemName: systemName)
             .font(.system(size: Self.optionIconSize, weight: .medium)) // icon-size: not user text
-            .foregroundStyle(theme.foreground.opacity(opacity))
+            .foregroundStyle(chromeForeground.opacity(opacity))
             .frame(width: Self.clusterGlyphSlot, height: Self.clusterGlyphSlot)
             .contentShape(Rectangle())
     }
@@ -562,17 +605,28 @@ public struct AddEntryView: View {
     /// visibly stutters the capture-confirm transition if done inline.
     private func handleNewPhoto(_ image: UIImage) {
         Task {
-            let prepared: (data: Data, image: UIImage)? = await Task.detached(priority: .userInitiated) {
+            let prepared: (data: Data, image: UIImage, sample: JournalBackdropSample)? = await Task.detached(priority: .userInitiated) {
                 guard let data = ImageProcessor.prepareForStorage(image) else { return nil }
-                return (data, UIImage(data: data) ?? image)
+                let uiImage = UIImage(data: data) ?? image
+                return (data, uiImage, JournalBackdropContrast.sample(image: uiImage))
             }.value
 
             guard let prepared else { return }
             photoData = prepared.data
             photoPreviewImage = prepared.image
+            photoSample = prepared.sample
             photoDidChange = true
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
+    }
+
+    /// Clears the session cover so the editor returns to the plain page.
+    private func removePhoto() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        photoData = nil
+        photoPreviewImage = nil
+        photoSample = nil
+        photoDidChange = true
     }
 
     /// On `.edit(entry)` where the entry already has a photo, decrypts and
@@ -589,17 +643,18 @@ public struct AddEntryView: View {
         // Disk read + AES decrypt + JPEG decode off the main thread so opening
         // an entry with a photo doesn't hitch.
         let entryId = entry.id
-        let loaded: (data: Data, image: UIImage)? = await Task.detached(priority: .userInitiated) {
+        let loaded: (data: Data, image: UIImage, sample: JournalBackdropSample)? = await Task.detached(priority: .userInitiated) {
             guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
                   let data = JournalService.shared.encryptionService.decryptData(encrypted),
                   let uiImage = UIImage(data: data) else { return nil }
-            return (data, uiImage)
+            return (data, uiImage, JournalBackdropContrast.sample(image: uiImage))
         }.value
 
         // Re-check after the hop — the user may have acted while we loaded.
         guard let loaded, !photoDidChange else { return }
         photoData = loaded.data
         photoPreviewImage = loaded.image
+        photoSample = loaded.sample
     }
 
     /// Guards camera availability (always false on Simulator) and permission
@@ -662,10 +717,52 @@ public struct AddEntryView: View {
     }
 }
 
+#if DEBUG
+extension AddEntryView {
+    /// Seeds a cover so canvas previews can show the photo-backed chrome.
+    fileprivate init(
+        state: EntryState,
+        previewPhoto: UIImage,
+        previewTitle: String,
+        previewBody: String,
+        onSave: @escaping (_ title: String, _ text: String, _ photoAction: PhotoAction) -> Void
+    ) {
+        self.state = state
+        self.onSave = onSave
+        _title = State(initialValue: previewTitle)
+        _text = State(initialValue: previewBody)
+        _photoPreviewImage = State(initialValue: previewPhoto)
+        _photoData = State(initialValue: previewPhoto.jpegData(compressionQuality: 0.8))
+        _photoSample = State(initialValue: JournalBackdropContrast.sample(image: previewPhoto))
+    }
+}
+
+private enum AddEntryPreviewAssets {
+    static let photo: UIImage = {
+        let size = CGSize(width: 8, height: 12)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+    }()
+}
+#endif
+
 // MARK: - Previews
 
 #Preview("Create Entry") {
     AddEntryView(state: .create) { _, _, _ in }
+        .useTheme()
+        .useTypography()
+}
+
+#Preview("Create Entry • Photo") {
+    AddEntryView(
+        state: .create,
+        previewPhoto: AddEntryPreviewAssets.photo,
+        previewTitle: "A quiet morning in September makes me always remember more than I wish to",
+        previewBody: "The air had that unmistakable crispness this morning — summer finally loosening its grip."
+    ) { _, _, _ in }
         .useTheme()
         .useTypography()
 }

@@ -113,32 +113,45 @@ struct PercentageBarChart: View {
     let items: [PercentageBarItem]
     var onValueChange: ((Int, Double) -> Void)?
 
-    /// Initialize with 2-5 items
+    /// The design supports 2–5 bars. More than this and the labels collide.
+    static let maxItems = 5
+
+    /// Bars actually rendered, held to `maxItems`.
+    ///
+    /// These initializers used to `precondition` on the count and on matching
+    /// array lengths. `precondition` **traps in release builds**, so a caller
+    /// passing six emotions — or two arrays that had drifted out of step —
+    /// crashed the app to protect a chart's layout (MEM-47). A chart is never
+    /// worth a crash: extra items are dropped, a short array truncates via
+    /// `zip`, and an empty result renders nothing.
+    ///
+    /// The 2-item lower bound is not enforced at all. One bar is a legible,
+    /// if uninteresting, chart; refusing to draw it helps nobody.
+    private static func clamped(_ items: [PercentageBarItem]) -> [PercentageBarItem] {
+        Array(items.prefix(maxItems))
+    }
+
+    /// Initialize with up to `maxItems` items.
     init(items: [PercentageBarItem], onValueChange: ((Int, Double) -> Void)? = nil) {
-        precondition(items.count >= 2 && items.count <= 5, "PercentageBarChart requires 2-5 items")
-        self.items = items
+        self.items = Self.clamped(items)
         self.onValueChange = onValueChange
     }
 
-    /// Convenience initializer with labels and values (colors auto-assigned)
+    /// Convenience initializer with labels and values (colors auto-assigned).
+    /// `zip` truncates to the shorter array, so mismatched lengths are safe.
     init(labels: [String], values: [Double], onValueChange: ((Int, Double) -> Void)? = nil) {
-        precondition(labels.count == values.count, "Arrays must have same count")
-        precondition(labels.count >= 2 && labels.count <= 5, "Requires 2-5 items")
-
-        self.items = zip(labels, values).map { label, value in
+        self.items = Self.clamped(zip(labels, values).map { label, value in
             PercentageBarItem(label: label, value: value, color: nil)
-        }
+        })
         self.onValueChange = onValueChange
     }
 
-    /// Convenience initializer with custom colors
+    /// Convenience initializer with custom colors. Truncates to the shortest
+    /// of the three arrays.
     init(labels: [String], values: [Double], colors: [Color], onValueChange: ((Int, Double) -> Void)? = nil) {
-        precondition(labels.count == values.count && values.count == colors.count, "Arrays must match")
-        precondition(labels.count >= 2 && labels.count <= 5, "Requires 2-5 items")
-
-        self.items = zip(labels, zip(values, colors)).map { label, valueColor in
+        self.items = Self.clamped(zip(labels, zip(values, colors)).map { label, valueColor in
             PercentageBarItem(label: label, value: valueColor.0, color: valueColor.1)
-        }
+        })
         self.onValueChange = onValueChange
     }
 
@@ -230,7 +243,9 @@ struct PercentageBarChart: View {
 
         let percentage = value / total
         // Account for spacing between bars (4px spacing * number of gaps)
-        let totalSpacing = CGFloat(items.count - 1) * 4
+        // `max(0,)` because an empty items array would otherwise make this -4,
+        // widening `usableWidth` instead of narrowing it.
+        let totalSpacing = CGFloat(max(0, items.count - 1)) * 4
         // Subtract padding (20px on each side = 40px total)
         let usableWidth = availableWidth - totalSpacing - 40
 

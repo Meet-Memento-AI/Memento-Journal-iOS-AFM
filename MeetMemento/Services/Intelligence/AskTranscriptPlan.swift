@@ -73,3 +73,30 @@ struct AskTranscriptPlan: Equatable, Sendable {
         return digest.finalize().map { String(format: "%02x", $0) }.joined()
     }
 }
+
+/// Speculative next-turn sessions, keyed by `AskTranscriptPlan.fingerprint`.
+/// Dual-slot: light and heavy recipes for the same history coexist; adopt
+/// is exact-match and one-shot.
+struct FingerprintPool<Value> {
+    private var slots: [String: Value] = [:]
+
+    mutating func store(_ value: Value, fingerprint: String) {
+        slots[fingerprint] = value
+    }
+
+    mutating func take(matching fingerprint: String) -> Value? {
+        slots.removeValue(forKey: fingerprint)
+    }
+
+    func has(matching fingerprint: String) -> Bool {
+        slots[fingerprint] != nil
+    }
+
+    /// Replace the pool with a new pair (light + heavy). Drops stale history.
+    mutating func replaceAll(_ pairs: [(fingerprint: String, value: Value)]) {
+        slots = Dictionary(uniqueKeysWithValues: pairs.map { ($0.fingerprint, $0.value) })
+    }
+
+    var fingerprints: Set<String> { Set(slots.keys) }
+    var count: Int { slots.count }
+}

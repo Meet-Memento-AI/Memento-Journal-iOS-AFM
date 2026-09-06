@@ -43,12 +43,52 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// Ranks 0–1 leave ask@14 for `chat-light@4`.
+    /// Ranks 0–1 leave ask@15 for `chat-light@4`.
     var usesLightPrompt: Bool {
         switch self {
         case .phatic, .continuer: return true
         default: return false
         }
+    }
+
+    /// Rank 2 / redirect leave ask@15 for `chat-companion@1`. Notebook and
+    /// RAG-thread keep the heavy recipe.
+    var usesCompanionPrompt: Bool {
+        switch self {
+        case .companion, .meta, .redirect: return true
+        default: return false
+        }
+    }
+
+    /// User prompt is `[Move:]` + latest message, not the ask@15 `[Turn:]` /
+    /// `[Shape:]` stack. Light and companion recipes both need this; mixing
+    /// chat-companion@1 instructions with Meet/Sit/Open is what killed replies.
+    var usesShortAssembler: Bool { usesLightPrompt || usesCompanionPrompt }
+
+    /// Body-only Generable (`LightAskAnswer`) — no `citedRefs`. Companion and
+    /// meta never emit citations, so they share the light schema. Typed **and
+    /// spoken** notebook/thread keep `AskAnswer` so the journal recipe and
+    /// decode schema match. TTS does not speak `citedRefs`; reconcile still
+    /// backfills from retrieval.
+    func usesBodyOnlySchema(spoken _: Bool = false) -> Bool {
+        switch self {
+        case .phatic, .continuer, .redirect, .companion, .meta: return true
+        case .thread, .notebook: return false
+        }
+    }
+
+    /// Spoken follow-ups with no journal anchor use companion, not thread.
+    /// Classification stays `.followup`; only the recipe changes so the
+    /// listen → answer loop hits `chat-companion@1` instead of ask@15.
+    /// Journal-anchored follow-ups (`reusePrevious`) stay on thread + RAG.
+    func applyingSpokenFollowUpRecipe(
+        turn: TurnType, history: [ChatTurn], spoken: Bool
+    ) -> ReplyChannel {
+        guard spoken, self == .thread else { return self }
+        guard RetrievalPolicy.mode(for: turn, history: history) == .none else {
+            return self
+        }
+        return .companion
     }
 
     /// L1 "About this person" is omitted on phatic, continuer, and redirect.
@@ -86,14 +126,16 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// `retrievalRan` still selects the temperature, where the distinction is
     /// real.
     ///
-    /// Narration (`spoken: true`) never raises a cap. Companion stays at 128;
-    /// notebook/thread drop to 256 so Meet + one Sit beat + Open still fit
-    /// without a spoken essay.
+    /// Narration (`spoken: true`) never raises a cap. Companion drops to 80
+    /// (one or two spoken sentences plus a question); meta stays 128 for
+    /// about-the-app lists. Notebook/thread drop to 256 so Meet + one Sit
+    /// beat + Open still fit without a spoken essay.
     func maximumResponseTokens(retrievalRan: Bool, spoken: Bool = false) -> Int {
         switch self {
         case .phatic: return 80
         case .continuer: return 64
-        case .meta, .companion: return 128
+        case .meta: return 128
+        case .companion: return spoken ? 80 : 128
         case .thread, .notebook: return spoken ? 256 : 512
         case .redirect: return 80
         }

@@ -343,6 +343,9 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     /// utterance session (always true when `managesAudioSession` is false —
     /// unit tests). While false, `enqueue` buffers into `pendingUtterances`.
     private var activationComplete = true
+    /// Preactivate finished successfully and the session is still this one —
+    /// `beginUtteranceSession` must not re-gate and buffer the first chunk.
+    private var playbackSessionReady = false
     /// Utterances enqueued before activation landed, spoken in order once it does.
     private var pendingUtterances: [UtteranceRequest] = []
     /// The in-flight `setActive(true)` (nil error = success). Shared between
@@ -388,7 +391,19 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func preactivateSession() {
         guard managesAudioSession, activationTask == nil, speakingMessageID == nil,
               !isRecordingProvider() else { return }
-        activationTask = startPlaybackActivation()
+        let task = startPlaybackActivation()
+        activationTask = task
+        let generation = sessionGeneration
+        Task { @MainActor [weak self] in
+            let failure = await task.value
+            guard let self,
+                  self.speakingMessageID == nil,
+                  self.sessionGeneration == generation else { return }
+            if failure == nil {
+                self.playbackSessionReady = true
+                self.activationComplete = true
+            }
+        }
     }
 
     /// Releases a pre-activated session that ended up unused (the send failed
@@ -397,6 +412,8 @@ final class VoicePlaybackService: NSObject, ObservableObject {
     func releasePreactivatedSession() {
         guard speakingMessageID == nil, let pending = activationTask else { return }
         activationTask = nil
+        playbackSessionReady = false
+        activationComplete = !managesAudioSession
         let scheduledGeneration = sessionGeneration
         sessionReleaseTask = Task.detached(priority: .userInitiated) { [weak self] in
             _ = await pending.value
@@ -422,6 +439,13 @@ final class VoicePlaybackService: NSObject, ObservableObject {
             activationComplete = true
             return
         }
+        if playbackSessionReady {
+            activationComplete = true
+            let queued = pendingUtterances
+            pendingUtterances.removeAll()
+            queued.forEach { engine.speak($0) }
+            return
+        }
         activationComplete = false
         let generation = sessionGeneration
         let task = activationTask ?? startPlaybackActivation()
@@ -435,6 +459,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
                 self.engine.stopAll()
                 self.clearSession()
             } else {
+                self.playbackSessionReady = true
                 self.activationComplete = true
                 let queued = self.pendingUtterances
                 self.pendingUtterances.removeAll()
@@ -466,6 +491,13 @@ final class VoicePlaybackService: NSObject, ObservableObject {
             guard self.sessionGeneration == generation, self.speakingMessageID == nil else { return }
             self.engine.warm()
         }
+    }
+
+    /// Test seam: pretends preactivate already succeeded so
+    /// `beginUtteranceSession` must speak without buffering.
+    func markPlaybackSessionReady() {
+        playbackSessionReady = true
+        activationComplete = true
     }
 
     var queuedSpeechCount: Int {
@@ -505,6 +537,7 @@ final class VoicePlaybackService: NSObject, ObservableObject {
         pendingUtterances.removeAll()
         inputComplete = false
         activationComplete = !managesAudioSession
+        playbackSessionReady = false
         deactivateAudioSessionIfNeeded()
         // Deferred like publishNowPlaying — the clear must not delay the
         // listen re-arm the drain publisher just triggered.

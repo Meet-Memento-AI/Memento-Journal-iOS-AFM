@@ -139,6 +139,54 @@ unavailable for download without removing the app.
 | **Check `developer.apple.com/news/upcoming-requirements/`** | Per release. This is where the SDK minimum, the age-rating deadline, and the September 2026 social-media declaration were all announced | agent |
 | **Renew the Developer Program membership** | Annual. A lapse removes the app from sale *and* permanently ends any phased release in flight | ☐ user |
 | **Re-verify the published legal pages return 200** | Per release. This is the failure that has already bitten once | agent — `00` B1 |
+| **Triage crashes in Xcode Organizer** | Weekly for the first month, then per release. See §7.1 | agent |
+
+### 7.1 Crash triage — where to look
+
+**There is no third-party crash SDK in this app, deliberately.** Crashlytics and
+Sentry both collect data and would force an App Privacy disclosure, breaking the
+**Data Not Collected** label (`03` §Target) in the same metadata category Apple
+rejected v1.0 on. Apple's own pipeline gathers crashes with **Apple** as the
+collector, not us, so the label is unaffected. The decision and the conditions for
+revisiting it are recorded in `specs/012` §6.
+
+Three places to look, in order:
+
+| Source | What it gives you | When |
+|---|---|---|
+| **Xcode → Organizer → Crashes** | Symbolicated crash reports grouped by signature, with device and OS breakdown | The primary path, post-release |
+| **App Store Connect → TestFlight → Crashes / Feedback** | Beta crashes, plus tester screenshots and comments | During the beta window |
+| **App Store Connect → Trends → Metrics** | Aggregate crash rate as a trend, not individual reports | Watching for a regression after an update |
+
+**Organizer coverage is partial by design.** A report only arrives if the user left
+**Settings → Privacy & Security → Analytics & Improvements → Share iPhone
+Analytics** *and* **Share With App Developers** enabled. A quiet Organizer means
+"few reports shared", never "no crashes" — do not read it as an all-clear, and do
+not chase the gap. It is the cost of the privacy posture, and it is the right cost.
+
+**Symbolication is already wired.** Release builds emit dSYMs
+(`DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`) and `ExportOptions.plist` sets
+`uploadSymbols`, so Apple receives them with the build. Verified on the 1.0(3)
+archive, 2026-08-18 — binary and dSYM both `DE824DAB-2BDD-3B75-9D6A-B6139988126B`:
+
+```
+dwarfdump --uuid build/MeetMemento.xcarchive/Products/Applications/MeetMemento.app/MeetMemento
+dwarfdump --uuid build/MeetMemento.xcarchive/dSYMs/MeetMemento.app.dSYM
+```
+
+Re-check this whenever the build configuration changes. A mismatched UUID means
+every report from that build arrives unsymbolicated.
+
+**There is no in-app log to pair with a crash.** `AppLogger` is DEBUG-gated and
+compiles to a no-op in release (spec 029 Amendment A), so a crash report is the
+whole picture. That is a choice, not an oversight — release logging of journal
+content is exactly what spec 005 removed.
+
+**What to do with a crash:** symbolicate from Organizer, identify the surface, and
+file it against the spec that owns that surface. If it reproduces, add the case to
+that spec's harness before fixing it.
+
+---
 
 ---
 

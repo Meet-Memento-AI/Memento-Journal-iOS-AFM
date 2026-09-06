@@ -147,6 +147,9 @@ class EntryViewModel: ObservableObject {
         }.value
         self.entries = JournalService.shared.purgeOnboardingSeedEntries(from: localEntries)
         updateEntriesByMonth()
+        await PhotoThumbnailCache.shared.prefetch(
+            entryIds: self.entries.filter(\.hasPhoto).map(\.id)
+        )
         await loadUserProfile()
         hasInitiallyLoaded = true
         #endif

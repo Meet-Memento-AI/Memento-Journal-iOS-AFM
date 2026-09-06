@@ -149,6 +149,13 @@ enum Motion {
     /// `4 * p * (1 - p) * narrationDissolveBlur`, so 0 at both rest states.
     static let narrationDissolveBlur: CGFloat = 12
 
+    /// Journal list first paint. Photographic dissolve (opacity + mid-mix
+    /// blur that clears at rest) — shorter than narration so launch does
+    /// not sit on a spinner then pop.
+    static let journalEntriesDissolveDuration: TimeInterval = 0.28
+    static let journalEntriesDissolve: Animation = .easeOut(duration: journalEntriesDissolveDuration)
+    static let journalEntriesDissolveBlur: CGFloat = 8
+
     /// Beat 2 of the send choreography: the transcript easing the just-landed
     /// message up to the pin.
     ///

@@ -278,6 +278,15 @@ protocol IntelligenceService: Sendable {
     /// caller owns the transcript.
     func ask(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskResult
 
+    /// One-shot Ask that loads the journal only after the channel is known.
+    func ask(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) async throws -> AskResult
+
     /// Streaming variant of `ask` (spec 017 R6): emits the reply as it
     /// generates so the UI shows text immediately instead of after completion.
     /// `spoken` is the narration fork — shorter token caps and a spoken shape
@@ -288,6 +297,17 @@ protocol IntelligenceService: Sendable {
         entries: [Entry],
         images: [Data],
         spoken: Bool
+    ) -> AsyncThrowingStream<AskStreamEvent, Error>
+
+    /// Streaming Ask that loads the journal only after the channel is known.
+    /// No-RAG turns must not await `loadEntries`. The protocol extension
+    /// loads eagerly and forwards; the Foundation Models service overrides.
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error>
 
     /// Turn a conversation into a first-person journal-entry summary **and**
@@ -328,12 +348,48 @@ extension IntelligenceService {
         try await ask(question, history: history, entries: entries, images: [])
     }
 
+    func ask(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) async throws -> AskResult {
+        _ = spoken
+        return try await ask(question, history: history, entries: await loadEntries(), images: images)
+    }
+
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         askStream(question, history: history, entries: entries, images: [], spoken: false)
     }
 
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
         askStream(question, history: history, entries: entries, images: images, spoken: false)
+    }
+
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let entries = await loadEntries()
+                    for try await event in askStream(
+                        question, history: history, entries: entries, images: images, spoken: spoken
+                    ) {
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     /// Default streaming implementation: run the one-shot `ask` and emit a

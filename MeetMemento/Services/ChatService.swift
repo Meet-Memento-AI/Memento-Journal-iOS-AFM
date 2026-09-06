@@ -223,10 +223,13 @@ class ChatService {
         // so reopening a saved conversation or relaunching keeps full context —
         // the fix for the model losing the thread / re-greeting each turn.
         let history = Self.recentHistory(for: conversationId)
-        let entries = loadLocalEntries()
+        let entriesTask = Task { self.loadLocalEntries() }
 
         do {
-            let result = try await intelligence.ask(text, history: history, entries: entries, images: [])
+            let result = try await intelligence.ask(
+                text, history: history, images: [], spoken: false,
+                loadEntries: { await entriesTask.value }
+            )
 
             let sources = result.citations.map { citation in
                 ChatSource(
@@ -343,14 +346,18 @@ class ChatService {
             let task = Task {
                 let conversationId = sessionId ?? UUID()
                 let history = self.historyWithImages(for: conversationId)
-                let entries = self.loadLocalEntries()
+                let entriesTask = Task { self.loadLocalEntries() }
                 do {
                     var finalResult: AskResult?
                     // The reviewed set is constant for the whole turn — map it
                     // once instead of per delta (spec 029 Amendment A).
                     var deltaSources: [ChatSource]?
                     for try await event in self.intelligence.askStream(
-                        text, history: history, entries: entries, images: images, spoken: spoken
+                        text,
+                        history: history,
+                        images: images,
+                        spoken: spoken,
+                        loadEntries: { await entriesTask.value }
                     ) {
                         switch event {
                         case .delta(let bodySoFar, let h1, let h2, let reviewed):

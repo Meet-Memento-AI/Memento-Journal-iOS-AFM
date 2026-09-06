@@ -67,9 +67,8 @@ struct GrayScale {
     /// Figma `neutral/50`. Journal canvas (`theme.secondaryBackground`) and
     /// the top of the user-bubble wash.
     static let gray50  = Color(hex: "#FAFAFA")
-    static let gray100 = Color(hex: "#F5F5F5") // surface-sunken
-    /// Figma `neutral/150` — the journal card's gradient floor, one step under
-    /// `gray100`.
+    static let gray100 = Color(hex: "#F5F5F5") // Figma `neutral/100`
+    /// Figma `neutral/150` — JournalCard fill, one step under `gray100`.
     static let gray150 = Color(hex: "#EEEEEE")
     static let gray200 = Color(hex: "#E5E5E5") // border
     static let gray300 = Color(hex: "#D4D4D4") // border-strong
@@ -81,6 +80,14 @@ struct GrayScale {
     static let gray900 = Color(hex: "#191510") // ink text
     /// Dark-mode canvas — true black, not warm brown-black.
     static let gray950 = Color(hex: "#000000") // canvas (dark)
+}
+
+/// Figma `warm-neutral` — JournalCard date chip (804:3342).
+struct WarmNeutral {
+    /// `warm-neutral/100` chip fill.
+    static let w100 = Color(hex: "#F3F0EC")
+    /// `warm-neutral/600` chip label.
+    static let w600 = Color(hex: "#665D55")
 }
 
 /// Cordovan ramp — kept for the darkest ink step (`primary900`) used as
@@ -196,8 +203,8 @@ struct Theme {
     let chart4: Color
     let chart5: Color
 
-    // Journal entry card — the timeline's content surface (Figma node 702:2190).
-    // A flat neutral panel: gradient darkens downward, no border, no shadow.
+    // Journal entry card — Figma 804:3342 (flat fill + warm-neutral date chip).
+    let journalCardFill: Color
     let journalCardGradientStart: Color
     let journalCardGradientEnd: Color
     let journalCardChipBackground: Color
@@ -301,16 +308,17 @@ struct Theme {
         chart4: Color(hex: "#FFB900"),
         chart5: Color(hex: "#FE9A00"),
 
+        journalCardFill: GrayScale.gray150,
         journalCardGradientStart: GrayScale.gray100,
         journalCardGradientEnd: GrayScale.gray150,
-        journalCardChipBackground: GrayScale.gray200,
-        journalCardChipForeground: GrayScale.gray800,
+        journalCardChipBackground: WarmNeutral.w100,
+        journalCardChipForeground: WarmNeutral.w600,
 
         followUpGradientStart: BaseColors.white,
         followUpGradientEnd: BaseColors.white,
         followUpTagBackground: GrayScale.gray100,
 
-        themeTagSelectedBackground: Color(hex: "#F2E7DB"),
+        themeTagSelectedBackground: PrimaryScale.primary200,
         themeTagSelectedForeground: Color(hex: "#362112"),
 
         fabGradientStart: PrimaryScale.primary900,
@@ -379,6 +387,7 @@ struct Theme {
         // is `border`, `#A3A3A3` is `mutedForeground`. `#141414` is the one new
         // value — it reproduces Figma's downward darkening while staying
         // clearly above the `#0A0A0A` journal canvas.
+        journalCardFill: Color(hex: "#141414"),
         journalCardGradientStart: Color(hex: "#1A1A1A"),
         journalCardGradientEnd: Color(hex: "#141414"),
         journalCardChipBackground: Color(hex: "#2A2A2A"),

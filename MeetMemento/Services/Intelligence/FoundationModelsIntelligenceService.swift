@@ -40,15 +40,28 @@ import UIKit
 
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
+/// Body-only guided reply for light / companion / meta / redirect (typed
+/// and spoken). No headings, no citedRefs — those fields delayed
+/// first-token and never reach TTS. Notebook and RAG-thread keep
+/// `AskAnswer` whether typed or spoken.
+@Generable
+struct LightAskAnswer {
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. One or two spoken sentences, then one question; skip the question only on goodbye. No citations, no emoji, no ###. A short - list only if they asked what the app can do; otherwise no lists.")
+    let body: String
+}
+
 /// The Ask reply, produced by constrained decoding. `citedRefs` are the [ref]
 /// numbers from the context block the model actually used — reconciled against
 /// the provided set so a citation can never be fabricated.
 @Generable
 struct AskAnswer {
     // Field order is decode order for guided generation (spec 029 Amendment A):
-    // `body` leads so the first visible token never waits on the two optional
-    // heading decisions; `citedRefs` trails so losing it costs only citations
-    // (which reconcile falls back for), never body text.
+    // `body` leads so the first visible token never waits on citations;
+    // `citedRefs` trails so losing it costs only citations (which reconcile
+    // falls back for), never body text.
+    //
+    // Headings were removed: conversational Ask never used them, and empty
+    // optional fields still cost constrained-decode steps after the body.
     //
     // `citedRefs` is OPTIONAL, and that is load-bearing rather than cosmetic.
     // Measured 2026-08-23 over the follow-up turn, 5 reps per cell: with the
@@ -69,22 +82,25 @@ struct AskAnswer {
     @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
-    @Guide(description: "Always empty on conversational Ask. Titles steal decode and delay the visible body.")
-    let heading1: String?
-
-    @Guide(description: "Always empty on conversational Ask.")
-    let heading2: String?
-
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
     let citedRefs: [Int]?
 }
 
-/// Testable twin of `AskAnswer`'s `@Guide` copy (spec 037 R8). Keep in sync
-/// with the descriptions above — the macro takes string literals.
+/// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
+/// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
     static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
-    static let heading1 = "Always empty on conversational Ask. Titles steal decode and delay the visible body."
-    static let heading2 = "Always empty on conversational Ask."
+}
+
+enum LightAskAnswerGuides {
+    static let body = "The complete spoken reply in second person. Sound like a person talking. One or two spoken sentences, then one question; skip the question only on goodbye. No citations, no emoji, no ###. A short - list only if they asked what the app can do; otherwise no lists."
+}
+
+/// Content-free last-turn timing labels for diagnostics. No plaintext.
+struct AskTurnPerf: Sendable, Equatable {
+    let promptVersion: String
+    let channel: String
+    let speculativeHit: Bool
 }
 
 /// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
@@ -200,36 +216,45 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// outage, not a content decision. Guarded by `stateLock`.
     private var refusalOutage = RefusalOutageTracker()
 
-    /// The speculatively prewarmed next-turn session (spec 029 Amendment A).
-    /// Built ahead of time from an `AskTranscriptPlan` — instructions PLUS the
-    /// history tail as real transcript turns — so a matching turn pays neither
-    /// model load, instruction prefill, nor history prefill; only evidence +
-    /// question remain on the live call. Adopted only on exact fingerprint
-    /// match and used exactly once; misses (degraded route, personalization
-    /// change, history drift) fall back to an inline build. Stateless
-    /// architecture unchanged (spec 017 R9): every session is fresh and the
-    /// store owns the history both sides derive from.
-    private var speculativeSession: LanguageModelSession?
-    private var speculativeFingerprint: String?
+    /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask@15` or
+    /// `chat-companion@1`) recipes for the same history coexist so a hello
+    /// does not miss a pool that only warmed the notebook prompt.
+    private var speculativePool = FingerprintPool<LanguageModelSession>()
+
+    /// Content-free last-turn perf for diagnostics (`DiagLatencyProfile`).
+    private var lastTurnPerf: AskTurnPerf?
 
     /// Consumes the speculative session iff its plan fingerprint matches.
     private func takeSpeculativeSession(matching fingerprint: String) -> LanguageModelSession? {
         stateLock.lock(); defer { stateLock.unlock() }
-        guard speculativeFingerprint == fingerprint, let session = speculativeSession else { return nil }
-        speculativeSession = nil
-        speculativeFingerprint = nil
-        return session
+        return speculativePool.take(matching: fingerprint)
     }
 
     private func hasSpeculativeSession(matching fingerprint: String) -> Bool {
         stateLock.lock(); defer { stateLock.unlock() }
-        return speculativeFingerprint == fingerprint && speculativeSession != nil
+        return speculativePool.has(matching: fingerprint)
     }
 
-    private func storeSpeculativeSession(_ session: LanguageModelSession, fingerprint: String) {
+    private func storeSpeculativePair(_ pair: [(fingerprint: String, session: LanguageModelSession)]) {
         stateLock.lock(); defer { stateLock.unlock() }
-        speculativeSession = session
-        speculativeFingerprint = fingerprint
+        speculativePool.replaceAll(pair.map { ($0.fingerprint, $0.session) })
+    }
+
+    func consumeLastTurnPerf() -> AskTurnPerf? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        let value = lastTurnPerf
+        lastTurnPerf = nil
+        return value
+    }
+
+    private func recordTurnPerf(promptVersion: String, channel: ReplyChannel, speculativeHit: Bool) {
+        stateLock.lock(); defer { stateLock.unlock() }
+        lastTurnPerf = AskTurnPerf(
+            promptVersion: promptVersion,
+            channel: channel.rawValue,
+            speculativeHit: speculativeHit
+        )
     }
 
     private func cachedPositiveAvailability() -> IntelligenceAvailability? {
@@ -407,27 +432,47 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return LanguageModelSession(transcript: Transcript(entries: entries))
     }
 
-    /// Speculatively builds and prefills the session for the NEXT turn of a
-    /// conversation with this history. Callers time it for idle windows —
-    /// after `.final` in typed chat, after TTS drains in narration (while the
-    /// user is speaking), and on conversation open. Deduped by fingerprint so
-    /// overlapping triggers are harmless.
+    /// Speculatively builds and prefills sessions for the NEXT turn of a
+    /// conversation with this history. Warms every distinct recipe the next
+    /// message might pick (light, companion, notebook) so a hello does not
+    /// miss a pool that only prefilled ask@15. Callers time it for idle
+    /// windows — after `.final` in typed chat, after TTS drains in
+    /// narration, and on conversation open. Deduped by fingerprint.
     func prewarmConversation(history: [ChatTurn]) {
-        Task.detached(priority: .utility) { [weak self] in
+        Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let instructions = PromptRegistry.instructions(
-                for: .ask,
-                personalization: PromptPersonalization.fromLocalProfile()
-            ).text
+            let personalization = PromptPersonalization.fromLocalProfile()
             let budget = ContextBudget(window: Self.currentWindow())
-            let plan = AskTranscriptPlan.build(
-                instructions: instructions, history: history, budget: budget
-            )
-            guard !self.hasSpeculativeSession(matching: plan.fingerprint) else { return }
+            let lens = personalization.hasAskPersonalization ? personalization : .none
+            let variants: [(ReplyChannel, PromptPersonalization)] = [
+                (.phatic, .none),
+                (.companion, lens),
+                (.redirect, .none),
+                (.notebook, lens)
+            ]
 
-            let session = Self.makeSession(from: plan)
-            self.storeSpeculativeSession(session, fingerprint: plan.fingerprint)
-            session.prewarm()
+            var plans: [AskTranscriptPlan] = []
+            var seen = Set<String>()
+            for (channel, person) in variants {
+                let resolved = PromptRegistry.instructions(
+                    for: .ask, personalization: person, channel: channel
+                )
+                let plan = AskTranscriptPlan.build(
+                    instructions: resolved.text, history: history, budget: budget
+                )
+                guard seen.insert(plan.fingerprint).inserted else { continue }
+                plans.append(plan)
+            }
+
+            if plans.allSatisfy({ self.hasSpeculativeSession(matching: $0.fingerprint) }) {
+                return
+            }
+
+            let pair = plans.map { plan in
+                (fingerprint: plan.fingerprint, session: Self.makeSession(from: plan))
+            }
+            self.storeSpeculativePair(pair)
+            for item in pair { item.session.prewarm() }
         }
     }
 
@@ -562,13 +607,45 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         /// runs against — and the adoption key for speculative sessions.
         let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
+        let spoken: Bool
 
         var zone: TrustZone { request.zone }
     }
 
-    /// Availability → safety gate → classify → channel → retrieval → stance → prompt.
-    /// Pure aside from the availability await.
-    private func prepareAsk(question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false) async throws -> AskPreparation {
+    /// Classify + channel + prompt recipe. Retrieval and session create overlap
+    /// after this returns (spec 029 TTFT: don't wait on cosine to start prefill).
+    private struct AskCore {
+        let question: String
+        let history: [ChatTurn]
+        let entries: [Entry]
+        let images: [Data]
+        let spoken: Bool
+        let safety: SafetyDecision
+        let turn: TurnType
+        let channel: ReplyChannel
+        let route: ResolvedRoute
+        let budget: ContextBudget
+        let promptCap: Int
+        let poolLimits: RetrievalLimits
+        let resolved: ResolvedPrompt
+        let request: GenerationRequest
+        let plan: AskTranscriptPlan
+        let storedPersonalization: PromptPersonalization
+
+        func replacingEntries(_ entries: [Entry]) -> AskCore {
+            AskCore(
+                question: question, history: history, entries: entries, images: images,
+                spoken: spoken, safety: safety, turn: turn, channel: channel, route: route,
+                budget: budget, promptCap: promptCap, poolLimits: poolLimits,
+                resolved: resolved, request: request, plan: plan,
+                storedPersonalization: storedPersonalization
+            )
+        }
+    }
+
+    private func prepareAskCore(
+        question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
+    ) async throws -> AskCore {
         let availability = await availability()
         guard case .available = availability else {
             if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
@@ -577,14 +654,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
-
-        // Route is an await (quota / PCC). Overlap it with the sync safety
-        // and classify work so a pinned-to-device ask doesn't pay the hop
-        // after those have already finished (spec 029 P5).
         async let routeTask = resolveRoute(for: .ask)
 
-        // Spec 026: deterministic Safety layer BEFORE retrieval so crisis /
-        // violence / CSAM turns never pull journal evidence into the model.
         LiveTurnClock.shared.start(.prepSafety)
         let safetyState = signposter.beginInterval("prep.safety", id: spid)
         let safety = SafetyRouter.decide(question)
@@ -601,15 +672,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let hasImages = !images.isEmpty || history.contains { !$0.imageJPEGs.isEmpty }
-        // Photos bump off phatic; visionBlockIfNeeded is a no-op without images.
-        async let visionTask: String? = Self.visionBlockIfNeeded(current: images, history: history)
-
         let budget = ContextBudget(window: Self.currentWindow())
 
-        // Conversational turn architecture: classify the current message,
-        // resolve the reply channel (spec 039), decide retrieval by policy,
-        // then hand the model an explicit stance — logic decides the stance,
-        // the prompt obeys it.
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
         let answeringLastQuestion = spoken
@@ -623,89 +687,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         LiveTurnClock.shared.end(.prepClassify)
 
         let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
-
+            .applyingSpokenFollowUpRecipe(turn: turn, history: history, spoken: spoken)
         let route = await routeTask
-        // A degraded route narrows the evidence: the smaller model grounds a
-        // reply better from less context than from more (technology/02 §8).
         let limits = route.useDegradedPrompt
             ? RetrievalLimits(budget: budget).narrowed()
             : RetrievalLimits(budget: budget)
-
-        let promptCap = limits.maxEntries
-        let poolLimits = RetrievalLimits(
-            maxEntries: SessionCandidatePool.capacity,
-            maxContentChars: limits.maxContentChars
-        )
-
-        LiveTurnClock.shared.start(.prepRetrieve)
-        let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
-        let retrievalMode = RetrievalPolicy.mode(for: turn, history: history)
-        let wideRetrieval: RetrievalResult
-        if !channel.allowsRetrieval || retrievalMode == .none {
-            wideRetrieval = .empty
-        } else {
-            switch retrievalMode {
-            case .none:
-                wideRetrieval = .empty
-            case .reusePrevious:
-                if let anchor = RetrievalPolicy.followupAnchor(history: history) {
-                    wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
-                                                        entries: entries, limits: poolLimits)
-                } else {
-                    wideRetrieval = EntryRetriever.retrieve(
-                        RetrievalQuery(currentMessage: question,
-                                       historyContext: Self.historyContext(history, budget: budget)),
-                        entries: entries, limits: poolLimits
-                    )
-                }
-            case .currentOnly(let highBar):
-                wideRetrieval = EntryRetriever.retrieve(RetrievalQuery(currentMessage: question, highBar: highBar),
-                                                    entries: entries, limits: poolLimits)
-            case .currentWeighted:
-                wideRetrieval = EntryRetriever.retrieve(
-                    RetrievalQuery(currentMessage: question,
-                                   historyContext: Self.historyContext(history, budget: budget)),
-                    entries: entries, limits: poolLimits
-                )
-            }
-        }
-        signposter.endInterval("prep.retrieve", retrieveState)
-        LiveTurnClock.shared.end(.prepRetrieve)
-        // Computed once: it mutates the anchor, so calling it twice would report
-        // "same conversation" the second time and skip the cadence reset.
-        let isNewConversation = startsNewConversation(history: history)
-        let retrieval = sliceRetrieval(wideRetrieval, promptCap: promptCap, resetPool: isNewConversation)
-        let stance = RetrievalPolicy.stance(turn: turn, retrieval: retrieval)
-        let hasEvidence = !retrieval.isEmpty && !retrieval.isAmbient
-        let move = ConversationalMove.resolve(
-            turn: turn, message: question, history: history, hasEvidence: hasEvidence
-        )
-        let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
-        let visionBlock = await visionTask
-        // Load once: light/redirect still get names on the user prompt, but
-        // PromptRegistry must not append L1 when the channel omits the lens.
         let storedPersonalization = PromptPersonalization.fromLocalProfile()
-        let prompt = Self.buildAskPrompt(
-            question: question,
-            history: history,
-            retrieval: retrieval,
-            stance: stance,
-            shape: shape,
-            archiveEmpty: entries.isEmpty,
-            budget: budget,
-            safetyConstrained: safety.action == .continueConstrained,
-            imageCount: images.count,
-            historyImageCount: history.reduce(0) { $0 + $1.imageJPEGs.count },
-            canSeeImages: Self.canAttachImagesToModel,
-            visionBlock: visionBlock,
-            channel: channel,
-            move: move,
-            personalization: storedPersonalization,
-            spoken: spoken
-        )
-        // The degraded variant is a registry entry, never the heavy prompt
-        // behind a lighter model (REQ-INT-010). Phatic/continuer/redirect omit
-        // L1; names still ride the user prompt as a [Name:] cue.
         let resolved = PromptRegistry.resolve(
             intent: .ask,
             zone: route.executionZone,
@@ -723,11 +710,137 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let plan = AskTranscriptPlan.build(
             instructions: resolved.text, history: history, budget: budget
         )
+        return AskCore(
+            question: question, history: history, entries: entries, images: images, spoken: spoken,
+            safety: safety, turn: turn, channel: channel, route: route, budget: budget,
+            promptCap: limits.maxEntries,
+            poolLimits: RetrievalLimits(
+                maxEntries: SessionCandidatePool.capacity,
+                maxContentChars: limits.maxContentChars
+            ),
+            resolved: resolved, request: request, plan: plan,
+            storedPersonalization: storedPersonalization
+        )
+    }
+
+    /// Journal load is skipped on no-RAG channels. Tests pin that a slow
+    /// loader is never awaited on companion / phatic.
+    static func resolveJournalEntries(
+        channel: ReplyChannel,
+        provided: [Entry],
+        loadEntries: (@Sendable () async -> [Entry])?
+    ) async -> [Entry] {
+        guard channel.allowsRetrieval else { return [] }
+        if let loadEntries { return await loadEntries() }
+        return provided
+    }
+
+    /// Session adopt overlaps cosine retrieve on RAG turns. Generation still
+    /// waits on evidence before `finishAskPrep`.
+    private func adoptAndRetrieve(
+        _ core: AskCore,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) async -> (
+        core: AskCore,
+        adopted: (session: LanguageModelSession, hit: Bool),
+        wide: RetrievalResult,
+        visionBlock: String?
+    ) {
+        let entries = await Self.resolveJournalEntries(
+            channel: core.channel, provided: core.entries, loadEntries: loadEntries
+        )
+        let filled = core.replacingEntries(entries)
+        async let visionTask: String? = Self.visionBlockIfNeeded(
+            current: filled.images, history: filled.history
+        )
+        async let wideTask: RetrievalResult = retrieveWide(filled)
+        let adopted = adoptOrCreateSession(plan: filled.plan)
+        let wide = await wideTask
+        let visionBlock = await visionTask
+        return (filled, adopted, wide, visionBlock)
+    }
+
+    private func retrieveWide(_ core: AskCore) -> RetrievalResult {
+        let retrievalMode = RetrievalPolicy.mode(for: core.turn, history: core.history)
+        if !core.channel.allowsRetrieval || retrievalMode == .none {
+            return .empty
+        }
+        switch retrievalMode {
+        case .none:
+            return .empty
+        case .reusePrevious:
+            if let anchor = RetrievalPolicy.followupAnchor(history: core.history) {
+                return EntryRetriever.retrieve(RetrievalQuery(currentMessage: anchor),
+                                               entries: core.entries, limits: core.poolLimits)
+            }
+            return EntryRetriever.retrieve(
+                RetrievalQuery(currentMessage: core.question,
+                               historyContext: Self.historyContext(core.history, budget: core.budget)),
+                entries: core.entries, limits: core.poolLimits
+            )
+        case .currentOnly(let highBar):
+            return EntryRetriever.retrieve(
+                RetrievalQuery(currentMessage: core.question, highBar: highBar),
+                entries: core.entries, limits: core.poolLimits
+            )
+        case .currentWeighted:
+            return EntryRetriever.retrieve(
+                RetrievalQuery(currentMessage: core.question,
+                               historyContext: Self.historyContext(core.history, budget: core.budget)),
+                entries: core.entries, limits: core.poolLimits
+            )
+        }
+    }
+
+    private func finishAskPrep(
+        _ core: AskCore, wideRetrieval: RetrievalResult, visionBlock: String?
+    ) -> AskPreparation {
+        let isNewConversation = startsNewConversation(history: core.history)
+        let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
+        let stance = RetrievalPolicy.stance(turn: core.turn, retrieval: retrieval)
+        let hasEvidence = !retrieval.isEmpty && !retrieval.isAmbient
+        let move = ConversationalMove.resolve(
+            turn: core.turn, message: core.question, history: core.history, hasEvidence: hasEvidence
+        )
+        let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
+        let prompt = Self.buildAskPrompt(
+            question: core.question,
+            history: core.history,
+            retrieval: retrieval,
+            stance: stance,
+            shape: shape,
+            archiveEmpty: core.entries.isEmpty,
+            budget: core.budget,
+            safetyConstrained: core.safety.action == .continueConstrained,
+            imageCount: core.images.count,
+            historyImageCount: core.history.reduce(0) { $0 + $1.imageJPEGs.count },
+            canSeeImages: Self.canAttachImagesToModel,
+            visionBlock: visionBlock,
+            channel: core.channel,
+            move: move,
+            personalization: core.storedPersonalization,
+            spoken: core.spoken
+        )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
-        let generationOptions = Self.askOptions(for: channel, retrievalRan: retrievalRan, spoken: spoken)
-        return AskPreparation(request: request, route: route, retrieval: retrieval, stance: stance,
-                              channel: channel, prompt: prompt, resolved: resolved, budget: budget,
-                              plan: plan, generationOptions: generationOptions)
+        let generationOptions = Self.askOptions(
+            for: core.channel, retrievalRan: retrievalRan, spoken: core.spoken
+        )
+        return AskPreparation(
+            request: core.request, route: core.route, retrieval: retrieval, stance: stance,
+            channel: core.channel, prompt: prompt, resolved: core.resolved, budget: core.budget,
+            plan: core.plan, generationOptions: generationOptions, spoken: core.spoken
+        )
+    }
+
+    /// Adopt a matching idle speculative session, or build a fresh one.
+    /// Do not `prewarm()` here: the idle pool already prefills during
+    /// `prewarmConversation`, and warming the session this turn will stream
+    /// races `streamResponse` (`concurrentRequests` → empty reply).
+    private func adoptOrCreateSession(plan: AskTranscriptPlan) -> (session: LanguageModelSession, hit: Bool) {
+        if let adopted = takeSpeculativeSession(matching: plan.fingerprint) {
+            return (adopted, true)
+        }
+        return (Self.makeSession(from: plan), false)
     }
 
     private func resolveTurnShape(for stance: TurnStance, isNewConversation: Bool) -> RecallTurnShape {
@@ -795,19 +908,51 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     func ask(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) async throws -> AskResult {
+        try await ask(
+            question, history: history, images: images, spoken: false, loadEntries: { entries }
+        )
+    }
+
+    func ask(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) async throws -> AskResult {
         let clock = ContinuousClock()
         let started = clock.now
-        let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images)
-        let session = takeSpeculativeSession(matching: prep.plan.fingerprint)
-            ?? Self.makeSession(from: prep.plan)
+        let core = try await prepareAskCore(
+            question: question, history: history, entries: [], images: images, spoken: spoken
+        )
+        let signposter = PerfSignposts.chatTurn
+        let spid = signposter.makeSignpostID()
+        LiveTurnClock.shared.start(.prepRetrieve)
+        let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
+        let prepared = await adoptAndRetrieve(core, loadEntries: loadEntries)
+        signposter.endInterval("prep.retrieve", retrieveState)
+        LiveTurnClock.shared.end(.prepRetrieve)
+        let prep = finishAskPrep(
+            prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+        )
+        recordTurnPerf(
+            promptVersion: prep.request.promptVersion,
+            channel: prep.channel,
+            speculativeHit: prepared.adopted.hit
+        )
         do {
-            let answer = try await Self.respondToAsk(session: session, prompt: prep.prompt,
-                                                     images: images, history: history,
-                                                     options: prep.generationOptions)
-            let result = try makeResult(heading1: answer.heading1, heading2: answer.heading2,
-                              body: answer.body, citedRefs: answer.citedRefs ?? [],
-                              prep: prep, question: question, latency: clock.now - started)
-            return result
+            let (body, citedRefs) = try await Self.respondToAsk(
+                session: prepared.adopted.session,
+                prompt: prep.prompt,
+                images: images,
+                history: history,
+                options: prep.generationOptions,
+                bodyOnly: prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
+            )
+            return try makeResult(
+                heading1: nil, heading2: nil, body: body, citedRefs: citedRefs,
+                prep: prep, question: question, latency: clock.now - started
+            )
         } catch let error as IntelligenceError {
             throw error
         } catch {
@@ -817,7 +962,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Ask generation options (spec 029 Amendment A / 039 R1). Temperature
     /// and token cap come from ReplyChannel — 0.9 / 64–128 on light and
-    /// companion, 0.7 / 512 on notebook and RAG thread.
+    /// companion (80 spoken companion), 0.7 / 512 typed (256 spoken) on
+    /// notebook and RAG thread.
     private static func askOptions(for channel: ReplyChannel, retrievalRan: Bool, spoken: Bool) -> GenerationOptions {
         GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
@@ -865,21 +1011,43 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return result
     }
 
-    /// One-shot Ask. Uses the prompt-builder + `Attachment` path when the
-    /// SDK can see images; otherwise the text-only `respond(to:)`.
+    /// One-shot Ask. `bodyOnly` uses `LightAskAnswer` (no citedRefs).
     private static func respondToAsk(
         session: LanguageModelSession,
         prompt: String,
         images: [Data],
         history: [ChatTurn],
+        options: GenerationOptions,
+        bodyOnly: Bool
+    ) async throws -> (body: String, citedRefs: [Int]) {
+        if bodyOnly {
+            let answer: LightAskAnswer = try await respondGenerating(
+                LightAskAnswer.self, session: session, prompt: prompt,
+                images: images, history: history, options: options
+            )
+            return (answer.body, [])
+        }
+        let answer: AskAnswer = try await respondGenerating(
+            AskAnswer.self, session: session, prompt: prompt,
+            images: images, history: history, options: options
+        )
+        return (answer.body, answer.citedRefs ?? [])
+    }
+
+    private static func respondGenerating<T: Generable>(
+        _ type: T.Type,
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn],
         options: GenerationOptions
-    ) async throws -> AskAnswer {
+    ) async throws -> T {
         #if compiler(>=6.3)
         if #available(iOS 27.0, *) {
             let attachments = decodedAttachments(current: images, history: history)
             if !attachments.isEmpty {
                 let response = try await session.respond(
-                    generating: AskAnswer.self,
+                    generating: type,
                     options: options
                 ) {
                     prompt
@@ -893,7 +1061,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         #endif
         let response = try await session.respond(
             to: prompt,
-            generating: AskAnswer.self,
+            generating: type,
             options: options
         )
         return response.content
@@ -907,12 +1075,39 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         history: [ChatTurn],
         options: GenerationOptions
     ) -> LanguageModelSession.ResponseStream<AskAnswer> {
+        streamGenerating(
+            AskAnswer.self, session: session, prompt: prompt,
+            images: images, history: history, options: options
+        )
+    }
+
+    private static func streamLightAskResponse(
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn],
+        options: GenerationOptions
+    ) -> LanguageModelSession.ResponseStream<LightAskAnswer> {
+        streamGenerating(
+            LightAskAnswer.self, session: session, prompt: prompt,
+            images: images, history: history, options: options
+        )
+    }
+
+    private static func streamGenerating<T: Generable>(
+        _ type: T.Type,
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn],
+        options: GenerationOptions
+    ) -> LanguageModelSession.ResponseStream<T> {
         #if compiler(>=6.3)
         if #available(iOS 27.0, *) {
             let attachments = decodedAttachments(current: images, history: history)
             if !attachments.isEmpty {
                 return session.streamResponse(
-                    generating: AskAnswer.self,
+                    generating: type,
                     options: options
                 ) {
                     prompt
@@ -925,7 +1120,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         #endif
         return session.streamResponse(
             to: prompt,
-            generating: AskAnswer.self,
+            generating: type,
             options: options
         )
     }
@@ -948,6 +1143,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        askStream(question, history: history, images: images, spoken: spoken, loadEntries: { entries })
+    }
+
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let clock = ContinuousClock()
@@ -956,33 +1161,34 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 let spid = signposter.makeSignpostID()
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
-                    let prep = try await prepareAsk(question: question, history: history, entries: entries, images: images, spoken: spoken)
-                    signposter.endInterval("prep", prepState)
-
-                    // Spec 029 Amendment A: adopt the speculative session when
-                    // its transcript fingerprint matches — weights, instruction
-                    // prefill, AND history prefill are then already paid;
-                    // only evidence + question remain on this call.
+                    let core = try await prepareAskCore(
+                        question: question, history: history, entries: [], images: images, spoken: spoken
+                    )
                     LiveTurnClock.shared.start(.sessionCreate)
                     let sessionState = signposter.beginInterval("session.create", id: spid)
-                    let adopted = takeSpeculativeSession(matching: prep.plan.fingerprint)
-                    signposter.emitEvent(adopted != nil ? "speculative.hit" : "speculative.miss", id: spid)
-                    let session = adopted ?? Self.makeSession(from: prep.plan)
+                    LiveTurnClock.shared.start(.prepRetrieve)
+                    let retrieveState = signposter.beginInterval("prep.retrieve", id: spid)
+                    let prepared = await adoptAndRetrieve(core, loadEntries: loadEntries)
+                    signposter.emitEvent(prepared.adopted.hit ? "speculative.hit" : "speculative.miss", id: spid)
                     signposter.endInterval("session.create", sessionState)
                     LiveTurnClock.shared.end(.sessionCreate)
+                    signposter.endInterval("prep.retrieve", retrieveState)
+                    LiveTurnClock.shared.end(.prepRetrieve)
+                    let prep = finishAskPrep(
+                        prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+                    )
+                    signposter.endInterval("prep", prepState)
+                    recordTurnPerf(
+                        promptVersion: prep.request.promptVersion,
+                        channel: prep.channel,
+                        speculativeHit: prepared.adopted.hit
+                    )
 
                     LiveTurnClock.shared.start(.modelFirstToken)
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
 
-                    let stream = Self.streamAskResponse(session: session, prompt: prep.prompt,
-                                                        images: images, history: history,
-                                                        options: prep.generationOptions)
-                    // The journals retrieval surfaced for a grounded turn — known
-                    // now, before the first token. Emitting them on every delta
-                    // lets the "Reviewed your journals" link appear right away
-                    // instead of waiting for the model's final citedRefs. Empty on
-                    // non-grounded turns (reconcile returns [] when not grounded).
-                    // `.final` supersedes these with the model's cited subset.
+                    let session = prepared.adopted.session
+                    let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
                     let reviewed = Self.reconcileCitations(
                         [], retrieval: prep.retrieval, question: question
                     )
@@ -993,13 +1199,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
                             var tail = StreamTail()
-                            // Strip memo: snapshots frequently repeat the body while
-                            // headings/citedRefs settle — skip the (linear, cached-
-                            // regex) re-strip when the raw body is unchanged.
                             var lastRawBody = ""
                             var lastCleaned = ""
-                            // Incremental scan watermark: characters of the cleaned
-                            // body already proven safe.
                             var scannedCount = 0
                             var sawFirstSnapshot = false
                             var streamState: OSSignpostIntervalState?
@@ -1012,7 +1213,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     LiveTurnClock.shared.end(.modelFirstToken)
                                 }
                             }
-                            for try await snapshot in stream {
+
+                            func emitDelta(body: String, citedRefs: [Int]?) throws {
                                 lastProgress.withLock { $0 = clock.now }
                                 if !sawFirstSnapshot {
                                     sawFirstSnapshot = true
@@ -1023,17 +1225,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     LiveTurnClock.shared.start(.modelStream)
                                     streamState = signposter.beginInterval("model.stream", id: spid)
                                 }
-                                let content = snapshot.content
-                                tail.body = content.body ?? ""
-                                tail.heading1 = content.heading1 ?? nil
-                                tail.heading2 = content.heading2 ?? nil
-                                // Doubly optional now that the field itself is
-                                // `[Int]?`: the outer layer is "not yet decoded",
-                                // the inner is "decoded as absent".
-                                if let refs = content.citedRefs ?? nil { tail.citedRefs = refs }
+                                tail.body = body
+                                if let refs = citedRefs { tail.citedRefs = refs }
 
-                                // Emit the cleaned body-so-far so the live reply
-                                // matches exactly what gets persisted at the end.
                                 let cleaned: String
                                 if tail.body == lastRawBody {
                                     cleaned = lastCleaned
@@ -1043,12 +1237,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     lastCleaned = cleaned
                                 }
 
-                                // Spec 026 R7: scan the partial body BEFORE showing
-                                // it — offending text must never reach the bubble.
-                                // Incremental and exact: only the new suffix plus the
-                                // overlap window needs scanning (see
-                                // outputScanOverlapChars). Stripping can shrink the
-                                // cleaned body; a shrink resets the watermark.
                                 if cleaned.count < scannedCount { scannedCount = 0 }
                                 let scanStart = max(0, scannedCount - Self.outputScanOverlapChars)
                                 if let hit = OutputSafetyScanner.scan(String(cleaned.dropFirst(scanStart))) {
@@ -1066,10 +1254,31 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                                 continuation.yield(.delta(
                                     bodySoFar: cleaned,
-                                    heading1: tail.heading1?.isEmpty == true ? nil : tail.heading1,
-                                    heading2: tail.heading2?.isEmpty == true ? nil : tail.heading2,
+                                    heading1: nil,
+                                    heading2: nil,
                                     reviewedCitations: reviewed
                                 ))
+                            }
+
+                            if bodyOnly {
+                                let stream = Self.streamLightAskResponse(
+                                    session: session, prompt: prep.prompt,
+                                    images: images, history: history,
+                                    options: prep.generationOptions
+                                )
+                                for try await snapshot in stream {
+                                    try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
+                                }
+                            } else {
+                                let stream = Self.streamAskResponse(
+                                    session: session, prompt: prep.prompt,
+                                    images: images, history: history,
+                                    options: prep.generationOptions
+                                )
+                                for try await snapshot in stream {
+                                    let refs = snapshot.content.citedRefs ?? nil
+                                    try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
+                                }
                             }
                             return tail
                         }
@@ -1309,28 +1518,33 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        move: ConversationalMove? = nil,
                                        personalization: PromptPersonalization = .none,
                                        spoken: Bool = false) -> String {
-        // Spec 039 ranks 0–1: Move cue + latest message + optional don't-repeat.
-        // No [Turn:] / [Shape:] stack, no evidence, no L1. Names ride [Name:].
-        if channel.usesLightPrompt {
-            let cue = move?.cueLine ?? ConversationalMove.greetAndAsk.cueLine
+        // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
+        // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
+        // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
+        if channel.usesShortAssembler {
+            let fallbackMove: ConversationalMove = channel.usesLightPrompt
+                ? .greetAndAsk : .reflectAndAsk
+            let cue = move?.cueLine ?? fallbackMove.cueLine
             var light: [String] = [cue]
             if safetyConstrained {
                 light.insert(SafetyRouter.constrainedStanceLine, at: 0)
             }
             let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
             let skipName = move?.avoidsName == true || usedNameLastTurn
-            if !skipName, let name = personalization.nameCueLine {
-                light.append(name)
+            if channel.omitsLens {
+                if !skipName, let name = personalization.nameCueLine {
+                    light.append(name)
+                }
+                if skipName, personalization.spokenName != nil {
+                    light.append(PromptPersonalization.nameSkipLine)
+                }
             }
-            if spoken, channel == .continuer,
+            if spoken, (channel == .continuer || channel.usesCompanionPrompt),
                let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
                 light.append(answering)
             }
             if let anti = ConversationalMove.antiRepeatLine(from: history) {
                 light.append(anti)
-            }
-            if skipName, personalization.spokenName != nil {
-                light.append(PromptPersonalization.nameSkipLine)
             }
             light.append("The person's latest message: \(question)")
             return light.joined(separator: "\n\n")
@@ -1348,8 +1562,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         if spoken {
             parts.append(PromptRegistry.spokenTurnShapeLine)
-            if channel == .thread,
-               let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
+            if let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
                 parts.append(answering)
             }
             if let anti = ConversationalMove.antiRepeatLine(from: history) {
@@ -1367,7 +1580,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         if channel.omitsLens, !skipName, let name = personalization.nameCueLine {
             parts.append(name)
         }
-        if !retrieval.contextBlock.isEmpty {
+        if channel.allowsRetrieval, !retrieval.contextBlock.isEmpty {
             // Frame as optional evidence so the model does not treat the block
             // as a script to paraphrase ("you wrote this, this, and this").
             //

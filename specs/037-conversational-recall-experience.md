@@ -135,6 +135,9 @@ voice, the four composition pieces, no-count / no-advice / no-praise bans.
 Guided `AskAnswer.body` is the complete spoken reply; `heading1` /
 `heading2` stay empty. Phatic acceptance is 039's.
 
+**Amendment (2026-09-01, narration):** Spoken turns decode `LightAskAnswer`
+(body only). Schema split and spoken no-RAG follow-up → companion are 039.
+
 ### R2. Turn shapes A–D
 
 | Shape | When | Behavior |
@@ -331,7 +334,7 @@ present, gates whether this journal turn ends with Open:
   subject. Invite them once to write only if they asked what they have
   written and the archive is empty.
 
-The body is the complete spoken reply. heading1 and heading2 stay empty.
+The body is the complete spoken reply.
 citedRefs holds only [ref] numbers you actually used — the person never
 sees them.
 

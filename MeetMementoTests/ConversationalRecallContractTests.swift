@@ -115,7 +115,7 @@ final class ConversationalRecallContractTests: XCTestCase {
         XCTAssertTrue(text.contains("reproduce any quoted field exactly"))
         XCTAssertTrue(text.contains("Do not reopen an entry already used in"))
         XCTAssertTrue(text.contains("must not skip Sit"))
-        XCTAssertTrue(text.contains("heading1 and heading2 stay empty"))
+        XCTAssertTrue(text.contains("complete spoken reply"))
         XCTAssertTrue(text.contains("praise them for journaling")
                       || text.contains("Never praise journaling"))
         XCTAssertTrue(text.contains("count, or frequency")

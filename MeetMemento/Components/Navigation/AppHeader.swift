@@ -139,6 +139,9 @@ struct HeaderIconButton: View {
     var size: CGFloat = AppHeaderMetrics.controlSize
     var accessibilityLabel: String
     var accessibilityHint: String?
+    /// Override for photo-backed surfaces where `theme.foreground` would
+    /// disappear into the treated backdrop. Nil uses `theme.foreground`.
+    var foreground: Color? = nil
     let action: () -> Void
 
     @Environment(\.theme) private var theme
@@ -155,7 +158,7 @@ struct HeaderIconButton: View {
             // `AvatarInitialButton`.
             Image(systemName: systemName)
                 .font(.system(size: size * 0.5, weight: .medium)) // icon-size: not user text
-                .foregroundStyle(theme.foreground)
+                .foregroundStyle(foreground ?? theme.foreground)
                 .frame(width: size, height: size)
                 .glassEffect(.regular.interactive(), in: .circle)
                 // Lock layout at rest. `.interactive()` still scales the glass

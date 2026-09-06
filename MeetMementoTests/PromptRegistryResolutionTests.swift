@@ -121,11 +121,25 @@ final class PromptRegistryResolutionTests: XCTestCase {
         XCTAssertFalse(full.text.contains("How a reply is built"))
     }
 
-    /// Named for the version at the time; the contract is the *channel*, not the
-    /// number — `.companion` runs the heavy prompt, not `chat-light`.
-    func test_companionChannel_staysOnTheHeavyPrompt() {
+    /// `.companion` runs `chat-companion@1`, not `chat-light` and not ask@15.
+    func test_companionChannel_usesCompanionPrompt() {
         let resolved = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .companion)
-        XCTAssertEqual(resolved.version, "ask@15")
+        XCTAssertEqual(resolved.version, "chat-companion@1")
+    }
+
+    func test_metaAndRedirect_useCompanionPrompt() {
+        XCTAssertEqual(
+            PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .meta).version,
+            "chat-companion@1"
+        )
+        XCTAssertEqual(
+            PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .redirect).version,
+            "chat-companion@1"
+        )
+        XCTAssertEqual(
+            PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .notebook).version,
+            "ask@15"
+        )
     }
 
     func test_phatic_agreesWithInstructions() {

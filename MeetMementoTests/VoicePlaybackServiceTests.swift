@@ -307,8 +307,9 @@ final class VoicePlaybackServiceTests: XCTestCase {
         localService.beginUtteranceSession(for: UUID())
         localService.enqueue(sentence: "Two.")
 
-        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45)
-        XCTAssertEqual(localMock.spokenUtterances[1].rate, 0.58, "rate must be read per utterance")
+        let readBack = SpokenFormFormatter.readBackRateMultiplier
+        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45 * readBack)
+        XCTAssertEqual(localMock.spokenUtterances[1].rate, 0.58 * readBack, "rate must be read per utterance")
     }
 
     /// The clamp moved with the utterance construction it belongs to: the
@@ -332,7 +333,8 @@ final class VoicePlaybackServiceTests: XCTestCase {
             rateProvider: { 0.45 }
         )
         localService.toggleSpeech(messageID: UUID(), heading1: nil, heading2: nil, body: "Hi.")
-        XCTAssertEqual(localMock.spokenUtterances[0].rate, 0.45)
+        XCTAssertEqual(localMock.spokenUtterances[0].rate,
+                       0.45 * SpokenFormFormatter.readBackRateMultiplier)
     }
 
     // MARK: - shouldReleaseAudioSession decision table (spec 028 R3b)
@@ -367,6 +369,22 @@ final class VoicePlaybackServiceTests: XCTestCase {
             scheduledGeneration: 7, currentGeneration: 7,
             isRecording: false, speakingMessageID: UUID()
         ))
+    }
+
+    func test_preactivatedSession_enqueuesWithoutBuffering() {
+        let localMock = MockUtteranceEngine()
+        let localService = VoicePlaybackService(
+            engineFactory: { _ in localMock },
+            managesAudioSession: true,
+            isRecordingProvider: { false }
+        )
+        localService.markPlaybackSessionReady()
+        let id = UUID()
+        localService.beginUtteranceSession(for: id)
+        localService.enqueue(sentence: "Hello there friend.")
+        XCTAssertEqual(localMock.spokenUtterances.count, 1,
+                       "first chunk must speak immediately when preactivate already succeeded")
+        XCTAssertEqual(localService.speakingMessageID, id)
     }
 }
 

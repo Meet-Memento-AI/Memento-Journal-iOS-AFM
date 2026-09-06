@@ -5,8 +5,8 @@
 //  Floating Action Button for creating new journal entries.
 //  Icon-only: plain, untinted Liquid Glass — no `.glassProminent`, no brand
 //  fill — so it reads as chrome over whatever it floats above and inverts
-//  with the theme. Labeled (empty journal): Welcome / Summarize glass —
-//  `BaseColors.black` tint, white icon and label.
+//  with the theme. Labeled: black frost + white type in light; white frost
+//  + black type in dark.
 //
 
 import SwiftUI
@@ -19,6 +19,7 @@ public struct NewEntryFAB: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Figma 791:2889 — icon-to-label gap on the empty-state pill.
     private static let labeledGap: CGFloat = 10
@@ -33,8 +34,9 @@ public struct NewEntryFAB: View {
     /// Half of `labeledMinHeight` — a real capsule radius for zoom source
     /// clip. `theme.radius.round` (999) can swallow the control.
     static let labeledCornerRadius: CGFloat = labeledMinHeight / 2
-    /// Same black frost as Welcome Get Started and Summarize Chat: tint
-    /// reads through the material instead of covering it.
+    /// Same frost density as Welcome Get Started / Summarize Chat: tint
+    /// reads through the material instead of covering it. Light uses black;
+    /// dark flips to white.
     private static let labeledGlassTintOpacity: Double = 0.9
 
     public init(
@@ -84,22 +86,27 @@ public struct NewEntryFAB: View {
             .glassEffect(.regular.interactive(), in: .circle)
     }
 
-    /// Empty-journal CTA. Glass in a capsule, black-tinted like Welcome
-    /// Get Started — white glyph and label stay readable on the frost.
-    /// `.interactive()` is the same press refraction as the circular FAB.
+    /// Labeled CTA. Glass in a capsule: black frost + white type in light,
+    /// white frost + black type in dark. `.interactive()` is the same press
+    /// refraction as the circular FAB.
     private func labeledLabel(_ title: String) -> some View {
-        HStack(spacing: Self.labeledGap) {
+        let isDark = colorScheme == .dark
+        let tint = (isDark ? BaseColors.white : BaseColors.black)
+            .opacity(Self.labeledGlassTintOpacity)
+        let ink = isDark ? BaseColors.black : BaseColors.white
+
+        return HStack(spacing: Self.labeledGap) {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: Self.labeledGlyphSize, weight: .bold)) // icon-size: not user text
             Text(title)
                 .font(type.h4)
                 .lineLimit(1)
         }
-        .foregroundStyle(BaseColors.white)
+        .foregroundStyle(ink)
         .padding(Self.labeledPadding)
         .frame(minHeight: Self.labeledMinHeight)
         .glassEffect(
-            .regular.tint(BaseColors.black.opacity(Self.labeledGlassTintOpacity)).interactive(),
+            .regular.tint(tint).interactive(),
             in: .capsule
         )
         .contentShape(Capsule())

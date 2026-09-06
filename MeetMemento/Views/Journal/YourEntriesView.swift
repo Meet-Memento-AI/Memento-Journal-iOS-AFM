@@ -21,6 +21,21 @@ struct YourEntriesView: View {
 
     private let scrollThreshold: CGFloat = 50
 
+    /// Drives the loading → list cross-fade. Identity is coarse on purpose:
+    /// inserting a new card must not replay the first-paint dissolve.
+    private var listPhase: Int {
+        if !entryViewModel.hasInitiallyLoaded || (entryViewModel.isLoading && entryViewModel.entries.isEmpty) {
+            return 0
+        }
+        if entryViewModel.errorMessage != nil, entryViewModel.entries.isEmpty {
+            return 1
+        }
+        if entryViewModel.entries.isEmpty {
+            return 2
+        }
+        return 3
+    }
+
     let monthGroups: [MonthGroup]
     let topContentPadding: CGFloat  // windowTop + header row + 16pt air
     let bottomContentPadding: CGFloat  // FAB + windowBottom + 16pt + 8pt air
@@ -30,6 +45,7 @@ struct YourEntriesView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.tabBarHidden) private var tabBarHidden
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         entryViewModel: EntryViewModel,
@@ -52,17 +68,23 @@ struct YourEntriesView: View {
             if !entryViewModel.hasInitiallyLoaded || (entryViewModel.isLoading && entryViewModel.entries.isEmpty) {
                 // Loading state - show until first load completes
                 loadingState
+                    .transition(.opacity)
             } else if let errorMessage = entryViewModel.errorMessage, entryViewModel.entries.isEmpty {
                 // Error state (only show if no cached entries)
                 errorState(message: errorMessage)
+                    .transition(.opacity)
             } else if entryViewModel.entries.isEmpty {
                 // Empty state - only after confirming no entries exist
                 emptyState
+                    .transition(.opacity)
             } else {
                 // Content with entries grouped by month
                 entriesList
+                    .transition(.identity)
+                    .modifier(JournalEntriesAppearDissolve())
             }
         }
+        .animation(reduceMotion ? nil : Motion.journalEntriesDissolve, value: listPhase)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.clear)
         .confirmationDialog(
@@ -167,17 +189,16 @@ struct YourEntriesView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 16)
 
-                        // Entries for this month. One container so neighbouring
-                        // glass cards share a sampling region (PRES-092); spacing
-                        // 0 keeps them separate at rest (layout gap is 16).
-                        GlassEffectContainer(spacing: 0) {
-                            VStack(spacing: 16) {
+                        // Entries for this month.
+                        VStack(spacing: 16) {
                                 ForEach(monthGroup.entries) { entry in
                                     JournalCard(
                                         title: entry.displayTitle,
                                         excerpt: entry.excerpt,
                                         date: entry.createdAt,
                                         photoImage: thumbnail(for: entry),
+                                        photoSample: backdropSample(for: entry),
+                                        hasPhoto: entry.hasPhoto,
                                         onTap: {
                                             onNavigateToEntry(.edit(entry.id))
                                         },
@@ -191,9 +212,10 @@ struct YourEntriesView: View {
                                     )
                                     .entryZoomSource(
                                         EntryRoute.edit(entry.id).zoomSourceID,
-                                        cornerRadius: theme.radius.xl
+                                        cornerRadius: theme.radius.xxl
                                     )
-                                    .frame(maxWidth: .infinity) // Stretch to full width
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .fixedSize(horizontal: false, vertical: true)
                                     .id(entry.id) // Explicit ID for better diffing
                                     // Keyed on updatedAt as well as id: replacing an
                                     // entry's photo keeps the same id, so an id-only
@@ -203,7 +225,6 @@ struct YourEntriesView: View {
                                         await loadThumbnailIfNeeded(for: entry)
                                     }
                                 }
-                            }
                         }
                     }
                 }
@@ -258,27 +279,20 @@ struct YourEntriesView: View {
         return Image(uiImage: uiImage)
     }
 
-    /// Lazily decrypts an entry's cover photo at most once per session. A
-    /// strict no-op for entries without a photo (the common case) — no disk
-    /// read, no decrypt.
-    ///
-    /// The disk read, AES decrypt, and JPEG decode run off the main thread:
-    /// `.task` inherits the MainActor, and doing this inline hitched scrolling
-    /// as each photo row appeared in the LazyVStack.
+    private func backdropSample(for entry: Entry) -> JournalBackdropSample? {
+        _ = thumbnailRevision
+        guard entry.hasPhoto else { return nil }
+        return PhotoThumbnailCache.shared.sample(for: entry.id)
+    }
+
+    /// Backfill for photos added after first load (edit/save) and cache
+    /// eviction. First paint is gated on `PhotoThumbnailCache.prefetch` in
+    /// `EntryViewModel.loadEntries`.
     private func loadThumbnailIfNeeded(for entry: Entry) async {
         guard entry.hasPhoto else { return }
         if PhotoThumbnailCache.shared.image(for: entry.id) != nil { return }
-
-        let entryId = entry.id
-        let decoded: UIImage? = await Task.detached(priority: .utility) {
-            guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
-                  let data = JournalService.shared.encryptionService.decryptData(encrypted),
-                  let uiImage = UIImage(data: data) else { return nil }
-            return uiImage
-        }.value
-
-        guard let decoded else { return }
-        PhotoThumbnailCache.shared.store(decoded, for: entryId)
+        await PhotoThumbnailCache.shared.loadIfNeeded(entryId: entry.id)
+        guard PhotoThumbnailCache.shared.image(for: entry.id) != nil else { return }
         thumbnailRevision &+= 1
     }
 
@@ -297,6 +311,56 @@ struct YourEntriesView: View {
         lastScrollOffset = scrollOffset
     }
 
+}
+
+// MARK: - First-paint dissolve
+
+/// Opacity plus a blur envelope that peaks mid-mix and is 0 at rest — not a
+/// hard 0→1 fade. Applied to the list as a whole so LazyVStack rows do not
+/// re-dissolve as they scroll into view. Reduce Motion skips blur (PRES-094).
+private struct JournalEntriesAppearDissolve: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var progress: Double = 0
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(JournalDissolvePlate(progress: progress, blurs: !reduceMotion))
+            .onAppear {
+                guard progress < 1 else { return }
+                if reduceMotion {
+                    progress = 1
+                } else {
+                    withAnimation(Motion.journalEntriesDissolve) {
+                        progress = 1
+                    }
+                }
+            }
+    }
+}
+
+private struct JournalDissolvePlate: ViewModifier, Animatable {
+    var progress: Double
+    var blurs: Bool
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        if blurs {
+            content
+                .blur(radius: blurRadius)
+                .opacity(progress)
+        } else {
+            content
+                .opacity(progress)
+        }
+    }
+
+    private var blurRadius: CGFloat {
+        CGFloat(4 * progress * (1 - progress)) * Motion.journalEntriesDissolveBlur
+    }
 }
 
 // MARK: - Previews

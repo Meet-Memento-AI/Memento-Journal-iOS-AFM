@@ -169,9 +169,10 @@ public struct JournalView: View {
     @ViewBuilder
     private var coreContentView: some View {
         let showsFAB = isEmbedded
-        let fabTitle = entryViewModel.entries.isEmpty
-            ? "Write your first entry"
-            : "New entry"
+        let fabTitle = JournalFABTitle.resolved(
+            hasInitiallyLoaded: entryViewModel.hasInitiallyLoaded,
+            isEmpty: entryViewModel.entries.isEmpty
+        )
 
         RootPageScaffold(
             footerBottomPadding: showsFAB ? 16 : 0,
