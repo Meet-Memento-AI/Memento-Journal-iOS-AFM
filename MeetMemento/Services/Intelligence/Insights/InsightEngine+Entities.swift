@@ -44,7 +44,7 @@ extension InsightEngine {
         )
         let personFacts = people
             .sorted { $0.value.count > $1.value.count }
-            .prefix(8)
+            .prefix(8) // budget-exempt: Patterns people/places cap, not a model payload
             .map { name, hits in
                 InsightFact(
                     kind: .person,
@@ -57,7 +57,7 @@ extension InsightEngine {
             }
         let placeFacts = places
             .sorted { $0.value.count > $1.value.count }
-            .prefix(8)
+            .prefix(8) // budget-exempt: Patterns people/places cap, not a model payload
             .map { name, hits in
                 InsightFact(
                     kind: .place,

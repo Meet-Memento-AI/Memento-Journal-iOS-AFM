@@ -124,7 +124,7 @@ enum InsightEngine {
                 result.append(AskCitation(
                     entryId: entry.id,
                     entryDate: entry.createdAt,
-                    excerpt: String(entry.text.prefix(160))
+                    excerpt: String(entry.text.prefix(160)) // budget-exempt: citation preview, not a model payload
                 ))
             }
         }

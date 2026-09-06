@@ -57,7 +57,7 @@ extension InsightEngine {
         return clusters
             .filter { $0.count >= 2 }
             .sorted { $0.count > $1.count }
-            .prefix(6)
+            .prefix(6) // budget-exempt: Patterns cluster cap, not a model payload
             .map { cluster in
                 let members = cluster.map(\.entry)
                 let label = clusterLabel(
@@ -74,7 +74,7 @@ extension InsightEngine {
             }
     }
 
-    static func averageCosine(
+    private static func averageCosine(
         _ item: EmbeddedEntry,
         cluster: [EmbeddedEntry]
     ) -> Double {
@@ -113,7 +113,7 @@ extension InsightEngine {
             return (token, Double(count) * idf)
         }
         .sorted { $0.1 > $1.1 }
-        .prefix(2)
+        .prefix(2) // budget-exempt: cluster label terms, not a model payload
         .map(\.0)
         return ranked.isEmpty ? "Related entries" : ranked.joined(separator: " · ")
     }
