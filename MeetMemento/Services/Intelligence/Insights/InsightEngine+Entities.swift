@@ -43,7 +43,8 @@ extension InsightEngine {
             end: now.addingTimeInterval(1)
         )
         let personFacts = people
-            .sorted { $0.value.count > $1.value.count }
+            .map { (name: $0.key, hits: uniquedEntries($0.value)) }
+            .sorted { $0.hits.count > $1.hits.count }
             .prefix(8) // budget-exempt: Patterns people/places cap, not a model payload
             .map { name, hits in
                 InsightFact(
@@ -56,7 +57,8 @@ extension InsightEngine {
                 )
             }
         let placeFacts = places
-            .sorted { $0.value.count > $1.value.count }
+            .map { (name: $0.key, hits: uniquedEntries($0.value)) }
+            .sorted { $0.hits.count > $1.hits.count }
             .prefix(8) // budget-exempt: Patterns people/places cap, not a model payload
             .map { name, hits in
                 InsightFact(
@@ -69,6 +71,12 @@ extension InsightEngine {
                 )
             }
         return Array(personFacts) + Array(placeFacts)
+    }
+
+    /// n is unique entries, not mention count — "Dario" twice in one note is n=1.
+    static func uniquedEntries(_ entries: [Entry]) -> [Entry] {
+        var seen = Set<UUID>()
+        return entries.filter { seen.insert($0.id).inserted }
     }
 
     static func namedEntityValue(_ hits: [Entry]) -> String {

@@ -138,6 +138,47 @@ final class InsightEngineTests: XCTestCase {
         )
     }
 
+    func test_personFact_countsUniqueEntriesNotMentions() {
+        let calendar = isoCalendar()
+        let now = day(2026, 8, 23, calendar: calendar)
+        let one = Entry(
+            title: "Call",
+            text: "Dario called, then Dario texted later.",
+            createdAt: now
+        )
+        let two = Entry(
+            title: "Dinner",
+            text: "Dinner with Dario.",
+            createdAt: calendar.date(byAdding: .day, value: -1, to: now) ?? now
+        )
+        XCTAssertEqual(InsightEngine.uniquedEntries([one, one, two]).map(\.id), [one.id, two.id])
+        let facts = InsightEngine.namedEntityFacts(
+            entries: [one, two], now: now, calendar: calendar
+        )
+        let dario = facts.first {
+            $0.kind == .person && $0.label.localizedCaseInsensitiveContains("dario")
+        }
+        if let dario {
+            XCTAssertEqual(dario.n, 2, "two mentions in one entry must not inflate n")
+            XCTAssertEqual(Set(dario.supportingEntryIDs).count, 2)
+            XCTAssertEqual(dario.n, dario.supportingEntryIDs.count)
+        }
+    }
+
+    func test_facts_nMatchesUniqueSupportingEntryIDs() throws {
+        let (entries, _) = try ChatEvalCorpus.personaCorpus()
+        let now = entries.map(\.createdAt).max() ?? Date()
+        let facts = InsightEngine.facts(entries: entries, now: now)
+        XCTAssertFalse(facts.isEmpty)
+        for fact in facts {
+            XCTAssertEqual(
+                fact.n,
+                Set(fact.supportingEntryIDs).count,
+                "\(fact.kind.rawValue) \(fact.label): n is unique entries"
+            )
+        }
+    }
+
     func test_constructedThreeEntryWindow_isLowConfidence() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)
