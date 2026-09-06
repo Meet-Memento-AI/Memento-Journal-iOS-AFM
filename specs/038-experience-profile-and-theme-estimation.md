@@ -15,8 +15,12 @@ visible, not only hidden inside prompts.
   are stripped in Swift via `ThemeCatalog.validate`.
 - **R2 Human confirm.** ThemeConfirmationView proposes; the user confirms or
   edits before continue. Never silently lock a persona.
-- **R3 Caps.** Max 6 confirmed themes. Default 4 suggestions. Reflection ≤ 300
-  chars in ask prompts; lens ≤ 400 chars.
+- **R3 Caps.** Max 6 confirmed themes. Default 4 suggestions. Reflection is
+  stored, not injected into Ask (038 R6 / 044: reflection is refresh input
+  only). Lens caps, three layers — **do not collapse them**: stored /
+  generated ≤ 400 (`PromptRegistry.maxPromptLensChars` / 120 generated);
+  Ask injects ≤ 80 (`maxAskPromptLensChars`). Spec 044 R6 uses the same
+  numbers.
 - **R4 Fallback.** If AFM is unavailable or fails, use keyword overlap against
   catalog synonyms, then browse-all. Onboarding must still complete offline.
 - **R5 Profile persistence.** ExperienceProfile persists locally and
@@ -29,8 +33,13 @@ visible, not only hidden inside prompts.
   version suffix `+p4` when an ExperienceProfile is present. **Phatic and
   continuer** (`chat-light@4`, spec 039) MUST NOT append L1. Names, if stored,
   ride the **user** prompt as `[Name:]`. Summary ignores
-  personalization. Personalization never affects stance, retrieval, channel,
-  or citations.
+  personalization. Personalization never affects stance, channel, or
+  citations. **Amendment 2026-09-06 (spec 044 R3):** confirmed themes may
+  apply a bounded `themeBoost` that **reorders** journal-query candidates
+  that already cleared `hasSignal`. Themes cannot create a retrieval hit,
+  cannot run retrieval on companion/phatic/continuer/meta/redirect, and
+  never enter the prompt. Soft *filtered* RAG (dropping non-theme entries)
+  remains a non-goal.
 - **R7 Settings parity.** Theme editor and About Yourself write the same
   profile. **Rebuild lens** re-runs estimation while preserving confirmed themes
   (unless the user explicitly re-suggests).
@@ -109,7 +118,8 @@ profile preferences (`LocalProfileStore.personalizationText` /
 
 ## Non-goals
 
-- Soft retrieval bias / theme-filtered RAG
+- Theme-**filtered** RAG (dropping non-theme entries). Bounded reorder
+  (`themeBoost`) is 044 R3, not this spec.
 - Remote/OTA ThemeCatalog or prompt manifest
 - Per-user rewrite of L0
 - Therapeutic framing, scores, streaks, social, accounts

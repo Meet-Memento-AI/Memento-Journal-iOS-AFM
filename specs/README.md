@@ -27,9 +27,14 @@ specs/
 ├── 041-*.md           ← in-chat answer feedback (persisted thumbs, reason sheet, report overflow)
 ├── 042-*.md           ← feedback telemetry to Supabase (consent tiers, write-only RLS) — draft
 ├── 043-*.md           ← eval run warehouse and origin labeling (run identity, real vs synthetic)
+├── 044-*.md           ← agentic harness depth (passage RAG, RetrievalGate, bounded tool loop,
+│                        lean ask-core@16, living profile) — draft
+├── 045-*.md           ← computed insights and period reflection (InsightEngine, entry
+│                        tagging, weekly PeriodReflection, quantitative Ask) — draft
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
+    ├── 044-045-implementation-sessions.md    ← session-by-session build order for 044+045
     └── technology/                           ← Apple-framework API reference library
         └── 00…13-*.md                        ← cited by tech_refs in specs 013–036
 ```

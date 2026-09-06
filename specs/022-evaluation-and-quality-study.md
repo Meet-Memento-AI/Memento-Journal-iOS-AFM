@@ -143,18 +143,22 @@ independently at its own thresholds, reporting per-gate numbers per run.
    `Fixtures/gold/questions.resolved.json` is **already specified by spec 016
    R8** (aggregate + per-category scoring, branch coverage, built on
    `Evaluations`, explicitly shared with this harness) — one implementation,
-   cited here, not re-specified. What this spec adds is the gate's second
-   row: **search-tool-called on 100% of notebook-channel Ask runs** (spec 039
-   rank 4 / `.journalQuery`) via
-   `TrajectoryExpectation` — the mechanical enforcement of `REQ-SUR-003` on
+   cited here, not re-specified.    What this spec adds is the gate's second
+   row: **retrieval occurred on 100% of notebook-channel Ask runs** (spec 039
+   rank 4 / `.journalQuery`) — the mechanical enforcement of `REQ-SUR-003` on
    journal questions: an
    answer synthesized from the model's priors about the user's own life is a
-   fabrication, and this catches it on every prompt change. Phatic, continuer,
-   companion, meta, and redirect turns **must not** retrieve (039 R2); this
-   gate does not require a search tool on those samples. The three honesty
-   questions (q-16–q-18) must both call the tool *and* decline to answer
-   beyond the corpus ("I don't find anything about your brother before
-   March" is the correct answer).
+   fabrication, and this catches it on every prompt change.
+   **Amendment 2026-09-06 (spec 044 R4 / 016 Branch B):** "retrieval
+   occurred" means the deterministic `EntryRetriever` pass ran **or**
+   `SearchJournalTool` was invoked. `toolCallingMode` is `.allowed`, never
+   `.required`; a single-hop journal question that the pre-pass already
+   answered must not fail the gate for skipping a redundant tool call.
+   Phatic, continuer, companion, meta, and redirect turns **must not**
+   retrieve (039 R2); this gate does not require retrieval on those samples.
+   The three honesty questions (q-16–q-18) must both **run retrieval**
+   *and* decline to answer beyond the corpus ("I don't find anything about
+   your brother before March" is the correct answer).
 2. **`GroundingGate`.** Citation accuracy ≥ 95%; ungrounded-claim rate ≤ 2%.
    The automatable half runs unconditionally: every `groundedEntryIDs`
    element (spec 017 R5's `PeriodReflection`) resolves to a real entry ID
