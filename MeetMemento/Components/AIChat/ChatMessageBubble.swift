@@ -101,9 +101,10 @@ public struct ChatMessageBubble: View {
             messageContent
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }    
+    }
+
     // MARK: - Message Content
-    
+
     /// Assistant-side content only. The user branch renders `UserBubbleSurface`
     /// directly in `body` so the send choreography's ghost can share it.
     @ViewBuilder
@@ -209,7 +210,7 @@ public struct ChatMessageBubble: View {
     /// a visible action bar — directly above the "Memento is thinking"
     /// indicator. `AILoadingState` already communicates that state, so the
     /// placeholder should occupy no space at all until it has content.
-    private func isEmptyStreamingPlaceholder(_ content: AIOutputContent) -> Bool {
+    func isEmptyStreamingPlaceholder(_ content: AIOutputContent) -> Bool {
         content.body.isEmpty
             && (content.heading1 ?? "").isEmpty
             && (content.heading2 ?? "").isEmpty
@@ -217,6 +218,7 @@ public struct ChatMessageBubble: View {
             // any body text — mounting the component then lets "Reviewed your
             // journals" be the first thing to appear rather than waiting for text.
             && (content.citations?.isEmpty ?? true)
+            && (content.facts?.isEmpty ?? true)
     }
 
     // MARK: - Retry Row
@@ -337,7 +339,16 @@ private struct UnansweredUserMessageMenu: ViewModifier {
 #Preview("AI Message with Markdown") {
     ChatMessageBubble(
         message: ChatMessage(
-            content: "This is **bold text** and this is *italic text*.\n\n### A moment\n1. First dated beat\n2. Next dated beat\n\n- Sit with the notebook\n- Answer from your entries",
+            content: """
+            This is **bold text** and this is *italic text*.
+
+            ### A moment
+            1. First dated beat
+            2. Next dated beat
+
+            - Sit with the notebook
+            - Answer from your entries
+            """,
             isFromUser: false
         )
     )

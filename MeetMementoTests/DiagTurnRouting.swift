@@ -36,6 +36,11 @@ final class DiagTurnRouting: XCTestCase {
         Case("are you an AI?", .meta), Case("how do you work?", .meta),
         Case("can you read my journal?", .meta),
 
+        // quantitative — Swift facts, not ask@15
+        Case("How many times did I write about my brother this year?", .quantitative),
+        Case("When did I last mention my brother?", .quantitative),
+        Case("How often have I written about work this month?", .quantitative),
+
         // journalQuery
         Case("What have I been writing about lately?", .journalQuery),
         Case("What did I write about the hike?", .journalQuery),

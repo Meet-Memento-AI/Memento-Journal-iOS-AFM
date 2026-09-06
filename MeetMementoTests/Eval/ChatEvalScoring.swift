@@ -333,6 +333,51 @@ enum ChatEvalScoring {
         return [.init(code: "gen.hitTokenCap", detail: "~\(Int(approxTokens)) tok vs cap \(capTokens)")]
     }
 
+    // MARK: - insight.* (045 R5 / R6 — reported, not gated until Session 10)
+
+    /// Body states a digit that is not any attached fact's `n` or numeric value.
+    /// Empty body (statistic short-circuit) cannot disagree.
+    static func insightDigitDisagrees(body: String, facts: [InsightFact]) -> [Violation] {
+        guard !facts.isEmpty, !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return []
+        }
+        let allowed = Set(facts.flatMap { fact -> [Int] in
+            var nums = [fact.n]
+            if let parsed = Int(fact.value) { nums.append(parsed) }
+            return nums
+        })
+        guard let re = try? NSRegularExpression(pattern: #"\b(\d+)\b"#) else { return [] }
+        let ns = body as NSString
+        var flagged: [Violation] = []
+        re.enumerateMatches(in: body, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match, match.numberOfRanges > 1 else { return }
+            guard let n = Int(ns.substring(with: match.range(at: 1))) else { return }
+            if n >= 1900 && n <= 2100 { return }
+            if !allowed.contains(n) {
+                flagged.append(.init(code: "insight.digitDisagrees",
+                                     detail: "\(n) is not any fact n \(allowed.sorted())"))
+            }
+        }
+        return flagged
+    }
+
+    /// Prose treats a low-confidence (`n < 4`) fact as a pattern, or names a
+    /// fact the engine would have suppressed. No `[Computed]` block in Phase II.
+    static func insightContradictsSuppressed(body: String, facts: [InsightFact]) -> [Violation] {
+        guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let lower = body.lowercased()
+        let suppressed = facts.filter(\.isLowConfidence)
+        guard !suppressed.isEmpty else { return [] }
+        if lower.contains("too few") { return [] }
+        let claimsPattern = lower.contains("pattern") || lower.contains("always")
+            || lower.contains("usually") || lower.contains("tends to")
+        guard claimsPattern else { return [] }
+        return suppressed.map {
+            .init(code: "insight.contradictsSuppressed",
+                  detail: "claimed a pattern for \"\($0.label)\" (n=\($0.n))")
+        }
+    }
+
     // MARK: - Gate
 
     /// Families that must be empty for a run to pass.
@@ -349,6 +394,7 @@ enum ChatEvalScoring {
     static func gating(_ violations: [Violation]) -> [Violation] {
         violations.filter { v in
             if v.code.hasPrefix("gen.") { return false }
+            if v.code.hasPrefix("insight.") { return false }
             return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.")
                 || v.code.hasPrefix("hall.") || v.code.hasPrefix("gold.")
         }

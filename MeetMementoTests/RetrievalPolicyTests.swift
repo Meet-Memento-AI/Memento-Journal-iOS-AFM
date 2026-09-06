@@ -14,6 +14,8 @@ final class RetrievalPolicyTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.mode(for: .share), .none)
         XCTAssertEqual(RetrievalPolicy.mode(for: .journalQuery), .currentWeighted)
         XCTAssertEqual(RetrievalPolicy.mode(for: .reflectiveQuestion), .none)
+        XCTAssertEqual(RetrievalPolicy.mode(for: .quantitative), .none)
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .quantitative, retrieval: .empty), .casual)
     }
 
     // MARK: - Followup anchor

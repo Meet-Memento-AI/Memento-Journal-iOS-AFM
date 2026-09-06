@@ -50,17 +50,25 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     var promptLine: String {
         switch self {
         case .casual:
-            return "[Turn: casual — Meet them in a friendly way; then one question; notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
+            return "[Turn: casual — Meet them in a friendly way; then one question; "
+                + "notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
         case .aboutApp:
-            return "[Turn: about the app — briefly say what you can do together; a short \"- \" list of capabilities; then one question about what they want to look at; no journal references; leave citedRefs empty]"
+            return "[Turn: about the app — briefly say what you can do together; "
+                + "a short \"- \" list of capabilities; then one question about what they want to look at; "
+                + "no journal references; leave citedRefs empty]"
         case .outsideScope:
-            return "[Turn: outside scope — say that's outside what you can see, then gently return to them with one question; no headings or lists; leave citedRefs empty]"
+            return "[Turn: outside scope — say that's outside what you can see, "
+                + "then gently return to them with one question; no headings or lists; leave citedRefs empty]"
         case .sharing:
-            return "[Turn: sharing — follow what they said as a friend; no ### unless they asked for the journal; then one question; do not force an insight or citation]"
+            return "[Turn: sharing — follow what they said as a friend; "
+                + "no ### unless they asked for the journal; then one question; do not force an insight or citation]"
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; Sit if the thread is about the notebook; then one question; do not restart with a new heading or begin a new entry inventory]"
+            return "[Turn: follow-up — continue your previous point in the same thread; "
+                + "Sit if the thread is about the notebook; then one question; "
+                + "do not restart with a new heading or begin a new entry inventory]"
         case .journalGrounded:
-            return "[Turn: journal question — Meet them, then one ### notebook moment, italic exact quote, then Sit that names a pattern from the evidence; "
+            return "[Turn: journal question — Meet them, then one ### notebook moment, "
+                + "italic exact quote, then Sit that names a pattern from the evidence; "
                 + "lists only if they asked what they wrote about a topic; "
                 + "reproduce any quoted field exactly; "
                 + "then one question; "
@@ -112,7 +120,7 @@ enum RetrievalPolicy {
     /// journal ask — "tell me more" after a share must not retrieve.
     static func mode(for turn: TurnType, history: [ChatTurn] = []) -> RetrievalMode {
         switch turn {
-        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion:
+        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion, .quantitative:
             return .none
         case .followup:
             return followupMode(history: history)
@@ -196,6 +204,9 @@ enum RetrievalPolicy {
         case .journalQuery:
             // An explicit journal ask with no real match gets the honest answer.
             return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .noMatch
+        case .quantitative:
+            // Counts are Swift facts; light/casual narration is optional.
+            return .casual
         case .reflectiveQuestion:
             // Reflective musings stay warm conversation; grounded reports are
             // reserved for explicit journal asks.

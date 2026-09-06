@@ -643,15 +643,32 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
+    /// 045 R5: quantitative turns are Swift facts. Skip the model so the body
+    /// cannot contain a digit that disagrees with `n`.
+    private func statisticResult(
+        core: AskCore,
+        entries: [Entry],
+        started: ContinuousClock.Instant,
+        clock: ContinuousClock
+    ) -> AskResult {
+        let facts = InsightEngine.answer(query: core.question, entries: entries)
+        return AskResult(
+            heading1: nil,
+            heading2: nil,
+            body: "",
+            citations: InsightEngine.citations(for: facts, entries: entries),
+            zoneUsed: core.route.executionZone,
+            wasDegraded: false,
+            promptVersion: "insight-fact@1",
+            modelIdentifier: "swift",
+            latency: clock.now - started,
+            facts: facts
+        )
+    }
+
     private func prepareAskCore(
         question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
     ) async throws -> AskCore {
-        let availability = await availability()
-        guard case .available = availability else {
-            if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
-            throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
-        }
-
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
         async let routeTask = resolveRoute(for: .ask)
@@ -672,7 +689,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let hasImages = !images.isEmpty || history.contains { !$0.imageJPEGs.isEmpty }
-        let budget = ContextBudget(window: Self.currentWindow())
 
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
@@ -688,6 +704,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
             .applyingSpokenFollowUpRecipe(turn: turn, history: history, spoken: spoken)
+        // Statistic never reads SystemLanguageModel — not for availability,
+        // not for contextSize. The count is Swift.
+        let budget = ContextBudget(
+            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable
+        )
+        if channel.requiresOnDeviceModel {
+            let availability = await availability()
+            guard case .available = availability else {
+                if case .unavailable(let reason) = availability {
+                    throw IntelligenceError.unavailable(reason)
+                }
+                throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
+            }
+        }
         let route = await routeTask
         let limits = route.useDegradedPrompt
             ? RetrievalLimits(budget: budget).narrowed()
@@ -925,6 +955,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let core = try await prepareAskCore(
             question: question, history: history, entries: [], images: images, spoken: spoken
         )
+        if core.channel == .statistic {
+            let entries = await loadEntries()
+            return statisticResult(core: core, entries: entries, started: started, clock: clock)
+        }
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
         LiveTurnClock.shared.start(.prepRetrieve)
@@ -1164,6 +1198,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let core = try await prepareAskCore(
                         question: question, history: history, entries: [], images: images, spoken: spoken
                     )
+                    if core.channel == .statistic {
+                        let entries = await loadEntries()
+                        let result = statisticResult(
+                            core: core, entries: entries, started: started, clock: clock
+                        )
+                        continuation.yield(.delta(
+                            bodySoFar: result.body,
+                            heading1: result.heading1,
+                            heading2: result.heading2,
+                            reviewedCitations: result.citations,
+                            facts: result.facts
+                        ))
+                        continuation.yield(.final(result))
+                        continuation.finish()
+                        return
+                    }
                     LiveTurnClock.shared.start(.sessionCreate)
                     let sessionState = signposter.beginInterval("session.create", id: spid)
                     LiveTurnClock.shared.start(.prepRetrieve)
@@ -1256,7 +1306,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     bodySoFar: cleaned,
                                     heading1: nil,
                                     heading2: nil,
-                                    reviewedCitations: reviewed
+                                    reviewedCitations: reviewed,
+                                    facts: []
                                 ))
                             }
 

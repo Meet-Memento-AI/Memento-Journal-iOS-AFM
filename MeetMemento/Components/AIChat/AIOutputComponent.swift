@@ -13,24 +13,28 @@ public struct AIOutputContent: Hashable, Codable {
     public let heading2: String?
     public let body: String
     public let citations: [JournalCitation]?
+    public let facts: [InsightFact]?
 
     enum CodingKeys: String, CodingKey {
         case heading1
         case heading2
         case body
         case citations
+        case facts
     }
 
     public init(
         heading1: String? = nil,
         heading2: String? = nil,
         body: String,
-        citations: [JournalCitation]? = nil
+        citations: [JournalCitation]? = nil,
+        facts: [InsightFact]? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
         self.body = body
         self.citations = citations
+        self.facts = facts
     }
 
     /// Sanitizes body text that may contain leaked JSON (e.g. "{body: ...") from malformed AI output.
@@ -53,6 +57,22 @@ public struct AIOutputContent: Hashable, Codable {
         let rawBody = try container.decodeIfPresent(String.self, forKey: .body) ?? ""
         body = Self.sanitizeBody(rawBody)
         citations = try container.decodeIfPresent([JournalCitation].self, forKey: .citations)
+        facts = try container.decodeIfPresent([InsightFact].self, forKey: .facts)
+    }
+
+    /// Facts first, then body — statistic turns have an empty body on purpose.
+    public var speakableBody: String {
+        let factText = (facts ?? []).map(\.plainText).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        if body.isEmpty { return factText }
+        if factText.isEmpty { return body }
+        return factText + "\n\n" + body
+    }
+
+    public var plainTextForCopy: String {
+        [heading1, heading2, speakableBody]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -61,6 +81,7 @@ public struct AIOutputContent: Hashable, Codable {
         try container.encodeIfPresent(heading2, forKey: .heading2)
         try container.encode(body, forKey: .body)
         try container.encodeIfPresent(citations, forKey: .citations)
+        try container.encodeIfPresent(facts, forKey: .facts)
     }
 }
 
@@ -184,6 +205,7 @@ public struct AIOutputComponent: View {
             content.heading2 ?? "",
             content.body,
             String(content.citations?.count ?? 0),
+            String((content.facts ?? []).count),
             // The final `.delta` and the `.final` event carry byte-identical body
             // text for a citation-less reply, so without this the `isStreaming`
             // flip alone wouldn't re-trigger `syncTargets` and the typewriter
@@ -235,6 +257,7 @@ public struct AIOutputComponent: View {
         !content.body.isEmpty
             || !(content.heading1 ?? "").isEmpty
             || !(content.heading2 ?? "").isEmpty
+            || !(content.facts ?? []).isEmpty
     }
 
     /// Copy / thumbs / redo only make sense against a finished reply. Gated on
@@ -242,13 +265,8 @@ public struct AIOutputComponent: View {
     /// pre-stream placeholder, `!isStreaming` keeps it off a half-written one.
     private var showsActionBar: Bool { hasRenderableContent && !isStreaming }
 
-    /// Full text for copy (heading1 + heading2 + body).
-    private var fullTextForCopy: String {
-        [content.heading1, content.heading2, content.body]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n\n")
-    }
+    /// Full text for copy (headings + Swift facts + body).
+    private var fullTextForCopy: String { content.plainTextForCopy }
 
     // MARK: - Typewriter-derived substrings
 
@@ -300,7 +318,6 @@ public struct AIOutputComponent: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-        
             // Citation link — first element, opens the full list in
             // CitationsBottomSheet. Citations only arrive on the stream's
             // `.final` event (deltas carry body + headings only), so this view
@@ -308,12 +325,17 @@ public struct AIOutputComponent: View {
             // height. Without a transition that insert snaps in and shoves the
             // answer down mid-read, so animate the insertion itself — opacity
             // alone does nothing for layout.
+            if let facts = content.facts, !facts.isEmpty {
+                InsightFactSection(facts: facts, onTap: onCitationsTapped)
+                    .accessibilityIdentifier("ask.insightFacts")
+            }
+
             if let citations = content.citations, !citations.isEmpty {
                 CitationLink(count: citations.count, onTap: onCitationsTapped)
                     .opacity(showCitation ? 1 : 0)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            
+
             // Legacy structured headings (Figtree h3/h4 — never Lora h1/h2).
             if let heading1 = content.heading1, !heading1.isEmpty {
                 let shown = animate ? shownHeading1 : heading1
@@ -453,8 +475,11 @@ public struct AIOutputComponent: View {
             drainTask = nil
         }
     }
+}
 
-    // MARK: - Typewriter
+// MARK: - Typewriter
+
+extension AIOutputComponent {
 
     /// Copies the latest `content`/`isStreaming` into the @State the drain loop
     /// reads, updates the citation reveal, and ensures the loop is running.
@@ -536,6 +561,48 @@ public struct AIOutputComponent: View {
     }
 }
 
+/// Stat card for 045 R5 quantitative Ask. `n` is always visible.
+private struct InsightFactSection: View {
+    let facts: [InsightFact]
+    var onTap: (() -> Void)?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(fact.label.capitalized)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.mutedForeground)
+                    Text(fact.value)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(theme.foreground)
+                    Text("n = \(fact.n)")
+                        .font(.caption)
+                        .foregroundStyle(theme.mutedForeground)
+                    if fact.isLowConfidence {
+                        Text(InsightFact.lowConfidenceCopy(n: fact.n))
+                            .font(.caption)
+                            .foregroundStyle(theme.mutedForeground)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(fact.isLowConfidence ? 0.55 : 1)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !fact.supportingEntryIDs.isEmpty {
+                        onTap?()
+                    }
+                }
+                .accessibilityAddTraits(fact.supportingEntryIDs.isEmpty ? [] : .isButton)
+            }
+        }
+        .padding(16)
+        .background(theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
 // MARK: - Previews
 
 #Preview("AI Output with Headings and Citations") {
@@ -543,7 +610,16 @@ public struct AIOutputComponent: View {
         content: AIOutputContent(
             heading1: "Understanding Your Patterns",
             heading2: "Key Insights",
-            body: "You asked how work has been landing.\n\n### 12 March\n*I left the office with my jaw still tight.*\nThat walk is the part you stayed with — not the meeting, the leaving.\n\n- 12 March — the long walk home\n- 4 April — Sunday dread",
+            body: """
+            You asked how work has been landing.
+
+            ### 12 March
+            *I left the office with my jaw still tight.*
+            That walk is the part you stayed with — not the meeting, the leaving.
+
+            - 12 March — the long walk home
+            - 4 April — Sunday dread
+            """,
             citations: [
                 JournalCitation(
                     entryId: UUID(),

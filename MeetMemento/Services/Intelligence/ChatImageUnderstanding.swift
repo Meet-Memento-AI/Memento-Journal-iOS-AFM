@@ -61,7 +61,7 @@ enum ChatImageUnderstanding {
 
         let identifiers = (classify.results ?? [])
             .filter { $0.confidence >= 0.2 }
-            .prefix(8)
+            .prefix(8) // budget-exempt: vision label cap, not a model payload
             .map { $0.identifier.replacingOccurrences(of: "_", with: " ") }
         if !identifiers.isEmpty {
             lines.append("Likely contents: \(identifiers.joined(separator: ", ")).")
@@ -70,7 +70,7 @@ enum ChatImageUnderstanding {
         let snippets = (textRequest.results ?? [])
             .compactMap { $0.topCandidates(1).first?.string.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-            .prefix(12)
+            .prefix(12) // budget-exempt: OCR snippet cap, not a model payload
         if !snippets.isEmpty {
             lines.append("Visible text: \(snippets.joined(separator: " | ")).")
         }

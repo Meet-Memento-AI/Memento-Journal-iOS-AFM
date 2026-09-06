@@ -7,37 +7,54 @@
 
 import SwiftUI
 
-/// Keywords/Themes card matching the SentimentAnalysisCard design
-/// Deep purple card with gradient border displaying theme tags
+/// Cluster / keyword chips for the Patterns tab. Section chrome shows `n`;
+/// low-confidence chips (`n < 4`) render grey.
 struct KeywordsCard: View {
-    // MARK: - Inputs
-    let keywords: [String]
+    struct Chip: Hashable, Identifiable {
+        var id: String { "\(text)|\(n)" }
+        let text: String
+        let n: Int
+        var isLowConfidence: Bool { n < InsightEngine.lowConfidenceThreshold }
+    }
 
-    // MARK: - Environment
+    let chips: [Chip]
+    var title: String = "CLUSTERS"
+
+    init(facts: [InsightFact], title: String = "CLUSTERS") {
+        self.chips = facts.map { Chip(text: $0.label, n: $0.n) }
+        self.title = title
+    }
+
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    // MARK: - Body
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header with sparkles icon
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(type.body2Bold)
                     .foregroundStyle(theme.accent)
 
-                Text("KEYWORDS")
+                Text(title)
                     .font(type.captionBold)
                     .tracking(0.5)
                     .foregroundStyle(theme.foreground)
 
                 Spacer()
+                let n = chips.reduce(0) { $0 + $1.n }
+                if n > 0 {
+                    Text("n = \(n)")
+                        .font(type.captionBold)
+                        .foregroundStyle(theme.mutedForeground)
+                }
             }
 
-            // Wrapping keywords using InsightsThemeTag
             InsightsTagFlowLayout(hSpacing: 12, vSpacing: 12) {
-                ForEach(keywords, id: \.self) { keyword in
-                    InsightsThemeTag(keyword)
+                ForEach(chips) { chip in
+                    InsightsThemeTag(
+                        chip.n > 0 ? "\(chip.text) · \(chip.n)" : chip.text
+                    )
+                    .opacity(chip.isLowConfidence && chip.n > 0 ? 0.55 : 1)
                 }
             }
         }
@@ -120,60 +137,4 @@ private struct InsightsTagFlowLayout<Content: View>: View {
             }
         }
     }
-}
-
-// MARK: - Previews
-
-#Preview("Reference Design") {
-    ZStack {
-        // Gradient background matching Insights view
-        LinearGradient(
-            gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-
-        KeywordsCard(
-            keywords: [
-                "Stress",
-                "Keeping an image",
-                "Growing from within",
-                "New starts",
-                "Acceptance",
-                "Realizing the truth",
-                "Choosing better",
-            ]
-        )
-        .padding(20)
-    }
-    .useTheme()
-    .useTypography()
-}
-
-#Preview("Fewer Keywords") {
-    ZStack {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-
-        KeywordsCard(
-            keywords: [
-                "Growth mindset",
-                "Self-reflection",
-                "Emotional awareness"
-            ]
-        )
-    }
-    .useTheme()
-    .useTypography()
 }

@@ -112,6 +112,21 @@ final class PromptRegistryResolutionTests: XCTestCase {
         }
     }
 
+    func test_statisticChannel_resolvesToChatLight_notAsk15() {
+        let full = PromptRegistry.resolve(
+            intent: .ask, zone: .z0Device, degraded: false, channel: .statistic
+        )
+        let degraded = PromptRegistry.resolve(
+            intent: .ask, zone: .z0Device, degraded: true, channel: .statistic
+        )
+        XCTAssertEqual(full.version, "chat-light@4")
+        XCTAssertEqual(degraded.version, "chat-light-degraded@4")
+        XCTAssertFalse(full.version.contains("ask@15"))
+        XCTAssertFalse(full.text.contains("How a reply is built"))
+        XCTAssertTrue(ReplyChannel.statistic.usesLightPrompt)
+        XCTAssertEqual(ReplyChannel.statistic.maximumResponseTokens(retrievalRan: false), 64)
+    }
+
     func test_phaticChannel_resolvesToChatLight() {
         let full = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .phatic)
         let degraded = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: true, channel: .phatic)

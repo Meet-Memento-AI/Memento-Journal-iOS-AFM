@@ -234,6 +234,105 @@ final class ChatViewModelTests: XCTestCase {
                        "next-turn prewarm must run after .final with the new session")
     }
 
+    func test_sendMessage_carriesInsightFactsOntoAssistantBubble() async throws {
+        let sessionId = UUID()
+        let fact = InsightFact(
+            kind: .count,
+            label: "brother",
+            value: "3",
+            n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let mock = MockChatService()
+        mock.sendMessageImpl = { _, _ in
+            ChatResponse(
+                reply: "",
+                heading1: nil,
+                heading2: nil,
+                citedEntryIds: nil,
+                sources: [],
+                sessionId: sessionId.uuidString,
+                facts: [fact]
+            )
+        }
+        mock.fetchSessionsImpl = { [] }
+
+        let vm = ChatViewModel(chatService: mock)
+        vm.sendMessage(prompt: "How many times did I write about my brother this year?")
+        await waitForLoadingFalse(vm)
+
+        let assistant = vm.messages.last
+        XCTAssertEqual(assistant?.aiOutputContent?.facts, [fact])
+        XCTAssertEqual(assistant?.aiOutputContent?.facts?.first?.n, 3)
+        if let content = assistant?.aiOutputContent {
+            let bubble = ChatMessageBubble(message: assistant!)
+            XCTAssertFalse(
+                bubble.isEmptyStreamingPlaceholder(content),
+                "facts-only statistic turns must mount the bubble"
+            )
+        }
+    }
+
+    func test_loadSession_restoresInsightFactsFromStoredJSON() async {
+        let entryID = UUID()
+        let fact = InsightFact(
+            kind: .count,
+            label: "brother",
+            value: "3",
+            n: 3,
+            window: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+            supportingEntryIDs: [entryID]
+        )
+        let json = ChatService.assistantContentJSON(
+            body: "",
+            heading1: nil,
+            heading2: nil,
+            sources: [
+                ChatSource(
+                    id: entryID.uuidString,
+                    createdAt: "2026-03-08T00:00:00Z",
+                    preview: "I called my brother"
+                )
+            ],
+            promptVersion: "insight-fact@1",
+            modelIdentifier: "swift",
+            facts: [fact]
+        )
+        let assistantID = UUID()
+        let mock = MockChatService()
+        mock.loadSessionMessagesImpl = { _ in
+            [
+                ChatMessageDTO(
+                    id: UUID(),
+                    role: "user",
+                    content: "How many times did I write about my brother this year?",
+                    createdAt: "2026-08-24T00:00:00Z"
+                ),
+                ChatMessageDTO(
+                    id: assistantID,
+                    role: "assistant",
+                    content: json,
+                    createdAt: "2026-08-24T00:00:01Z"
+                ),
+            ]
+        }
+        let vm = ChatViewModel(chatService: mock)
+        await vm.loadSession(ChatSession(title: "Brother", createdAt: Date()))
+        let restored = vm.messages.last?.aiOutputContent?.facts
+        XCTAssertEqual(restored?.count, 1)
+        XCTAssertEqual(restored?.first?.n, 3)
+        XCTAssertEqual(restored?.first?.label, "brother")
+        XCTAssertEqual(restored?.first?.supportingEntryIDs, [entryID])
+        if let content = vm.messages.last?.aiOutputContent {
+            let bubble = ChatMessageBubble(message: vm.messages.last!)
+            XCTAssertFalse(
+                bubble.isEmptyStreamingPlaceholder(content),
+                "reloaded facts-only turns must still mount"
+            )
+        }
+    }
+
     func test_ChatViewModel_sendMessage_genericError() async throws {
         let mock = MockChatService()
         mock.sendMessageImpl = { _, _ in
@@ -682,6 +781,59 @@ final class ChatViewModelTests: XCTestCase {
         let user = ChatMessage(content: "hello", isFromUser: true)
         vm.messages = [user, ChatMessage.aiMessage(body: "hi there")]
         XCTAssertFalse(vm.isUnansweredUserMessage(user))
+    }
+
+    func test_citationSheetItems_usesFactSupportingIDsWhenCitationsMissing() {
+        let entryID = UUID()
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+            supportingEntryIDs: [entryID]
+        )
+        let message = ChatMessage.aiMessage(body: "", facts: [fact])
+        XCTAssertNil(message.citations)
+        XCTAssertEqual(message.citationSheetItems.map(\.entryId), [entryID])
+    }
+
+    func test_thumbsUp_factsOnlyReply_persistsSpeakableFactText() {
+        let store = makeFeedbackStore()
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let vm = ChatViewModel(chatService: MockChatService(), feedbackStore: store)
+        let user = ChatMessage(content: "How many times did I write about my brother this year?", isFromUser: true)
+        let assistant = ChatMessage.aiMessage(body: "", facts: [fact])
+        vm.messages = [user, assistant]
+        vm.toggleThumbsUp(for: assistant.id)
+        let row = store.feedback(for: assistant.id)
+        XCTAssertEqual(row?.rating, .positive)
+        XCTAssertTrue(row?.assistantReply.contains("n = 3") == true)
+        XCTAssertEqual(
+            store.feedbackMatching(assistantReply: ChatViewModel.assistantReplyText(assistant))?.messageID,
+            assistant.id
+        )
+    }
+
+    func test_isUnanswered_falseWhenFactsOnlyStatisticReply() {
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let vm = ChatViewModel(chatService: MockChatService())
+        let user = ChatMessage(
+            content: "How many times did I write about my brother this year?",
+            isFromUser: true
+        )
+        vm.messages = [user, ChatMessage.aiMessage(body: "", facts: [fact])]
+        XCTAssertFalse(vm.isUnansweredUserMessage(user))
+        XCTAssertTrue(ChatViewModel.canSummarize([
+            user,
+            ChatMessage.aiMessage(body: "", facts: [fact]),
+            ChatMessage(content: "and then", isFromUser: true),
+        ]))
     }
 
     func test_isUnanswered_falseWhileLoading() {

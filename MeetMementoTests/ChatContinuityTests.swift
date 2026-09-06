@@ -113,4 +113,40 @@ final class ChatContinuityTests: XCTestCase {
         ])
         XCTAssertEqual(turns.first?.text, "An older reply.")
     }
+
+    /// 045 R5: statistic facts ride the same assistant JSON. History still
+    /// unwraps to the body so the model never sees `n`.
+    func testStoredAssistantJSONCarriesInsightFactsAndStillParses() throws {
+        let entryID = UUID()
+        let fact = InsightFact(
+            kind: .count,
+            label: "brother",
+            value: "3",
+            n: 3,
+            window: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+            supportingEntryIDs: [entryID]
+        )
+        let json = ChatService.assistantContentJSON(
+            body: "",
+            heading1: nil,
+            heading2: nil,
+            sources: [],
+            promptVersion: "insight-fact@1",
+            modelIdentifier: "swift",
+            facts: [fact]
+        )
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        let facts = try XCTUnwrap(object["facts"] as? [[String: Any]])
+        XCTAssertEqual(facts.count, 1)
+        XCTAssertEqual(facts[0]["n"] as? Int, 3)
+        XCTAssertEqual(facts[0]["label"] as? String, "brother")
+
+        let turns = ChatService.historyTurns(from: [
+            ChatMessageDTO(id: UUID(), role: "assistant", content: json, createdAt: "2026-08-01T00:00:00Z")
+        ])
+        XCTAssertEqual(turns.first?.text, "")
+        XCTAssertFalse(turns.first?.text.contains("3") ?? true)
+    }
 }

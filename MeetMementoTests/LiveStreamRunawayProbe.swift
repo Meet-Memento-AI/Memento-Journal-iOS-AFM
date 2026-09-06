@@ -34,7 +34,7 @@ final class LiveStreamRunawayProbe: XCTestCase {
                 for try await ev in service.askStream("What have I been writing about?",
                                                       history: [], entries: [], images: []) {
                     switch ev {
-                    case let .delta(soFar, _, _, _): deltas += 1; body = soFar
+                    case let .delta(soFar, _, _, _, _): deltas += 1; body = soFar
                     case let .final(r): body = r.body
                     }
                 }

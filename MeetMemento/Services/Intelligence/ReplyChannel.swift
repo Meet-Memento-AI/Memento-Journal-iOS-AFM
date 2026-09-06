@@ -18,6 +18,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     case companion
     case thread
     case notebook
+    case statistic
     case redirect
 
     /// Exhaustive map. Photo bump: any in-session image never resolves to
@@ -32,6 +33,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         case .share, .reflectiveQuestion: base = .companion
         case .followup: base = .thread
         case .journalQuery: base = .notebook
+        case .quantitative: base = .statistic
         case .offdomain: base = .redirect
         }
         guard hasImages else { return base }
@@ -46,10 +48,14 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// Ranks 0–1 leave ask@15 for `chat-light@4`.
     var usesLightPrompt: Bool {
         switch self {
-        case .phatic, .continuer: return true
+        case .phatic, .continuer, .statistic: return true
         default: return false
         }
     }
+
+    /// Statistic answers are Swift facts. Skip `SystemLanguageModel` so a
+    /// count still lands when Apple Intelligence is off or not ready.
+    var requiresOnDeviceModel: Bool { self != .statistic }
 
     /// Rank 2 / redirect leave ask@15 for `chat-companion@1`. Notebook and
     /// RAG-thread keep the heavy recipe.
@@ -72,7 +78,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// backfills from retrieval.
     func usesBodyOnlySchema(spoken _: Bool = false) -> Bool {
         switch self {
-        case .phatic, .continuer, .redirect, .companion, .meta: return true
+        case .phatic, .continuer, .redirect, .companion, .meta, .statistic: return true
         case .thread, .notebook: return false
         }
     }
@@ -94,7 +100,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// L1 "About this person" is omitted on phatic, continuer, and redirect.
     var omitsLens: Bool {
         switch self {
-        case .phatic, .continuer, .redirect: return true
+        case .phatic, .continuer, .redirect, .statistic: return true
         default: return false
         }
     }
@@ -133,7 +139,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     func maximumResponseTokens(retrievalRan: Bool, spoken: Bool = false) -> Int {
         switch self {
         case .phatic: return 80
-        case .continuer: return 64
+        case .continuer, .statistic: return 64
         case .meta: return 128
         case .companion: return spoken ? 80 : 128
         case .thread, .notebook: return spoken ? 256 : 512
@@ -145,7 +151,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// stay grounded at 0.7.
     var temperature: Double {
         switch self {
-        case .phatic, .continuer, .meta, .companion, .redirect: return 0.9
+        case .phatic, .continuer, .meta, .companion, .redirect, .statistic: return 0.9
         case .thread, .notebook: return 0.7
         }
     }

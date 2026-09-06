@@ -13,6 +13,7 @@ final class ReplyChannelTests: XCTestCase {
             .reflectiveQuestion: .companion,
             .followup: .thread,
             .journalQuery: .notebook,
+            .quantitative: .statistic,
             .offdomain: .redirect
         ]
         for turn in TurnType.allCases {
@@ -29,12 +30,15 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.resolve(turn: .share, hasImages: true), .companion)
         XCTAssertEqual(ReplyChannel.resolve(turn: .offdomain, hasImages: true), .redirect)
         XCTAssertEqual(ReplyChannel.resolve(turn: .followup, hasImages: true), .thread)
+        XCTAssertEqual(ReplyChannel.resolve(turn: .quantitative, hasImages: true), .statistic)
     }
 
-    func test_lightPrompt_onlyPhaticAndContinuer() {
+    func test_lightPrompt_onlyPhaticContinuerAndStatistic() {
         XCTAssertTrue(ReplyChannel.phatic.usesLightPrompt)
         XCTAssertTrue(ReplyChannel.continuer.usesLightPrompt)
-        for channel in ReplyChannel.allCases where channel != .phatic && channel != .continuer {
+        XCTAssertTrue(ReplyChannel.statistic.usesLightPrompt)
+        for channel in ReplyChannel.allCases
+            where channel != .phatic && channel != .continuer && channel != .statistic {
             XCTAssertFalse(channel.usesLightPrompt, "\(channel)")
         }
     }
@@ -46,6 +50,7 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertFalse(ReplyChannel.phatic.usesCompanionPrompt)
         XCTAssertFalse(ReplyChannel.notebook.usesCompanionPrompt)
         XCTAssertFalse(ReplyChannel.thread.usesCompanionPrompt)
+        XCTAssertFalse(ReplyChannel.statistic.usesCompanionPrompt)
         XCTAssertTrue(ReplyChannel.phatic.usesShortAssembler)
         XCTAssertTrue(ReplyChannel.continuer.usesShortAssembler)
         XCTAssertTrue(ReplyChannel.companion.usesShortAssembler)
@@ -53,6 +58,7 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertTrue(ReplyChannel.redirect.usesShortAssembler)
         XCTAssertFalse(ReplyChannel.notebook.usesShortAssembler)
         XCTAssertFalse(ReplyChannel.thread.usesShortAssembler)
+        XCTAssertTrue(ReplyChannel.statistic.usesShortAssembler)
     }
 
     func test_bodyOnlySchema_companionMetaAndLight() {
@@ -63,6 +69,7 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertTrue(ReplyChannel.meta.usesBodyOnlySchema())
         XCTAssertFalse(ReplyChannel.notebook.usesBodyOnlySchema())
         XCTAssertFalse(ReplyChannel.thread.usesBodyOnlySchema())
+        XCTAssertTrue(ReplyChannel.statistic.usesBodyOnlySchema())
     }
 
     func test_bodyOnlySchema_spokenDoesNotOverrideJournal() {
@@ -118,6 +125,14 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertFalse(ReplyChannel.notebook.omitsLens)
         XCTAssertFalse(ReplyChannel.meta.omitsLens)
         XCTAssertFalse(ReplyChannel.thread.omitsLens)
+        XCTAssertTrue(ReplyChannel.statistic.omitsLens)
+    }
+
+    func test_statistic_doesNotRequireOnDeviceModel() {
+        XCTAssertFalse(ReplyChannel.statistic.requiresOnDeviceModel)
+        for channel in ReplyChannel.allCases where channel != .statistic {
+            XCTAssertTrue(channel.requiresOnDeviceModel, "\(channel)")
+        }
     }
 
     func test_allowsRetrieval_notebookAndThreadOnly() {
@@ -128,6 +143,7 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertFalse(ReplyChannel.companion.allowsRetrieval)
         XCTAssertFalse(ReplyChannel.meta.allowsRetrieval)
         XCTAssertFalse(ReplyChannel.redirect.allowsRetrieval)
+        XCTAssertFalse(ReplyChannel.statistic.allowsRetrieval)
     }
 
     func test_tokenCaps() {
@@ -143,6 +159,8 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: true), 512)
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: false), 512)
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 512)
+        XCTAssertEqual(ReplyChannel.statistic.maximumResponseTokens(retrievalRan: false), 64)
+        XCTAssertEqual(ReplyChannel.statistic.maximumResponseTokens(retrievalRan: true), 64)
     }
 
     func test_spokenCaps_neverRaiseAndShortenNotebookThread() {
@@ -165,6 +183,7 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.notebook.temperature, 0.7)
         XCTAssertEqual(ReplyChannel.thread.temperature(retrievalRan: true), 0.7)
         XCTAssertEqual(ReplyChannel.thread.temperature(retrievalRan: false), 0.9)
+        XCTAssertEqual(ReplyChannel.statistic.temperature, 0.9)
     }
 
     func test_socialRetrieval_isNone() {

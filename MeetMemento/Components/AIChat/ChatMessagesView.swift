@@ -324,6 +324,7 @@ struct ChatMessagesView: View {
                 && (ai.heading1 ?? "").isEmpty
                 && (ai.heading2 ?? "").isEmpty
                 && (ai.citations?.isEmpty ?? true)
+                && (ai.facts?.isEmpty ?? true)
             if isEmpty { return 0 }
         } else if message.content.isEmpty {
             return 0
@@ -637,7 +638,8 @@ struct ChatMessagesView: View {
             isSpeaking: voiceService.speakingMessageID == message.id,
             isPaused: voiceService.speakingMessageID == message.id && voiceService.isPaused,
             onCitationsTapped: {
-                if let citations = message.citations, !citations.isEmpty {
+                let citations = message.citationSheetItems
+                if !citations.isEmpty {
                     onCitations(citations)
                 }
             },
@@ -647,7 +649,7 @@ struct ChatMessagesView: View {
                         messageID: message.id,
                         heading1: ai.heading1,
                         heading2: ai.heading2,
-                        body: ai.body
+                        body: ai.speakableBody
                     )
                 }
             },

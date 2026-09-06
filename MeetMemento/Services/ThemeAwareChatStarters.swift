@@ -27,16 +27,16 @@ struct ChatSuggestion: Hashable, Identifiable {
     /// a profile into UserDefaults.
     static let previewSamples: [ChatSuggestion] = [
         ChatSuggestion(
-            prompt: "Summarize the key themes and emotions from my journal entries this month",
-            themeName: "Mindfulness"
-        ),
-        ChatSuggestion(
-            prompt: "What habits show up most often in my recent entries?",
-            themeName: "Goals"
-        ),
-        ChatSuggestion(
-            prompt: "What have I written about sleep lately?",
+            prompt: "How many times have I written about sleep this year?",
             themeName: "Sleep"
+        ),
+        ChatSuggestion(
+            prompt: "When did I last mention my brother?",
+            themeName: "Relationships"
+        ),
+        ChatSuggestion(
+            prompt: "How often have I written about work this month?",
+            themeName: "Goals"
         )
     ]
 
@@ -44,16 +44,16 @@ struct ChatSuggestion: Hashable, Identifiable {
     /// chips yet, so the three tiles never vanish. Pills always render.
     static let fallbackStarters: [ChatSuggestion] = [
         ChatSuggestion(
-            prompt: "Summarize the key themes and emotions from my journal entries this month",
-            themeName: "Mindfulness"
-        ),
-        ChatSuggestion(
-            prompt: "What habits show up most often in my recent entries?",
-            themeName: "Goals"
-        ),
-        ChatSuggestion(
-            prompt: "What have I written about sleep lately?",
+            prompt: "How many times have I written about sleep this year?",
             themeName: "Sleep"
+        ),
+        ChatSuggestion(
+            prompt: "When did I last mention my brother?",
+            themeName: "Relationships"
+        ),
+        ChatSuggestion(
+            prompt: "How often have I written about work this month?",
+            themeName: "Goals"
         )
     ]
 }
