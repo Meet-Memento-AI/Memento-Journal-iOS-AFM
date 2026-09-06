@@ -475,8 +475,11 @@ public struct AIOutputComponent: View {
             drainTask = nil
         }
     }
+}
 
-    // MARK: - Typewriter
+// MARK: - Typewriter
+
+extension AIOutputComponent {
 
     /// Copies the latest `content`/`isStreaming` into the @State the drain loop
     /// reads, updates the citation reveal, and ensures the loop is running.
