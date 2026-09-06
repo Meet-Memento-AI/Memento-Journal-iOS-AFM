@@ -315,7 +315,9 @@ final class EmbeddingService: @unchecked Sendable {
             if allMatch { return passages.compactMap { byIndex[$0.index] } }
         }
 
-        let byTextHash = Dictionary(uniqueKeysWithValues: cachedItems.map { ($0.textHash, $0) })
+        // Repeated sentences (identical filler lines) share a textHash —
+        // uniquing keeps the first cached vector rather than trapping.
+        let byTextHash = Dictionary(cachedItems.map { ($0.textHash, $0) }, uniquingKeysWith: { first, _ in first })
         var result: [PassageEmbedding] = []
         result.reserveCapacity(passages.count)
         var embedded: [Int] = []

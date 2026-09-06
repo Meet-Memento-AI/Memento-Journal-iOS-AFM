@@ -34,15 +34,16 @@ final class ThemePriorTests: XCTestCase {
     /// Same keyword score, same recency, identical stored vectors so cosine
     /// cannot break the tie. Friendship synonym lives only in the second entry.
     func test_themeBoost_reordersTiedSignalHits() {
-        let workplace = entry(
-            "marathon training",
-            "long marathon run this morning, legs sore after the office loop",
-            daysAgo: 1
+        let created = Date().addingTimeInterval(-86_400)
+        let workplace = Entry(
+            title: "marathon training",
+            text: "long marathon run this morning, legs sore after the office loop",
+            createdAt: created
         )
-        let friends = entry(
-            "marathon training",
-            "long marathon run this morning, legs sore after running with friends",
-            daysAgo: 1
+        let friends = Entry(
+            title: "marathon training",
+            text: "long marathon run this morning, legs sore after running with friends",
+            createdAt: created
         )
         let entries = gibberishCorpus() + [workplace, friends]
         let service = seededService(entries: [workplace, friends])
