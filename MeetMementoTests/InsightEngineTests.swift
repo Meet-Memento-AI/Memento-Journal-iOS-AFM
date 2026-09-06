@@ -219,6 +219,31 @@ final class InsightEngineTests: XCTestCase {
         }
     }
 
+    func test_hourHistogram_nIsEntriesInThatHour() {
+        let calendar = isoCalendar()
+        let day = day(2026, 8, 23, calendar: calendar)
+        func atHour(_ hour: Int, minute: Int) -> Date {
+            var components = calendar.dateComponents([.year, .month, .day], from: day)
+            components.hour = hour
+            components.minute = minute
+            return calendar.date(from: components) ?? day
+        }
+        var entries = (0..<5).map { index in
+            Entry(title: "M\(index)", text: "morning", createdAt: atHour(9, minute: index))
+        }
+        entries += (0..<2).map { index in
+            Entry(title: "A\(index)", text: "afternoon", createdAt: atHour(15, minute: index))
+        }
+        let facts = InsightEngine.hourHistogramFacts(
+            entries: entries, now: day, calendar: calendar
+        )
+        XCTAssertEqual(facts.map(\.n), [5, 2])
+        XCTAssertEqual(facts[0].isLowConfidence, false)
+        XCTAssertEqual(facts[1].isLowConfidence, true)
+        XCTAssertEqual(facts[0].n, Set(facts[0].supportingEntryIDs).count)
+        XCTAssertEqual(facts[0].value, "5")
+    }
+
     func test_constructedThreeEntryWindow_isLowConfidence() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)

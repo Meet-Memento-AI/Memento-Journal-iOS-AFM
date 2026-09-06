@@ -22,9 +22,7 @@ extension InsightEngine {
         if let gap = longestGapFact(sorted: sorted, calendar: calendar) {
             result.append(gap)
         }
-        if let hour = peakHourFact(entries: entries, now: now, calendar: calendar) {
-            result.append(hour)
-        }
+        result.append(contentsOf: hourHistogramFacts(entries: entries, now: now, calendar: calendar))
         return result
     }
 
@@ -85,28 +83,44 @@ extension InsightEngine {
         )
     }
 
-    static func peakHourFact(
+    /// Occupied hours, busiest first. `n` is entries in that hour (045 R1).
+    static func hourHistogramFacts(
         entries: [Entry], now: Date, calendar: Calendar
-    ) -> InsightFact? {
-        guard !entries.isEmpty else { return nil }
+    ) -> [InsightFact] {
+        guard !entries.isEmpty else { return [] }
         var buckets = [Int: [UUID]](minimumCapacity: 24)
         for entry in entries {
             let hour = calendar.component(.hour, from: entry.createdAt)
             buckets[hour, default: []].append(entry.id)
         }
-        guard let peak = buckets.max(by: { $0.value.count < $1.value.count }) else { return nil }
         let formatter = DateFormatter()
         formatter.dateFormat = "ha"
-        var components = DateComponents()
-        components.hour = peak.key
-        let labelHour = calendar.date(from: components).map { formatter.string(from: $0).lowercased() } ?? "\(peak.key)h"
-        return InsightFact(
-            kind: .cadence,
-            label: "Most often around",
-            value: labelHour,
-            n: peak.value.count,
-            window: orderedInterval(start: entries.map(\.createdAt).min() ?? now, end: now),
-            supportingEntryIDs: peak.value
+        let window = orderedInterval(
+            start: entries.map(\.createdAt).min() ?? now,
+            end: now.addingTimeInterval(1)
         )
+        return buckets
+            .sorted { lhs, rhs in
+                if lhs.value.count != rhs.value.count {
+                    return lhs.value.count > rhs.value.count
+                }
+                return lhs.key < rhs.key
+            }
+            .prefix(6) // budget-exempt: Patterns hour-histogram cap, not a model payload
+            .map { hour, ids in
+                var components = DateComponents()
+                components.hour = hour
+                let clock = calendar.date(from: components).map {
+                    formatter.string(from: $0).lowercased()
+                } ?? "\(hour)h"
+                return InsightFact(
+                    kind: .cadence,
+                    label: "Around \(clock)",
+                    value: "\(ids.count)",
+                    n: ids.count,
+                    window: window,
+                    supportingEntryIDs: ids
+                )
+            }
     }
 }
