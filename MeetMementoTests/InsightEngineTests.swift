@@ -148,6 +148,25 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertLessThan(facts[0].n, allTime.count, "this month must not count the whole corpus")
     }
 
+    func test_answer_thisWeek_matchesISOWeekCadenceNotSundayFirst() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 1
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "UTC")!
+        let sunday = day(2026, 9, 6, calendar: calendar)
+        let saturday = day(2026, 9, 5, calendar: calendar)
+        let entries = [
+            Entry(title: "Sat", text: "saturday note", createdAt: saturday),
+            Entry(title: "Sun", text: "sunday note", createdAt: sunday)
+        ]
+        let query = "How often have I written this week?"
+        XCTAssertEqual(TurnClassifier.classify(query, hasHistory: false), .quantitative)
+        let facts = InsightEngine.answer(query: query, entries: entries, now: sunday, calendar: calendar)
+        let week = InsightEngine.weekCadence(entries: entries, containing: sunday, calendar: calendar)
+        XCTAssertEqual(week.n, 2, "ISO week includes Saturday")
+        XCTAssertEqual(facts[0].n, week.n)
+        XCTAssertEqual(facts[0].n, 2, "Ask must not use a Sunday-first week (n=1)")
+    }
+
     func test_streakAndGap_nIsEntrySampleSizeNotDayCount() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)

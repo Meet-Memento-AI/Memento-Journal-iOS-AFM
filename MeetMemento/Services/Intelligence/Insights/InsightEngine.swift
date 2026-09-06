@@ -230,14 +230,20 @@ extension InsightEngine {
         _ query: String, now: Date, calendar: Calendar
     ) -> DateInterval? {
         let lower = query.lowercased()
+        // Weeks match `weekCadence` (ISO). A Sunday-first device calendar
+        // would otherwise disagree with Patterns on "this week".
         if lower.contains("this week") {
-            return calendar.dateInterval(of: .weekOfYear, for: now).map {
+            let iso = isoCalendar(calendar)
+            return iso.dateInterval(of: .weekOfYear, for: now).map {
                 orderedInterval(start: $0.start, end: $0.end)
             }
         }
-        if lower.contains("last week"),
-           let cursor = calendar.date(byAdding: .weekOfYear, value: -1, to: now) {
-            return calendar.dateInterval(of: .weekOfYear, for: cursor).map {
+        if lower.contains("last week") {
+            let iso = isoCalendar(calendar)
+            guard let cursor = iso.date(byAdding: .weekOfYear, value: -1, to: now) else {
+                return nil
+            }
+            return iso.dateInterval(of: .weekOfYear, for: cursor).map {
                 orderedInterval(start: $0.start, end: $0.end)
             }
         }
