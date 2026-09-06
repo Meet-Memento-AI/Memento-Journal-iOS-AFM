@@ -106,7 +106,10 @@ class ChatViewModel: ObservableObject {
     }
 
     private static func countsAsAssistantReply(_ message: ChatMessage) -> Bool {
-        !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return !(message.aiOutputContent?.facts ?? []).isEmpty
     }
 
     // User info
@@ -403,7 +406,8 @@ class ChatViewModel: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let heading2 = (message.aiOutputContent?.heading2 ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return body.isEmpty && heading1.isEmpty && heading2.isEmpty
+        let hasFacts = !(message.aiOutputContent?.facts ?? []).isEmpty
+        return body.isEmpty && heading1.isEmpty && heading2.isEmpty && !hasFacts
     }
 
     private func setSendFailed(_ failed: Bool, forMessageId id: UUID) {

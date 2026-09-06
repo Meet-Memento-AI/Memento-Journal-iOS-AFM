@@ -783,6 +783,26 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isUnansweredUserMessage(user))
     }
 
+    func test_isUnanswered_falseWhenFactsOnlyStatisticReply() {
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let vm = ChatViewModel(chatService: MockChatService())
+        let user = ChatMessage(
+            content: "How many times did I write about my brother this year?",
+            isFromUser: true
+        )
+        vm.messages = [user, ChatMessage.aiMessage(body: "", facts: [fact])]
+        XCTAssertFalse(vm.isUnansweredUserMessage(user))
+        XCTAssertTrue(ChatViewModel.canSummarize([
+            user,
+            ChatMessage.aiMessage(body: "", facts: [fact]),
+            ChatMessage(content: "and then", isFromUser: true),
+        ]))
+    }
+
     func test_isUnanswered_falseWhileLoading() {
         let vm = ChatViewModel(chatService: stalledService())
         vm.sendMessage(prompt: "hello")

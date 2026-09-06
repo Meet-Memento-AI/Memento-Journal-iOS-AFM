@@ -324,6 +324,7 @@ struct ChatMessagesView: View {
                 && (ai.heading1 ?? "").isEmpty
                 && (ai.heading2 ?? "").isEmpty
                 && (ai.citations?.isEmpty ?? true)
+                && (ai.facts?.isEmpty ?? true)
             if isEmpty { return 0 }
         } else if message.content.isEmpty {
             return 0
