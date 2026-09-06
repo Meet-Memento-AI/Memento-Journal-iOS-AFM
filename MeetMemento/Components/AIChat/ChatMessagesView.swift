@@ -638,7 +638,8 @@ struct ChatMessagesView: View {
             isSpeaking: voiceService.speakingMessageID == message.id,
             isPaused: voiceService.speakingMessageID == message.id && voiceService.isPaused,
             onCitationsTapped: {
-                if let citations = message.citations, !citations.isEmpty {
+                let citations = message.citationSheetItems
+                if !citations.isEmpty {
                     onCitations(citations)
                 }
             },

@@ -783,6 +783,18 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isUnansweredUserMessage(user))
     }
 
+    func test_citationSheetItems_usesFactSupportingIDsWhenCitationsMissing() {
+        let entryID = UUID()
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+            supportingEntryIDs: [entryID]
+        )
+        let message = ChatMessage.aiMessage(body: "", facts: [fact])
+        XCTAssertNil(message.citations)
+        XCTAssertEqual(message.citationSheetItems.map(\.entryId), [entryID])
+    }
+
     func test_thumbsUp_factsOnlyReply_persistsSpeakableFactText() {
         let store = makeFeedbackStore()
         let fact = InsightFact(

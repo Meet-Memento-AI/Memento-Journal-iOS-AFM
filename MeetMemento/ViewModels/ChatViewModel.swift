@@ -1041,7 +1041,7 @@ class ChatViewModel: ObservableObject {
         return (
             prompt,
             Self.assistantReplyText(assistant),
-            assistant.citations?.map(\.entryId) ?? [],
+            assistant.citationSheetItems.map(\.entryId),
             assistant.promptVersion,
             assistant.modelIdentifier,
             assistant.zone,

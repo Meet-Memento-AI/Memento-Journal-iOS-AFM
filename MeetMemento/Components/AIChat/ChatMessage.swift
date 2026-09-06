@@ -220,4 +220,26 @@ public struct ChatMessage: Identifiable, Hashable {
             wasDegraded: wasDegraded
         )
     }
+
+    /// Citations for the sheet: stored sources first, then fact supporting IDs
+    /// so a statistic tap still opens when only Swift `n` was persisted.
+    var citationSheetItems: [JournalCitation] {
+        if let citations, !citations.isEmpty { return citations }
+        if let aiCitations = aiOutputContent?.citations, !aiCitations.isEmpty {
+            return aiCitations
+        }
+        var seen = Set<UUID>()
+        var result: [JournalCitation] = []
+        for fact in aiOutputContent?.facts ?? [] {
+            for entryId in fact.supportingEntryIDs where seen.insert(entryId).inserted {
+                result.append(JournalCitation(
+                    entryId: entryId,
+                    entryTitle: fact.label,
+                    entryDate: fact.window.start,
+                    excerpt: fact.value
+                ))
+            }
+        }
+        return result
+    }
 }
