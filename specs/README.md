@@ -27,6 +27,8 @@ specs/
 ├── 041-*.md           ← in-chat answer feedback (persisted thumbs, reason sheet, report overflow)
 ├── 042-*.md           ← feedback telemetry to Supabase (consent tiers, write-only RLS) — draft
 ├── 043-*.md           ← eval run warehouse and origin labeling (run identity, real vs synthetic)
+├── 044-*.md           ← agentic harness depth (passage RAG, RetrievalGate, bounded tool loop,
+│                        lean ask-core@16, living profile) — draft
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
