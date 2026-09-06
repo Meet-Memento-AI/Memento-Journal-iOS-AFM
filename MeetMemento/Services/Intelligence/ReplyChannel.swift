@@ -53,6 +53,10 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
+    /// Statistic answers are Swift facts. Skip `SystemLanguageModel` so a
+    /// count still lands when Apple Intelligence is off or not ready.
+    var requiresOnDeviceModel: Bool { self != .statistic }
+
     /// Rank 2 / redirect leave ask@15 for `chat-companion@1`. Notebook and
     /// RAG-thread keep the heavy recipe.
     var usesCompanionPrompt: Bool {

@@ -141,6 +141,12 @@ final class TurnClassifierTests: XCTestCase {
         XCTAssertEqual(classify("How tall is Everest?"), .offdomain)
     }
 
+    func test_archivistFallbackStarters_areQuantitative() {
+        for prompt in ChatSuggestion.fallbackStarters.map(\.prompt) {
+            XCTAssertEqual(classify(prompt, hasHistory: false), .quantitative, prompt)
+        }
+    }
+
     // MARK: - Reflective
 
     func test_reflectivePatterns() {

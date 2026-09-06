@@ -20,11 +20,6 @@ struct KeywordsCard: View {
     let chips: [Chip]
     var title: String = "CLUSTERS"
 
-    init(keywords: [String]) {
-        self.chips = keywords.map { Chip(text: $0, n: 0) }
-        self.title = "KEYWORDS"
-    }
-
     init(facts: [InsightFact], title: String = "CLUSTERS") {
         self.chips = facts.map { Chip(text: $0.label, n: $0.n) }
         self.title = title
@@ -142,60 +137,4 @@ private struct InsightsTagFlowLayout<Content: View>: View {
             }
         }
     }
-}
-
-// MARK: - Previews
-
-#Preview("Reference Design") {
-    ZStack {
-        // Gradient background matching Insights view
-        LinearGradient(
-            gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-
-        KeywordsCard(
-            keywords: [
-                "Stress",
-                "Keeping an image",
-                "Growing from within",
-                "New starts",
-                "Acceptance",
-                "Realizing the truth",
-                "Choosing better"
-            ]
-        )
-        .padding(20)
-    }
-    .useTheme()
-    .useTypography()
-}
-
-#Preview("Fewer Keywords") {
-    ZStack {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                PrimaryScale.primary800,
-                PrimaryScale.primary700
-            ]),
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-
-        KeywordsCard(
-            keywords: [
-                "Growth mindset",
-                "Self-reflection",
-                "Emotional awareness"
-            ]
-        )
-    }
-    .useTheme()
-    .useTypography()
 }

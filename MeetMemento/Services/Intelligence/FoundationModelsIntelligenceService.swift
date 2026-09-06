@@ -669,12 +669,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func prepareAskCore(
         question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
     ) async throws -> AskCore {
-        let availability = await availability()
-        guard case .available = availability else {
-            if case .unavailable(let reason) = availability { throw IntelligenceError.unavailable(reason) }
-            throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
-        }
-
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
         async let routeTask = resolveRoute(for: .ask)
@@ -711,6 +705,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
             .applyingSpokenFollowUpRecipe(turn: turn, history: history, spoken: spoken)
+        if channel.requiresOnDeviceModel {
+            let availability = await availability()
+            guard case .available = availability else {
+                if case .unavailable(let reason) = availability {
+                    throw IntelligenceError.unavailable(reason)
+                }
+                throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
+            }
+        }
         let route = await routeTask
         let limits = route.useDegradedPrompt
             ? RetrievalLimits(budget: budget).narrowed()

@@ -128,6 +128,13 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertTrue(ReplyChannel.statistic.omitsLens)
     }
 
+    func test_statistic_doesNotRequireOnDeviceModel() {
+        XCTAssertFalse(ReplyChannel.statistic.requiresOnDeviceModel)
+        for channel in ReplyChannel.allCases where channel != .statistic {
+            XCTAssertTrue(channel.requiresOnDeviceModel, "\(channel)")
+        }
+    }
+
     func test_allowsRetrieval_notebookAndThreadOnly() {
         XCTAssertTrue(ReplyChannel.notebook.allowsRetrieval)
         XCTAssertTrue(ReplyChannel.thread.allowsRetrieval)
