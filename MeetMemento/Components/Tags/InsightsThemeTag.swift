@@ -11,20 +11,18 @@ import SwiftUI
 /// Features a semi-transparent white background with subtle border on dark purple backgrounds
 struct InsightsThemeTag: View {
     let text: String
-    var isLowConfidence: Bool = false
 
     @Environment(\.typography) private var type
     @Environment(\.theme) private var theme
 
-    init(_ text: String, isLowConfidence: Bool = false) {
+    init(_ text: String) {
         self.text = text
-        self.isLowConfidence = isLowConfidence
     }
 
     var body: some View {
         Text(text)
             .font(type.h6)
-            .foregroundStyle(isLowConfidence ? theme.mutedForeground : theme.foreground)
+            .foregroundStyle(theme.foreground)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
@@ -35,7 +33,6 @@ struct InsightsThemeTag: View {
                 RoundedRectangle(cornerRadius: 999, style: .continuous)
                     .strokeBorder(theme.border, lineWidth: 1)
             )
-            .opacity(isLowConfidence ? 0.55 : 1)
     }
 }
 
@@ -123,11 +120,7 @@ private struct FlowLayout: Layout {
             spacing: spacing
         )
         for (index, subview) in subviews.enumerated() {
-            let position = result.positions[index]
-            subview.place(
-                at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
-                proposal: .unspecified
-            )
+            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x, y: bounds.minY + result.positions[index].y), proposal: .unspecified)
         }
     }
 

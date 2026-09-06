@@ -52,9 +52,9 @@ struct KeywordsCard: View {
             InsightsTagFlowLayout(hSpacing: 12, vSpacing: 12) {
                 ForEach(chips) { chip in
                     InsightsThemeTag(
-                        chip.n > 0 ? "\(chip.text) · \(chip.n)" : chip.text,
-                        isLowConfidence: chip.isLowConfidence && chip.n > 0
+                        chip.n > 0 ? "\(chip.text) · \(chip.n)" : chip.text
                     )
+                    .opacity(chip.isLowConfidence && chip.n > 0 ? 0.55 : 1)
                 }
             }
         }
