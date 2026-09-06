@@ -155,4 +155,28 @@ final class InsightEngineTests: XCTestCase {
             ).isEmpty
         )
     }
+
+    /// 045 R5: the live Ask path must return Swift `n` without constructing
+    /// a `LanguageModelSession`. Fails in CI if statistic still touches
+    /// `SystemLanguageModel` / availability.
+    func test_ask_statistic_returnsSwiftFactsWithoutTheModel() async throws {
+        let (entries, _) = try ChatEvalCorpus.personaCorpus()
+        let query = "How many times did I write about my brother this year?"
+        XCTAssertEqual(TurnClassifier.classify(query, hasHistory: false), .quantitative)
+
+        let result = try await FoundationModelsIntelligenceService().ask(
+            query, history: [], entries: entries, images: []
+        )
+        let expected = InsightEngine.answer(query: query, entries: entries)
+
+        XCTAssertEqual(result.promptVersion, "insight-fact@1")
+        XCTAssertEqual(result.modelIdentifier, "swift")
+        XCTAssertTrue(result.body.isEmpty, "statistic body must not invent a digit")
+        XCTAssertEqual(result.facts.count, 1)
+        XCTAssertEqual(result.facts.first?.n, expected.first?.n)
+        XCTAssertEqual(result.facts.first?.kind, .count)
+        XCTAssertTrue(
+            ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts).isEmpty
+        )
+    }
 }
