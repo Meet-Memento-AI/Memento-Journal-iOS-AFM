@@ -262,7 +262,8 @@ class ChatService {
                     body: result.body, heading1: result.heading1, heading2: result.heading2,
                     sources: sources, promptVersion: result.promptVersion,
                     modelIdentifier: result.modelIdentifier, zone: result.zoneUsed.identifier,
-                    wasDegraded: result.wasDegraded
+                    wasDegraded: result.wasDegraded,
+                    facts: result.facts
                 ),
                 zone: result.zoneUsed.identifier,
                 wasDegraded: result.wasDegraded,
@@ -275,7 +276,8 @@ class ChatService {
                 heading2: result.heading2,
                 citedEntryIds: result.citations.map { $0.entryId.uuidString },
                 sources: sources,
-                sessionId: conversationId.uuidString
+                sessionId: conversationId.uuidString,
+                facts: result.facts
             )
         } catch let error as IntelligenceError {
             if let designed = Self.persistDesignedSafetyReply(

@@ -718,6 +718,7 @@ class ChatViewModel: ObservableObject {
                         heading2: aiContent.heading2,
                         body: extracted.body,
                         citations: extracted.citations,
+                        facts: aiContent.facts,
                         safetyPresentation: extracted.safety,
                         promptVersion: extracted.promptVersion,
                         modelIdentifier: extracted.modelIdentifier,

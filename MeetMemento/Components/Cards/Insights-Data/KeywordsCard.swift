@@ -30,11 +30,6 @@ struct KeywordsCard: View {
         self.title = title
     }
 
-    init(chips: [Chip], title: String = "CLUSTERS") {
-        self.chips = chips
-        self.title = title
-    }
-
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 

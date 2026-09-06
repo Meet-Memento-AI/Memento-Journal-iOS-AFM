@@ -274,6 +274,65 @@ final class ChatViewModelTests: XCTestCase {
         }
     }
 
+    func test_loadSession_restoresInsightFactsFromStoredJSON() async {
+        let entryID = UUID()
+        let fact = InsightFact(
+            kind: .count,
+            label: "brother",
+            value: "3",
+            n: 3,
+            window: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+            supportingEntryIDs: [entryID]
+        )
+        let json = ChatService.assistantContentJSON(
+            body: "",
+            heading1: nil,
+            heading2: nil,
+            sources: [
+                ChatSource(
+                    id: entryID.uuidString,
+                    createdAt: "2026-03-08T00:00:00Z",
+                    preview: "I called my brother"
+                )
+            ],
+            promptVersion: "insight-fact@1",
+            modelIdentifier: "swift",
+            facts: [fact]
+        )
+        let assistantID = UUID()
+        let mock = MockChatService()
+        mock.loadSessionMessagesImpl = { _ in
+            [
+                ChatMessageDTO(
+                    id: UUID(),
+                    role: "user",
+                    content: "How many times did I write about my brother this year?",
+                    createdAt: "2026-08-24T00:00:00Z"
+                ),
+                ChatMessageDTO(
+                    id: assistantID,
+                    role: "assistant",
+                    content: json,
+                    createdAt: "2026-08-24T00:00:01Z"
+                ),
+            ]
+        }
+        let vm = ChatViewModel(chatService: mock)
+        await vm.loadSession(ChatSession(title: "Brother", createdAt: Date()))
+        let restored = vm.messages.last?.aiOutputContent?.facts
+        XCTAssertEqual(restored?.count, 1)
+        XCTAssertEqual(restored?.first?.n, 3)
+        XCTAssertEqual(restored?.first?.label, "brother")
+        XCTAssertEqual(restored?.first?.supportingEntryIDs, [entryID])
+        if let content = vm.messages.last?.aiOutputContent {
+            let bubble = ChatMessageBubble(message: vm.messages.last!)
+            XCTAssertFalse(
+                bubble.isEmptyStreamingPlaceholder(content),
+                "reloaded facts-only turns must still mount"
+            )
+        }
+    }
+
     func test_ChatViewModel_sendMessage_genericError() async throws {
         let mock = MockChatService()
         mock.sendMessageImpl = { _, _ in

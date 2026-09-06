@@ -41,6 +41,6 @@ public struct InsightFact: Sendable, Equatable, Codable, Hashable {
 
     public static let lowConfidenceCopyPrefix = "Based on "
     public static func lowConfidenceCopy(n: Int) -> String {
-        "Based on \(n) entries — too few to call a pattern."
+        "\(lowConfidenceCopyPrefix)\(n) entries — too few to call a pattern."
     }
 }
