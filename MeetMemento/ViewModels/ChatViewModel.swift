@@ -964,7 +964,7 @@ class ChatViewModel: ObservableObject {
         reportedMessageIDs = []
         for message in assistantMessages {
             let row = byID[message.id]
-                ?? feedbackStore.feedbackMatching(assistantReply: message.content)
+                ?? feedbackStore.feedbackMatching(assistantReply: Self.assistantReplyText(message))
             guard let row else { continue }
             switch row.rating {
             case .positive:
@@ -978,6 +978,16 @@ class ChatViewModel: ObservableObject {
                 reportedMessageIDs.insert(message.id)
             }
         }
+    }
+
+    /// Body when present; otherwise the Swift fact card so statistic turns
+    /// still match feedback after a reload (empty body is intentional).
+    static func assistantReplyText(_ message: ChatMessage) -> String {
+        if let text = message.aiOutputContent?.plainTextForCopy,
+           !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return text
+        }
+        return message.content
     }
 
     private func persistFeedback(
@@ -1030,7 +1040,7 @@ class ChatViewModel: ObservableObject {
         }
         return (
             prompt,
-            assistant.content,
+            Self.assistantReplyText(assistant),
             assistant.citations?.map(\.entryId) ?? [],
             assistant.promptVersion,
             assistant.modelIdentifier,

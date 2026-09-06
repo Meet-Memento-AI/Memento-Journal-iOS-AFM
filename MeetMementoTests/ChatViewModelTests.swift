@@ -783,6 +783,27 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isUnansweredUserMessage(user))
     }
 
+    func test_thumbsUp_factsOnlyReply_persistsSpeakableFactText() {
+        let store = makeFeedbackStore()
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: DateInterval(start: Date(), duration: 86_400),
+            supportingEntryIDs: []
+        )
+        let vm = ChatViewModel(chatService: MockChatService(), feedbackStore: store)
+        let user = ChatMessage(content: "How many times did I write about my brother this year?", isFromUser: true)
+        let assistant = ChatMessage.aiMessage(body: "", facts: [fact])
+        vm.messages = [user, assistant]
+        vm.toggleThumbsUp(for: assistant.id)
+        let row = store.feedback(for: assistant.id)
+        XCTAssertEqual(row?.rating, .positive)
+        XCTAssertTrue(row?.assistantReply.contains("n = 3") == true)
+        XCTAssertEqual(
+            store.feedbackMatching(assistantReply: ChatViewModel.assistantReplyText(assistant))?.messageID,
+            assistant.id
+        )
+    }
+
     func test_isUnanswered_falseWhenFactsOnlyStatisticReply() {
         let fact = InsightFact(
             kind: .count, label: "brother", value: "3", n: 3,
