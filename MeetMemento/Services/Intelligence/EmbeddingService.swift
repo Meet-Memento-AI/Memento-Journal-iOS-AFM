@@ -31,6 +31,15 @@ import Accelerate
 import Foundation
 import NaturalLanguage
 
+/// One cached passage vector (spec 044 R1). `textHash` is FNV-1a of the
+/// passage text so an edit that only changes paragraph 4 can reuse p0–p2.
+struct PassageEmbedding: Sendable, Equatable {
+    let index: Int
+    let textHash: UInt64
+    let vector: [Double]
+    let norm: Double
+}
+
 final class EmbeddingService: @unchecked Sendable {
     static let shared = EmbeddingService()
 
@@ -56,6 +65,19 @@ final class EmbeddingService: @unchecked Sendable {
     /// invalidated on content-hash change. Norms are computed once at embed
     /// time so cosine needs only a dot product per (query, entry) pair.
     private var entryCache: [UUID: (hash: UInt64, vector: [Double], norm: Double)] = [:]
+
+    /// Passage vectors keyed by entry id. `entryHash` is the title+text
+    /// content hash; when it matches, the array is the complete current set.
+    /// Items themselves are reusable across an edit via `textHash`.
+    private var passageCache: [UUID: (entryHash: UInt64, items: [PassageEmbedding])] = [:]
+
+    /// Passage indexes embedded on the most recent `passageVectors` call.
+    /// Test seam: an edit that only changes paragraph 4 must not rewrite p0–p2.
+    private(set) var lastEmbeddedPassageIndexes: [Int] = []
+
+    /// Language-specific embedders, filled lazily. English is also in
+    /// `embedderInfo` for the whole-entry / query path.
+    private var languageEmbedders: [NLLanguage: (embedding: NLEmbedding, mode: Mode)] = [:]
 
     /// Disk-cache load state (spec 029 Amendment A, audit F9). Guarded by
     /// `diskLoadGate`, NOT by `lock`: enumeration + decode of the .vec files
@@ -132,11 +154,41 @@ final class EmbeddingService: @unchecked Sendable {
     /// A pooled vector for arbitrary text (e.g. a query). Returns `nil` if
     /// nothing could be embedded.
     func embed(_ text: String) -> [Double]? {
-        guard let info = embedderInfo else { return nil }
+        embed(text, language: .english)
+    }
+
+    /// Embed `text` with the best available model for `language`. Falls back
+    /// to English, then to whatever `embedderInfo` already resolved.
+    func embed(_ text: String, language: NLLanguage) -> [Double]? {
+        guard let info = embedder(for: language) ?? embedderInfo else { return nil }
         switch info.mode {
         case .sentence: return Self.pooledSentenceVector(for: text, using: info.embedding)
         case .word:     return Self.pooledWordVector(for: text, using: info.embedding)
         }
+    }
+
+    private func embedder(for language: NLLanguage) -> (embedding: NLEmbedding, mode: Mode)? {
+        if language == .undetermined { return embedderInfo }
+        lock.lock()
+        if let cached = languageEmbedders[language] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let resolved: (NLEmbedding, Mode)?
+        if let sentence = NLEmbedding.sentenceEmbedding(for: language) {
+            resolved = (sentence, .sentence)
+        } else if let word = NLEmbedding.wordEmbedding(for: language) {
+            resolved = (word, .word)
+        } else {
+            resolved = nil
+        }
+        guard let resolved else { return embedderInfo }
+        lock.lock()
+        languageEmbedders[language] = resolved
+        lock.unlock()
+        return resolved
     }
 
     /// A pooled vector + norm for a *query*, memoized in the bounded LRU so a
@@ -228,6 +280,122 @@ final class EmbeddingService: @unchecked Sendable {
         return norm
     }
 
+    // MARK: - Passage vectors (spec 044 R1)
+
+    /// Cached (or freshly embedded) vectors for `passages`. Reuses any item
+    /// whose `textHash` still matches so an edit that only changes one
+    /// paragraph does not rewrite the others. `contentHash` is the entry's
+    /// title+text hash and invalidates the "complete set" shortcut.
+    func passageVectors(
+        id: UUID,
+        passages: [Passage],
+        contentHash: UInt64,
+        language: NLLanguage = .english
+    ) -> [PassageEmbedding] {
+        ensureDiskCacheLoaded()
+        lastEmbeddedPassageIndexes = []
+        guard !passages.isEmpty else {
+            lock.lock()
+            passageCache[id] = (contentHash, [])
+            lock.unlock()
+            return []
+        }
+
+        lock.lock()
+        let cachedItems = passageCache[id]?.items ?? []
+        let cachedEntryHash = passageCache[id]?.entryHash
+        lock.unlock()
+
+        if cachedEntryHash == contentHash, cachedItems.count == passages.count {
+            let byIndex = Dictionary(uniqueKeysWithValues: cachedItems.map { ($0.index, $0) })
+            let allMatch = passages.allSatisfy { passage in
+                guard let item = byIndex[passage.index] else { return false }
+                return item.textHash == Self.stableHash(passage.text)
+            }
+            if allMatch { return passages.compactMap { byIndex[$0.index] } }
+        }
+
+        let byTextHash = Dictionary(uniqueKeysWithValues: cachedItems.map { ($0.textHash, $0) })
+        var result: [PassageEmbedding] = []
+        result.reserveCapacity(passages.count)
+        var embedded: [Int] = []
+
+        for passage in passages {
+            let textHash = Self.stableHash(passage.text)
+            if let reuse = byTextHash[textHash] {
+                result.append(PassageEmbedding(
+                    index: passage.index, textHash: textHash,
+                    vector: reuse.vector, norm: reuse.norm
+                ))
+                continue
+            }
+            guard let vector = embed(passage.text, language: language) else { continue }
+            let norm = Self.norm(of: vector)
+            let item = PassageEmbedding(index: passage.index, textHash: textHash, vector: vector, norm: norm)
+            result.append(item)
+            embedded.append(passage.index)
+            persistPassage(item, id: id)
+        }
+        lastEmbeddedPassageIndexes = embedded
+
+        lock.lock()
+        passageCache[id] = (contentHash, result)
+        lock.unlock()
+
+        removeStalePassageFiles(id: id, keeping: Set(result.map(\.index)))
+        return result
+    }
+
+    /// Memory/disk lookup that never embeds. `contentHash` must match the
+    /// entry hash the set was stored under.
+    func cachedPassageVectors(id: UUID, contentHash: UInt64) -> [PassageEmbedding]? {
+        ensureDiskCacheLoaded()
+        lock.lock()
+        defer { lock.unlock() }
+        guard let cached = passageCache[id], cached.entryHash == contentHash else { return nil }
+        return cached.items
+    }
+
+    /// Test seam: persist a known passage vector without NLEmbedding.
+    func storePassageVector(
+        _ vector: [Double],
+        id: UUID,
+        index: Int,
+        textHash: UInt64,
+        contentHash: UInt64
+    ) {
+        let norm = Self.norm(of: vector)
+        let item = PassageEmbedding(index: index, textHash: textHash, vector: vector, norm: norm)
+        ensureDiskCacheLoaded()
+        lock.lock()
+        var items = passageCache[id]?.items ?? []
+        if let existing = items.firstIndex(where: { $0.index == index }) {
+            items[existing] = item
+        } else {
+            items.append(item)
+            items.sort { $0.index < $1.index }
+        }
+        passageCache[id] = (contentHash, items)
+        lock.unlock()
+        persistPassage(item, id: id)
+    }
+
+    private func persistPassage(_ item: PassageEmbedding, id: UUID) {
+        let data = Self.encodeVectorRecord(hash: item.textHash, norm: item.norm, vector: item.vector)
+        try? data.write(to: passageFileURL(id, index: item.index), options: [.atomic, .completeFileProtection])
+    }
+
+    private func removeStalePassageFiles(id: UUID, keeping indexes: Set<Int>) {
+        guard let files = try? fileManager.contentsOfDirectory(at: rootDirectory, includingPropertiesForKeys: nil) else { return }
+        for url in files {
+            guard let parsed = Self.parseVectorFilename(url),
+                  parsed.id == id,
+                  let index = parsed.passageIndex,
+                  !indexes.contains(index) else { continue }
+            try? fileManager.removeItem(at: url)
+        }
+    }
+
     // MARK: - Lowercased entry text (keyword-scoring cache)
 
     /// The entry's lowercased (title, text), cached under the same content
@@ -261,10 +429,12 @@ final class EmbeddingService: @unchecked Sendable {
         for id in entryIds {
             entryCache.removeValue(forKey: id)
             lowercasedCache.removeValue(forKey: id)
+            passageCache.removeValue(forKey: id)
         }
         lock.unlock()
         for id in entryIds {
             try? fileManager.removeItem(at: vectorFileURL(id))
+            removeStalePassageFiles(id: id, keeping: [])
         }
     }
 
@@ -276,12 +446,12 @@ final class EmbeddingService: @unchecked Sendable {
         purgeEpoch &+= 1   // an in-flight disk load must not resurrect the dropped set
         entryCache = entryCache.filter { ids.contains($0.key) }
         lowercasedCache = lowercasedCache.filter { ids.contains($0.key) }
+        passageCache = passageCache.filter { ids.contains($0.key) }
         lock.unlock()
 
         guard let files = try? fileManager.contentsOfDirectory(at: rootDirectory, includingPropertiesForKeys: nil) else { return }
         for url in files where url.pathExtension == "vec" {
-            guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent),
-                  !ids.contains(id) else { continue }
+            guard let parsed = Self.parseVectorFilename(url), !ids.contains(parsed.id) else { continue }
             try? fileManager.removeItem(at: url)
         }
     }
@@ -293,6 +463,8 @@ final class EmbeddingService: @unchecked Sendable {
         purgeEpoch &+= 1   // an in-flight disk load must not merge after this wipe
         entryCache.removeAll()
         lowercasedCache.removeAll()
+        passageCache.removeAll()
+        lastEmbeddedPassageIndexes = []
         queryCache.removeAll()
         queryOrder.removeAll()
         lock.unlock()
@@ -339,6 +511,22 @@ final class EmbeddingService: @unchecked Sendable {
         rootDirectory.appendingPathComponent("\(id.uuidString).vec")
     }
 
+    private func passageFileURL(_ id: UUID, index: Int) -> URL {
+        rootDirectory.appendingPathComponent("\(id.uuidString).p\(index).vec")
+    }
+
+    /// `<uuid>.vec` is the whole-entry record; `<uuid>.p<index>.vec` is a passage.
+    static func parseVectorFilename(_ url: URL) -> (id: UUID, passageIndex: Int?)? {
+        guard url.pathExtension == "vec" else { return nil }
+        let name = url.deletingPathExtension().lastPathComponent
+        if let id = UUID(uuidString: name) { return (id, nil) }
+        guard let marker = name.range(of: ".p", options: [.backwards]) else { return nil }
+        let idPart = String(name[..<marker.lowerBound])
+        let indexPart = String(name[marker.upperBound...])
+        guard let id = UUID(uuidString: idPart), let index = Int(indexPart) else { return nil }
+        return (id, index)
+    }
+
     /// Pull the on-disk vector cache into memory ahead of the first lookup —
     /// called from the prewarm chain so a chat send never pays the load.
     /// Idempotent and cheap once loaded (one condition-variable check), so it
@@ -374,12 +562,19 @@ final class EmbeddingService: @unchecked Sendable {
 
         // No lock held from here to the merge.
         var loaded: [UUID: (hash: UInt64, vector: [Double], norm: Double)] = [:]
+        var loadedPassages: [UUID: [PassageEmbedding]] = [:]
         if let files = try? fileManager.contentsOfDirectory(at: rootDirectory, includingPropertiesForKeys: nil) {
             for url in files where url.pathExtension == "vec" {
-                guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent),
+                guard let parsed = Self.parseVectorFilename(url),
                       let data = try? Data(contentsOf: url),
                       let record = Self.decodeVectorRecord(data) else { continue }
-                loaded[id] = (record.hash, record.vector, record.norm)
+                if let index = parsed.passageIndex {
+                    loadedPassages[parsed.id, default: []].append(
+                        PassageEmbedding(index: index, textHash: record.hash, vector: record.vector, norm: record.norm)
+                    )
+                } else {
+                    loaded[parsed.id] = (record.hash, record.vector, record.norm)
+                }
             }
         }
 
@@ -387,6 +582,10 @@ final class EmbeddingService: @unchecked Sendable {
         if purgeEpoch == epochAtStart {
             for (id, record) in loaded where entryCache[id] == nil {
                 entryCache[id] = record
+            }
+            for (id, items) in loadedPassages where passageCache[id] == nil {
+                // entryHash 0 = "loaded from disk, not yet reconciled to an entry hash"
+                passageCache[id] = (0, items.sorted { $0.index < $1.index })
             }
         }
         // else: a purge ran while we were reading — drop this pass's records

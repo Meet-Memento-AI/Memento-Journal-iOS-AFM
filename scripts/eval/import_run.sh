@@ -41,6 +41,8 @@ case "$KIND" in
   harness_sweep|harness_gate|harness_agentic)
     [[ -n "$PROMPT" && -n "$MODEL" ]] || {
       echo "--prompt-version and --model are required for $KIND (spec 022 R1)" >&2; exit 2; };;
+  # harness_retrieval / harness_routing: no generation — prompt and model stay optional.
+  harness_retrieval|harness_routing) ;;
 esac
 
 psql_run() {

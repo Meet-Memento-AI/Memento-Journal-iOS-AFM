@@ -78,6 +78,19 @@ struct RetrieverTuning: Sendable {
     var minSigmaMargin = 0.05
     /// Ambient background is capped tighter for high-bar (share) turns.
     var ambientCapHighBar = 3
+    /// Hybrid rank weights. Semantic dominates when available; keyword is
+    /// implicit 1.0 on the IDF score; recency breaks ties.
+    ///
+    /// These are the committed Session 2 defaults (`RETRIEVER_GRID=1` searches
+    /// around them). `themeBoost` cannot be fit on the current gold set —
+    /// questions carry no confirmed theme ids — and stays the 044 R3 start of 0.5.
+    var semanticWeight = 5.0
+    var recencyWeight = 0.5
+    /// Passage cosine = max + `passageMeanWeight` × mean (spec 044 R1).
+    var passageMeanWeight = 0.15
+    /// Reorder-only boost when a signal-clearing passage matches a confirmed
+    /// theme synonym (spec 044 R3 / 038 amendment). Cannot create a hit.
+    var themeBoost = 0.5
 
     static let `default` = RetrieverTuning()
 }
@@ -142,11 +155,6 @@ enum EntryRetriever {
     // while shrinking the journal-evidence block the model ingests per turn
     // (faster time-to-first-token). Tunable.
     static let maxContentChars = 500
-
-    // Hybrid weights. Semantic dominates when available; keyword and recency
-    // keep it grounded and break ties.
-    private static let semanticWeight = 5.0
-    private static let recencyWeight = 0.5
 
     /// The canonical text an entry is embedded under — must match what
     /// `retrieve` uses so the warm pass and the retrieval pass hit the same
@@ -231,6 +239,11 @@ enum EntryRetriever {
             let hash = EmbeddingService.contentHash(title: entry.title, text: entry.text)
             hashes[entry.id] = hash
             _ = service.entryVector(id: entry.id, text: embedText(for: entry), contentHash: hash)
+            let chunked = PassageChunker.chunk(title: entry.title, text: entry.text)
+            _ = service.passageVectors(
+                id: entry.id, passages: chunked.passages,
+                contentHash: hash, language: chunked.language
+            )
         }
 
         // Commit only if no mutation raced this pass — otherwise the hashes
@@ -301,7 +314,9 @@ enum EntryRetriever {
         _ query: RetrievalQuery,
         entries: [Entry],
         tuning: RetrieverTuning = .default,
-        limits: RetrievalLimits = .legacyDefault
+        limits: RetrievalLimits = .legacyDefault,
+        themeIds: [String] = [],
+        embeddingService: EmbeddingService = .shared
     ) -> RetrievalResult {
         let trimmed = query.currentMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         if entries.isEmpty || trimmed.isEmpty { return .empty }
@@ -318,8 +333,8 @@ enum EntryRetriever {
         }
         // Query vectors come from the LRU (`embedQuery`), so a repeated or
         // follow-up question skips NLEmbedding entirely.
-        let currentVector = EmbeddingService.shared.embedQuery(trimmed)
-        let historyVector = query.historyContext.flatMap { EmbeddingService.shared.embedQuery($0) }
+        let currentVector = embeddingService.embedQuery(trimmed)
+        let historyVector = query.historyContext.flatMap { embeddingService.embedQuery($0) }
 
         // Pass 1: per-entry combined cosine (current-message dominated) so the
         // significance threshold can be computed over the whole corpus. The
@@ -357,30 +372,40 @@ enum EntryRetriever {
         // `.noMatch` stance line already tells the model to say plainly that it
         // does not see the thing they asked about. With a date named there is
         // nothing left to offer, and the windowed branch below returns `.empty`.
-        struct Measured { let entry: Entry; let cosine: Double?; let keyword: Double }
+        struct Measured {
+            let entry: Entry
+            let cosine: Double?
+            let keyword: Double
+            let chunked: ChunkedEntry
+            let bestPassageIndex: Int?
+        }
         let measured: [Measured] = entries.enumerated().map { index, entry in
             let hash = hashes[index]
             let keyword = keywordByEntry[index]
+            let chunked = PassageChunker.chunk(title: entry.title, text: entry.text)
             var cosine: Double? = nil
-            if let currentVector,
-               let entryVector = EmbeddingService.shared.entryVector(
-                   id: entry.id, text: embedText(for: entry), contentHash: hash) {
-                var value = EmbeddingService.cosineSimilarity(
-                    currentVector.vector, normA: currentVector.norm,
-                    entryVector.vector, normB: entryVector.norm
-                ) * tuning.currentWeight
-                if let historyVector {
-                    value += EmbeddingService.cosineSimilarity(
-                        historyVector.vector, normA: historyVector.norm,
-                        entryVector.vector, normB: entryVector.norm
-                    ) * tuning.historyWeight
-                } else {
-                    // No history assist — don't penalize the current-only match.
-                    value /= tuning.currentWeight
-                }
-                cosine = value
+            var bestPassageIndex: Int? = nil
+            if let currentVector {
+                let scored = passageCosine(
+                    current: currentVector,
+                    history: historyVector,
+                    passages: embeddingService.passageVectors(
+                        id: entry.id, passages: chunked.passages,
+                        contentHash: hash, language: chunked.language
+                    ),
+                    wholeEntry: embeddingService.entryVector(
+                        id: entry.id, text: embedText(for: entry), contentHash: hash
+                    ),
+                    tuning: tuning
+                )
+                cosine = scored.cosine
+                bestPassageIndex = scored.bestIndex
             }
-            return Measured(entry: entry, cosine: cosine, keyword: keyword)
+            if bestPassageIndex == nil {
+                bestPassageIndex = Self.bestPassageIndex(for: trimmed, chunked: chunked)
+            }
+            return Measured(entry: entry, cosine: cosine, keyword: keyword,
+                            chunked: chunked, bestPassageIndex: bestPassageIndex)
         }
 
         let cosines = measured.compactMap(\.cosine)
@@ -394,7 +419,14 @@ enum EntryRetriever {
         // back to November when the answer was March. Relevance has to decide
         // which entries are candidates; age only decides between them, below.
         let origin = seeksOrigin(trimmed)
-        struct Scored { let entry: Entry; let score: Double; let hasSignal: Bool; let touched: Bool }
+        struct Scored {
+            let entry: Entry
+            let score: Double
+            let hasSignal: Bool
+            let touched: Bool
+            let chunked: ChunkedEntry
+            let bestPassageIndex: Int?
+        }
         // The informative mass of the question: what an entry containing every
         // content word would score on the body alone.
         let queryWeight = documentFrequency
@@ -404,7 +436,7 @@ enum EntryRetriever {
         let scored: [Scored] = measured.map { m in
             let semantic = m.cosine ?? 0.0
             let recency = origin ? 0.0 : recencyScore(entry: m.entry, now: now)
-            let score = semantic * semanticWeight + m.keyword + recency * recencyWeight
+            var score = semantic * tuning.semanticWeight + m.keyword + recency * tuning.recencyWeight
             // A named date range is a hard constraint, not a preference: an
             // entry outside the window cannot be the answer to "what did I
             // write in December", however well it scores on the words.
@@ -444,12 +476,23 @@ enum EntryRetriever {
             // embeddings score it — and they score everything warmly, which is
             // the whole reason the lexical check exists.
             let lexicalWhereRequired = terms.isEmpty || m.keyword > 0
+            let hasSignal = clears && inWindow && lexicalWhereRequired
+            // Theme boost reorders signal-clearing hits only (044 R3). Ambient
+            // and no-signal entries are unaffected, so a synonym cannot create
+            // a topical match the bar rejected.
+            if hasSignal, !themeIds.isEmpty,
+               matchesThemes(m.entry, chunked: m.chunked, bestIndex: m.bestPassageIndex, themeIds: themeIds) {
+                score += tuning.themeBoost
+            }
             return Scored(entry: m.entry, score: score,
-                          hasSignal: clears && inWindow && lexicalWhereRequired,
-                          touched: inWindow && m.keyword > 0)
+                          hasSignal: hasSignal,
+                          touched: inWindow && m.keyword > 0,
+                          chunked: m.chunked,
+                          bestPassageIndex: m.bestPassageIndex)
         }
         .sorted { $0.score > $1.score }
 
+        let scoredById = Dictionary(uniqueKeysWithValues: scored.map { ($0.entry.id, $0) })
         let strong = scored.filter(\.hasSignal).map(\.entry)
         var ordered: [Entry]
         let ambient: Bool
@@ -548,14 +591,128 @@ enum EntryRetriever {
         if selected.isEmpty { return .empty }
 
         let retrieved = selected.enumerated().map { index, entry in
-            RetrievedEntry(
+            let meta = scoredById[entry.id]
+            return RetrievedEntry(
                 ref: index + 1,
                 id: entry.id,
                 date: entry.createdAt,
-                text: String(entry.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(limits.maxContentChars))
+                text: excerpt(
+                    entry: entry,
+                    chunked: meta?.chunked,
+                    bestIndex: meta?.bestPassageIndex,
+                    cap: limits.maxContentChars
+                )
             )
         }
         return RetrievalResult(entries: retrieved, contextBlock: buildContextBlock(retrieved, ambient: ambient), isAmbient: ambient)
+    }
+
+    // MARK: - Passage cosine + excerpt (spec 044 R1)
+
+    /// Combined cosine: max-passage + `passageMeanWeight` × mean, each passage
+    /// mixed with current/history weights the same way the whole-entry path
+    /// used to. Falls back to the whole-entry vector when no passage embedded.
+    static func passageCosine(
+        current: (vector: [Double], norm: Double),
+        history: (vector: [Double], norm: Double)?,
+        passages: [PassageEmbedding],
+        wholeEntry: (vector: [Double], norm: Double)?,
+        tuning: RetrieverTuning
+    ) -> (cosine: Double?, bestIndex: Int?) {
+        func mixed(_ other: (vector: [Double], norm: Double)) -> Double {
+            var value = EmbeddingService.cosineSimilarity(
+                current.vector, normA: current.norm,
+                other.vector, normB: other.norm
+            ) * tuning.currentWeight
+            if let history {
+                value += EmbeddingService.cosineSimilarity(
+                    history.vector, normA: history.norm,
+                    other.vector, normB: other.norm
+                ) * tuning.historyWeight
+            } else {
+                value /= tuning.currentWeight
+            }
+            return value
+        }
+
+        if !passages.isEmpty {
+            var best = -Double.greatestFiniteMagnitude
+            var bestIndex = passages[0].index
+            var sum = 0.0
+            for item in passages {
+                let value = mixed((item.vector, item.norm))
+                sum += value
+                if value > best {
+                    best = value
+                    bestIndex = item.index
+                }
+            }
+            let mean = sum / Double(passages.count)
+            return (best + tuning.passageMeanWeight * mean, bestIndex)
+        }
+        if let wholeEntry {
+            return (mixed(wholeEntry), nil)
+        }
+        return (nil, nil)
+    }
+
+    static func excerpt(
+        entry: Entry,
+        chunked: ChunkedEntry?,
+        bestIndex: Int?,
+        cap: Int
+    ) -> String {
+        let body = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let chunked, !chunked.passages.isEmpty else {
+            return String(body.prefix(cap))
+        }
+        let passage = chunked.passages.first(where: { $0.index == bestIndex })
+            ?? chunked.passages[0]
+        return PassageChunker.excerpt(sentences: chunked.sentences, passage: passage, maxChars: cap)
+    }
+
+    /// Theme synonym / display-name match against the selected passage (or
+    /// the whole entry if no passage was chosen).
+    static func matchesThemes(
+        _ entry: Entry,
+        chunked: ChunkedEntry,
+        bestIndex: Int?,
+        themeIds: [String]
+    ) -> Bool {
+        let hay: String
+        if let bestIndex, let passage = chunked.passages.first(where: { $0.index == bestIndex }) {
+            hay = (entry.title + " " + passage.text).lowercased()
+        } else {
+            hay = (entry.title + " " + entry.text).lowercased()
+        }
+        for id in themeIds {
+            for needle in ThemeCatalog.synonyms(for: id) where !needle.isEmpty {
+                if hay.contains(needle.lowercased()) { return true }
+            }
+        }
+        return false
+    }
+
+    /// When NLEmbedding is missing, pick the passage with the most query-term
+    /// hits so excerpts still come from the matching span rather than the prefix.
+    static func bestPassageIndex(for query: String, chunked: ChunkedEntry) -> Int? {
+        guard !chunked.passages.isEmpty else { return nil }
+        if chunked.passages.count == 1 { return chunked.passages[0].index }
+        let queryTerms = tokenize(query)
+        guard !queryTerms.isEmpty else { return chunked.passages[0].index }
+        var bestIndex = chunked.passages[0].index
+        var bestHits = -1
+        for passage in chunked.passages {
+            let folded = passage.text.lowercased()
+            let hits = queryTerms.reduce(into: 0) { count, term in
+                if containsWord(folded, term) { count += 1 }
+            }
+            if hits > bestHits {
+                bestHits = hits
+                bestIndex = passage.index
+            }
+        }
+        return bestIndex
     }
 
     // MARK: - Semantic significance (relative, testable)

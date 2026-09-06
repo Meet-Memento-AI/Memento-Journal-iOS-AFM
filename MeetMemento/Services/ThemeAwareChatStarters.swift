@@ -31,11 +31,11 @@ struct ChatSuggestion: Hashable, Identifiable {
             themeName: "Mindfulness"
         ),
         ChatSuggestion(
-            prompt: "Create an actionable plan based on my recent habits and daily patterns",
+            prompt: "What habits show up most often in my recent entries?",
             themeName: "Goals"
         ),
         ChatSuggestion(
-            prompt: "How has my mood shifted over the past two weeks?",
+            prompt: "What have I written about sleep lately?",
             themeName: "Sleep"
         )
     ]
@@ -48,11 +48,11 @@ struct ChatSuggestion: Hashable, Identifiable {
             themeName: "Mindfulness"
         ),
         ChatSuggestion(
-            prompt: "Create an actionable plan based on my recent habits and daily patterns",
+            prompt: "What habits show up most often in my recent entries?",
             themeName: "Goals"
         ),
         ChatSuggestion(
-            prompt: "How has my mood shifted over the past two weeks?",
+            prompt: "What have I written about sleep lately?",
             themeName: "Sleep"
         )
     ]

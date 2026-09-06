@@ -41,6 +41,13 @@ final class ThemeCatalogTests: XCTestCase {
         XCTAssertEqual(ThemeCatalog.legacyGoalMapping("Compassion"), "support")
     }
 
+    func test_synonyms_includeDisplayName() {
+        let needles = ThemeCatalog.synonyms(for: "friendship")
+        XCTAssertTrue(needles.contains("Friendship"))
+        XCTAssertTrue(needles.contains("friends"))
+        XCTAssertTrue(ThemeCatalog.synonyms(for: "not_a_real_theme").isEmpty)
+    }
+
     func test_suggestFromKeywords_findsOverlaps() {
         let ids = ThemeCatalog.suggestFromKeywords(
             "I want less stress and more balance around work burnout",
