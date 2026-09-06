@@ -647,7 +647,7 @@ struct ChatMessagesView: View {
                         messageID: message.id,
                         heading1: ai.heading1,
                         heading2: ai.heading2,
-                        body: ai.body
+                        body: ai.speakableBody
                     )
                 }
             },

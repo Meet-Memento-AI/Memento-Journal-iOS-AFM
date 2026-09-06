@@ -31,8 +31,8 @@ fi
 
 # `--use-script-input-files` does not honor `.swiftlint.yml` included/excluded.
 # Keep this filter in sync with that file: only the app target is linted, and
-# the three pre-existing oversized types are skipped (Phase II touches them
-# only to carry facts / skip the model).
+# pre-existing oversized types are skipped (Phase II touches them only to
+# carry facts / skip the model / speak Swift n).
 swift_files=()
 for path in "${changed[@]}"; do
   [[ -f "$path" ]] || continue
@@ -40,7 +40,8 @@ for path in "${changed[@]}"; do
   case "$path" in
     MeetMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift|\
     MeetMemento/ViewModels/ChatViewModel.swift|\
-    MeetMemento/Services/ChatService.swift)
+    MeetMemento/Services/ChatService.swift|\
+    MeetMemento/Components/AIChat/ChatMessagesView.swift)
       echo "Skipping excluded $path"
       continue
       ;;

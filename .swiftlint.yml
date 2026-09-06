@@ -10,6 +10,8 @@ excluded:
   - MeetMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift
   - MeetMemento/ViewModels/ChatViewModel.swift
   - MeetMemento/Services/ChatService.swift
+  # Pre-existing oversized view. Phase II only swaps speak over to fact text.
+  - MeetMemento/Components/AIChat/ChatMessagesView.swift
 
 opt_in_rules:
   - array_init

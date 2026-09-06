@@ -43,4 +43,13 @@ public struct InsightFact: Sendable, Equatable, Codable, Hashable {
     public static func lowConfidenceCopy(n: Int) -> String {
         "\(lowConfidenceCopyPrefix)\(n) entries — too few to call a pattern."
     }
+
+    /// Copy / speak text. Matches the Ask stat card so Swift `n` is audible.
+    public var plainText: String {
+        var lines = [label.capitalized, value, "n = \(n)"]
+        if isLowConfidence {
+            lines.append(Self.lowConfidenceCopy(n: n))
+        }
+        return lines.joined(separator: "\n")
+    }
 }

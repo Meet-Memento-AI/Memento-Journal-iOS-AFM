@@ -60,6 +60,21 @@ public struct AIOutputContent: Hashable, Codable {
         facts = try container.decodeIfPresent([InsightFact].self, forKey: .facts)
     }
 
+    /// Facts first, then body — statistic turns have an empty body on purpose.
+    public var speakableBody: String {
+        let factText = (facts ?? []).map(\.plainText).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        if body.isEmpty { return factText }
+        if factText.isEmpty { return body }
+        return factText + "\n\n" + body
+    }
+
+    public var plainTextForCopy: String {
+        [heading1, heading2, speakableBody]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+    }
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(heading1, forKey: .heading1)
@@ -190,6 +205,7 @@ public struct AIOutputComponent: View {
             content.heading2 ?? "",
             content.body,
             String(content.citations?.count ?? 0),
+            String((content.facts ?? []).count),
             // The final `.delta` and the `.final` event carry byte-identical body
             // text for a citation-less reply, so without this the `isStreaming`
             // flip alone wouldn't re-trigger `syncTargets` and the typewriter
@@ -249,13 +265,8 @@ public struct AIOutputComponent: View {
     /// pre-stream placeholder, `!isStreaming` keeps it off a half-written one.
     private var showsActionBar: Bool { hasRenderableContent && !isStreaming }
 
-    /// Full text for copy (heading1 + heading2 + body).
-    private var fullTextForCopy: String {
-        [content.heading1, content.heading2, content.body]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n\n")
-    }
+    /// Full text for copy (headings + Swift facts + body).
+    private var fullTextForCopy: String { content.plainTextForCopy }
 
     // MARK: - Typewriter-derived substrings
 

@@ -126,4 +126,24 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(suppressed.map(\.code), ["insight.contradictsSuppressed"])
         XCTAssertTrue(ChatEvalScoring.gating(suppressed).isEmpty)
     }
+
+    func test_plainText_includesNAndLowConfidenceCopy() {
+        let window = DateInterval(start: Date(), duration: 86_400)
+        let fact = InsightFact(
+            kind: .count, label: "brother", value: "3", n: 3,
+            window: window, supportingEntryIDs: []
+        )
+        XCTAssertTrue(fact.plainText.contains("3"))
+        XCTAssertTrue(fact.plainText.contains("n = 3"))
+        XCTAssertTrue(fact.plainText.contains("Based on 3 entries"))
+
+        let content = AIOutputContent(body: "", facts: [fact])
+        XCTAssertEqual(content.speakableBody, fact.plainText)
+        XCTAssertTrue(content.plainTextForCopy.contains("n = 3"))
+        XCTAssertFalse(
+            SpeechTextSanitizer.speakableText(
+                heading1: nil, heading2: nil, body: content.speakableBody
+            ).isEmpty
+        )
+    }
 }
