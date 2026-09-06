@@ -80,6 +80,46 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(facts[0].n, 3, "2026 fixtures mention brother at least three times")
     }
 
+    func test_answer_lastMentionBrother_matchesLatestHit() throws {
+        let (entries, _) = try ChatEvalCorpus.personaCorpus()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "UTC")!
+        let now = day(2026, 12, 15, calendar: calendar)
+        let query = "When did I last mention my brother?"
+        XCTAssertEqual(TurnClassifier.classify(query, hasHistory: false), .quantitative)
+        let facts = InsightEngine.answer(query: query, entries: entries, now: now, calendar: calendar)
+        XCTAssertEqual(facts.count, 1)
+        XCTAssertEqual(facts[0].kind, .lastMention)
+        let hits = entries.filter { InsightEngine.containsSubject($0, "brother") }
+        let last = try XCTUnwrap(hits.max { $0.createdAt < $1.createdAt })
+        XCTAssertEqual(facts[0].n, hits.count)
+        XCTAssertEqual(facts[0].value, EntryRetriever.formattedDate(last.createdAt))
+        XCTAssertTrue(facts[0].supportingEntryIDs.contains(last.id))
+    }
+
+    func test_answer_howOftenWorkThisMonth_isCountInWindow() throws {
+        let (entries, _) = try ChatEvalCorpus.personaCorpus()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone(identifier: "UTC")!
+        let now = day(2026, 7, 20, calendar: calendar)
+        let query = "How often have I written about work this month?"
+        XCTAssertEqual(TurnClassifier.classify(query, hasHistory: false), .quantitative)
+        let facts = InsightEngine.answer(query: query, entries: entries, now: now, calendar: calendar)
+        XCTAssertEqual(facts.count, 1)
+        XCTAssertEqual(facts[0].kind, .count)
+        let month = calendar.dateInterval(of: .month, for: now)
+            ?? DateInterval(start: now, duration: 30 * 86_400)
+        let expected = entries.filter {
+            month.contains($0.createdAt) && InsightEngine.containsSubject($0, "work")
+        }
+        XCTAssertEqual(facts[0].n, expected.count)
+        XCTAssertEqual(facts[0].value, "\(expected.count)")
+        let scoped = InsightEngine.relativePeriodInterval(query, now: now, calendar: calendar)
+        XCTAssertEqual(scoped?.start, month.start)
+        let allTime = entries.filter { InsightEngine.containsSubject($0, "work") }
+        XCTAssertLessThan(facts[0].n, allTime.count, "this month must not count the whole corpus")
+    }
+
     func test_streakAndGap_nIsEntrySampleSizeNotDayCount() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)

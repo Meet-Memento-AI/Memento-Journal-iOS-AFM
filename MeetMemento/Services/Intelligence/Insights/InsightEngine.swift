@@ -84,6 +84,7 @@ enum InsightEngine {
     ) -> [InsightFact] {
         let window = QueryDateWindowParser.parse(query, now: now, calendar: calendar)
         let interval = window.map { orderedInterval(start: $0.start, end: $0.end) }
+            ?? relativePeriodInterval(query, now: now, calendar: calendar)
             ?? DateInterval(start: .distantPast, end: now.addingTimeInterval(1))
         let pool = entries.filter { interval.contains($0.createdAt) }
         let subject = extractSubject(query, window: window)
@@ -219,4 +220,39 @@ enum InsightEngine {
         guard range.location != NSNotFound else { return nil }
         return ns.substring(with: range)
     }
+}
+
+extension InsightEngine {
+    /// "this month" / "last week" are not in `QueryDateWindowParser` (named
+    /// months and "this year" only). Phase II starters need them so Swift `n`
+    /// is not the whole corpus.
+    static func relativePeriodInterval(
+        _ query: String, now: Date, calendar: Calendar
+    ) -> DateInterval? {
+        let lower = query.lowercased()
+        if lower.contains("this week") {
+            return calendar.dateInterval(of: .weekOfYear, for: now).map {
+                orderedInterval(start: $0.start, end: $0.end)
+            }
+        }
+        if lower.contains("last week"),
+           let cursor = calendar.date(byAdding: .weekOfYear, value: -1, to: now) {
+            return calendar.dateInterval(of: .weekOfYear, for: cursor).map {
+                orderedInterval(start: $0.start, end: $0.end)
+            }
+        }
+        if lower.contains("this month") {
+            return calendar.dateInterval(of: .month, for: now).map {
+                orderedInterval(start: $0.start, end: $0.end)
+            }
+        }
+        if lower.contains("last month"),
+           let cursor = calendar.date(byAdding: .month, value: -1, to: now) {
+            return calendar.dateInterval(of: .month, for: cursor).map {
+                orderedInterval(start: $0.start, end: $0.end)
+            }
+        }
+        return nil
+    }
+}
 }
