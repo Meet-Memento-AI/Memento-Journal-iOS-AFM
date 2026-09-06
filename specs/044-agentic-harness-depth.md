@@ -2,9 +2,9 @@
 id: 044
 title: Agentic Harness Depth — Retrieval, Tools, Living Profile, Lean Prompt
 tier: P2
-status: draft (2026-09-06)
+status: draft (2026-09-06; amended same day after corpus review)
 effort: 6–8 sessions across four phases; each phase ships independently
-depends_on: [017, 022, 037, 039, 041, 043]
+depends_on: [017, 022, 037, 038, 039, 041, 043]
 findings:
   - whole-entry-embedding-dilutes-recall
   - excerpt-is-first-500-chars-not-best-passage
@@ -155,7 +155,8 @@ A deterministic XCTest (`TEST_RUNNER_RETRIEVAL_GATE=1`, no model, runs in
 precision@5, MRR, abstention accuracy** (gold `match: "none"` must return
 `.empty` or ambient, never a strong hit). It also emits per-item CSV to
 `.eval-runs/retrieval/`, importable through 043's `import_run.sh` with
-`kind = retrieval_gate`.
+`kind = harness_retrieval` (the warehouse enum; do not invent
+`retrieval_gate`).
 
 A companion script (`scripts/eval/fit_retriever.swift` or a test with
 `RETRIEVER_GRID=1`) grid-searches `RetrieverTuning` and the three hybrid
@@ -177,7 +178,9 @@ then `recall@5 ≥ 0.85` and `abstention accuracy ≥ 0.90` gate, matching 022
 ### R3. Profile priors — the onboarding profile steers retrieval and starters, never the prompt
 
 `confirmedThemeIds` stay out of instructions (037: goals are not the
-subject). They become **retrieval priors** instead:
+subject). They become **retrieval priors** instead. This is the 2026-09-06
+amendment to 038 R6 / Non-goals: bounded **reorder**, never filter, never
+prompt text.
 
 - On `.share` and `.reflectiveQuestion` turns (companion channel, retrieval
   off today), retrieval stays off. No change — the rule that sharing does not
@@ -227,7 +230,9 @@ Rules, all enforced in Swift rather than asked of the model:
   see a tool (039's effort curve, `REQ-INT-017`).
 - **Pre-retrieval still runs.** The deterministic pass remains the first
   evidence block; the tool exists for the *second* hop the pass cannot make.
-  `toolCallingMode` is `.allowed`, never `.required`.
+  `toolCallingMode` is `.allowed`, never `.required`. Spec 022 R2's
+  TrajectoryExpectation (amended 2026-09-06) scores **retrieval occurred**,
+  not "tool was called."
 - **Hard cap: 2 calls per turn.** The tool instance carries a counter; the
   third call returns an authored "no further search this turn" output. Each
   result set is ingested into `SessionCandidatePool` and re-numbered so
@@ -241,7 +246,9 @@ Rules, all enforced in Swift rather than asked of the model:
   generation watchdog; tool output is capped at `RetrievalLimits.maxEntries`
   entries × `maxContentChars`.
 - **Provenance:** `GenerationRequest.toolsEnabled` becomes true on these
-  turns; the perf log line (R7) records `tools=N`.
+  turns; the perf log line (R7) records `tools=N`. `AskResult` gains
+  `toolsCalled: Int` (default 0) so spec 041 feedback snapshots can
+  distinguish tool-assisted turns. Do not put this only on the log.
 - **SDK gate:** compiled under `#if compiler(>=6.3)` and `@available(iOS
   27.0, *)` exactly as image attachments are today. On the iOS 26 SDK the
   turn runs the current tool-free path. Both paths yield the same
@@ -316,7 +323,8 @@ IDF terms, as `EntryRetriever` already scores them), confirmed theme
 families, and — once 045 lands — tagged topics. The onboarding reflection
 is one input among these, weighted no higher than the clusters. Output is
 the existing `ProfileEstimateAnswer` shape; validation through
-`ThemeCatalog.validate` and the 120-character lens cap are unchanged.
+`ThemeCatalog.validate` and the three-layer lens caps (stored 400 /
+generated 120 / Ask inject 80) are unchanged — see 038 R3 amendment.
 
 Rules:
 
@@ -375,7 +383,9 @@ attributable to one phase.
 ## Out of Scope
 
 - Computed insights, entry tagging, `PeriodReflection`, weekly/monthly
-  surfaces, `BGProcessingTask` — sibling spec 045.
+  surfaces, `BGProcessingTask` — sibling spec
+  [045](045-computed-insights-and-period-reflection.md). Session order:
+  [044-045-implementation-sessions.md](reference/044-045-implementation-sessions.md).
 - Private Cloud Compute routing and `.moderate` / `.deep` reasoning — lands
   with the SDK; `ModelRouter` rows already exist.
 - Dynamic Profiles (R4 note), `SpotlightSearchTool` (DEC-002), cross-device
@@ -413,7 +423,7 @@ attributable to one phase.
       cadence guard, proposal fields on `ExperienceProfile` (R6)
 - [ ] 12. Settings → Profile "Memento's current read on you" with Accept /
       Edit / Keep mine (R6)
-- [ ] 13. Register in `specs/README.md` and `ROADMAP.md`; mint 045 for
+- [x] 13. Register in `specs/README.md` and `ROADMAP.md`; mint 045 for
       computed insights
 
 ## Verification

@@ -277,11 +277,14 @@ entry-summary row), 047 (failure/retry), 048 (honest gating). This closes the
 preservation contract's end-state window that opened when Phase 1 deleted the
 edge functions.
 
-- **Tool-calling loop:** `SpotlightSearchTool` attached per spec 016 R5's
-  session-side contracts (guidance constants, all seven `reply.content`
-  cases) — cited, not re-specified. Streaming is snapshot-based per 017 R6
-  (`AsyncThrowingStream<AnswerChunk, Error>`); reflections never stream, chat
-  always does.
+- **Tool-calling loop:** **Amendment 2026-09-06 (016 Branch B / DEC-002 /
+  specs 044–045):** Ask retrieval is `EntryRetriever` plus, on iOS 27,
+  `SearchJournalTool` (044 R4). `SpotlightSearchTool` is not attached —
+  donation is opt-in off. Computed `.count` / `.statistic` answers are
+  `InsightEngine` (045 R1/R5), not Spotlight `reply.content` cases.
+  Streaming remains snapshot-based per 017 R6; reflections never stream,
+  chat always does. The 016 R5 session-side contracts apply to the
+  hand-rolled tool's trajectory logging, not to a Spotlight instance.
 - **Computed answers, not just prose** (`technology/03` §5): `.count` /
   `.statistic` / `.table` / `.scoredItems` render as first-class UI sections
   with `reply.label` — "how many times did I write about my brother this
