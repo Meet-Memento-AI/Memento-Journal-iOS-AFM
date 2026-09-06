@@ -96,7 +96,7 @@ struct ConversationSummary: Sendable, Equatable {
         let sentence = String(trimmed[..<sentenceEnd]).trimmingCharacters(in: .whitespacesAndNewlines)
         let source = sentence.isEmpty ? trimmed : sentence
         if source.count <= 48 { return source }
-        let prefix = String(source.prefix(48))
+        let prefix = String(source.prefix(48)) // budget-exempt: title clip, not a model payload
         if let lastSpace = prefix.lastIndex(of: " "), lastSpace > prefix.startIndex {
             return String(prefix[..<lastSpace])
         }
