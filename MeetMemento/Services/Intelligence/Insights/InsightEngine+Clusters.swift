@@ -7,6 +7,12 @@
 
 import Foundation
 
+private struct EmbeddedEntry {
+    let entry: Entry
+    let vector: [Double]
+    let norm: Double
+}
+
 extension InsightEngine {
     /// Greedy groups over cached whole-entry vectors. Empty when NLEmbedding
     /// is unavailable (CI).
@@ -14,16 +20,16 @@ extension InsightEngine {
         entries: [Entry], now: Date, calendar _: Calendar
     ) -> [InsightFact] {
         let service = EmbeddingService.shared
-        var vectors: [(Entry, [Double], Double)] = []
+        var vectors: [EmbeddedEntry] = []
         for entry in entries {
             let hash = EmbeddingService.contentHash(title: entry.title, text: entry.text)
             if let cached = service.cachedEntryVector(id: entry.id, contentHash: hash) {
-                vectors.append((entry, cached.vector, cached.norm))
+                vectors.append(EmbeddedEntry(entry: entry, vector: cached.vector, norm: cached.norm))
             }
         }
         guard vectors.count >= 3 else { return [] }
 
-        var clusters: [[(Entry, [Double], Double)]] = []
+        var clusters: [[EmbeddedEntry]] = []
         for item in vectors {
             var best = -1
             var bestCosine = 0.82
@@ -45,7 +51,7 @@ extension InsightEngine {
             start: entries.map(\.createdAt).min() ?? now,
             end: now.addingTimeInterval(1)
         )
-        let corpusTokens = vectors.map { tokens($0.0.title + " " + $0.0.text) }
+        let corpusTokens = vectors.map { tokens($0.entry.title + " " + $0.entry.text) }
         let documentFrequency = idfDocumentFrequency(corpusTokens)
         let corpusSize = Double(max(corpusTokens.count, 1))
         return clusters
@@ -53,7 +59,7 @@ extension InsightEngine {
             .sorted { $0.count > $1.count }
             .prefix(6)
             .map { cluster in
-                let members = cluster.map(\.0)
+                let members = cluster.map(\.entry)
                 let label = clusterLabel(
                     members, documentFrequency: documentFrequency, corpusSize: corpusSize
                 )
@@ -69,12 +75,12 @@ extension InsightEngine {
     }
 
     static func averageCosine(
-        _ item: (Entry, [Double], Double),
-        cluster: [(Entry, [Double], Double)]
+        _ item: EmbeddedEntry,
+        cluster: [EmbeddedEntry]
     ) -> Double {
         let sum = cluster.reduce(0.0) { partial, other in
             partial + EmbeddingService.cosineSimilarity(
-                item.1, normA: item.2, other.1, normB: other.2
+                item.vector, normA: item.norm, other.vector, normB: other.norm
             )
         }
         return sum / Double(cluster.count)

@@ -1,4 +1,3 @@
-// swiftlint:disable file_length type_body_length
 //
 //  AIOutputComponent.swift
 //  MeetMemento
@@ -308,7 +307,6 @@ public struct AIOutputComponent: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-        
             // Citation link — first element, opens the full list in
             // CitationsBottomSheet. Citations only arrive on the stream's
             // `.final` event (deltas carry body + headings only), so this view
@@ -326,7 +324,7 @@ public struct AIOutputComponent: View {
                     .opacity(showCitation ? 1 : 0)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            
+
             // Legacy structured headings (Figtree h3/h4 — never Lora h1/h2).
             if let heading1 = content.heading1, !heading1.isEmpty {
                 let shown = animate ? shownHeading1 : heading1
@@ -598,7 +596,16 @@ private struct InsightFactSection: View {
         content: AIOutputContent(
             heading1: "Understanding Your Patterns",
             heading2: "Key Insights",
-            body: "You asked how work has been landing.\n\n### 12 March\n*I left the office with my jaw still tight.*\nThat walk is the part you stayed with — not the meeting, the leaving.\n\n- 12 March — the long walk home\n- 4 April — Sunday dread",
+            body: """
+            You asked how work has been landing.
+
+            ### 12 March
+            *I left the office with my jaw still tight.*
+            That walk is the part you stayed with — not the meeting, the leaving.
+
+            - 12 March — the long walk home
+            - 4 April — Sunday dread
+            """,
             citations: [
                 JournalCitation(
                     entryId: UUID(),

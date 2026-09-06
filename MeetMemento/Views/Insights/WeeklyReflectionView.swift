@@ -27,7 +27,10 @@ struct WeeklyReflectionView: View {
                     Text(body)
                         .font(.body)
                 } else {
-                    Text("A weekly reflection appears here after you have a few entries. Counts stay on this screen — they are never sent to the model.")
+                    Text(
+                        "A weekly reflection appears here after you have a few entries. "
+                            + "Counts stay on this screen — they are never sent to the model."
+                    )
                         .font(.body)
                         .foregroundStyle(theme.mutedForeground)
                 }

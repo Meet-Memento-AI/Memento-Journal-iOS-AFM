@@ -1,4 +1,3 @@
-// swiftlint:disable type_body_length
 //
 //  TurnClassifier.swift
 //  MeetMemento
@@ -84,7 +83,6 @@ enum TurnClassifier {
     /// Deictic tokens that, in a very short question, refer to the prior turn.
     static let deicticWords: Set<String> = ["that", "it", "this", "those", "these", "one"]
 
-
     /// Tokens that mean the journal on their own. `log`, `logged`, `notes`
     /// and `noted` were removed: they are ordinary English and pulled
     /// unrelated turns into the notebook channel — "I need to log my hours for
@@ -149,11 +147,13 @@ enum TurnClassifier {
         #"^how (tall|far|big|long|old|deep|heavy|fast)\b"#,
         // Instructional how-to. The verb list stays concrete and physical so
         // that "how do I make time for myself" is not swept in.
-        #"\bhow (do|can|would|should) i\b.{0,60}\b(fix|repair|convert|install|uninstall|assemble|unclog|reset|connect|download|cook|charge|tie)\b"#,
+        #"\bhow (do|can|would|should) i\b.{0,60}\b(fix|repair|convert|install|uninstall|"#
+            + #"assemble|unclog|reset|connect|download|cook|charge|tie)\b"#,
         #"\bhow do i get to\b"#,
         // "how do I make sourdough starter?" — the lookahead keeps
         // "how do I make time for myself" out.
-        #"\bhow (do|can|would) i (make|bake|brew|build)\b(?!.{0,20}\b(time|space|room|sense|peace|progress|friends|amends|it up)\b)"#,
+        #"\bhow (do|can|would) i (make|bake|brew|build)\b"#
+            + #"(?!.{0,20}\b(time|space|room|sense|peace|progress|friends|amends|it up)\b)"#,
         // "what's a good gift for…", "what's the best way to learn…"
         #"\bwhat('?s| is) (a|the) (good|best)\b"#,
         #"\bbest way (for me )?to (learn|get|do|make)\b"#,
@@ -238,7 +238,7 @@ enum TurnClassifier {
     /// "How did work feel?" ("it was actually pretty heavy") is a follow-up,
     /// not a fresh share. Typed chat leaves this false so existing routing
     /// stays put.
-    static func classify(
+    static func classify( // swiftlint:disable:this cyclomatic_complexity
         _ message: String,
         hasHistory: Bool,
         lastAssistantAskedQuestion: Bool = false
@@ -289,7 +289,11 @@ enum TurnClassifier {
             || matches(normalized, anyOf: summaryRequestRegexes)
 
         if hasHistory, !carriesOwnJournalAsk {
-            if followupPhrases.contains(where: { normalized == $0 || normalized.hasPrefix($0 + " ") || normalized.hasSuffix(" " + $0) }) {
+            if followupPhrases.contains(where: {
+                normalized == $0
+                    || normalized.hasPrefix($0 + " ")
+                    || normalized.hasSuffix(" " + $0)
+            }) {
                 return .followup
             }
             if normalized == "why" || normalized == "why not" || normalized == "really" {

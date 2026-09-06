@@ -157,9 +157,18 @@ struct AskResult: Sendable {
     /// Swift-computed facts for quantitative turns (045 R5). Empty on notebook.
     let facts: [InsightFact]
 
-    init(heading1: String?, heading2: String?, body: String, citations: [AskCitation],
-         zoneUsed: TrustZone, wasDegraded: Bool, promptVersion: String,
-         modelIdentifier: String, latency: Duration = .zero, facts: [InsightFact] = []) {
+    init(
+        heading1: String?,
+        heading2: String?,
+        body: String,
+        citations: [AskCitation],
+        zoneUsed: TrustZone,
+        wasDegraded: Bool,
+        promptVersion: String,
+        modelIdentifier: String,
+        latency: Duration = .zero,
+        facts: [InsightFact] = []
+    ) {
         self.heading1 = heading1
         self.heading2 = heading2
         self.body = body
@@ -182,7 +191,13 @@ struct AskResult: Sendable {
 /// appear right away instead of waiting for the model's final `citedRefs`. Empty
 /// for non-grounded turns. `final`'s reconciled citations supersede them.
 enum AskStreamEvent: Sendable {
-    case delta(bodySoFar: String, heading1: String?, heading2: String?, reviewedCitations: [AskCitation], facts: [InsightFact] = [])
+    case delta(
+        bodySoFar: String,
+        heading1: String?,
+        heading2: String?,
+        reviewedCitations: [AskCitation],
+        facts: [InsightFact] = []
+    )
     case final(AskResult)
 }
 
@@ -197,9 +212,16 @@ struct ProfileEstimateResult: Sendable, Equatable {
     let modelIdentifier: String
     let latency: Duration
 
-    init(themeIds: [String], secondaryThemeIds: [String], promptLens: String,
-         zoneUsed: TrustZone, wasDegraded: Bool, promptVersion: String,
-         modelIdentifier: String, latency: Duration = .zero) {
+    init(
+        themeIds: [String],
+        secondaryThemeIds: [String],
+        promptLens: String,
+        zoneUsed: TrustZone,
+        wasDegraded: Bool,
+        promptVersion: String,
+        modelIdentifier: String,
+        latency: Duration = .zero
+    ) {
         self.themeIds = themeIds
         self.secondaryThemeIds = secondaryThemeIds
         self.promptLens = promptLens
@@ -362,11 +384,15 @@ extension IntelligenceService {
         return try await ask(question, history: history, entries: await loadEntries(), images: images)
     }
 
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(
+        _ question: String, history: [ChatTurn], entries: [Entry]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         askStream(question, history: history, entries: entries, images: [], spoken: false)
     }
 
-    func askStream(_ question: String, history: [ChatTurn], entries: [Entry], images: [Data]) -> AsyncThrowingStream<AskStreamEvent, Error> {
+    func askStream(
+        _ question: String, history: [ChatTurn], entries: [Entry], images: [Data]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         askStream(question, history: history, entries: entries, images: images, spoken: false)
     }
 
@@ -410,9 +436,13 @@ extension IntelligenceService {
             let task = Task {
                 do {
                     let result = try await ask(question, history: history, entries: entries, images: images)
-                    continuation.yield(.delta(bodySoFar: result.body, heading1: result.heading1,
-                                              heading2: result.heading2, reviewedCitations: result.citations,
-                                              facts: result.facts))
+                    continuation.yield(.delta(
+                        bodySoFar: result.body,
+                        heading1: result.heading1,
+                        heading2: result.heading2,
+                        reviewedCitations: result.citations,
+                        facts: result.facts
+                    ))
                     continuation.yield(.final(result))
                     continuation.finish()
                 } catch {

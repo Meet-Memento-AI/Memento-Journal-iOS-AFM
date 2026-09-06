@@ -63,7 +63,8 @@ extension InsightEngine {
         var bestPair = (sorted[0], sorted[1])
         for index in 1..<sorted.count {
             let days = calendar.dateComponents(
-                [.day], from: calendar.startOfDay(for: sorted[index - 1].createdAt),
+                [.day],
+                from: calendar.startOfDay(for: sorted[index - 1].createdAt),
                 to: calendar.startOfDay(for: sorted[index].createdAt)
             ).day ?? 0
             if days > bestDays {

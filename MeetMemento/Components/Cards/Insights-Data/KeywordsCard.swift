@@ -172,7 +172,7 @@ private struct InsightsTagFlowLayout<Content: View>: View {
                 "New starts",
                 "Acceptance",
                 "Realizing the truth",
-                "Choosing better",
+                "Choosing better"
             ]
         )
         .padding(20)

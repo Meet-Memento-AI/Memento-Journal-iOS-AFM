@@ -49,7 +49,8 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
         case .greetAndAsk:
             return "[Move: Warm hello in one sentence, then one real question. A first or last name is welcome if it fits.]"
         case .answerHowAreYou:
-            return "[Move: Answer in a few words, then ask about their day. Do not echo \"how are you.\" A name is optional; do not lead with it instead of answering.]"
+            return "[Move: Answer in a few words, then ask about their day. "
+                + "Do not echo \"how are you.\" A name is optional; do not lead with it instead of answering.]"
         case .thanks:
             return "[Move: Warm and brief. One light question if the thread is open. A first or last name is welcome if it fits.]"
         case .farewell:
@@ -61,7 +62,8 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
         case .answerThenAsk:
             return "[Move: Answer first, then one question.]"
         case .patternThenAsk:
-            return "[Move: One connection from the evidence, then one question. No counts, no emotion labels. Do not use their name.]"
+            return "[Move: One connection from the evidence, then one question. "
+                + "No counts, no emotion labels. Do not use their name.]"
         case .emptyThenAsk:
             return "[Move: Honest that you don't see it, then one question back toward them.]"
         case .redirectThenAsk:
@@ -149,7 +151,12 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
     private static func socialMove(for message: String, hasHistory _: Bool) -> ConversationalMove {
         let folded = fold(message)
         if farewellExact.contains(folded) { return .farewell }
-        if farewellNeedles.contains(where: { folded == $0 || folded.hasPrefix($0 + " ") || folded.hasSuffix(" " + $0) || folded.contains(" " + $0 + " ") }) {
+        if farewellNeedles.contains(where: {
+            folded == $0
+                || folded.hasPrefix($0 + " ")
+                || folded.hasSuffix(" " + $0)
+                || folded.contains(" " + $0 + " ")
+        }) {
             return .farewell
         }
         if thanksNeedles.contains(where: { folded == $0 || folded.contains($0) }) {

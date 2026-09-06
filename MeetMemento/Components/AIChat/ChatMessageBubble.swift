@@ -101,9 +101,10 @@ public struct ChatMessageBubble: View {
             messageContent
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }    
+    }
+
     // MARK: - Message Content
-    
+
     /// Assistant-side content only. The user branch renders `UserBubbleSurface`
     /// directly in `body` so the send choreography's ghost can share it.
     @ViewBuilder
@@ -338,7 +339,16 @@ private struct UnansweredUserMessageMenu: ViewModifier {
 #Preview("AI Message with Markdown") {
     ChatMessageBubble(
         message: ChatMessage(
-            content: "This is **bold text** and this is *italic text*.\n\n### A moment\n1. First dated beat\n2. Next dated beat\n\n- Sit with the notebook\n- Answer from your entries",
+            content: """
+            This is **bold text** and this is *italic text*.
+
+            ### A moment
+            1. First dated beat
+            2. Next dated beat
+
+            - Sit with the notebook
+            - Answer from your entries
+            """,
             isFromUser: false
         )
     )
