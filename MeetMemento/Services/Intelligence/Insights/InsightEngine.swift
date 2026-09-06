@@ -278,7 +278,7 @@ enum InsightEngine {
                 InsightFact(
                     kind: .person,
                     label: name,
-                    value: "\(hits.count)",
+                    value: namedEntityValue(hits),
                     n: hits.count,
                     window: window,
                     supportingEntryIDs: hits.map(\.id)
@@ -291,13 +291,22 @@ enum InsightEngine {
                 InsightFact(
                     kind: .place,
                     label: name,
-                    value: "\(hits.count)",
+                    value: namedEntityValue(hits),
                     n: hits.count,
                     window: window,
                     supportingEntryIDs: hits.map(\.id)
                 )
             }
         return Array(personFacts) + Array(placeFacts)
+    }
+
+    private static func namedEntityValue(_ hits: [Entry]) -> String {
+        let dates = hits.map(\.createdAt).sorted()
+        guard let first = dates.first, let last = dates.last else { return "\(hits.count)" }
+        if first == last {
+            return "\(hits.count) · \(EntryRetriever.formattedDate(first))"
+        }
+        return "\(hits.count) · \(EntryRetriever.formattedDate(first))–\(EntryRetriever.formattedDate(last))"
     }
 
     // MARK: - Clusters
@@ -339,13 +348,16 @@ enum InsightEngine {
             start: entries.map(\.createdAt).min() ?? now,
             end: now.addingTimeInterval(1)
         )
+        let corpusTokens = vectors.map { tokens($0.0.title + " " + $0.0.text) }
+        let documentFrequency = idfDocumentFrequency(corpusTokens)
+        let corpusSize = Double(max(corpusTokens.count, 1))
         return clusters
             .filter { $0.count >= 2 }
             .sorted { $0.count > $1.count }
             .prefix(6)
             .map { cluster in
                 let members = cluster.map(\.0)
-                let label = clusterLabel(members)
+                let label = clusterLabel(members, documentFrequency: documentFrequency, corpusSize: corpusSize)
                 return InsightFact(
                     kind: .cluster,
                     label: label,
@@ -369,15 +381,36 @@ enum InsightEngine {
         return sum / Double(cluster.count)
     }
 
-    private static func clusterLabel(_ entries: [Entry]) -> String {
-        var counts: [String: Int] = [:]
-        for entry in entries {
-            for token in tokens(entry.title + " " + entry.text) {
-                counts[token, default: 0] += 1
+    private static func idfDocumentFrequency(_ corpusTokens: [[String]]) -> [String: Int] {
+        var df: [String: Int] = [:]
+        for entryTokens in corpusTokens {
+            for token in Set(entryTokens) {
+                df[token, default: 0] += 1
             }
         }
-        let top = counts.sorted { $0.value > $1.value }.prefix(2).map(\.key)
-        return top.isEmpty ? "Related entries" : top.joined(separator: " · ")
+        return df
+    }
+
+    private static func clusterLabel(
+        _ entries: [Entry],
+        documentFrequency: [String: Int],
+        corpusSize: Double
+    ) -> String {
+        var tf: [String: Int] = [:]
+        for entry in entries {
+            for token in tokens(entry.title + " " + entry.text) {
+                tf[token, default: 0] += 1
+            }
+        }
+        let ranked = tf.map { token, count -> (String, Double) in
+            let df = Double(documentFrequency[token] ?? 1)
+            let idf = log((corpusSize + 1) / (df + 1)) + 1
+            return (token, Double(count) * idf)
+        }
+        .sorted { $0.1 > $1.1 }
+        .prefix(2)
+        .map(\.0)
+        return ranked.isEmpty ? "Related entries" : ranked.joined(separator: " · ")
     }
 
     // MARK: - Subject matching

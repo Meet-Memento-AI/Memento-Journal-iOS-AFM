@@ -316,7 +316,7 @@ public struct AIOutputComponent: View {
             // answer down mid-read, so animate the insertion itself — opacity
             // alone does nothing for layout.
             if let facts = content.facts, !facts.isEmpty {
-                InsightFactSection(facts: facts)
+                InsightFactSection(facts: facts, onTap: onCitationsTapped)
                     .accessibilityIdentifier("ask.insightFacts")
             }
 
@@ -551,6 +551,7 @@ public struct AIOutputComponent: View {
 /// Stat card for 045 R5 quantitative Ask. `n` is always visible.
 private struct InsightFactSection: View {
     let facts: [InsightFact]
+    var onTap: (() -> Void)?
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -574,6 +575,13 @@ private struct InsightFactSection: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(fact.isLowConfidence ? 0.55 : 1)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !fact.supportingEntryIDs.isEmpty {
+                        onTap?()
+                    }
+                }
+                .accessibilityAddTraits(fact.supportingEntryIDs.isEmpty ? [] : .isButton)
             }
         }
         .padding(16)

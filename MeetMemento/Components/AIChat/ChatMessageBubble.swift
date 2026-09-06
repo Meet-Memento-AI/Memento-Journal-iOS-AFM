@@ -209,7 +209,7 @@ public struct ChatMessageBubble: View {
     /// a visible action bar — directly above the "Memento is thinking"
     /// indicator. `AILoadingState` already communicates that state, so the
     /// placeholder should occupy no space at all until it has content.
-    private func isEmptyStreamingPlaceholder(_ content: AIOutputContent) -> Bool {
+    func isEmptyStreamingPlaceholder(_ content: AIOutputContent) -> Bool {
         content.body.isEmpty
             && (content.heading1 ?? "").isEmpty
             && (content.heading2 ?? "").isEmpty
@@ -217,6 +217,7 @@ public struct ChatMessageBubble: View {
             // any body text — mounting the component then lets "Reviewed your
             // journals" be the first thing to appear rather than waiting for text.
             && (content.citations?.isEmpty ?? true)
+            && (content.facts?.isEmpty ?? true)
     }
 
     // MARK: - Retry Row

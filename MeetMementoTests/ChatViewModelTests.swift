@@ -265,6 +265,13 @@ final class ChatViewModelTests: XCTestCase {
         let assistant = vm.messages.last
         XCTAssertEqual(assistant?.aiOutputContent?.facts, [fact])
         XCTAssertEqual(assistant?.aiOutputContent?.facts?.first?.n, 3)
+        if let content = assistant?.aiOutputContent {
+            let bubble = ChatMessageBubble(message: assistant!)
+            XCTAssertFalse(
+                bubble.isEmptyStreamingPlaceholder(content),
+                "facts-only statistic turns must mount the bubble"
+            )
+        }
     }
 
     func test_ChatViewModel_sendMessage_genericError() async throws {
