@@ -37,15 +37,42 @@ struct AskTranscriptPlan: Equatable, Sendable {
     /// the wrong conversation.
     let fingerprint: String
 
+    /// Marks the optional few-shot pair so it can never be mistaken for a
+    /// stored turn. Persistence tests pin that this string never reaches
+    /// `LocalChatStore` / `assistantContentJSON`.
+    static let exemplarMarker = "[Exemplar]"
+
+    static let exemplarUser = """
+    [Turn: journal question]
+    \(exemplarMarker) What did I write about the hike?
+    """
+
+    static let exemplarAssistant = """
+    You were up Mount Tamalpais with Maya when the fog broke.
+
+    ### 21 days ago
+    *Four hours up, and at the top it broke open completely.*
+
+    The climb and the quiet at the top sat in the same day.
+
+    What do you still remember from that view?
+    """
+
     /// The one shared truncation: `history.suffix(maxHistoryTurns)`, each turn
     /// capped to `maxHistoryCharsPerTurn` — exactly the depth the old inline
-    /// history block carried.
+    /// history block carried. `includeExemplar` is honored only when the
+    /// Session 7 kill-switch is on and history is empty (notebook first turn).
     static func build(
         instructions: String,
         history: [ChatTurn],
-        budget: ContextBudget
+        budget: ContextBudget,
+        includeExemplar: Bool = false
     ) -> AskTranscriptPlan {
         var entries: [Entry] = [.instructions(instructions)]
+        if includeExemplar, PromptExperiments.exemplarTurnEnabled, history.isEmpty {
+            entries.append(.userPrompt(exemplarUser))
+            entries.append(.assistantResponse(exemplarAssistant))
+        }
         for turn in history.suffix(budget.maxHistoryTurns) {
             let text = String(turn.text.prefix(budget.maxHistoryCharsPerTurn))
             entries.append(turn.role == .user ? .userPrompt(text) : .assistantResponse(text))

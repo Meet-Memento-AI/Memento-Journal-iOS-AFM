@@ -142,7 +142,9 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         case .continuer, .statistic: return 64
         case .meta: return 128
         case .companion: return spoken ? 80 : 128
-        case .thread, .notebook: return spoken ? 256 : 512
+        case .thread, .notebook:
+            if spoken { return 256 }
+            return PromptExperiments.typedNotebookCap256 ? 256 : 512
         case .redirect: return 80
         }
     }

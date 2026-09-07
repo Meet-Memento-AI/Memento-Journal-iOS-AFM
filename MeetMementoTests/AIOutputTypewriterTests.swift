@@ -81,15 +81,18 @@ final class AIOutputTypewriterTests: XCTestCase {
         }
     }
 
-    /// The headline property: once the stream ends, ANY remainder up to
-    /// 4000 characters finishes typing within 1 second at the 14ms tick — the
-    /// reveal no longer runs on long after a lengthy reply has arrived.
-    func test_postCompletionRemainder_drainsWithinOneSecond() {
-        for remaining in 1...4_000 {
-            let ticks = ticksToDrain(remaining, isStreamComplete: true)
-            XCTAssertLessThanOrEqual(
-                Double(ticks) * tickSeconds, 1.0,
-                "remaining=\(remaining) took \(ticks) ticks"
+    /// After `.final`, snap the remainder in one tick so catch-up cannot
+    /// spend the last second of the 5s complete budget.
+    func test_postCompletionRemainder_snapsInOneTick() {
+        for remaining in [1, 80, 120, 500, 1_000, 4_000] {
+            XCTAssertEqual(
+                ticksToDrain(remaining, isStreamComplete: true),
+                1,
+                "remaining=\(remaining)"
+            )
+            XCTAssertEqual(
+                AIOutputComponent.revealStep(remaining: remaining, isStreamComplete: true),
+                remaining
             )
         }
     }

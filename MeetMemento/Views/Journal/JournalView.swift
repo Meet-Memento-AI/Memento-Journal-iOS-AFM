@@ -124,6 +124,13 @@ public struct JournalView: View {
                         selectedMonth = calendar.component(.month, from: mostRecent.monthStart)
                         selectedYear = calendar.component(.year, from: mostRecent.monthStart)
                     }
+
+                    // Warm passage embeddings off the send path so Chat never
+                    // pays NLEmbedding on the first notebook question.
+                    let snapshot = entryViewModel.entries
+                    Task.detached(priority: .utility) {
+                        EntryRetriever.warmEmbeddings(snapshot)
+                    }
                 }
             }
             .onDisappear {

@@ -56,6 +56,20 @@ final class TurnTimingsTests: XCTestCase {
         XCTAssertEqual(TurnTimings.format(.milliseconds(1900)), "1.9s")
     }
 
+    func test_liveClock_snapshot_copiesRecordedStages() {
+        let clock = LiveTurnClock.shared
+        clock.resetForTesting()
+        clock.beginTurn()
+        clock.start(.prepRetrieve)
+        clock.end(.prepRetrieve)
+        clock.start(.modelFirstToken)
+        clock.end(.modelFirstToken)
+        let snap = clock.snapshot()
+        XCTAssertNotNil(snap.duration(of: .prepRetrieve))
+        XCTAssertNotNil(snap.duration(of: .modelFirstToken))
+        clock.resetForTesting()
+    }
+
     func test_liveClock_secondBeginTurn_isIgnoredUntilRelease() {
         let clock = LiveTurnClock.shared
         clock.resetForTesting()

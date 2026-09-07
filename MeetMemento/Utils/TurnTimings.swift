@@ -152,6 +152,14 @@ final class LiveTurnClock: @unchecked Sendable {
 
     /// Closes a held narration turn after re-arm (or a failed send that
     /// skipped speech).
+    /// Copy of the current turn's stage bookkeeping (DiagLatencyProfile).
+    func snapshot() -> TurnTimings {
+        lock.lock()
+        let copy = timings
+        lock.unlock()
+        return copy
+    }
+
     /// Test seam — never call from production.
     func resetForTesting() {
         lock.lock()

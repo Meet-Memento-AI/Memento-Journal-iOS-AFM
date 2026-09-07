@@ -4,6 +4,11 @@ import XCTest
 /// Spec 039 R1: ReplyChannel is the only TurnType → recipe map.
 final class ReplyChannelTests: XCTestCase {
 
+    override func tearDown() {
+        PromptExperiments.reset()
+        super.tearDown()
+    }
+
     func test_everyTurnType_hasAChannel() {
         let expected: [TurnType: ReplyChannel] = [
             .social: .phatic,
@@ -161,6 +166,18 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 512)
         XCTAssertEqual(ReplyChannel.statistic.maximumResponseTokens(retrievalRan: false), 64)
         XCTAssertEqual(ReplyChannel.statistic.maximumResponseTokens(retrievalRan: true), 64)
+    }
+
+    func test_typedNotebookCap256_killSwitch_doesNotRaiseSpoken() {
+        PromptExperiments.reset()
+        XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 512)
+        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: false), 512)
+        PromptExperiments.typedNotebookCap256 = true
+        XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true), 256)
+        XCTAssertEqual(ReplyChannel.thread.maximumResponseTokens(retrievalRan: false), 256)
+        XCTAssertEqual(ReplyChannel.notebook.maximumResponseTokens(retrievalRan: true, spoken: true), 256)
+        XCTAssertEqual(ReplyChannel.phatic.maximumResponseTokens(retrievalRan: false), 80)
+        PromptExperiments.reset()
     }
 
     func test_spokenCaps_neverRaiseAndShortenNotebookThread() {

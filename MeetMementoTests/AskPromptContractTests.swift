@@ -5,7 +5,7 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask@15")
+        XCTAssertEqual(resolved.version, "ask-core@16")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@15+p4")
+        XCTAssertEqual(resolved.version, "ask-core@16+p4")
         XCTAssertFalse(resolved.text.contains("Themes they chose:"))
         XCTAssertTrue(resolved.text.contains("Faint lens (not an agenda):"))
         XCTAssertTrue(resolved.text.contains("Conversation first"))
@@ -60,7 +60,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask@15")
+        XCTAssertEqual(resolved.version, "ask-core@16")
         XCTAssertFalse(resolved.text.contains("I want to understand my stress patterns more deeply"))
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
     }
@@ -73,7 +73,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@15")
+        XCTAssertEqual(resolved.version, "ask-degraded@16")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
     }
 
@@ -136,12 +136,8 @@ final class AskPromptContractTests: XCTestCase {
                 "degraded=\(degraded)"
             )
             XCTAssertTrue(
-                text.contains("how they are") || text.contains("what they just shared"),
-                "degraded=\(degraded): notebook-off Open is about them"
-            )
-            XCTAssertTrue(
-                text.contains("no ### unless they asked for the journal"),
-                "degraded=\(degraded)"
+                text.contains("what they just said") || text.contains("answer their latest message"),
+                "degraded=\(degraded): Meet answers the latest turn"
             )
             XCTAssertTrue(
                 text.contains("onboarding journal goals are not the subject"),
@@ -152,10 +148,10 @@ final class AskPromptContractTests: XCTestCase {
                 "degraded=\(degraded): Sit names a pattern"
             )
         }
-        let full = PromptRegistry.instructions(for: .ask).text
-        XCTAssertTrue(full.contains("When to use lists and headings"))
-        XCTAssertTrue(full.contains("Journal question (one moment)"))
-        XCTAssertTrue(full.contains("Zero markdown structure"))
+        let companion = PromptRegistry.channelSuffix(.companion)
+        XCTAssertTrue(companion.contains("no ### unless they asked for the journal"))
+        let light = PromptRegistry.instructions(for: .ask, channel: .phatic).text
+        XCTAssertTrue(light.contains("plain spoken prose only"))
     }
 
     func test_ask11_markdownGrammar_onFullAndDegraded() {
@@ -167,19 +163,12 @@ final class AskPromptContractTests: XCTestCase {
             )
             XCTAssertTrue(text.contains("###"), "degraded=\(degraded): ### heading grammar")
             XCTAssertTrue(
-                text.contains("no headings or lists") || text.contains("Zero markdown structure"),
-                "degraded=\(degraded): casual must forbid lists"
-            )
-            XCTAssertTrue(
                 text.contains("italic") || text.contains("*italic*"),
                 "degraded=\(degraded): italic quotes"
             )
             XCTAssertTrue(
-                text.contains("what you can do together"),
-                "degraded=\(degraded): about-the-app capability list"
-            )
-            XCTAssertTrue(
-                text.contains("lists only if they asked what they"),
+                text.contains("lists only if they asked what they")
+                    || text.contains("lists only if they asked what they wrote"),
                 "degraded=\(degraded): topic inventory may list"
             )
             XCTAssertTrue(text.contains("Never write more than one ###"), "degraded=\(degraded)")
@@ -189,6 +178,9 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertTrue(full.contains("exact journal quotes"))
         XCTAssertTrue(full.contains("unordered lists starting with"))
         XCTAssertTrue(full.contains("ordered lists starting with"))
+        XCTAssertTrue(PromptRegistry.channelSuffix(.meta).contains("what you can do together"))
+        let casual = TurnStance.casual.promptLine
+        XCTAssertTrue(casual.contains("no headings or lists"))
     }
 
     func test_chatLight_versionAndBans() {

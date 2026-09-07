@@ -239,7 +239,9 @@ enum EntryRetriever {
             let hash = EmbeddingService.contentHash(title: entry.title, text: entry.text)
             hashes[entry.id] = hash
             _ = service.entryVector(id: entry.id, text: embedText(for: entry), contentHash: hash)
-            let chunked = PassageChunker.chunk(title: entry.title, text: entry.text)
+            let chunked = PassageChunker.chunk(
+                title: entry.title, text: entry.text, contentHash: hash
+            )
             _ = service.passageVectors(
                 id: entry.id, passages: chunked.passages,
                 contentHash: hash, language: chunked.language
@@ -382,7 +384,9 @@ enum EntryRetriever {
         let measured: [Measured] = entries.enumerated().map { index, entry in
             let hash = hashes[index]
             let keyword = keywordByEntry[index]
-            let chunked = PassageChunker.chunk(title: entry.title, text: entry.text)
+            let chunked = PassageChunker.chunk(
+                title: entry.title, text: entry.text, contentHash: hash
+            )
             var cosine: Double? = nil
             var bestPassageIndex: Int? = nil
             if let currentVector {

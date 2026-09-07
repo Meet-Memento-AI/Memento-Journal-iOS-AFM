@@ -49,7 +49,10 @@ final class ConversationalRecallContractTests: XCTestCase {
         XCTAssertTrue(askText().contains("citedRefs"))
         XCTAssertFalse(askText().contains("eleven entries"), "goldens must not teach counts")
         // The rule survives; the worked example does not.
-        XCTAssertTrue(askText().contains("name the pattern without counting"))
+        XCTAssertTrue(
+            askText().contains("name the pattern without counting")
+                || askText().contains("Sit names a pattern from the evidence")
+        )
     }
 
     /// Regression: the span rule used to teach itself with a literal —
@@ -104,8 +107,8 @@ final class ConversationalRecallContractTests: XCTestCase {
     // MARK: R5 / R1 — version and notebook voice
 
     func test_ask9_versions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@15")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@15")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@16")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@16")
     }
 
     func test_notebookVoice_andShapeContract() {
@@ -113,7 +116,9 @@ final class ConversationalRecallContractTests: XCTestCase {
         XCTAssertTrue(text.contains("notebook beside them"))
         XCTAssertTrue(text.contains("[Shape:]"))
         XCTAssertTrue(text.contains("reproduce any quoted field exactly"))
-        XCTAssertTrue(text.contains("Do not reopen an entry already used in"))
+        XCTAssertTrue(
+            text.range(of: "do not reopen an entry already used in", options: .caseInsensitive) != nil
+        )
         XCTAssertTrue(text.contains("must not skip Sit"))
         XCTAssertTrue(text.contains("complete spoken reply"))
         XCTAssertTrue(text.contains("praise them for journaling")
