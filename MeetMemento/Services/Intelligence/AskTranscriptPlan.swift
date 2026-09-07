@@ -32,6 +32,11 @@ struct AskTranscriptPlan: Equatable, Sendable {
 
     /// Instructions first, then the capped history tail in order.
     let entries: [Entry]
+    /// Session 10 + chat-speed: hashed so a tool-bearing session is never
+    /// adopted as a no-tool one. Live Ask and `prewarmConversation` both
+    /// leave this **false** so iOS 27 notebook/thread turns can adopt the
+    /// idle pool. `SearchJournalTool` attaches only after a speculative miss.
+    let attachesSearchTool: Bool
     /// SHA-256 over the rendered entries — the adoption key for speculative
     /// sessions. Collision-resistant so a stale speculation can never serve
     /// the wrong conversation.
@@ -66,7 +71,8 @@ struct AskTranscriptPlan: Equatable, Sendable {
         instructions: String,
         history: [ChatTurn],
         budget: ContextBudget,
-        includeExemplar: Bool = false
+        includeExemplar: Bool = false,
+        attachesSearchTool: Bool = false
     ) -> AskTranscriptPlan {
         var entries: [Entry] = [.instructions(instructions)]
         if includeExemplar, PromptExperiments.exemplarTurnEnabled, history.isEmpty {
@@ -77,14 +83,19 @@ struct AskTranscriptPlan: Equatable, Sendable {
             let text = String(turn.text.prefix(budget.maxHistoryCharsPerTurn))
             entries.append(turn.role == .user ? .userPrompt(text) : .assistantResponse(text))
         }
-        return AskTranscriptPlan(entries: entries, fingerprint: Self.fingerprint(of: entries))
+        return AskTranscriptPlan(
+            entries: entries,
+            attachesSearchTool: attachesSearchTool,
+            fingerprint: Self.fingerprint(of: entries, attachesSearchTool: attachesSearchTool)
+        )
     }
 
     /// Stable across processes (unlike `Hasher`) and unambiguous: each entry
     /// contributes a role tag and its text with distinct separators, so
     /// ("ab","c") can never collide with ("a","bc") or a role swap.
-    static func fingerprint(of entries: [Entry]) -> String {
+    static func fingerprint(of entries: [Entry], attachesSearchTool: Bool = false) -> String {
         var digest = SHA256()
+        digest.update(data: Data([attachesSearchTool ? 0x74 : 0x00]))
         for entry in entries {
             let tag: UInt8
             let text: String

@@ -18,6 +18,8 @@ public struct ProfileSettingsView: View {
     @State private var isSaving: Bool = false
     @State private var errorMessage: String = ""
     @State private var showSuccessMessage: Bool = false
+    @State private var editedLens: String = ""
+    @State private var isEditingLens: Bool = false
 
     public init() {}
 
@@ -104,6 +106,8 @@ public struct ProfileSettingsView: View {
                     .padding(Spacing.md)
                 }
 
+                lensSection
+
                 Spacer(minLength: Spacing.xxxl)
             }
             .padding(.horizontal, Spacing.lg)
@@ -132,6 +136,65 @@ public struct ProfileSettingsView: View {
     private func loadCurrentProfile() {
         firstName = UserDefaults.standard.string(forKey: "memento_first_name") ?? ""
         lastName = UserDefaults.standard.string(forKey: "memento_last_name") ?? ""
+        editedLens = LocalProfileStore.ensureMigratedProfile().proposedPromptLens ?? ""
+    }
+
+    @ViewBuilder
+    private var lensSection: some View {
+        let profile = LocalProfileStore.ensureMigratedProfile()
+        SettingsSection(title: "Prompt lens") {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Text("Current")
+                    .font(type.body1Bold)
+                    .foregroundStyle(theme.foreground)
+                Text(profile.promptLens?.isEmpty == false ? (profile.promptLens ?? "") : "No lens yet.")
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+                    .accessibilityIdentifier("profile.currentLens")
+
+                if let proposed = profile.proposedPromptLens, !proposed.isEmpty {
+                    Text("Proposed")
+                        .font(type.body1Bold)
+                        .foregroundStyle(theme.foreground)
+                        .padding(.top, Spacing.sm)
+                    if isEditingLens {
+                        AppTextField(
+                            placeholder: "Edit the proposed lens",
+                            text: $editedLens,
+                            textInputAutocapitalization: .sentences
+                        )
+                    } else {
+                        Text(proposed)
+                            .font(type.body2)
+                            .foregroundStyle(theme.mutedForeground)
+                            .accessibilityIdentifier("profile.proposedLens")
+                    }
+                    HStack(spacing: Spacing.sm) {
+                        Button("Accept") {
+                            ProfileRefreshCoordinator.acceptProposal()
+                            isEditingLens = false
+                        }
+                        .accessibilityIdentifier("profile.acceptLens")
+                        Button("Edit") {
+                            editedLens = proposed
+                            isEditingLens = true
+                        }
+                        Button("Keep mine") {
+                            ProfileRefreshCoordinator.keepMine()
+                            isEditingLens = false
+                        }
+                        .accessibilityIdentifier("profile.keepLens")
+                    }
+                    if isEditingLens {
+                        Button("Save edit") {
+                            ProfileRefreshCoordinator.editProposal(editedLens)
+                            isEditingLens = false
+                        }
+                    }
+                }
+            }
+            .padding(Spacing.md)
+        }
     }
 
     private func saveProfile() {

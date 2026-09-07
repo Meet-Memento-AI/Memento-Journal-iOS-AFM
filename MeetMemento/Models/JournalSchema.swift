@@ -69,6 +69,7 @@ final class StoredEntry {
     var excludedFromIndex: Bool = true
     var isFavorite: Bool = false
     var moodLabels: [String] = []
+    var topicLabels: [String] = []
     var audioAssetID: String?
     var healthJSON: Data?
     @Relationship(deleteRule: .cascade, inverse: \StoredAttachment.entry)
@@ -108,6 +109,8 @@ final class StoredReflection {
     var zoneRaw: String = "z0Device"
     var audioAssetID: String?
     var ratingRaw: String?
+    var promptVersion: String = ""
+    var vocabularyVersion: String = ""
     var entries: [StoredEntry]? = []
     @Relationship(deleteRule: .cascade, inverse: \StoredCitation.reflection)
     var citations: [StoredCitation]? = []

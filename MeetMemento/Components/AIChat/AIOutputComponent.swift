@@ -157,6 +157,16 @@ public struct AIOutputComponent: View {
         return remaining
     }
 
+    /// After a snap-to-end on a finished stream, skip the extra 14ms tick
+    /// so the action bar / `onAnimationComplete` is not delayed.
+    static func shouldSleepAfterReveal(
+        displayedCount: Int,
+        totalCount: Int,
+        isStreaming: Bool
+    ) -> Bool {
+        displayedCount < totalCount || isStreaming
+    }
+
     /// Start of the trailing (possibly still-parsing) line: the index just after
     /// the last "\n", or `startIndex` when the text is a single line. Everything
     /// before this is stable, fully-formed lines — the cacheable parse prefix.
@@ -531,18 +541,23 @@ extension AIOutputComponent {
 
                 let remaining = totalCount - displayedCount
                 if remaining > 0 {
-                    // Adaptive curve: a small live backlog trickles at the
-                    // classic pace, a large one (or a finished stream) drains a
-                    // quarter per tick — so the reveal never trails the model
-                    // by more than ~1s, and a long finished reply wraps up in
-                    // well under a second instead of typing on and on.
                     let step = Self.revealStep(
                         remaining: remaining,
                         isStreamComplete: !streamingState
                     )
                     displayedCount = min(totalCount, displayedCount + step)
-                    try? await Task.sleep(nanoseconds: baseTickNanos)
-                } else if streamingState {
+                    if Self.shouldSleepAfterReveal(
+                        displayedCount: displayedCount,
+                        totalCount: totalCount,
+                        isStreaming: streamingState
+                    ) {
+                        try? await Task.sleep(nanoseconds: baseTickNanos)
+                        continue
+                    }
+                    // Snap-to-end on a finished stream: finish in this pass
+                    // without the extra 14ms tick.
+                }
+                if streamingState {
                     // Caught up but more tokens may still come: idle, don't finish.
                     try? await Task.sleep(nanoseconds: baseTickNanos)
                 } else {

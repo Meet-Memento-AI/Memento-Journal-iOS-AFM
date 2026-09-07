@@ -75,16 +75,8 @@ struct ResolvedRoute: Equatable, Sendable {
 }
 
 enum ModelRouter {
-    /// The table. Spec 017 R2 tables nine intents, but `GenerationIntent` has
-    /// three — the aspirational rows (entry title/summary/mood/salience/entry
-    /// reflection → Z0; weekly `.moderate` and monthly `.deep` → Z1; image
-    /// understanding → Z0 with **no** Z1 path, since images are never sent to
-    /// PCC per technology/01 §6) arrive with the intents themselves. Adding an
-    /// intent without adding a row is a test failure, not a runtime fallback.
-    ///
-    /// Reasoning levels are a starting hypothesis seeded from technology/02 §5,
-    /// to be validated by spec 022's harness — Apple's guidance is "data, not
-    /// vibes." Changing one is a one-row edit with a recorded rationale.
+    /// The table. Adding an intent without adding a row is a test failure, not
+    /// a runtime fallback. Monthly `.deep` is still not a `GenerationIntent`.
     static let table: [RoutingRow] = [
         // Latency matters in conversation and retrieval does the heavy lifting,
         // so ask asks for the cheapest reasoning level rather than the best.
@@ -104,6 +96,21 @@ enum ModelRouter {
                    defaultZone: .z0Device,
                    degradedZone: nil,
                    priority: .interactive),
+        // Entry tags stay on-device (045 R3). No Z1 leg.
+        RoutingRow(intent: .entryReflection,
+                   defaultZone: .z0Device,
+                   degradedZone: nil,
+                   priority: .interactive),
+        // Weekly wants Z1 moderate; this SDK is `.sdkUnsupported` → Z0 baseline.
+        RoutingRow(intent: .weeklyReflection,
+                   defaultZone: .z1AppleContent(reasoningLevel: .moderate),
+                   degradedZone: .z0Device,
+                   priority: .interactive),
+        // Living-profile proposal is scheduled and on-device (044 R6 / 017 R3).
+        RoutingRow(intent: .profileRefresh,
+                   defaultZone: .z0Device,
+                   degradedZone: nil,
+                   priority: .scheduled),
     ]
 
     /// The row for an intent, or `nil` if the table is missing one. Deliberately

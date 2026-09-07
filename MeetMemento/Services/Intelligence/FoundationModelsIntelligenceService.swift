@@ -127,6 +127,113 @@ struct ConversationSummaryAnswer {
     let body: String
 }
 
+/// Closed moods for guided entry reflection (017 R5 / technology/01).
+@Generable
+enum GuidedMoodLabel: String, CaseIterable {
+    case anxious, calm, frustrated, hopeful, tired, energized
+    case lonely, connected, grieving, content, restless, focused
+}
+
+/// Closed topics for guided entry reflection (ThemeCatalog families).
+@Generable
+enum GuidedTopicLabel: String, CaseIterable {
+    case work, rest, family, friends, health, creativity
+    case growth, home, money, travel, school, community
+}
+
+/// 017 R5 — field-for-field. Public API uses `EntryReflectionResult`.
+@Generable
+struct EntryReflection {
+    @Guide(description: "Six words or fewer. No punctuation at the end. Reads naturally aloud.")
+    let title: String
+    @Guide(description: "One or two sentences describing what this entry was about, in plain prose. No lists, no markdown, no headers.")
+    let summary: String
+    @Guide(description: "Emotional valence from -1.0 (very difficult) to 1.0 (very good).")
+    let valence: Double
+    @Guide(description: "Up to three moods from the provided vocabulary.")
+    let moods: [GuidedMoodLabel]
+    @Guide(description: "Up to four topics from the provided vocabulary.")
+    let topics: [GuidedTopicLabel]
+    @Guide(description: "How much this entry stands out relative to an ordinary day, 0.0 to 1.0.")
+    let salience: Double
+}
+
+/// 017 R5 — field-for-field. Public API uses `PeriodReflectionResult`.
+@Generable
+struct PeriodReflection {
+    @Guide(description: "Three to five sentences of continuous prose. Speakable: no markdown, no bullet points, no headings, no emoji. Written in second person.")
+    let body: String
+    @Guide(description: "One sentence. The single observation most worth keeping. Never advice. Never a question. Never comfort.")
+    let observation: String
+    @Guide(description: "The identifiers of entries this reflection is grounded in. Every claim must trace to one of these.")
+    let groundedEntryIDs: [String]
+    @Guide(description: "True if there was not enough material this period to say anything real.")
+    let hasNothingToSay: Bool
+}
+
+#if compiler(>=6.3)
+/// Session 10 / 044 R4. iOS 27 Tool — not attached on iOS 26.
+@available(iOS 27.0, *)
+final class SearchJournalTool: Tool {
+    let name = "searchJournal"
+    let description = "Search the person's private journal for a topic or time. Use when the entries already in context are not enough."
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to look for in the journal")
+        var query: String
+        @Guide(description: "Optional time hint such as last month or this year")
+        var when: String?
+    }
+
+    private let entries: [Entry]
+    private let limits: RetrievalLimits
+    private let state: SearchJournalTurnState
+    private let ingestPool: @Sendable ([RetrievedEntry]) -> Void
+
+    init(
+        entries: [Entry],
+        limits: RetrievalLimits,
+        state: SearchJournalTurnState,
+        ingestPool: @escaping @Sendable ([RetrievedEntry]) -> Void
+    ) {
+        self.entries = entries
+        self.limits = limits
+        self.state = state
+        self.ingestPool = ingestPool
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let prior = state.beginCall()
+        if let exhausted = SearchJournalPolicy.admit(callsSoFar: prior) {
+            return exhausted
+        }
+        let query = [arguments.query, arguments.when]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let safety = SafetyRouter.decide(query)
+        switch safety.action {
+        case .showCrisisCard, .hardRefuse:
+            return "No matching journal entries."
+        case .continueConstrained, .continue:
+            break
+        }
+        let retrieved = EntryRetriever.retrieve(
+            RetrievalQuery(currentMessage: query),
+            entries: entries,
+            limits: limits
+        )
+        state.ingest(retrieved.entries)
+        ingestPool(retrieved.entries)
+        if retrieved.contextBlock.isEmpty {
+            return "No matching journal entries."
+        }
+        return retrieved.contextBlock
+    }
+}
+#endif
+
 // MARK: - Service
 
 final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked Sendable {
@@ -165,6 +272,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// `ask`/`askStream` carry no conversation id, so identity is derived from
     /// the history itself.
     private var conversationAnchor: ConversationAnchor?
+
+    /// Session 10: live search-tool state for the in-flight Ask turn.
+    private var askSearchState: SearchJournalTurnState?
 
     /// A cheap, order-sensitive fingerprint of a conversation.
     ///
@@ -407,29 +517,63 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return .unavailable(.other("Chat isn't available on this device right now."))
     }
 
+    private static var canAttachSearchTool: Bool {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) { return true }
+        #endif
+        return false
+    }
+
     /// Maps the pure plan 1:1 onto a FoundationModels transcript session.
-    private static func makeSession(from plan: AskTranscriptPlan) -> LanguageModelSession {
-        var entries: [Transcript.Entry] = []
-        entries.reserveCapacity(plan.entries.count)
+    private func makeSession(
+        from plan: AskTranscriptPlan,
+        entries journal: [Entry] = [],
+        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
+        attachSearch: Bool = false
+    ) -> LanguageModelSession {
+        var transcriptEntries: [Transcript.Entry] = []
+        transcriptEntries.reserveCapacity(plan.entries.count)
         for entry in plan.entries {
             switch entry {
             case .instructions(let text):
-                entries.append(.instructions(Transcript.Instructions(
+                transcriptEntries.append(.instructions(Transcript.Instructions(
                     segments: [.text(Transcript.TextSegment(content: text))],
                     toolDefinitions: []
                 )))
             case .userPrompt(let text):
-                entries.append(.prompt(Transcript.Prompt(
+                transcriptEntries.append(.prompt(Transcript.Prompt(
                     segments: [.text(Transcript.TextSegment(content: text))]
                 )))
             case .assistantResponse(let text):
-                entries.append(.response(Transcript.Response(
+                transcriptEntries.append(.response(Transcript.Response(
                     assetIDs: [],
                     segments: [.text(Transcript.TextSegment(content: text))]
                 )))
             }
         }
-        return LanguageModelSession(transcript: Transcript(entries: entries))
+        let transcript = Transcript(entries: transcriptEntries)
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *), attachSearch {
+            let state = askSearchState ?? SearchJournalTurnState()
+            askSearchState = state
+            let tool = SearchJournalTool(
+                entries: journal,
+                limits: limits,
+                state: state,
+                ingestPool: { [weak self] extra in
+                    self?.ingestToolHits(extra)
+                }
+            )
+            return LanguageModelSession(transcript: transcript, tools: [tool])
+        }
+        #endif
+        return LanguageModelSession(transcript: transcript)
+    }
+
+    private func ingestToolHits(_ extra: [RetrievedEntry]) {
+        poolLock.lock()
+        candidatePool.ingest(extra)
+        poolLock.unlock()
     }
 
     /// Speculatively builds and prefills sessions for the NEXT turn of a
@@ -472,7 +616,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
 
             let pair = plans.map { plan in
-                (fingerprint: plan.fingerprint, session: Self.makeSession(from: plan))
+                (fingerprint: plan.fingerprint, session: self.makeSession(from: plan))
             }
             self.storeSpeculativePair(pair)
             for item in pair { item.session.prewarm() }
@@ -791,8 +935,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             zone: route.executionZone,
             allowsDegradation: ModelRouter.row(for: .ask)?.degradedZone != nil,
             promptVersion: resolved.version,
-            toolsEnabled: false
+            toolsEnabled: SearchJournalPolicy.shouldAttach(channel: channel) && Self.canAttachSearchTool
         )
+        // Chat-speed: keep the live fingerprint tool-free so it matches
+        // `prewarmConversation`. SearchJournalTool attaches only after a
+        // speculative miss (see `adoptOrCreateSession`).
         let plan = AskTranscriptPlan.build(
             instructions: resolved.text,
             history: history,
@@ -833,7 +980,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         core: AskCore,
         adopted: (session: LanguageModelSession, hit: Bool),
         wide: RetrievalResult,
-        visionBlock: String?
+        visionBlock: String?,
+        toolsAttached: Bool
     ) {
         let entries = await Self.resolveJournalEntries(
             channel: core.channel, provided: core.entries, loadEntries: loadEntries
@@ -843,10 +991,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             current: filled.images, history: filled.history
         )
         async let wideTask: RetrievalResult = retrieveWide(filled)
-        let adopted = adoptOrCreateSession(plan: filled.plan)
+        let attachOnMiss = SearchJournalPolicy.shouldAttach(channel: filled.channel)
+            && Self.canAttachSearchTool
+            && !entries.isEmpty
+        let adopted = adoptOrCreateSession(
+            plan: filled.plan,
+            journal: entries,
+            limits: filled.poolLimits,
+            attachSearchOnMiss: attachOnMiss
+        )
+        let toolsAttached = SearchJournalPolicy.shouldAttachOnMiss(
+            channel: filled.channel,
+            speculativeHit: adopted.hit,
+            journalIsEmpty: entries.isEmpty
+        ) && Self.canAttachSearchTool
         let wide = await wideTask
         let visionBlock = await visionTask
-        return (filled, adopted, wide, visionBlock)
+        return (filled, adopted, wide, visionBlock, toolsAttached)
     }
 
     private func retrieveWide(_ core: AskCore) -> RetrievalResult {
@@ -882,7 +1043,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private func finishAskPrep(
-        _ core: AskCore, wideRetrieval: RetrievalResult, visionBlock: String?
+        _ core: AskCore,
+        wideRetrieval: RetrievalResult,
+        visionBlock: String?,
+        toolsAttached: Bool
     ) -> AskPreparation {
         let isNewConversation = startsNewConversation(history: core.history)
         let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
@@ -892,6 +1056,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             turn: core.turn, message: core.question, history: core.history, hasEvidence: hasEvidence
         )
         let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
+        let computedSlice = ComputedFactsBlock.entriesForFacts(
+            channel: core.channel, corpus: core.entries, retrieval: retrieval
+        )
+        let computed = computedSlice.isEmpty
+            ? []
+            : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
         let prompt = Self.buildAskPrompt(
             question: core.question,
             history: core.history,
@@ -908,11 +1078,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             channel: core.channel,
             move: move,
             personalization: core.storedPersonalization,
-            spoken: core.spoken
+            spoken: core.spoken,
+            computedFacts: computed
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
-            for: core.channel, retrievalRan: retrievalRan, spoken: core.spoken
+            for: core.channel,
+            retrievalRan: retrievalRan,
+            spoken: core.spoken,
+            toolsAttached: toolsAttached
         )
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
@@ -925,11 +1099,25 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Do not `prewarm()` here: the idle pool already prefills during
     /// `prewarmConversation`, and warming the session this turn will stream
     /// races `streamResponse` (`concurrentRequests` → empty reply).
-    private func adoptOrCreateSession(plan: AskTranscriptPlan) -> (session: LanguageModelSession, hit: Bool) {
+    private func adoptOrCreateSession(
+        plan: AskTranscriptPlan,
+        journal: [Entry] = [],
+        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
+        attachSearchOnMiss: Bool = false
+    ) -> (session: LanguageModelSession, hit: Bool) {
         if let adopted = takeSpeculativeSession(matching: plan.fingerprint) {
+            askSearchState = nil
             return (adopted, true)
         }
-        return (Self.makeSession(from: plan), false)
+        if attachSearchOnMiss {
+            askSearchState = SearchJournalTurnState()
+            return (
+                makeSession(from: plan, entries: journal, limits: limits, attachSearch: true),
+                false
+            )
+        }
+        askSearchState = nil
+        return (makeSession(from: plan, entries: journal, limits: limits), false)
     }
 
     private func resolveTurnShape(for stance: TurnStance, isNewConversation: Bool) -> RecallTurnShape {
@@ -980,12 +1168,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let citations = Self.reconcileCitations(
             citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
         )
+        let toolsCalled = askSearchState?.toolsCalled ?? 0
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
                         promptVersion: prep.request.promptVersion,
                         latency: latency, window: prep.budget.window,
                         entryCount: prep.retrieval.entries.count,
                         promptTokens: promptTokens, cachedTokens: cachedTokens,
-                        tools: 0)
+                        tools: toolsCalled)
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
@@ -995,7 +1184,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             wasDegraded: prep.route.wasDegraded,
             promptVersion: prep.request.promptVersion,
             modelIdentifier: Self.modelIdentifier(for: prep.zone),
-            latency: latency
+            latency: latency,
+            toolsCalled: toolsCalled
         )
     }
 
@@ -1029,7 +1219,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         signposter.endInterval("prep.retrieve", retrieveState)
         LiveTurnClock.shared.end(.prepRetrieve)
         let prep = finishAskPrep(
-            prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+            prepared.core,
+            wideRetrieval: prepared.wide,
+            visionBlock: prepared.visionBlock,
+            toolsAttached: prepared.toolsAttached
         )
         recordTurnPerf(
             promptVersion: prep.request.promptVersion,
@@ -1065,8 +1258,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// and token cap come from ReplyChannel — 0.9 / 64–128 on light and
     /// companion (80 spoken companion), 0.7 / 512 typed (256 spoken) on
     /// notebook and RAG thread.
-    private static func askOptions(for channel: ReplyChannel, retrievalRan: Bool, spoken: Bool) -> GenerationOptions {
-        GenerationOptions(
+    private static func askOptions(
+        for channel: ReplyChannel,
+        retrievalRan: Bool,
+        spoken: Bool,
+        toolsAttached: Bool = false
+    ) -> GenerationOptions {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *), toolsAttached {
+            return GenerationOptions(
+                temperature: channel.temperature(retrievalRan: retrievalRan),
+                maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken),
+                toolCallingMode: .allowed
+            )
+        }
+        #endif
+        return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
             maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
         )
@@ -1312,7 +1519,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     signposter.endInterval("prep.retrieve", retrieveState)
                     LiveTurnClock.shared.end(.prepRetrieve)
                     let prep = finishAskPrep(
-                        prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+                        prepared.core,
+                        wideRetrieval: prepared.wide,
+                        visionBlock: prepared.visionBlock,
+                        toolsAttached: prepared.toolsAttached
                     )
                     signposter.endInterval("prep", prepState)
                     recordTurnPerf(
@@ -1665,7 +1875,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        channel: ReplyChannel = .companion,
                                        move: ConversationalMove? = nil,
                                        personalization: PromptPersonalization = .none,
-                                       spoken: Bool = false) -> String {
+                                       spoken: Bool = false,
+                                       computedFacts: [InsightFact] = []) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
         // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
@@ -1727,6 +1938,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // beat avoids names or the last reply already used one.
         if channel.omitsLens, !skipName, let name = personalization.nameCueLine {
             parts.append(name)
+        }
+        if channel == .notebook, let computed = ComputedFactsBlock.render(computedFacts) {
+            parts.append(computed)
         }
         if channel.allowsRetrieval, !retrieval.contextBlock.isEmpty {
             // Frame as optional evidence so the model does not treat the block
@@ -2132,5 +2346,255 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
         case .z1AppleContentFree: return "apple.cloud.content-free"
         }
+    }
+}
+
+// MARK: - Entry / weekly / profile generation (Sessions 8–11)
+
+extension FoundationModelsIntelligenceService {
+    func reflect(on entry: Entry) async throws -> GenerationOutcome<EntryReflectionResult> {
+        let clock = ContinuousClock()
+        let started = clock.now
+        try await requireAvailable()
+        let blob = [entry.title, entry.text].joined(separator: "\n")
+        try Self.enforceInputSafety(blob)
+        let route = await resolveRoute(for: .entryReflection)
+        let resolved = PromptRegistry.resolve(
+            intent: .entryReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
+        )
+        let budget = ContextBudget(window: Self.currentWindow())
+        let cap = max(budget.maxEntryChars, 400)
+        let excerpt = String(entry.text.prefix(cap)) // budget-exempt: ContextBudget-derived
+        let moodList = MoodLabel.allCases.map(\.rawValue).joined(separator: ", ")
+        let topicList = TopicLabel.allCases.map(\.rawValue).joined(separator: ", ")
+        let prompt = """
+        Mood vocabulary: \(moodList)
+        Topic vocabulary: \(topicList)
+
+        Entry titled \(entry.title):
+        \(excerpt)
+        """
+        let session = LanguageModelSession(instructions: resolved.text)
+        do {
+            let response = try await session.respond(
+                to: prompt,
+                generating: EntryReflection.self,
+                options: GenerationOptions(temperature: 0.4)
+            )
+            let answer = response.content
+            if let hit = OutputSafetyScanner.scan(answer.summary) {
+                _ = hit
+                throw IntelligenceError.guardrailRefusal
+            }
+            let result = EntryReflectionResult(
+                title: answer.title,
+                summary: answer.summary,
+                valence: answer.valence,
+                moods: answer.moods.compactMap { MoodLabel(rawValue: $0.rawValue) },
+                topics: answer.topics.compactMap { TopicLabel(rawValue: $0.rawValue) },
+                salience: answer.salience,
+                promptVersion: resolved.version
+            )
+            let latency = clock.now - started
+            Self.logOutcome(
+                intent: .entryReflection, route: route, promptVersion: resolved.version,
+                latency: latency, window: budget.window, entryCount: 1
+            )
+            noteGenerationSucceeded()
+            return GenerationOutcome(
+                value: result,
+                zoneUsed: route.executionZone,
+                modelIdentifier: Self.modelIdentifier(for: route.executionZone),
+                wasDegraded: route.wasDegraded,
+                latency: latency
+            )
+        } catch let error as IntelligenceError {
+            throw error
+        } catch {
+            throw mapAnyGenerationError(error)
+        }
+    }
+
+    func weeklyReflection(
+        for week: DateInterval,
+        entries: [Entry]
+    ) async throws -> GenerationOutcome<PeriodReflectionResult> {
+        let clock = ContinuousClock()
+        let started = clock.now
+        try await requireAvailable()
+        let inWeek = entries.filter { week.contains($0.createdAt) }
+        let blob = inWeek.map(\.text).joined(separator: "\n")
+        try Self.enforceInputSafety(blob)
+        let route = await resolveRoute(for: .weeklyReflection)
+        let resolved = PromptRegistry.resolve(
+            intent: .weeklyReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
+        )
+        let budget = ContextBudget(window: Self.currentWindow())
+        let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
+        let session = LanguageModelSession(instructions: resolved.text)
+        do {
+            let response = try await session.respond(
+                to: prompt,
+                generating: PeriodReflection.self,
+                options: GenerationOptions(temperature: 0.6)
+            )
+            let answer = response.content
+            if !answer.hasNothingToSay {
+                for field in [answer.body, answer.observation] {
+                    if let hit = OutputSafetyScanner.scan(field) {
+                        _ = hit
+                        throw IntelligenceError.guardrailRefusal
+                    }
+                }
+            }
+            let allowed = Set(inWeek.map(\.id))
+            let grounded = answer.groundedEntryIDs.compactMap(UUID.init(uuidString:)).filter { allowed.contains($0) }
+            let result = PeriodReflectionResult(
+                body: answer.hasNothingToSay ? "" : answer.body,
+                observation: answer.hasNothingToSay ? "" : answer.observation,
+                groundedEntryIDs: grounded,
+                hasNothingToSay: answer.hasNothingToSay || inWeek.count < InsightEngine.lowConfidenceThreshold,
+                promptVersion: resolved.version
+            )
+            let latency = clock.now - started
+            Self.logOutcome(
+                intent: .weeklyReflection, route: route, promptVersion: resolved.version,
+                latency: latency, window: budget.window, entryCount: inWeek.count
+            )
+            noteGenerationSucceeded()
+            return GenerationOutcome(
+                value: result,
+                zoneUsed: route.executionZone,
+                modelIdentifier: Self.modelIdentifier(for: route.executionZone),
+                wasDegraded: route.wasDegraded,
+                latency: latency
+            )
+        } catch let error as IntelligenceError {
+            throw error
+        } catch {
+            throw mapAnyGenerationError(error)
+        }
+    }
+
+    func refreshProfile(
+        entries: [Entry],
+        current: ExperienceProfile
+    ) async throws -> ProfileEstimateResult {
+        let clock = ContinuousClock()
+        let started = clock.now
+        try await requireAvailable()
+        let blob = entries.suffix(12).map { "\($0.title) \($0.text)" }.joined(separator: "\n") // budget-exempt: safety-scan cap, not a model payload
+        try Self.enforceInputSafety(blob)
+        let route = await resolveRoute(for: .profileRefresh)
+        let budget = ContextBudget(window: Self.currentWindow())
+        let resolved = PromptRegistry.resolve(
+            intent: .profileRefresh, zone: route.executionZone, degraded: route.useDegradedPrompt
+        )
+        let catalogLines = ThemeCatalog.all
+            .map { "\($0.id): \($0.displayName)" }
+            .joined(separator: "\n")
+        let recent = entries.sorted { $0.createdAt > $1.createdAt }.prefix(8) // budget-exempt: lens-refresh slice
+        let moments = recent.map {
+            "\(EntryRetriever.formattedDate($0.createdAt)): \(String($0.text.prefix(budget.maxEntryChars / 4)))" // budget-exempt: ContextBudget-derived
+        }.joined(separator: "\n")
+        let prompt = """
+        Catalog (id: DisplayName) — choose only from these ids:
+        \(catalogLines)
+
+        Current faint lens: \(current.promptLens ?? "none")
+
+        Recent journal moments:
+        \(moments)
+        """
+        let session = LanguageModelSession(instructions: resolved.text)
+        do {
+            let response = try await session.respond(
+                to: prompt,
+                generating: ProfileEstimateAnswer.self,
+                options: GenerationOptions(temperature: 0.4)
+            )
+            let answer = response.content
+            if let hit = OutputSafetyScanner.scan(answer.promptLens) {
+                _ = hit
+                throw IntelligenceError.guardrailRefusal
+            }
+            let primary = ThemeCatalog.validate(answer.themeIds, max: ThemeCatalog.defaultSuggestionCount)
+            var lens = answer.promptLens.trimmingCharacters(in: .whitespacesAndNewlines)
+            if lens.count > PromptRegistry.maxGeneratedPromptLensChars {
+                lens = String(lens.prefix(PromptRegistry.maxGeneratedPromptLensChars)) // budget-exempt: stored-lens cap
+            }
+            let latency = clock.now - started
+            Self.logOutcome(
+                intent: .profileRefresh, route: route, promptVersion: resolved.version,
+                latency: latency, window: budget.window, entryCount: recent.count
+            )
+            noteGenerationSucceeded()
+            return ProfileEstimateResult(
+                themeIds: primary,
+                secondaryThemeIds: [],
+                promptLens: lens,
+                zoneUsed: route.executionZone,
+                wasDegraded: route.wasDegraded,
+                promptVersion: resolved.version,
+                modelIdentifier: Self.modelIdentifier(for: route.executionZone),
+                latency: latency
+            )
+        } catch let error as IntelligenceError {
+            throw error
+        } catch {
+            throw mapAnyGenerationError(error)
+        }
+    }
+
+    private func requireAvailable() async throws {
+        let availability = await availability()
+        guard case .available = availability else {
+            if case .unavailable(let reason) = availability {
+                throw IntelligenceError.unavailable(reason)
+            }
+            throw IntelligenceError.unavailable(.other("Intelligence is unavailable right now."))
+        }
+    }
+
+    private static func enforceInputSafety(_ blob: String) throws {
+        let safety = SafetyRouter.decide(blob)
+        SafetyMetrics.record(safety)
+        switch safety.action {
+        case .showCrisisCard:
+            throw IntelligenceError.crisisResource
+        case .hardRefuse:
+            throw IntelligenceError.safetyRefusal(safety.category)
+        case .continueConstrained, .continue:
+            break
+        }
+    }
+
+    private static func buildWeeklyPrompt(
+        week: DateInterval,
+        entries: [Entry],
+        all: [Entry],
+        budget: ContextBudget
+    ) -> String {
+        let facts = InsightEngine.facts(entries: all)
+            .filter { $0.window.intersects(week) || week.contains($0.window.start) }
+        let factLines = facts.prefix(8).map { fact in // budget-exempt: fact-line cap
+            "\(fact.label) — \(FactMagnitude.word(for: fact.n))"
+        }
+        let ranked = entries.sorted { lhs, rhs in
+            lhs.text.count > rhs.text.count
+        }.prefix(budget.maxRetrievedEntries)
+        let moments = ranked.map { entry in
+            let id = entry.id.uuidString
+            let date = EntryRetriever.formattedDate(entry.createdAt)
+            let text = String(entry.text.prefix(budget.maxEntryChars))
+            return "id=\(id) (\(date)): \(text)"
+        }
+        return """
+        Facts (sample size as words, never digits):
+        \(factLines.isEmpty ? "one quiet stretch" : factLines.joined(separator: "\n"))
+
+        Salience-ranked moments:
+        \(moments.joined(separator: "\n\n"))
+        """
     }
 }

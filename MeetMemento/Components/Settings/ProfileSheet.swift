@@ -112,6 +112,10 @@ struct ProfileSheet: View {
             .navigationDestination(for: DrawerRoute.self) { route in
                 drawerDestination(for: route)
             }
+            .navigationDestination(for: EntryRoute.self) { route in
+                EntryEditorDestination(route: route)
+                    .environmentObject(entryViewModel)
+            }
         }
         .presentationDetents([.fraction(0.95)])
         .presentationDragIndicator(.hidden)

@@ -335,7 +335,7 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertEqual(InsightFact.lowConfidenceCopy(n: 3), "Based on 3 entries — too few to call a pattern.")
     }
 
-    func test_insightScoring_digitDisagreesAndSuppressedAreReportedNotGated() {
+    func test_insightScoring_digitDisagreesAndSuppressedAreGated() {
         let window = DateInterval(start: Date(), duration: 86_400)
         let fact = InsightFact(
             kind: .count, label: "brother", value: "3", n: 3,
@@ -345,7 +345,7 @@ final class InsightEngineTests: XCTestCase {
             body: "You wrote about your brother 9 times.", facts: [fact]
         )
         XCTAssertEqual(disagree.map(\.code), ["insight.digitDisagrees"])
-        XCTAssertTrue(ChatEvalScoring.gating(disagree).isEmpty)
+        XCTAssertEqual(ChatEvalScoring.gating(disagree).map(\.code), ["insight.digitDisagrees"])
 
         let ok = ChatEvalScoring.insightDigitDisagrees(
             body: "You wrote about your brother 3 times.", facts: [fact]
@@ -363,7 +363,7 @@ final class InsightEngineTests: XCTestCase {
             body: "Sleep is a clear pattern for you.", facts: [low]
         )
         XCTAssertEqual(suppressed.map(\.code), ["insight.contradictsSuppressed"])
-        XCTAssertTrue(ChatEvalScoring.gating(suppressed).isEmpty)
+        XCTAssertEqual(ChatEvalScoring.gating(suppressed).map(\.code), ["insight.contradictsSuppressed"])
     }
 
     func test_facts_withNowBeforeCorpus_doesNotTrap() throws {

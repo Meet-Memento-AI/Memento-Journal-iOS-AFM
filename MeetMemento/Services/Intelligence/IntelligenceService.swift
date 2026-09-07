@@ -22,6 +22,9 @@ enum GenerationIntent: Sendable, Equatable, CaseIterable {
     case ask              // journal chat / Ask surface
     case summary          // turn a conversation into a journal entry
     case profileEstimate  // map LearnAboutYourself text → ThemeCatalog ids + prompt lens
+    case entryReflection  // 045 R3 — tag + quiet observation at save
+    case weeklyReflection // 045 R4 — previous ISO week, foreground
+    case profileRefresh   // 044 R6 — consent-gated lens proposal
 }
 
 // The zone a generation ran in is `TrustZone` (spec 014 R1), defined in
@@ -156,6 +159,8 @@ struct AskResult: Sendable {
     let latency: Duration
     /// Swift-computed facts for quantitative turns (045 R5). Empty on notebook.
     let facts: [InsightFact]
+    /// Session 10 / 044 R4. Zero on iOS 26 and on channels that never attach tools.
+    let toolsCalled: Int
 
     init(
         heading1: String?,
@@ -167,7 +172,8 @@ struct AskResult: Sendable {
         promptVersion: String,
         modelIdentifier: String,
         latency: Duration = .zero,
-        facts: [InsightFact] = []
+        facts: [InsightFact] = [],
+        toolsCalled: Int = 0
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
@@ -179,6 +185,7 @@ struct AskResult: Sendable {
         self.modelIdentifier = modelIdentifier
         self.latency = latency
         self.facts = facts
+        self.toolsCalled = toolsCalled
     }
 }
 
@@ -347,6 +354,23 @@ protocol IntelligenceService: Sendable {
     /// prompt lens. Callers must validate ids through `ThemeCatalog.validate`.
     func estimateProfile(reflection: String) async throws -> ProfileEstimateResult
 
+    /// Tag and quietly observe one saved entry (045 R3). Guardrail refusal
+    /// is a designed empty state — callers persist nothing and show no error.
+    func reflect(on entry: Entry) async throws -> GenerationOutcome<EntryReflectionResult>
+
+    /// Weekly period reflection (045 R4). Input is facts + salience-ranked
+    /// entries, never a raw dump of the week.
+    func weeklyReflection(
+        for week: DateInterval,
+        entries: [Entry]
+    ) async throws -> GenerationOutcome<PeriodReflectionResult>
+
+    /// Consent-gated lens proposal (044 R6). Does not write the accepted lens.
+    func refreshProfile(
+        entries: [Entry],
+        current: ExperienceProfile
+    ) async throws -> ProfileEstimateResult
+
     /// Whether generation can run right now, and in which zone.
     func availability() async -> IntelligenceAvailability
 
@@ -366,6 +390,24 @@ extension IntelligenceService {
     func prewarm() {}
 
     func prewarmConversation(history: [ChatTurn]) {}
+
+    func reflect(on entry: Entry) async throws -> GenerationOutcome<EntryReflectionResult> {
+        throw IntelligenceError.unavailable(.other("Entry reflection is not available here."))
+    }
+
+    func weeklyReflection(
+        for week: DateInterval,
+        entries: [Entry]
+    ) async throws -> GenerationOutcome<PeriodReflectionResult> {
+        throw IntelligenceError.unavailable(.other("Weekly reflection is not available here."))
+    }
+
+    func refreshProfile(
+        entries: [Entry],
+        current: ExperienceProfile
+    ) async throws -> ProfileEstimateResult {
+        throw IntelligenceError.unavailable(.other("Profile refresh is not available here."))
+    }
 
     /// Convenience for text-only callers (onboarding, tests). Forwards to the
     /// images-aware requirement with an empty attachment list.
