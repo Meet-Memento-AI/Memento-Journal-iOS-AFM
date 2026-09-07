@@ -32,8 +32,10 @@ struct AskTranscriptPlan: Equatable, Sendable {
 
     /// Instructions first, then the capped history tail in order.
     let entries: [Entry]
-    /// Session 10: whether `SearchJournalTool` is attached. Hashed into the
-    /// fingerprint so a tool-bearing session is never adopted as a no-tool one.
+    /// Session 10 + chat-speed: hashed so a tool-bearing session is never
+    /// adopted as a no-tool one. Live Ask and `prewarmConversation` both
+    /// leave this **false** so iOS 27 notebook/thread turns can adopt the
+    /// idle pool. `SearchJournalTool` attaches only after a speculative miss.
     let attachesSearchTool: Bool
     /// SHA-256 over the rendered entries — the adoption key for speculative
     /// sessions. Collision-resistant so a stale speculation can never serve

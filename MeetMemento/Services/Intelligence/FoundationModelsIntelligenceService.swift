@@ -528,7 +528,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func makeSession(
         from plan: AskTranscriptPlan,
         entries journal: [Entry] = [],
-        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable))
+        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
+        attachSearch: Bool = false
     ) -> LanguageModelSession {
         var transcriptEntries: [Transcript.Entry] = []
         transcriptEntries.reserveCapacity(plan.entries.count)
@@ -552,7 +553,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         let transcript = Transcript(entries: transcriptEntries)
         #if compiler(>=6.3)
-        if #available(iOS 27.0, *), plan.attachesSearchTool {
+        if #available(iOS 27.0, *), attachSearch {
             let state = askSearchState ?? SearchJournalTurnState()
             askSearchState = state
             let tool = SearchJournalTool(
@@ -936,12 +937,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: resolved.version,
             toolsEnabled: SearchJournalPolicy.shouldAttach(channel: channel) && Self.canAttachSearchTool
         )
+        // Chat-speed: keep the live fingerprint tool-free so it matches
+        // `prewarmConversation`. SearchJournalTool attaches only after a
+        // speculative miss (see `adoptOrCreateSession`).
         let plan = AskTranscriptPlan.build(
             instructions: resolved.text,
             history: history,
             budget: budget,
-            includeExemplar: channel == .notebook,
-            attachesSearchTool: SearchJournalPolicy.shouldAttach(channel: channel) && Self.canAttachSearchTool
+            includeExemplar: channel == .notebook
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
@@ -977,7 +980,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         core: AskCore,
         adopted: (session: LanguageModelSession, hit: Bool),
         wide: RetrievalResult,
-        visionBlock: String?
+        visionBlock: String?,
+        toolsAttached: Bool
     ) {
         let entries = await Self.resolveJournalEntries(
             channel: core.channel, provided: core.entries, loadEntries: loadEntries
@@ -987,17 +991,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             current: filled.images, history: filled.history
         )
         async let wideTask: RetrievalResult = retrieveWide(filled)
-        if filled.plan.attachesSearchTool {
-            askSearchState = SearchJournalTurnState()
-        } else {
-            askSearchState = nil
-        }
+        let attachOnMiss = SearchJournalPolicy.shouldAttach(channel: filled.channel)
+            && Self.canAttachSearchTool
+            && !entries.isEmpty
         let adopted = adoptOrCreateSession(
-            plan: filled.plan, journal: entries, limits: filled.poolLimits
+            plan: filled.plan,
+            journal: entries,
+            limits: filled.poolLimits,
+            attachSearchOnMiss: attachOnMiss
         )
+        let toolsAttached = SearchJournalPolicy.shouldAttachOnMiss(
+            channel: filled.channel,
+            speculativeHit: adopted.hit,
+            journalIsEmpty: entries.isEmpty
+        ) && Self.canAttachSearchTool
         let wide = await wideTask
         let visionBlock = await visionTask
-        return (filled, adopted, wide, visionBlock)
+        return (filled, adopted, wide, visionBlock, toolsAttached)
     }
 
     private func retrieveWide(_ core: AskCore) -> RetrievalResult {
@@ -1033,7 +1043,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private func finishAskPrep(
-        _ core: AskCore, wideRetrieval: RetrievalResult, visionBlock: String?
+        _ core: AskCore,
+        wideRetrieval: RetrievalResult,
+        visionBlock: String?,
+        toolsAttached: Bool
     ) -> AskPreparation {
         let isNewConversation = startsNewConversation(history: core.history)
         let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
@@ -1043,10 +1056,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             turn: core.turn, message: core.question, history: core.history, hasEvidence: hasEvidence
         )
         let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
-        let moodLabels = core.channel == .notebook ? MementoDataStore.moodLabelsByEntry() : [:]
-        let computed = core.channel == .notebook
-            ? InsightEngine.facts(entries: core.entries, moodLabels: moodLabels)
-            : []
+        let computedSlice = ComputedFactsBlock.entriesForFacts(
+            channel: core.channel, corpus: core.entries, retrieval: retrieval
+        )
+        let computed = computedSlice.isEmpty
+            ? []
+            : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
         let prompt = Self.buildAskPrompt(
             question: core.question,
             history: core.history,
@@ -1071,7 +1086,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             for: core.channel,
             retrievalRan: retrievalRan,
             spoken: core.spoken,
-            toolsAttached: core.plan.attachesSearchTool
+            toolsAttached: toolsAttached
         )
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
@@ -1087,11 +1102,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func adoptOrCreateSession(
         plan: AskTranscriptPlan,
         journal: [Entry] = [],
-        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable))
+        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
+        attachSearchOnMiss: Bool = false
     ) -> (session: LanguageModelSession, hit: Bool) {
-        if !plan.attachesSearchTool, let adopted = takeSpeculativeSession(matching: plan.fingerprint) {
+        if let adopted = takeSpeculativeSession(matching: plan.fingerprint) {
+            askSearchState = nil
             return (adopted, true)
         }
+        if attachSearchOnMiss {
+            askSearchState = SearchJournalTurnState()
+            return (
+                makeSession(from: plan, entries: journal, limits: limits, attachSearch: true),
+                false
+            )
+        }
+        askSearchState = nil
         return (makeSession(from: plan, entries: journal, limits: limits), false)
     }
 
@@ -1194,7 +1219,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         signposter.endInterval("prep.retrieve", retrieveState)
         LiveTurnClock.shared.end(.prepRetrieve)
         let prep = finishAskPrep(
-            prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+            prepared.core,
+            wideRetrieval: prepared.wide,
+            visionBlock: prepared.visionBlock,
+            toolsAttached: prepared.toolsAttached
         )
         recordTurnPerf(
             promptVersion: prep.request.promptVersion,
@@ -1491,7 +1519,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     signposter.endInterval("prep.retrieve", retrieveState)
                     LiveTurnClock.shared.end(.prepRetrieve)
                     let prep = finishAskPrep(
-                        prepared.core, wideRetrieval: prepared.wide, visionBlock: prepared.visionBlock
+                        prepared.core,
+                        wideRetrieval: prepared.wide,
+                        visionBlock: prepared.visionBlock,
+                        toolsAttached: prepared.toolsAttached
                     )
                     signposter.endInterval("prep", prepState)
                     recordTurnPerf(

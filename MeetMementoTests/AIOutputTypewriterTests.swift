@@ -81,6 +81,25 @@ final class AIOutputTypewriterTests: XCTestCase {
         }
     }
 
+    /// A finished snap must not sleep another 14ms before the action bar.
+    func test_shouldSleepAfterReveal_skipsTickWhenSnapCompletes() {
+        XCTAssertFalse(
+            AIOutputComponent.shouldSleepAfterReveal(
+                displayedCount: 80, totalCount: 80, isStreaming: false
+            )
+        )
+        XCTAssertTrue(
+            AIOutputComponent.shouldSleepAfterReveal(
+                displayedCount: 40, totalCount: 80, isStreaming: false
+            )
+        )
+        XCTAssertTrue(
+            AIOutputComponent.shouldSleepAfterReveal(
+                displayedCount: 80, totalCount: 80, isStreaming: true
+            )
+        )
+    }
+
     /// After `.final`, snap the remainder in one tick so catch-up cannot
     /// spend the last second of the 5s complete budget.
     func test_postCompletionRemainder_snapsInOneTick() {

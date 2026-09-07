@@ -126,14 +126,58 @@ final class Session812Tests: XCTestCase {
             attachesSearchTool: SearchJournalPolicy.shouldAttach(channel: .phatic)
         )
         XCTAssertFalse(plan.attachesSearchTool)
-        let notebook = AskTranscriptPlan.build(
+        let toolBearing = AskTranscriptPlan.build(
             instructions: "core",
             history: [],
             budget: ContextBudget(window: .unavailable),
             attachesSearchTool: true
         )
-        XCTAssertTrue(notebook.attachesSearchTool)
-        XCTAssertNotEqual(plan.fingerprint, notebook.fingerprint)
+        XCTAssertTrue(toolBearing.attachesSearchTool)
+        XCTAssertNotEqual(plan.fingerprint, toolBearing.fingerprint)
+    }
+
+    /// Live Ask must hash the same as `prewarmConversation` (tool-free).
+    /// Putting `SearchJournalTool` on the plan was a cold session every
+    /// iOS 27 notebook/thread turn.
+    func test_liveNotebookPlan_matchesPrewarmFingerprint() {
+        let instructions = PromptRegistry.instructions(for: .ask, channel: .notebook).text
+        let budget = ContextBudget(window: .unavailable)
+        let prewarm = AskTranscriptPlan.build(
+            instructions: instructions,
+            history: [],
+            budget: budget,
+            includeExemplar: true
+        )
+        let live = AskTranscriptPlan.build(
+            instructions: instructions,
+            history: [],
+            budget: budget,
+            includeExemplar: true
+        )
+        XCTAssertFalse(prewarm.attachesSearchTool)
+        XCTAssertFalse(live.attachesSearchTool)
+        XCTAssertEqual(prewarm.fingerprint, live.fingerprint)
+    }
+
+    func test_searchTool_attachesOnlyOnSpeculativeMiss() {
+        XCTAssertTrue(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .notebook, speculativeHit: false, journalIsEmpty: false
+        ))
+        XCTAssertTrue(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .thread, speculativeHit: false, journalIsEmpty: false
+        ))
+        XCTAssertFalse(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .notebook, speculativeHit: true, journalIsEmpty: false
+        ), "a speculative hit must stay tool-free")
+        XCTAssertFalse(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .notebook, speculativeHit: false, journalIsEmpty: true
+        ))
+        XCTAssertFalse(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .phatic, speculativeHit: false, journalIsEmpty: false
+        ))
+        XCTAssertFalse(SearchJournalPolicy.shouldAttachOnMiss(
+            channel: .companion, speculativeHit: false, journalIsEmpty: false
+        ))
     }
 
     func test_askResult_toolsCalledDefaultsToZero() {
@@ -230,6 +274,56 @@ final class Session812Tests: XCTestCase {
         XCTAssertFalse(block?.contains("sleep") == true)
         XCTAssertFalse(block?.contains("5") == true)
         XCTAssertTrue(block?.contains("several") == true)
+    }
+
+    func test_computedBlock_capsAtFourFacts() {
+        let window = DateInterval(start: Date(), duration: 86_400)
+        let facts = (0..<6).map { index in
+            InsightFact(
+                kind: .person, label: "P\(index)", value: "5", n: 5,
+                window: window, supportingEntryIDs: []
+            )
+        }
+        let block = ComputedFactsBlock.render(facts)
+        XCTAssertEqual(facts.filter { !$0.isLowConfidence }.count, 6)
+        XCTAssertTrue(block?.contains("P0") == true)
+        XCTAssertTrue(block?.contains("P3") == true)
+        XCTAssertFalse(block?.contains("P4") == true)
+        XCTAssertFalse(block?.contains("P5") == true)
+        XCTAssertFalse(block?.contains("5") == true)
+    }
+
+    func test_computedFacts_useRetrievedSliceOnly() {
+        let kept = Entry(title: "Hike", text: "fog on Tam")
+        let extra = Entry(title: "Later", text: "unrelated note")
+        let retrieved = RetrievedEntry(ref: 1, id: kept.id, date: kept.createdAt, text: kept.text)
+        let topical = RetrievalResult(
+            entries: [retrieved], contextBlock: "block", isAmbient: false
+        )
+        let ambient = RetrievalResult(
+            entries: [retrieved], contextBlock: "block", isAmbient: true
+        )
+        XCTAssertEqual(
+            ComputedFactsBlock.entriesForFacts(
+                channel: .notebook, corpus: [kept, extra], retrieval: topical
+            ).map(\.id),
+            [kept.id]
+        )
+        XCTAssertTrue(
+            ComputedFactsBlock.entriesForFacts(
+                channel: .notebook, corpus: [kept, extra], retrieval: .empty
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            ComputedFactsBlock.entriesForFacts(
+                channel: .notebook, corpus: [kept, extra], retrieval: ambient
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            ComputedFactsBlock.entriesForFacts(
+                channel: .companion, corpus: [kept, extra], retrieval: topical
+            ).isEmpty
+        )
     }
 
     func test_valenceTrend_requiresTaggedEntries() {

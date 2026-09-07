@@ -9,8 +9,28 @@
 import Foundation
 
 enum ComputedFactsBlock {
+    /// Chat-speed: more than a handful of facts grows the prompt without
+    /// helping the first token (044: high TTFT is a prompt problem).
+    /// budget-exempt: 4
+    static let maxFacts = 4
+
+    /// Session 12 + chat-speed: `[Computed]` only on notebook turns that
+    /// already retrieved (045). Facts come from the retrieved slice — not
+    /// a second SwiftData scan of the whole corpus on the send path.
+    static func entriesForFacts(
+        channel: ReplyChannel,
+        corpus: [Entry],
+        retrieval: RetrievalResult
+    ) -> [Entry] {
+        guard channel == .notebook, !retrieval.isEmpty, !retrieval.isAmbient else {
+            return []
+        }
+        let ids = Set(retrieval.entries.map(\.id))
+        return corpus.filter { ids.contains($0.id) }
+    }
+
     static func render(_ facts: [InsightFact]) -> String? {
-        let usable = facts.filter { !$0.isLowConfidence }
+        let usable = Array(facts.filter { !$0.isLowConfidence }.prefix(maxFacts))
         guard !usable.isEmpty else { return nil }
         var lines = [
             "[Computed]",

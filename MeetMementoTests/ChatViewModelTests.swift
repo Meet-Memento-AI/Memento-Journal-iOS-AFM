@@ -866,4 +866,30 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.messages.last?.content, "ok")
         vm.cancelActiveTasks()
     }
+
+    /// Typed chat used to wait 33ms for the first visible token. The first
+    /// apply is immediate; later snapshots still coalesce.
+    func test_firstStreamDelta_appliesImmediately() {
+        XCTAssertTrue(
+            ChatViewModel.shouldApplyStreamDelta(
+                alreadyAppliedFirst: false,
+                elapsedSinceLastApply: .milliseconds(0),
+                minInterval: .milliseconds(33)
+            )
+        )
+        XCTAssertFalse(
+            ChatViewModel.shouldApplyStreamDelta(
+                alreadyAppliedFirst: true,
+                elapsedSinceLastApply: .milliseconds(10),
+                minInterval: .milliseconds(33)
+            )
+        )
+        XCTAssertTrue(
+            ChatViewModel.shouldApplyStreamDelta(
+                alreadyAppliedFirst: true,
+                elapsedSinceLastApply: .milliseconds(33),
+                minInterval: .milliseconds(33)
+            )
+        )
+    }
 }

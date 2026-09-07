@@ -44,6 +44,18 @@ enum SearchJournalPolicy {
         channel.allowsRetrieval
     }
 
+    /// Chat-speed: do not put the tool on the live plan (that misses
+    /// `prewarmConversation`). Attach only after a speculative miss, and
+    /// only when the journal has something to search. Compiler / OS
+    /// availability is gated in the importer.
+    static func shouldAttachOnMiss(
+        channel: ReplyChannel,
+        speculativeHit: Bool,
+        journalIsEmpty: Bool
+    ) -> Bool {
+        !speculativeHit && !journalIsEmpty && shouldAttach(channel: channel)
+    }
+
     /// `callsSoFar` is the number of tool invocations already completed.
     static func admit(callsSoFar: Int) -> String? {
         callsSoFar >= maxCallsPerTurn ? exhaustedMessage : nil

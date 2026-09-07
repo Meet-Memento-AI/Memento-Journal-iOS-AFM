@@ -483,13 +483,14 @@ class ChatViewModel: ObservableObject {
             // re-diffs the transcript. Bodies are cumulative, so intermediate
             // snapshots are safely superseded — apply at most every 33ms, with
             // a trailing flush so a stream stall can't leave the bubble stale.
-            // Narration applies the first delta immediately and coalesces at
-            // ~16ms so the chunker can speak a clause as soon as one exists.
+            // The first visible token paints immediately on every origin
+            // (typed used to wait 33ms). Later snapshots coalesce — 33ms
+            // typed, ~16ms narration so the chunker can speak a clause.
             let deltaClock = ContinuousClock()
             let isNarration = origin == .narration
             let minDeltaInterval: Duration = isNarration ? .milliseconds(16) : .milliseconds(33)
             var lastDeltaApply = deltaClock.now - minDeltaInterval
-            var appliedFirstNarrationDelta = false
+            var appliedFirstDelta = false
             var pendingDelta: (body: String, heading1: String?, heading2: String?,
                                citations: [JournalCitation]?, facts: [InsightFact]?)?
             // Mapped once per turn — the reviewed set is constant across deltas.
@@ -536,12 +537,15 @@ class ChatViewModel: ObservableObject {
                             reviewedFacts = facts
                         }
                         pendingDelta = (body, heading1, heading2, reviewedCitations, reviewedFacts)
-                        let applyFirstImmediately = isNarration && !appliedFirstNarrationDelta
-                        if applyFirstImmediately || deltaClock.now - lastDeltaApply >= minDeltaInterval {
+                        if Self.shouldApplyStreamDelta(
+                            alreadyAppliedFirst: appliedFirstDelta,
+                            elapsedSinceLastApply: deltaClock.now - lastDeltaApply,
+                            minInterval: minDeltaInterval
+                        ) {
                             deltaFlushTask?.cancel()
                             deltaFlushTask = nil
                             applyPendingDelta()
-                            appliedFirstNarrationDelta = true
+                            appliedFirstDelta = true
                         } else if deltaFlushTask == nil {
                             deltaFlushTask = Task { [weak self] in
                                 try? await Task.sleep(for: minDeltaInterval)
@@ -1141,6 +1145,16 @@ class ChatViewModel: ObservableObject {
               let facts = try? JSONDecoder().decode([InsightFact].self, from: data),
               !facts.isEmpty else { return nil }
         return facts
+    }
+
+    /// First visible token paints immediately (typed + narration). Later
+    /// snapshots coalesce at `minInterval`.
+    static func shouldApplyStreamDelta(
+        alreadyAppliedFirst: Bool,
+        elapsedSinceLastApply: Duration,
+        minInterval: Duration
+    ) -> Bool {
+        !alreadyAppliedFirst || elapsedSinceLastApply >= minInterval
     }
 
     private func mapSourcesToCitations(_ sources: [ChatSource]) -> [JournalCitation] {
