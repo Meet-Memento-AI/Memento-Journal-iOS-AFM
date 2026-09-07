@@ -128,9 +128,9 @@ struct AskTranscriptPlan: Equatable, Sendable {
             let tag: UInt8
             let text: String
             switch entry {
-            case .instructions(let t): tag = 0x69; text = t   // 'i'
-            case .userPrompt(let t): tag = 0x75; text = t     // 'u'
-            case .assistantResponse(let t): tag = 0x61; text = t  // 'a'
+            case .instructions(let body): tag = 0x69; text = body   // 'i'
+            case .userPrompt(let body): tag = 0x75; text = body     // 'u'
+            case .assistantResponse(let body): tag = 0x61; text = body  // 'a'
             }
             digest.update(data: Data([tag, 0x1F]))
             digest.update(data: Data(text.utf8))
