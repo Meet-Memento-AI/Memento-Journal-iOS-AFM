@@ -39,12 +39,13 @@ enum WeeklyReflectionCoordinator {
 
         do {
             let outcome = try await intelligence.weeklyReflection(for: week, entries: entries)
-            persist(outcome.value, weekStart: week.start, zone: outcome.zoneUsed, entries: entries)
+            await persist(outcome.value, weekStart: week.start, zone: outcome.zoneUsed, entries: entries)
         } catch {
             persistQuiet(weekStart: week.start)
         }
     }
 
+    @MainActor
     static func persist(
         _ result: PeriodReflectionResult,
         weekStart: Date,

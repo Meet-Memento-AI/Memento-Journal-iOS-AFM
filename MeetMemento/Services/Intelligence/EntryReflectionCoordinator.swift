@@ -71,7 +71,7 @@ enum EntryReflectionCoordinator {
 
         do {
             let generated = try await intelligence.reflect(on: entry)
-            persist(generated.value, for: entry, zone: generated.zoneUsed)
+            await persist(generated.value, for: entry, zone: generated.zoneUsed)
             return .succeeded
         } catch let error as IntelligenceError {
             switch error {
@@ -85,6 +85,7 @@ enum EntryReflectionCoordinator {
         }
     }
 
+    @MainActor
     private static func persist(
         _ result: EntryReflectionResult,
         for entry: Entry,

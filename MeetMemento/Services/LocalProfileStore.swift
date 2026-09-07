@@ -85,7 +85,11 @@ enum LocalProfileStore {
     /// Loads the profile, migrating legacy goals/reflection once if needed.
     @discardableResult
     static func ensureMigratedProfile() -> ExperienceProfile {
-        if var existing = experienceProfile, !existing.confirmedThemeIds.isEmpty || existing.reflection != nil {
+        if var existing = experienceProfile,
+           !existing.confirmedThemeIds.isEmpty
+            || existing.reflection != nil
+            || existing.promptLens != nil
+            || existing.proposedPromptLens != nil {
             // Re-validate ids against current catalog.
             existing.confirmedThemeIds = ThemeCatalog.validate(existing.confirmedThemeIds)
             existing.suggestedThemeIds = ThemeCatalog.validate(existing.suggestedThemeIds, max: 12)

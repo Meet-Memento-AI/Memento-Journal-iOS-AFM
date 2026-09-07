@@ -38,6 +38,75 @@ import FoundationModels
 import os
 import UIKit
 
+/// One-at-a-time gate for `SystemLanguageModel` work.
+///
+/// Concurrent `respond` / `streamResponse` / `prewarm` / `tokenCount` —
+/// weekly reflection overlapping a chat send, speculative prewarm overlapping
+/// live generation — EXC_BAD_ACCESS inside the AFM runtime.
+private final class ModelRuntimeGate: @unchecked Sendable {
+    static let shared = ModelRuntimeGate()
+
+    private let lock = NSLock()
+    private var busy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func withLock<T>(_ body: () async throws -> T) async rethrows -> T {
+        await acquire()
+        defer { release() }
+        return try await body()
+    }
+
+    /// Skip if another model call already holds the gate (prewarm, token count).
+    func tryWithLock<T>(_ body: () async throws -> T) async -> T? {
+        guard tryAcquire() else { return nil }
+        defer { release() }
+        return try? await body()
+    }
+
+    /// Skip if another model call already holds the gate (prewarm).
+    @discardableResult
+    func tryRun(_ body: () async -> Void) async -> Bool {
+        guard tryAcquire() else { return false }
+        defer { release() }
+        await body()
+        return true
+    }
+
+    private func acquire() async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if busy {
+                waiters.append(continuation)
+                lock.unlock()
+            } else {
+                busy = true
+                lock.unlock()
+                continuation.resume()
+            }
+        }
+    }
+
+    private func tryAcquire() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if busy { return false }
+        busy = true
+        return true
+    }
+
+    private func release() {
+        lock.lock()
+        if waiters.isEmpty {
+            busy = false
+            lock.unlock()
+        } else {
+            let next = waiters.removeFirst()
+            lock.unlock()
+            next.resume()
+        }
+    }
+}
+
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
 /// Body-only guided reply for light / companion / meta / redirect (typed
@@ -552,28 +621,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
         }
         let transcript = Transcript(entries: transcriptEntries)
-        #if compiler(>=6.3)
-        if #available(iOS 27.0, *), attachSearch {
-            let state = askSearchState ?? SearchJournalTurnState()
-            askSearchState = state
-            let tool = SearchJournalTool(
-                entries: journal,
-                limits: limits,
-                state: state,
-                ingestPool: { [weak self] extra in
-                    self?.ingestToolHits(extra)
-                }
-            )
-            return LanguageModelSession(transcript: transcript, tools: [tool])
+        // Guided Ask (`respond(generating:)` / `streamResponse(generating:)`)
+        // cannot host Tool-calling sessions: the AFM decoder faults
+        // (EXC_BAD_ACCESS) when schema tokens and tool-call tokens mix.
+        // Swift-side retrieve already supplies the journal slice.
+        if attachSearch {
+            AppLogger.log("[Intelligence] searchJournal requested; guided decode cannot host tools")
         }
-        #endif
+        _ = journal
+        _ = limits
         return LanguageModelSession(transcript: transcript)
-    }
-
-    private func ingestToolHits(_ extra: [RetrievedEntry]) {
-        poolLock.lock()
-        candidatePool.ingest(extra)
-        poolLock.unlock()
     }
 
     /// Speculatively builds and prefills sessions for the NEXT turn of a
@@ -615,11 +672,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 return
             }
 
-            let pair = plans.map { plan in
-                (fingerprint: plan.fingerprint, session: self.makeSession(from: plan))
+            await ModelRuntimeGate.shared.tryRun {
+                let pair = plans.map { plan in
+                    (fingerprint: plan.fingerprint, session: self.makeSession(from: plan))
+                }
+                for item in pair { item.session.prewarm() }
+                self.storeSpeculativePair(pair)
             }
-            self.storeSpeculativePair(pair)
-            for item in pair { item.session.prewarm() }
         }
     }
 
@@ -745,14 +804,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         prompt: String
     ) async -> (prompt: Int?, cached: Int?) {
         #if compiler(>=6.3)
-        do {
+        return await ModelRuntimeGate.shared.tryWithLock {
             let model = SystemLanguageModel.default
             let inst = try await model.tokenCount(for: Instructions(instructions))
             let user = try await model.tokenCount(for: prompt)
-            return (inst + user, nil)
-        } catch {
-            return (nil, nil)
-        }
+            return (inst + user, nil as Int?)
+        } ?? (nil, nil)
         #else
         return (nil, nil)
         #endif
@@ -1109,14 +1166,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             askSearchState = nil
             return (adopted, true)
         }
-        if attachSearchOnMiss {
-            askSearchState = SearchJournalTurnState()
-            return (
-                makeSession(from: plan, entries: journal, limits: limits, attachSearch: true),
-                false
-            )
-        }
         askSearchState = nil
+        _ = attachSearchOnMiss
         return (makeSession(from: plan, entries: journal, limits: limits), false)
     }
 
@@ -1264,15 +1315,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         spoken: Bool,
         toolsAttached: Bool = false
     ) -> GenerationOptions {
-        #if compiler(>=6.3)
-        if #available(iOS 27.0, *), toolsAttached {
-            return GenerationOptions(
-                temperature: channel.temperature(retrievalRan: retrievalRan),
-                maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken),
-                toolCallingMode: .allowed
-            )
-        }
-        #endif
+        _ = toolsAttached
         return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
             maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
@@ -1343,6 +1386,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private static func respondGenerating<T: Generable>(
+        _ type: T.Type,
+        session: LanguageModelSession,
+        prompt: String,
+        images: [Data],
+        history: [ChatTurn],
+        options: GenerationOptions
+    ) async throws -> T {
+        try await ModelRuntimeGate.shared.withLock {
+            try await respondGeneratingUnlocked(
+                type, session: session, prompt: prompt,
+                images: images, history: history, options: options
+            )
+        }
+    }
+
+    private static func respondGeneratingUnlocked<T: Generable>(
         _ type: T.Type,
         session: LanguageModelSession,
         prompt: String,
@@ -1612,26 +1671,28 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 ))
                             }
 
-                            if bodyOnly {
-                                let stream = Self.streamLightAskResponse(
-                                    session: session, prompt: prep.prompt,
-                                    images: images, history: history,
-                                    options: prep.generationOptions
-                                )
-                                for try await snapshot in stream {
-                                    cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
-                                    try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
-                                }
-                            } else {
-                                let stream = Self.streamAskResponse(
-                                    session: session, prompt: prep.prompt,
-                                    images: images, history: history,
-                                    options: prep.generationOptions
-                                )
-                                for try await snapshot in stream {
-                                    cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
-                                    let refs = snapshot.content.citedRefs ?? nil
-                                    try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
+                            try await ModelRuntimeGate.shared.withLock {
+                                if bodyOnly {
+                                    let stream = Self.streamLightAskResponse(
+                                        session: session, prompt: prep.prompt,
+                                        images: images, history: history,
+                                        options: prep.generationOptions
+                                    )
+                                    for try await snapshot in stream {
+                                        cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
+                                        try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
+                                    }
+                                } else {
+                                    let stream = Self.streamAskResponse(
+                                        session: session, prompt: prep.prompt,
+                                        images: images, history: history,
+                                        options: prep.generationOptions
+                                    )
+                                    for try await snapshot in stream {
+                                        cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
+                                        let refs = snapshot.content.citedRefs ?? nil
+                                        try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
+                                    }
                                 }
                             }
                             return tail
@@ -1720,11 +1781,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt = Self.buildProfileEstimatePrompt(reflection: trimmed, budget: budget)
 
         do {
-            let response = try await session.respond(
-                to: prompt,
-                generating: ProfileEstimateAnswer.self,
-                options: GenerationOptions(temperature: 0.4)
-            )
+            let response = try await ModelRuntimeGate.shared.withLock {
+                try await session.respond(
+                    to: prompt,
+                    generating: ProfileEstimateAnswer.self,
+                    options: GenerationOptions(temperature: 0.4)
+                )
+            }
             let answer = response.content
             let primary = ThemeCatalog.validate(answer.themeIds, max: ThemeCatalog.defaultSuggestionCount)
             let secondary = ThemeCatalog.validate(answer.secondaryThemeIds, max: 2)
@@ -1815,11 +1878,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt = "Here is the conversation to summarize:\n\n\(conversation)"
 
         do {
-            let response = try await session.respond(
-                to: prompt,
-                generating: ConversationSummaryAnswer.self,
-                options: GenerationOptions(temperature: 0.7)
-            )
+            let response = try await ModelRuntimeGate.shared.withLock {
+                try await session.respond(
+                    to: prompt,
+                    generating: ConversationSummaryAnswer.self,
+                    options: GenerationOptions(temperature: 0.7)
+                )
+            }
             let answer = response.content
             let summary = ConversationSummary(title: answer.title, body: answer.body).resolved()
             for field in [summary.title, summary.body] {
@@ -2376,11 +2441,13 @@ extension FoundationModelsIntelligenceService {
         """
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await session.respond(
-                to: prompt,
-                generating: EntryReflection.self,
-                options: GenerationOptions(temperature: 0.4)
-            )
+            let response = try await ModelRuntimeGate.shared.withLock {
+                try await session.respond(
+                    to: prompt,
+                    generating: EntryReflection.self,
+                    options: GenerationOptions(temperature: 0.4)
+                )
+            }
             let answer = response.content
             if let hit = OutputSafetyScanner.scan(answer.summary) {
                 _ = hit
@@ -2433,11 +2500,13 @@ extension FoundationModelsIntelligenceService {
         let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await session.respond(
-                to: prompt,
-                generating: PeriodReflection.self,
-                options: GenerationOptions(temperature: 0.6)
-            )
+            let response = try await ModelRuntimeGate.shared.withLock {
+                try await session.respond(
+                    to: prompt,
+                    generating: PeriodReflection.self,
+                    options: GenerationOptions(temperature: 0.6)
+                )
+            }
             let answer = response.content
             if !answer.hasNothingToSay {
                 for field in [answer.body, answer.observation] {
@@ -2508,11 +2577,13 @@ extension FoundationModelsIntelligenceService {
         """
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await session.respond(
-                to: prompt,
-                generating: ProfileEstimateAnswer.self,
-                options: GenerationOptions(temperature: 0.4)
-            )
+            let response = try await ModelRuntimeGate.shared.withLock {
+                try await session.respond(
+                    to: prompt,
+                    generating: ProfileEstimateAnswer.self,
+                    options: GenerationOptions(temperature: 0.4)
+                )
+            }
             let answer = response.content
             if let hit = OutputSafetyScanner.scan(answer.promptLens) {
                 _ = hit
