@@ -11,7 +11,7 @@ import Foundation
 /// drives the low-confidence state (`n < 4`). The model never invents this.
 public struct InsightFact: Sendable, Equatable, Codable, Hashable {
     public enum Kind: String, Sendable, Codable, Hashable {
-        case count, cadence, cluster, person, place, lastMention
+        case count, cadence, cluster, person, place, lastMention, valenceTrend
     }
 
     public var kind: Kind

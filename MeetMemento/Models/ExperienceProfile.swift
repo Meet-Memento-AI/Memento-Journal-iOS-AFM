@@ -24,6 +24,10 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
     /// profiles written before this existed still decode.
     var modelIdentifier: String?
     var promptVersion: String?
+    /// Unaccepted living-profile proposal (044 R6). Must not reach Ask.
+    var proposedPromptLens: String? = nil
+    var proposedModelIdentifier: String? = nil
+    var proposedPromptVersion: String? = nil
 
     static let empty = ExperienceProfile(
         reflection: nil,
@@ -33,7 +37,10 @@ struct ExperienceProfile: Codable, Equatable, Sendable {
         catalogVersion: ThemeCatalog.catalogVersion,
         builtAt: .distantPast,
         modelIdentifier: nil,
-        promptVersion: nil
+        promptVersion: nil,
+        proposedPromptLens: nil,
+        proposedModelIdentifier: nil,
+        proposedPromptVersion: nil
     )
 
     var isEmpty: Bool {

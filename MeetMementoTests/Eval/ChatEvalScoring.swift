@@ -333,7 +333,7 @@ enum ChatEvalScoring {
         return [.init(code: "gen.hitTokenCap", detail: "~\(Int(approxTokens)) tok vs cap \(capTokens)")]
     }
 
-    // MARK: - insight.* (045 R5 / R6 — reported, not gated until Session 10)
+    // MARK: - insight.* (045 R5 / Session 12 — gated)
 
     /// Body states a digit that is not any attached fact's `n` or numeric value.
     /// Empty body (statistic short-circuit) cannot disagree.
@@ -362,7 +362,8 @@ enum ChatEvalScoring {
     }
 
     /// Prose treats a low-confidence (`n < 4`) fact as a pattern, or names a
-    /// fact the engine would have suppressed. No `[Computed]` block in Phase II.
+    /// fact the engine would have suppressed. Session 12 attaches `[Computed]`
+    /// on notebook; suppressed facts must stay out of that block.
     static func insightContradictsSuppressed(body: String, facts: [InsightFact]) -> [Violation] {
         guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
         let lower = body.lowercased()
@@ -394,9 +395,9 @@ enum ChatEvalScoring {
     static func gating(_ violations: [Violation]) -> [Violation] {
         violations.filter { v in
             if v.code.hasPrefix("gen.") { return false }
-            if v.code.hasPrefix("insight.") { return false }
             return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.")
                 || v.code.hasPrefix("hall.") || v.code.hasPrefix("gold.")
+                || v.code.hasPrefix("insight.")
         }
     }
 }

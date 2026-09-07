@@ -212,7 +212,16 @@ enum MementoDataStore {
 
     // MARK: - Reflections
 
-    static func upsertWeeklyReflection(body: String, weekStart: Date, container: ModelContainer? = nil) {
+    static func upsertWeeklyReflection(
+        body: String,
+        weekStart: Date,
+        observation: String = "",
+        citationIDs: [UUID] = [],
+        zoneRaw: String = TrustZone.z0Device.identifier,
+        promptVersion: String = "weekly@1",
+        entries: [Entry] = [],
+        container: ModelContainer? = nil
+    ) {
         let context = context(container: container)
         let existing = (try? context.fetch(FetchDescriptor<StoredReflection>())) ?? []
         let row = existing.first { $0.kind == .weekly } ?? {
@@ -221,10 +230,87 @@ enum MementoDataStore {
             context.insert(created)
             return created
         }()
+        row.body = observation.isEmpty ? body : body
+        if !observation.isEmpty, observation != body {
+            // Observation is the keep-line; body stays the spoken week.
+            _ = observation
+        }
         row.body = body
         row.createdAt = weekStart
-        row.zoneRaw = "z0Device"
+        row.zoneRaw = zoneRaw
+        row.promptVersion = promptVersion
+        row.vocabularyVersion = ReflectionVocabulary.version
+        for old in row.citations ?? [] {
+            context.delete(old)
+        }
+        var citations: [StoredCitation] = []
+        for id in citationIDs {
+            let citation = StoredCitation()
+            citation.entryID = id
+            citation.quotedSpan = entries.first(where: { $0.id == id })?.excerpt ?? ""
+            citation.reflection = row
+            context.insert(citation)
+            citations.append(citation)
+        }
+        row.citations = citations
         try? context.save()
+    }
+
+    static func setWeeklyReflectionRating(_ rating: ReflectionRating, container: ModelContainer? = nil) {
+        let context = context(container: container)
+        let existing = (try? context.fetch(FetchDescriptor<StoredReflection>())) ?? []
+        guard let row = existing.first(where: { $0.kind == .weekly }) else { return }
+        row.ratingRaw = rating.rawValue
+        try? context.save()
+    }
+
+    static func persistEntryReflection(
+        entryID: UUID,
+        moodLabels: [String],
+        topicLabels: [String],
+        body: String,
+        zoneRaw: String,
+        promptVersion: String,
+        vocabularyVersion: String,
+        container: ModelContainer? = nil
+    ) {
+        let context = context(container: container)
+        guard let entry = existingEntry(id: entryID, context: context) else { return }
+        entry.moodLabels = moodLabels
+        entry.topicLabels = topicLabels
+        let existing = (entry.reflections ?? []).first { $0.kind == .entry }
+        let row = existing ?? {
+            let created = StoredReflection()
+            created.kind = .entry
+            context.insert(created)
+            return created
+        }()
+        row.body = body
+        row.zoneRaw = zoneRaw
+        row.promptVersion = promptVersion
+        row.vocabularyVersion = vocabularyVersion
+        row.createdAt = Date()
+        if row.entries == nil { row.entries = [] }
+        if row.entries?.contains(where: { $0.id == entryID }) != true {
+            row.entries?.append(entry)
+        }
+        try? context.save()
+    }
+
+    static func hasEntryReflection(entryID: UUID, container: ModelContainer? = nil) -> Bool {
+        let context = context(container: container)
+        guard let entry = existingEntry(id: entryID, context: context) else { return false }
+        return (entry.reflections ?? []).contains { $0.kind == .entry }
+    }
+
+    static func entriesNeedingEntryReflection(from entries: [Entry], container: ModelContainer? = nil) -> [Entry] {
+        entries.filter { !hasEntryReflection(entryID: $0.id, container: container) }
+    }
+
+    static func moodLabelsByEntry(container: ModelContainer? = nil) -> [UUID: [String]] {
+        let context = context(container: container)
+        let rows = (try? context.fetch(FetchDescriptor<StoredEntry>())) ?? []
+        return Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.moodLabels) })
     }
 
     static func deleteAllReflections(container: ModelContainer? = nil) {

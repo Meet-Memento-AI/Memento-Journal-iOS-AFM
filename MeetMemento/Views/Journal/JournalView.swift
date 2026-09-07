@@ -130,6 +130,13 @@ public struct JournalView: View {
                     let snapshot = entryViewModel.entries
                     Task.detached(priority: .utility) {
                         EntryRetriever.warmEmbeddings(snapshot)
+                        await EntryReflectionCoordinator.backfill(snapshot)
+                    }
+                    Task.detached(priority: .utility) {
+                        await WeeklyReflectionCoordinator.generateIfNeeded(entries: snapshot)
+                    }
+                    Task.detached(priority: .utility) {
+                        await ProfileRefreshCoordinator.refreshIfDue(entries: snapshot)
                     }
                 }
             }

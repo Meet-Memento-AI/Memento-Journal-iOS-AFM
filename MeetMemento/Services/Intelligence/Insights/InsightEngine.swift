@@ -27,13 +27,59 @@ enum InsightEngine {
     static func facts(
         entries: [Entry],
         now: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        moodLabels: [UUID: [String]] = [:]
     ) -> [InsightFact] {
         var result: [InsightFact] = []
         result.append(contentsOf: cadenceFacts(entries: entries, now: now, calendar: calendar))
         result.append(contentsOf: namedEntityFacts(entries: entries, now: now, calendar: calendar))
         result.append(contentsOf: clusterFacts(entries: entries, now: now, calendar: calendar))
+        if let trend = valenceTrend(entries: entries, moodLabels: moodLabels, now: now, calendar: calendar) {
+            result.append(trend)
+        }
         return result
+    }
+
+    /// Session 12: mood tags from entry reflection. Omitted until labels exist.
+    static func valenceTrend(
+        entries: [Entry],
+        moodLabels: [UUID: [String]],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> InsightFact? {
+        let tagged = entries.compactMap { entry -> (Date, Double)? in
+            let labels = moodLabels[entry.id] ?? []
+            let moods = labels.compactMap(MoodLabel.init(rawValue:))
+            guard !moods.isEmpty else { return nil }
+            let mean = moods.map(\.valenceHint).reduce(0, +) / Double(moods.count)
+            return (entry.createdAt, mean)
+        }
+        guard tagged.count >= lowConfidenceThreshold else { return nil }
+        let sorted = tagged.sorted { $0.0 < $1.0 }
+        let mid = sorted.count / 2
+        let earlier = sorted.prefix(mid)
+        let later = sorted.suffix(sorted.count - mid)
+        let earlierMean = earlier.map(\.1).reduce(0, +) / Double(earlier.count)
+        let laterMean = later.map(\.1).reduce(0, +) / Double(later.count)
+        let delta = laterMean - earlierMean
+        let label: String
+        if delta > 0.15 {
+            label = "Valence rose"
+        } else if delta < -0.15 {
+            label = "Valence dipped"
+        } else {
+            label = "Valence held"
+        }
+        let start = sorted.first?.0 ?? now
+        let end = sorted.last?.0 ?? now
+        return InsightFact(
+            kind: .valenceTrend,
+            label: label,
+            value: String(format: "%+.2f", delta),
+            n: tagged.count,
+            window: orderedInterval(start: start, end: end),
+            supportingEntryIDs: entries.filter { moodLabels[$0.id]?.isEmpty == false }.map(\.id)
+        )
     }
 
     /// Cadence for the ISO week containing `date` (sparse-week goldens).

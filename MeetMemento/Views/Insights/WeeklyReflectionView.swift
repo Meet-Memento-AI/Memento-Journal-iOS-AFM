@@ -2,8 +2,8 @@
 //  WeeklyReflectionView.swift
 //  MeetMemento
 //
-//  Spec 019 R3: weekly reflection surface. Sample-size counts are computed
-//  in Swift and shown in the UI — they are never sent to the model (037).
+//  Spec 019 R3 / 045 R4: weekly reflection surface. Sample-size counts are
+//  computed in Swift and shown in the UI — they are never sent to the model.
 //
 
 import SwiftUI
@@ -11,8 +11,11 @@ import SwiftUI
 struct WeeklyReflectionView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
     @Environment(\.theme) private var theme
+    @State private var isWriting = WeeklyReflectionStore.isWriting
+    @State private var refreshStamp = Date()
 
     var body: some View {
+        let _ = refreshStamp
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 let stats = PatternStats.week(entries: entryViewModel.entries)
@@ -23,16 +26,34 @@ struct WeeklyReflectionView: View {
                     .foregroundStyle(theme.mutedForeground)
                     .accessibilityIdentifier("weekly.entryCount")
 
-                if let body = WeeklyReflectionStore.latestBody, !body.isEmpty {
+                if isWriting {
+                    Text("writing now…")
+                        .font(.body)
+                        .foregroundStyle(theme.mutedForeground)
+                        .accessibilityIdentifier("weekly.writingNow")
+                } else if WeeklyReflectionStore.hasNothingToSay,
+                          WeeklyReflectionStore.latestBody != nil {
+                    Text(WeeklyReflectionCoordinator.quietCopy)
+                        .font(.body)
+                        .foregroundStyle(theme.mutedForeground)
+                        .accessibilityIdentifier("weekly.quiet")
+                } else if let body = WeeklyReflectionStore.latestBody, !body.isEmpty {
                     Text(body)
                         .font(.body)
+                    if let observation = WeeklyReflectionStore.observation, !observation.isEmpty {
+                        Text(observation)
+                            .font(.body.italic())
+                            .padding(.top, Spacing.xs)
+                    }
+                    citationList
+                    ratingRow
                 } else {
                     Text(
                         "A weekly reflection appears here after you have a few entries. "
                             + "Counts stay on this screen — they are never sent to the model."
                     )
-                        .font(.body)
-                        .foregroundStyle(theme.mutedForeground)
+                    .font(.body)
+                    .foregroundStyle(theme.mutedForeground)
                 }
                 Spacer(minLength: Spacing.xxxl)
             }
@@ -42,6 +63,59 @@ struct WeeklyReflectionView: View {
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Weekly")
         .navigationBarTitleDisplayMode(.inline)
+        .onReceive(NotificationCenter.default.publisher(for: WeeklyReflectionStore.writingDidChange)) { _ in
+            isWriting = WeeklyReflectionStore.isWriting
+            refreshStamp = Date()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: WeeklyReflectionStore.didSave)) { _ in
+            isWriting = WeeklyReflectionStore.isWriting
+            refreshStamp = Date()
+        }
+    }
+
+    @ViewBuilder
+    private var citationList: some View {
+        let ids = WeeklyReflectionStore.citationIDs
+        if !ids.isEmpty {
+            Text("From your journal")
+                .font(.headline)
+                .padding(.top, Spacing.sm)
+            ForEach(ids, id: \.self) { id in
+                if let entry = entryViewModel.entry(id: id) {
+                    NavigationLink(value: EntryRoute.edit(id)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
+                                .font(.subheadline.weight(.medium))
+                            Text(entry.excerpt)
+                                .font(.caption)
+                                .foregroundStyle(theme.mutedForeground)
+                                .lineLimit(2)
+                        }
+                    }
+                    .accessibilityIdentifier("weekly.citation.\(id.uuidString)")
+                }
+            }
+        }
+    }
+
+    private var ratingRow: some View {
+        HStack(spacing: Spacing.md) {
+            Button {
+                WeeklyReflectionStore.setRating(.up)
+                refreshStamp = Date()
+            } label: {
+                Image(systemName: WeeklyReflectionStore.rating == .up ? "hand.thumbsup.fill" : "hand.thumbsup")
+            }
+            .accessibilityIdentifier("weekly.thumbUp")
+            Button {
+                WeeklyReflectionStore.setRating(.down)
+                refreshStamp = Date()
+            } label: {
+                Image(systemName: WeeklyReflectionStore.rating == .down ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+            }
+            .accessibilityIdentifier("weekly.thumbDown")
+        }
+        .padding(.top, Spacing.sm)
     }
 }
 
@@ -51,13 +125,15 @@ struct PatternsView: View {
 
     var body: some View {
         let stats = PatternStats.month(entries: entryViewModel.entries)
-        let facts = InsightEngine.facts(entries: entryViewModel.entries)
+        let moods = MementoDataStore.moodLabelsByEntry()
+        let facts = InsightEngine.facts(entries: entryViewModel.entries, moodLabels: moods)
         let cadence = facts.filter { $0.kind == .cadence }
         let hours = cadence.filter { $0.label.hasPrefix("Around ") }
         let cadenceRows = cadence.filter { !$0.label.hasPrefix("Around ") }
         let people = facts.filter { $0.kind == .person }
         let places = facts.filter { $0.kind == .place }
         let clusters = facts.filter { $0.kind == .cluster }
+        let valence = facts.filter { $0.kind == .valenceTrend }
 
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
@@ -94,6 +170,9 @@ struct PatternsView: View {
                 }
                 if !places.isEmpty {
                     factList(title: "Places", facts: places)
+                }
+                if !valence.isEmpty {
+                    factList(title: "Valence", facts: valence)
                 }
                 if !clusters.isEmpty {
                     KeywordsCard(facts: clusters)

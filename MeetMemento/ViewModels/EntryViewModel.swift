@@ -276,6 +276,11 @@ class EntryViewModel: ObservableObject {
                     self.errorMessage = "Failed to save entry."
                 }
                 PhotoStorage.shared.deleteEncrypted(entryId: entryId)
+            } else {
+                EntrySaveSideEffects.afterSuccessfulSave(
+                    Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded),
+                    saved: true
+                )
             }
             #endif
         }
@@ -369,6 +374,9 @@ class EntryViewModel: ObservableObject {
                 } else if photoWriteFailed {
                     self.errorMessage = "Couldn't attach the photo. Your changes were saved without it."
                 }
+            }
+            if saved {
+                EntrySaveSideEffects.afterSuccessfulSave(updatedEntry, saved: true)
             }
             #endif
 
