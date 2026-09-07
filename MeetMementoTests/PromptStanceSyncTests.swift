@@ -6,14 +6,33 @@ import XCTest
 /// prompt versions must reflect the turn-architecture pass.
 final class PromptStanceSyncTests: XCTestCase {
 
-    func test_everyStanceTag_appearsInAskPrompt() {
-        let prompt = PromptRegistry.instructions(for: .ask).text
-        for stance in TurnStance.allCases {
-            XCTAssertTrue(
-                prompt.contains(stance.tagPrefix),
-                "ask prompt is missing the stance contract for \(stance.tagPrefix)"
-            )
+    func test_eachAskChannelSuffix_listsItsStances() {
+        let askSuffixChannels: [ReplyChannel] = [
+            .notebook, .thread, .companion, .meta, .redirect
+        ]
+        for channel in askSuffixChannels {
+            let suffix = PromptRegistry.channelSuffix(channel)
+            for stance in PromptRegistry.suffixStances(for: channel) {
+                XCTAssertTrue(
+                    suffix.contains(stance.tagPrefix),
+                    "\(channel) suffix is missing \(stance.tagPrefix)"
+                )
+            }
+            let lines = suffix.split(separator: "\n", omittingEmptySubsequences: true)
+            XCTAssertLessThanOrEqual(lines.count, 6, "\(channel) suffix exceeds 6 lines")
         }
+        let light = PromptRegistry.instructions(for: .ask, channel: .phatic).text
+        XCTAssertTrue(light.contains("one genuine question") || light.contains("[Turn:"))
+    }
+
+    func test_askCore_doesNotListTheStanceMenu() {
+        let core = PromptRegistry.instructions(for: .ask, channel: .notebook).text
+        // Core + notebook suffix still mentions journal-question tags, but
+        // casual lives only on chat-light.
+        XCTAssertFalse(core.contains(TurnStance.casual.tagPrefix))
+        XCTAssertFalse(core.contains(TurnStance.aboutApp.tagPrefix))
+        XCTAssertFalse(core.contains(TurnStance.outsideScope.tagPrefix))
+        XCTAssertFalse(core.contains(TurnStance.sharing.tagPrefix))
     }
 
     func test_degradedPrompt_mentionsTurnTags() {
@@ -22,8 +41,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask@15")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@15")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@16")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@16")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@2")
     }
 
@@ -48,7 +67,9 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertFalse(prompt.contains("answer and stop"))
         XCTAssertFalse(prompt.contains("Meet them only"))
         XCTAssertTrue(prompt.contains("do not skip continuers"))
-        XCTAssertTrue(prompt.contains("how they are"))
+        XCTAssertTrue(
+            prompt.contains("what they just said") || prompt.contains("how they are")
+        )
     }
 
     func test_stancePromptLines_areBracketedSingleLines() {

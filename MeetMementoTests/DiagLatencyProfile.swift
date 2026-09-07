@@ -11,9 +11,12 @@ import XCTest
 ///
 /// Spec 029 R2 gates to read off the table:
 /// - phatic/continuer: version `chat-light@4`, high speculative hit rate, TTFT p50 < 1.2 s
-/// - companion/share: version `chat-companion@1`, TTFT down vs ask@15 prefill
+/// - companion/share: version `chat-companion@1`, TTFT down vs ask-core@16 prefill
 /// - spoken companion / spoken no-RAG follow-up: `chat-companion@1`, 80 tok, LightAskAnswer
-/// - notebook: version `ask@15`, 512 typed / 256 spoken; do not raise caps
+/// - notebook: version `ask-core@16`, 512 typed / 256 spoken; do not raise caps
+///
+/// Size sweep is empty / ~50 / fixture 262 / ~500+. Attribute
+/// `retrieve` vs `ttft` vs `stream` from `LiveTurnClock.snapshot()`.
 final class DiagLatencyProfile: XCTestCase {
 
     private static let reps = 5
@@ -26,10 +29,17 @@ final class DiagLatencyProfile: XCTestCase {
         let promptVersion: String
         let speculativeHit: Bool?
         let channel: String
+        let retrieve: Double
+        let ttftStage: Double
+        let stream: Double
+        let firstDeltaUnder1s: Bool
     }
 
     private func measure(_ q: String, history: [ChatTurn], entries: [Entry], spoken: Bool = false) async -> Run {
         let service = FoundationModelsIntelligenceService.shared
+        LiveTurnClock.shared.resetForTesting()
+        LiveTurnClock.shared.beginTurn()
+        EntryRetriever.warmEmbeddings(entries, generation: 1)
         let clock = ContinuousClock()
         let started = clock.now
         var ttft: Double?
@@ -46,7 +56,12 @@ final class DiagLatencyProfile: XCTestCase {
             }
         } catch { /* recorded as a zero-char run */ }
         let total = Diag.secs(clock.now - started)
+        let stages = LiveTurnClock.shared.snapshot()
+        LiveTurnClock.shared.resetForTesting()
         let perf = service.consumeLastTurnPerf()
+        let retrieve = stages.duration(of: .prepRetrieve).map(Diag.secs) ?? 0
+        let ttftStage = stages.duration(of: .modelFirstToken).map(Diag.secs) ?? (ttft ?? total)
+        let stream = stages.duration(of: .modelStream).map(Diag.secs) ?? 0
         return Run(
             ttft: ttft ?? total,
             total: total,
@@ -54,7 +69,11 @@ final class DiagLatencyProfile: XCTestCase {
             chars: body.count,
             promptVersion: perf?.promptVersion ?? "—",
             speculativeHit: perf?.speculativeHit,
-            channel: perf?.channel ?? "—"
+            channel: perf?.channel ?? "—",
+            retrieve: retrieve,
+            ttftStage: ttftStage,
+            stream: stream,
+            firstDeltaUnder1s: (ttft ?? total) <= 1.0
         )
     }
 
@@ -95,7 +114,7 @@ final class DiagLatencyProfile: XCTestCase {
             ("companion / share (chat-companion@1, 128 tok)", "I had a rough day at work today", [], c, false),
             ("spoken companion (chat-companion@1, 80 tok)", "I had a rough day at work today", [], c, true),
             ("spoken no-RAG follow-up (companion, 80 tok)", "it was actually pretty heavy", companionHistory, c, true),
-            ("notebook (ask@15, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
+            ("notebook (ask-core@16, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
             ("thread / follow-up (journal-anchored)", "Tell me more about that.", journalFollowHistory, c, false)
         ]
 
@@ -126,20 +145,40 @@ final class DiagLatencyProfile: XCTestCase {
             Diag.write(out, "03-latency.md")
         }
 
-        // MARK: context scaling — does a bigger journal cost TTFT?
-        out += "\n## TTFT vs journal size (notebook turn, n=3)\n\n"
-        out += "| entries in store | TTFT p50 | total p50 | mean chars |\n|---|---|---|---|\n"
-        for n in [1, 5, 20, 50] {
-            let entries = Diag.scaled(n)
+        // MARK: context scaling — empty / ~50 / fixture 262 / ~500+
+        out += "\n## TTFT vs journal size (notebook turn, warm embeddings, n=3)\n\n"
+        out += "| entries | retrieve p50 | ttft p50 | stream p50 | total p50 | first-delta ≤1s | version | hit |\n"
+        out += "|---|---|---|---|---|---|---|---|\n"
+        let sizes: [Int] = [0, 50, 262, 500]
+        for n in sizes {
+            let entries: [Entry]
+            if n == 0 {
+                entries = []
+            } else if n >= 262, let persona = try? ChatEvalCorpus.personaCorpus().entries, !persona.isEmpty {
+                entries = n <= persona.count
+                    ? Array(persona.prefix(n))
+                    : persona + Diag.scaled(n - persona.count)
+            } else {
+                entries = Diag.scaled(n)
+            }
             var runs: [Run] = []
             for _ in 1...3 {
                 runs.append(await measure("What have I been writing about lately?", history: [], entries: entries))
                 Diag.write(out, "03-latency.md")
             }
             let t = runs.map(\.ttft), tot = runs.map(\.total)
-            let meanChars = Double(runs.map(\.chars).reduce(0, +)) / Double(runs.count)
-            out += "| \(n) | \(String(format: "%.2f", Diag.pct(t, 0.5))) "
-            out += "| \(String(format: "%.2f", Diag.pct(tot, 0.5))) | \(String(format: "%.0f", meanChars)) |\n"
+            let retrieve = runs.map(\.retrieve), stream = runs.map(\.stream)
+            let under1s = runs.filter(\.firstDeltaUnder1s).count
+            let version = runs.last?.promptVersion ?? "—"
+            let hits = runs.compactMap(\.speculativeHit)
+            let hitRate = hits.isEmpty ? "—" : String(
+                format: "%.0f%%", 100 * Double(hits.filter { $0 }.count) / Double(hits.count)
+            )
+            out += "| \(n) | \(String(format: "%.3f", Diag.pct(retrieve, 0.5))) "
+            out += "| \(String(format: "%.2f", Diag.pct(t, 0.5))) "
+            out += "| \(String(format: "%.2f", Diag.pct(stream, 0.5))) "
+            out += "| \(String(format: "%.2f", Diag.pct(tot, 0.5))) "
+            out += "| \(under1s)/\(runs.count) | \(version) | \(hitRate) |\n"
             Diag.write(out, "03-latency.md")
         }
 

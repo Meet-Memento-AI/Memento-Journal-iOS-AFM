@@ -408,16 +408,16 @@ attributable to one phase.
 - [ ] 5. `themeBoost` in `EntryRetriever` from `ThemeCatalog.synonyms`;
       archivist starter templates keyed by `ThemeFamily`; delete the
       "actionable plan" starter; lint hook (R3)
-- [ ] 6. `PromptRegistry`: `ask-core@16` + five channel suffixes;
+- [x] 6. `PromptRegistry`: `ask-core@16` + five channel suffixes;
       `ask-degraded@16`; re-point `PromptStanceSyncTests`;
       `AskPromptContractTests` version pins (R5)
-- [ ] 7. Exemplar turn in `AskTranscriptPlan` with persistence guard; schema
+- [x] 7. Exemplar turn in `AskTranscriptPlan` with persistence guard; schema
       flag; two warehoused A/B runs each; keep/kill recorded in this spec (R5)
 - [ ] 8. `SearchJournalTool` under `compiler(>=6.3)`: channel gate, 2-call
       counter, safety on `query`, pool ingestion and re-ref, `toolsEnabled`
       provenance (R4)
 - [ ] 9. `AgenticEval` multi-hop probes and a scripted-tool unit test (R4)
-- [ ] 10. `ContextBudget(tokenCounts:)` initialiser; `prompt_tokens`,
+- [x] 10. `ContextBudget(tokenCounts:)` initialiser; `prompt_tokens`,
       `cached_tokens`, `tools=N` on the perf line (R7)
 - [ ] 11. `GenerationIntent.profileRefresh`, router row, `profile-refresh@1`,
       cadence guard, proposal fields on `ExperienceProfile` (R6)
@@ -474,3 +474,28 @@ attributable to one phase.
 - **CONSTITUTION §4 rule 5** — no context-window literal anywhere;
   `charsPerToken` remains a documented fallback and `tokenCount` is the
   source when present.
+
+## Amendment — 2026-09-07 — harness chat-speed keep/kill
+
+Session 6–7 landed in code. Defaults keep today's quality path until a
+warehoused device run says otherwise. `ChatEvalGate` 100% remains a
+device-lane gate (`CI_ONLINE` skips live AFM).
+
+| Experiment | Default | Keep if | Kill if |
+|---|---|---|---|
+| `ask-core@16` + channel suffixes | **kept** (version bump) | `ChatEvalGate` 100% vs last `ask@15` run; instruction chars ≤ 55% of 8214 (merge-lane proof: `AskPromptSizeTests`) | Open / grounding drop |
+| `includeSchemaInPrompt` | **on** (`true`) | `leak.schemaField` does not rise when flipped off | leaks rise → leave on |
+| Exemplar turn | **off** | `rule.*` falls and `hall.*` does not rise; never persisted (`AskTranscriptPlan.exemplarMarker`) | any `hall.*` rise |
+| Typed notebook/thread cap 256 | **off** (512 stays) | `rule.noOpen` does not return; Meet+Sit+Open still fit | truncation → keep 512 |
+| Passage chunk cache by `contentHash` | **kept** | retrieve scores identical (`RetrieveScaleTests`) | score drift |
+
+**Measure (device, not this Linux merge lane).** `DiagLatencyProfile` now
+sweeps empty / 50 / fixture 262 / 500+ and attributes `retrieve` / `ttft`
+/ `stream` from `LiveTurnClock.snapshot()`. Merge-lane substitute:
+`RetrieveScaleTests` times warm-then-retrieve. Decision rule is unchanged:
+high `ttft` → prompt/prewarm; `retrieve` scaling with N → cache (done);
+`stream` dominating 5s → flip the 256 cap; generation already &lt;4s but
+bubble late → typewriter snaps on `.final` (kept).
+
+Do not raise 039 token caps. Importer count stays 1. Sessions 8–12 are
+out of this amendment.

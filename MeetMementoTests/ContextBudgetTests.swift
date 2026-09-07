@@ -13,6 +13,22 @@ final class ContextBudgetTests: XCTestCase {
     /// otherwise introducing the budget silently changes what every reply is
     /// grounded in, and any behaviour change would be attributed to the wrong
     /// cause later.
+    func test_tokenCounts_unavailable_matchesWindowInit() {
+        let counts = ContextBudget.TokenCounts(instructions: 400, history: 80, evidence: 200)
+        XCTAssertEqual(
+            ContextBudget(tokenCounts: counts, window: .unavailable),
+            ContextBudget(window: .unavailable)
+        )
+    }
+
+    func test_tokenCounts_reported_doesNotExceedFullWindow() {
+        let full = ContextBudget(window: .reported(tokens: 2048))
+        let counts = ContextBudget.TokenCounts(instructions: 500, history: 80, evidence: 200)
+        let measured = ContextBudget(tokenCounts: counts, window: .reported(tokens: 2048))
+        XCTAssertLessThanOrEqual(measured.totalAllocatedChars, full.totalAllocatedChars)
+        XCTAssertEqual(measured.window, .reported(tokens: 2048))
+    }
+
     func test_unavailableWindow_reproducesTheShippedCaps() {
         let budget = ContextBudget(window: .unavailable)
 

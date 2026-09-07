@@ -112,7 +112,7 @@ final class PromptRegistryResolutionTests: XCTestCase {
         }
     }
 
-    func test_statisticChannel_resolvesToChatLight_notAsk15() {
+    func test_statisticChannel_resolvesToChatLight_notAskCore() {
         let full = PromptRegistry.resolve(
             intent: .ask, zone: .z0Device, degraded: false, channel: .statistic
         )
@@ -153,7 +153,7 @@ final class PromptRegistryResolutionTests: XCTestCase {
         )
         XCTAssertEqual(
             PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .notebook).version,
-            "ask@15"
+            "ask-core@16"
         )
     }
 

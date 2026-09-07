@@ -4,6 +4,17 @@ import XCTest
 
 final class PassageChunkerTests: XCTestCase {
 
+    func test_contentHash_reusesChunkedResult() {
+        PassageChunker.resetCacheForTesting()
+        defer { PassageChunker.resetCacheForTesting() }
+        let text = "Drove out to Mount Tamalpais on Saturday with Maya. The fog broke at the top."
+        let hash = EmbeddingService.contentHash(title: "Hike", text: text)
+        let first = PassageChunker.chunk(title: "Hike", text: text, contentHash: hash)
+        let second = PassageChunker.chunk(title: "Hike", text: text, contentHash: hash)
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(first.passages, second.passages)
+    }
+
     func test_shortEntry_isOnePassage() {
         let chunked = PassageChunker.chunk(text: "Just a short note about lunch.")
         XCTAssertEqual(chunked.passages.count, 1)

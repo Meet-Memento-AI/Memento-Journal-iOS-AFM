@@ -119,57 +119,113 @@ struct ContextBudget: Equatable, Sendable {
     private static let baselineHistoryTurns = 6
     private static let baselineHistoryCharsPerTurn = 320
 
-    init(window: ContextWindow) {
-        self.window = window
+    /// Measured token counts for the three prompt slices (044 R7). Used when
+    /// `tokenCount(for:)` is available. `charsPerToken` stays the fallback
+    /// for `.unavailable` — this initializer never invents a window.
+    struct TokenCounts: Equatable, Sendable {
+        let instructions: Int
+        let history: Int
+        let evidence: Int
+    }
 
+    init(window: ContextWindow) {
         switch window {
         case .unavailable:
-            maxRetrievedEntries = Self.baselineRetrievedEntries
-            maxEntryChars = Self.baselineEntryChars
-            maxHistoryTurns = Self.baselineHistoryTurns
-            maxHistoryCharsPerTurn = Self.baselineHistoryCharsPerTurn
-
+            self.init(
+                maxRetrievedEntries: Self.baselineRetrievedEntries,
+                maxEntryChars: Self.baselineEntryChars,
+                maxHistoryTurns: Self.baselineHistoryTurns,
+                maxHistoryCharsPerTurn: Self.baselineHistoryCharsPerTurn,
+                window: window
+            )
         case .reported(let tokens):
-            let usableTokens = Double(max(tokens, 0))
-            let retrievalChars = usableTokens * Self.retrievalShare * Self.charsPerToken
-            let historyChars = usableTokens * Self.historyShare * Self.charsPerToken
-
-            // Entry count grows with the window; per-entry depth grows with what
-            // is left after the count. Splitting it this way means a bigger
-            // window buys both more evidence and more of each piece — up to the
-            // latency clamp, past which growth is flat by design.
-            //
-            // The clamp is applied count-first (fewer, baseline-depth entries
-            // beat many shallow ones), then per-entry chars are recomputed so
-            // the product stays inside the latency budget. The grounding floors
-            // always win over the clamp: a slow grounded reply beats a fast
-            // ungrounded one.
-            let entries = Int((retrievalChars / Double(Self.baselineEntryChars)).rounded(.down))
-            let latencyEntryCap = Self.maxEvidenceLatencyChars / Self.baselineEntryChars
-            maxRetrievedEntries = max(
-                min(entries, Self.maxRetrievedEntriesCeiling, latencyEntryCap),
-                Self.minRetrievedEntries
-            )
-            let perEntry = Int((retrievalChars / Double(maxRetrievedEntries)).rounded(.down))
-            let latencyPerEntryCap = Self.maxEvidenceLatencyChars / maxRetrievedEntries
-            maxEntryChars = max(
-                min(perEntry, Self.maxEntryCharsCeiling, latencyPerEntryCap),
-                Self.minEntryChars
-            )
-
-            let turns = Int((historyChars / Double(Self.baselineHistoryCharsPerTurn)).rounded(.down))
-            let latencyTurnCap = Self.maxHistoryLatencyChars / Self.baselineHistoryCharsPerTurn
-            maxHistoryTurns = max(
-                min(turns, Self.maxHistoryTurnsCeiling, latencyTurnCap),
-                Self.minHistoryTurns
-            )
-            let perTurn = Int((historyChars / Double(maxHistoryTurns)).rounded(.down))
-            let latencyPerTurnCap = Self.maxHistoryLatencyChars / maxHistoryTurns
-            maxHistoryCharsPerTurn = max(
-                min(perTurn, Self.maxHistoryCharsPerTurnCeiling, latencyPerTurnCap),
-                Self.minHistoryCharsPerTurn
+            let derived = Self.derived(usableTokens: Double(max(tokens, 0)))
+            self.init(
+                maxRetrievedEntries: derived.entries,
+                maxEntryChars: derived.entryChars,
+                maxHistoryTurns: derived.turns,
+                maxHistoryCharsPerTurn: derived.turnChars,
+                window: window
             )
         }
+    }
+
+    /// Token-aware budget (044 R7). Subtracts measured instruction tokens
+    /// from a reported window, then applies the same share math. When the
+    /// window is unreadable, identical to `init(window: .unavailable)`.
+    init(tokenCounts: TokenCounts, window: ContextWindow) {
+        switch window {
+        case .unavailable:
+            self.init(window: .unavailable)
+        case .reported(let tokens):
+            let remaining = max(0, tokens - tokenCounts.instructions)
+            let derived = Self.derived(usableTokens: Double(remaining))
+            self.init(
+                maxRetrievedEntries: derived.entries,
+                maxEntryChars: derived.entryChars,
+                maxHistoryTurns: derived.turns,
+                maxHistoryCharsPerTurn: derived.turnChars,
+                window: window
+            )
+        }
+    }
+
+    private init(
+        maxRetrievedEntries: Int,
+        maxEntryChars: Int,
+        maxHistoryTurns: Int,
+        maxHistoryCharsPerTurn: Int,
+        window: ContextWindow
+    ) {
+        self.maxRetrievedEntries = maxRetrievedEntries
+        self.maxEntryChars = maxEntryChars
+        self.maxHistoryTurns = maxHistoryTurns
+        self.maxHistoryCharsPerTurn = maxHistoryCharsPerTurn
+        self.window = window
+    }
+
+    private static func derived(usableTokens: Double) -> (
+        entries: Int, entryChars: Int, turns: Int, turnChars: Int
+    ) {
+        let retrievalChars = usableTokens * retrievalShare * charsPerToken
+        let historyChars = usableTokens * historyShare * charsPerToken
+
+        // Entry count grows with the window; per-entry depth grows with what
+        // is left after the count. Splitting it this way means a bigger
+        // window buys both more evidence and more of each piece — up to the
+        // latency clamp, past which growth is flat by design.
+        //
+        // The clamp is applied count-first (fewer, baseline-depth entries
+        // beat many shallow ones), then per-entry chars are recomputed so
+        // the product stays inside the latency budget. The grounding floors
+        // always win over the clamp: a slow grounded reply beats a fast
+        // ungrounded one.
+        let entries = Int((retrievalChars / Double(baselineEntryChars)).rounded(.down))
+        let latencyEntryCap = maxEvidenceLatencyChars / baselineEntryChars
+        let maxRetrievedEntries = max(
+            min(entries, maxRetrievedEntriesCeiling, latencyEntryCap),
+            minRetrievedEntries
+        )
+        let perEntry = Int((retrievalChars / Double(maxRetrievedEntries)).rounded(.down))
+        let latencyPerEntryCap = maxEvidenceLatencyChars / maxRetrievedEntries
+        let maxEntryChars = max(
+            min(perEntry, maxEntryCharsCeiling, latencyPerEntryCap),
+            minEntryChars
+        )
+
+        let turns = Int((historyChars / Double(baselineHistoryCharsPerTurn)).rounded(.down))
+        let latencyTurnCap = maxHistoryLatencyChars / baselineHistoryCharsPerTurn
+        let maxHistoryTurns = max(
+            min(turns, maxHistoryTurnsCeiling, latencyTurnCap),
+            minHistoryTurns
+        )
+        let perTurn = Int((historyChars / Double(maxHistoryTurns)).rounded(.down))
+        let latencyPerTurnCap = maxHistoryLatencyChars / maxHistoryTurns
+        let maxHistoryCharsPerTurn = max(
+            min(perTurn, maxHistoryCharsPerTurnCeiling, latencyPerTurnCap),
+            minHistoryCharsPerTurn
+        )
+        return (maxRetrievedEntries, maxEntryChars, maxHistoryTurns, maxHistoryCharsPerTurn)
     }
 
     /// Total characters this budget may put into a prompt, excluding

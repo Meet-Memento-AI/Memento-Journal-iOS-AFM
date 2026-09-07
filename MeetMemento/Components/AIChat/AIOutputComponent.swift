@@ -149,13 +149,12 @@ public struct AIOutputComponent: View {
     /// (see `AIOutputTypewriterTests`).
     ///
     /// While the model is still streaming, snap to the available body — the
-    /// bubble must not trail the model. After `.final`, drain a quarter of
-    /// any leftover per tick so a late-appearing remainder still settles
-    /// within 1 s.
-    static func revealStep(remaining: Int, isStreamComplete: Bool) -> Int {
+    /// bubble must not trail the model. After `.final`, snap the remainder
+    /// too: a post-stream typewriter would spend the last second of the
+    /// 5s complete budget on text the model already finished.
+    static func revealStep(remaining: Int, isStreamComplete _: Bool) -> Int {
         guard remaining > 0 else { return 0 }
-        if !isStreamComplete { return remaining }
-        return max(1, remaining / 4)
+        return remaining
     }
 
     /// Start of the trailing (possibly still-parsing) line: the index just after

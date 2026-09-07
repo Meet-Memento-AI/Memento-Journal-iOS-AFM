@@ -217,7 +217,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask@15` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@16` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -435,7 +435,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Speculatively builds and prefills sessions for the NEXT turn of a
     /// conversation with this history. Warms every distinct recipe the next
     /// message might pick (light, companion, notebook) so a hello does not
-    /// miss a pool that only prefilled ask@15. Callers time it for idle
+    /// miss a pool that only prefilled ask-core@16. Callers time it for idle
     /// windows — after `.final` in typed chat, after TTS drains in
     /// narration, and on conversation open. Deduped by fingerprint.
     func prewarmConversation(history: [ChatTurn]) {
@@ -458,7 +458,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     for: .ask, personalization: person, channel: channel
                 )
                 let plan = AskTranscriptPlan.build(
-                    instructions: resolved.text, history: history, budget: budget
+                    instructions: resolved.text,
+                    history: history,
+                    budget: budget,
+                    includeExemplar: channel == .notebook
                 )
                 guard seen.insert(plan.fingerprint).inserted else { continue }
                 plans.append(plan)
@@ -570,7 +573,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         promptVersion: String,
         latency: Duration,
         window: ContextWindow,
-        entryCount: Int
+        entryCount: Int,
+        promptTokens: Int? = nil,
+        cachedTokens: Int? = nil,
+        tools: Int = 0
     ) {
         let ms = latency.components.seconds * 1000 + latency.components.attoseconds / 1_000_000_000_000_000
         let windowDescription: String
@@ -578,12 +584,62 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .reported(let tokens): windowDescription = "\(tokens)"
         case .unavailable: windowDescription = "unreported"
         }
+        let promptPart = promptTokens.map { "\($0)" } ?? "unreported"
+        let cachedPart = cachedTokens.map { "\($0)" } ?? "unreported"
         // os.Logger, not the DEBUG-only print: this is the one per-turn
         // latency record (spec 029 R1) and it is content-free by construction,
         // so it is safe as public metadata and useful in release traces.
         PerfSignposts.perfLog.info(
-            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount)"
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools)"
         )
+    }
+
+    /// Session 7: measured prompt tokens when the SDK exposes `tokenCount`.
+    /// Runs off the TTFT path — callers overlap it with decode.
+    private static func measurePromptTokens(
+        instructions: String,
+        prompt: String
+    ) async -> (prompt: Int?, cached: Int?) {
+        #if compiler(>=6.3)
+        do {
+            let model = SystemLanguageModel.default
+            let inst = try await model.tokenCount(for: Instructions(instructions))
+            let user = try await model.tokenCount(for: prompt)
+            return (inst + user, nil)
+        } catch {
+            return (nil, nil)
+        }
+        #else
+        return (nil, nil)
+        #endif
+    }
+
+    /// `Usage.Input.cachedTokenCount` when the snapshot/response exposes it.
+    private static func cachedTokens(from value: Any) -> Int? {
+        let mirror = Mirror(reflecting: value)
+        for child in mirror.children {
+            if child.label == "usage" {
+                return cachedTokensFromUsage(child.value)
+            }
+        }
+        return cachedTokensFromUsage(value)
+    }
+
+    private static func cachedTokensFromUsage(_ usage: Any) -> Int? {
+        let mirror = Mirror(reflecting: usage)
+        for child in mirror.children {
+            if child.label == "input" {
+                for field in Mirror(reflecting: child.value).children {
+                    if field.label == "cachedTokenCount" {
+                        return field.value as? Int
+                    }
+                }
+            }
+            if child.label == "cachedTokenCount" {
+                return child.value as? Int
+            }
+        }
+        return nil
     }
 
     // MARK: Ask
@@ -738,7 +794,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             toolsEnabled: false
         )
         let plan = AskTranscriptPlan.build(
-            instructions: resolved.text, history: history, budget: budget
+            instructions: resolved.text,
+            history: history,
+            budget: budget,
+            includeExemplar: channel == .notebook
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
@@ -901,7 +960,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// stripped, output safety scanned) from either the whole-answer `respond`
     /// or the last streamed snapshot.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
-                            prep: AskPreparation, question: String, latency: Duration) throws -> AskResult {
+                            prep: AskPreparation, question: String, latency: Duration,
+                            promptTokens: Int? = nil, cachedTokens: Int? = nil) throws -> AskResult {
         // The model produced output, so whatever else this turn does — including
         // an output-safety throw below — the pipeline is not in an outage.
         noteGenerationSucceeded()
@@ -923,7 +983,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
                         promptVersion: prep.request.promptVersion,
                         latency: latency, window: prep.budget.window,
-                        entryCount: prep.retrieval.entries.count)
+                        entryCount: prep.retrieval.entries.count,
+                        promptTokens: promptTokens, cachedTokens: cachedTokens,
+                        tools: 0)
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
@@ -975,6 +1037,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             speculativeHit: prepared.adopted.hit
         )
         do {
+            async let tokenCounts = Self.measurePromptTokens(
+                instructions: prep.resolved.text, prompt: prep.prompt
+            )
             let (body, citedRefs) = try await Self.respondToAsk(
                 session: prepared.adopted.session,
                 prompt: prep.prompt,
@@ -983,9 +1048,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: prep.generationOptions,
                 bodyOnly: prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
             )
+            let counted = await tokenCounts
             return try makeResult(
                 heading1: nil, heading2: nil, body: body, citedRefs: citedRefs,
-                prep: prep, question: question, latency: clock.now - started
+                prep: prep, question: question, latency: clock.now - started,
+                promptTokens: counted.prompt, cachedTokens: counted.cached
             )
         } catch let error as IntelligenceError {
             throw error
@@ -1082,6 +1149,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             if !attachments.isEmpty {
                 let response = try await session.respond(
                     generating: type,
+                    includeSchemaInPrompt: PromptExperiments.includeSchemaInPrompt,
                     options: options
                 ) {
                     prompt
@@ -1093,11 +1161,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
         }
         #endif
+        #if compiler(>=6.3)
+        let response = try await session.respond(
+            to: prompt,
+            generating: type,
+            includeSchemaInPrompt: PromptExperiments.includeSchemaInPrompt,
+            options: options
+        )
+        #else
         let response = try await session.respond(
             to: prompt,
             generating: type,
             options: options
         )
+        #endif
         return response.content
     }
 
@@ -1142,6 +1219,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             if !attachments.isEmpty {
                 return session.streamResponse(
                     generating: type,
+                    includeSchemaInPrompt: PromptExperiments.includeSchemaInPrompt,
                     options: options
                 ) {
                     prompt
@@ -1152,11 +1230,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
         }
         #endif
+        #if compiler(>=6.3)
+        return session.streamResponse(
+            to: prompt,
+            generating: type,
+            includeSchemaInPrompt: PromptExperiments.includeSchemaInPrompt,
+            options: options
+        )
+        #else
         return session.streamResponse(
             to: prompt,
             generating: type,
             options: options
         )
+        #endif
     }
 
     /// A stream with no new snapshot for this long is stalled (spec 029 R7).
@@ -1245,6 +1332,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
+                    async let tokenCounts = Self.measurePromptTokens(
+                        instructions: prep.resolved.text, prompt: prep.prompt
+                    )
+                    let cachedLock = OSAllocatedUnfairLock<Int?>(initialState: nil)
 
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
@@ -1318,6 +1409,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     options: prep.generationOptions
                                 )
                                 for try await snapshot in stream {
+                                    cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
                                     try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
                                 }
                             } else {
@@ -1327,6 +1419,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     options: prep.generationOptions
                                 )
                                 for try await snapshot in stream {
+                                    cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
                                     let refs = snapshot.content.citedRefs ?? nil
                                     try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
                                 }
@@ -1355,10 +1448,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         throw IntelligenceError.generationFailed("Stream ended without a result.")
                     }
 
+                    let counted = await tokenCounts
+                    let cached = cachedLock.withLock { $0 } ?? counted.cached
                     let result = try makeResult(heading1: tail.heading1, heading2: tail.heading2,
                                             body: tail.body, citedRefs: tail.citedRefs,
                                             prep: prep, question: question,
-                                            latency: clock.now - started)
+                                            latency: clock.now - started,
+                                            promptTokens: counted.prompt,
+                                            cachedTokens: cached)
                     continuation.yield(.final(result))
                     continuation.finish()
                     // Next-turn warming is caller-driven now (spec 029 Am. A):

@@ -29,15 +29,47 @@ enum PassageChunker {
     static let minChars = 120
     static let maxChars = 400
 
+    private static let cacheLock = NSLock()
+    private static var cache: [UInt64: ChunkedEntry] = [:]
+    /// Soft cap so a huge journal cannot grow the cache without bound.
+    /// budget-exempt: in-process chunk memo, not a model context window.
+    private static let cacheLimit = 2_048
+
+    /// Test seam — drop the in-process memo.
+    static func resetCacheForTesting() {
+        cacheLock.lock()
+        cache.removeAll()
+        cacheLock.unlock()
+    }
+
     /// Tokenize `text` into sentences and merge them into 120–400 character
     /// passages. A single short entry (or one long sentence) becomes one
-    /// passage. `title` is used only for language detection.
-    static func chunk(title: String = "", text: String) -> ChunkedEntry {
+    /// passage. `title` is used only for language detection. When
+    /// `contentHash` is supplied, identical entries reuse the chunked result
+    /// so retrieve does not re-tokenize every send.
+    static func chunk(title: String = "", text: String, contentHash: UInt64? = nil) -> ChunkedEntry {
+        if let contentHash {
+            cacheLock.lock()
+            if let hit = cache[contentHash] {
+                cacheLock.unlock()
+                return hit
+            }
+            cacheLock.unlock()
+        }
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let language = detectLanguage(title: title, text: body)
         let sentences = tokenizeSentences(body)
         let passages = merge(sentences)
-        return ChunkedEntry(passages: passages, sentences: sentences, language: language)
+        let result = ChunkedEntry(passages: passages, sentences: sentences, language: language)
+        if let contentHash {
+            cacheLock.lock()
+            if cache.count >= cacheLimit {
+                cache.removeAll(keepingCapacity: true)
+            }
+            cache[contentHash] = result
+            cacheLock.unlock()
+        }
+        return result
     }
 
     /// Best-scoring passage plus one neighboring sentence on each side,
