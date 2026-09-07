@@ -45,6 +45,18 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
+    /// The recipes `prewarmConversation` warms for the next turn: one per
+    /// distinct instruction text a live send can resolve to on device.
+    /// `continuer` shares `chat-light@4` with phatic and `meta` shares the
+    /// lensed companion prompt, so both adopt without their own slot;
+    /// `redirect` is the lens-free companion text; `thread` is the
+    /// follow-up recipe — every second turn of a journal conversation
+    /// missed the pool while only notebook was warmed. `statistic` never
+    /// reaches the model. `ReplyChannelTests` pins the coverage.
+    static let speculativeChannels: [ReplyChannel] = [
+        .phatic, .companion, .redirect, .thread, .notebook
+    ]
+
     /// Ranks 0–1 leave ask@15 for `chat-light@4`.
     var usesLightPrompt: Bool {
         switch self {

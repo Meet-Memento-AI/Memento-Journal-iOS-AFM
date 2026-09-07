@@ -90,6 +90,34 @@ struct AskTranscriptPlan: Equatable, Sendable {
         )
     }
 
+    /// The resolved instructions and plan for one Ask turn. `prepareAskCore`
+    /// (live) and `prewarmConversation` (speculative) both build through
+    /// here, so the recipe they hash — lens omission, exemplar, channel
+    /// suffix — cannot drift and cost a speculative miss.
+    static func forAsk(
+        channel: ReplyChannel,
+        stored personalization: PromptPersonalization,
+        history: [ChatTurn],
+        budget: ContextBudget,
+        zone: TrustZone = .z0Device,
+        degraded: Bool = false
+    ) -> (resolved: ResolvedPrompt, plan: AskTranscriptPlan) {
+        let resolved = PromptRegistry.resolve(
+            intent: .ask,
+            zone: zone,
+            degraded: degraded,
+            personalization: channel.omitsLens ? .none : personalization,
+            channel: channel
+        )
+        let plan = build(
+            instructions: resolved.text,
+            history: history,
+            budget: budget,
+            includeExemplar: channel == .notebook
+        )
+        return (resolved, plan)
+    }
+
     /// Stable across processes (unlike `Hasher`) and unambiguous: each entry
     /// contributes a role tag and its text with distinct separators, so
     /// ("ab","c") can never collide with ("a","bc") or a role swap.
