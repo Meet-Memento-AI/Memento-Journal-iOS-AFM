@@ -185,6 +185,9 @@ class ChatService {
             // round-trip never lands on the send path (spec 029 Amendment A).
             _ = Self.legacyPIN
             self.intelligence.prewarm()
+            // First send otherwise pays the one uncached
+            // `SystemLanguageModel.availability` read inside `prepareAskCore`.
+            _ = await self.intelligence.availability()
             EntryRetriever.warmEmbeddings(self.loadLocalEntries())
         }
         // Resolve the TTS voice catalog off-main too, so the first narrated

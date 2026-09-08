@@ -90,6 +90,34 @@ struct AskTranscriptPlan: Equatable, Sendable {
         )
     }
 
+    /// The resolved instructions and plan for one Ask turn. `prepareAskCore`
+    /// (live) and `prewarmConversation` (speculative) both build through
+    /// here, so the recipe they hash — lens omission, exemplar, channel
+    /// suffix — cannot drift and cost a speculative miss.
+    static func forAsk(
+        channel: ReplyChannel,
+        stored personalization: PromptPersonalization,
+        history: [ChatTurn],
+        budget: ContextBudget,
+        zone: TrustZone = .z0Device,
+        degraded: Bool = false
+    ) -> (resolved: ResolvedPrompt, plan: AskTranscriptPlan) {
+        let resolved = PromptRegistry.resolve(
+            intent: .ask,
+            zone: zone,
+            degraded: degraded,
+            personalization: channel.omitsLens ? .none : personalization,
+            channel: channel
+        )
+        let plan = build(
+            instructions: resolved.text,
+            history: history,
+            budget: budget,
+            includeExemplar: channel == .notebook
+        )
+        return (resolved, plan)
+    }
+
     /// Stable across processes (unlike `Hasher`) and unambiguous: each entry
     /// contributes a role tag and its text with distinct separators, so
     /// ("ab","c") can never collide with ("a","bc") or a role swap.
@@ -100,9 +128,9 @@ struct AskTranscriptPlan: Equatable, Sendable {
             let tag: UInt8
             let text: String
             switch entry {
-            case .instructions(let t): tag = 0x69; text = t   // 'i'
-            case .userPrompt(let t): tag = 0x75; text = t     // 'u'
-            case .assistantResponse(let t): tag = 0x61; text = t  // 'a'
+            case .instructions(let body): tag = 0x69; text = body   // 'i'
+            case .userPrompt(let body): tag = 0x75; text = body     // 'u'
+            case .assistantResponse(let body): tag = 0x61; text = body  // 'a'
             }
             digest.update(data: Data([tag, 0x1F]))
             digest.update(data: Data(text.utf8))

@@ -207,4 +207,83 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertEqual(RetrievalPolicy.mode(for: .social), .none)
         XCTAssertEqual(RetrievalPolicy.mode(for: .acknowledgement), .none)
     }
+
+    // MARK: Chat-speed: speculative pool covers every live recipe
+
+    /// Every channel a live on-device send can resolve to must hash to a plan
+    /// the pool warmed — with and without a lens, first turn and follow-up.
+    /// A channel missing here is a guaranteed speculative miss (cold prefill
+    /// on TTFT) for every turn that lands on it.
+    func test_speculativeChannels_coverEveryOnDeviceRecipe() {
+        let budget = ContextBudget(window: .unavailable)
+        let lensed = PromptPersonalization(
+            firstName: "Ada",
+            reflection: "I want to notice when I am overcommitting.",
+            goals: [],
+            promptLens: nil
+        )
+        let histories: [[ChatTurn]] = [
+            [],
+            [
+                ChatTurn(role: .user, text: "What did I write about the hike?"),
+                ChatTurn(role: .assistant, text: "You were up the mountain with Maya.")
+            ]
+        ]
+        for personalization in [PromptPersonalization.none, lensed] {
+            for history in histories {
+                let warmed = Set(ReplyChannel.speculativeChannels.map {
+                    AskTranscriptPlan.forAsk(
+                        channel: $0, stored: personalization, history: history, budget: budget
+                    ).plan.fingerprint
+                })
+                for channel in ReplyChannel.allCases where channel.requiresOnDeviceModel {
+                    let live = AskTranscriptPlan.forAsk(
+                        channel: channel,
+                        stored: personalization,
+                        history: history,
+                        budget: budget,
+                        zone: .z0Device,
+                        degraded: false
+                    ).plan.fingerprint
+                    XCTAssertTrue(
+                        warmed.contains(live),
+                        "\(channel) (lens: \(personalization.hasAskPersonalization), turns: \(history.count)) misses the pool"
+                    )
+                }
+            }
+        }
+    }
+
+    /// Thread is its own recipe (ask-core@16 + follow-up suffix), so the
+    /// follow-up turn needs its own slot — notebook alone never matched it.
+    func test_threadRecipe_isDistinctFromNotebook() {
+        let budget = ContextBudget(window: .unavailable)
+        let history = [ChatTurn(role: .user, text: "Tell me more about that week.")]
+        let thread = AskTranscriptPlan.forAsk(
+            channel: .thread, stored: .none, history: history, budget: budget
+        )
+        let notebook = AskTranscriptPlan.forAsk(
+            channel: .notebook, stored: .none, history: history, budget: budget
+        )
+        XCTAssertNotEqual(thread.plan.fingerprint, notebook.plan.fingerprint)
+        XCTAssertTrue(ReplyChannel.speculativeChannels.contains(.thread))
+        XCTAssertFalse(ReplyChannel.speculativeChannels.contains(.statistic))
+    }
+
+    /// `forAsk` applies the lens rule itself, so a caller can never warm a
+    /// lensed redirect and serve a lens-free one (or vice versa).
+    func test_forAsk_omitsLensOnLensFreeChannels() {
+        let budget = ContextBudget(window: .unavailable)
+        let lensed = PromptPersonalization(
+            firstName: "Ada", reflection: "Noticing overcommitting.", goals: [], promptLens: nil
+        )
+        for channel in ReplyChannel.allCases where channel.omitsLens {
+            let with = AskTranscriptPlan.forAsk(channel: channel, stored: lensed, history: [], budget: budget)
+            let without = AskTranscriptPlan.forAsk(channel: channel, stored: .none, history: [], budget: budget)
+            XCTAssertEqual(with.plan.fingerprint, without.plan.fingerprint, "\(channel)")
+            XCTAssertEqual(with.resolved.version, without.resolved.version, "\(channel)")
+        }
+        let companion = AskTranscriptPlan.forAsk(channel: .companion, stored: lensed, history: [], budget: budget)
+        XCTAssertTrue(companion.resolved.version.hasSuffix("+p4"))
+    }
 }

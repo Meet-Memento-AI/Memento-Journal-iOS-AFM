@@ -38,74 +38,8 @@ import FoundationModels
 import os
 import UIKit
 
-/// One-at-a-time gate for `SystemLanguageModel` work.
-///
-/// Concurrent `respond` / `streamResponse` / `prewarm` / `tokenCount` —
-/// weekly reflection overlapping a chat send, speculative prewarm overlapping
-/// live generation — EXC_BAD_ACCESS inside the AFM runtime.
-private final class ModelRuntimeGate: @unchecked Sendable {
-    static let shared = ModelRuntimeGate()
-
-    private let lock = NSLock()
-    private var busy = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    func withLock<T>(_ body: () async throws -> T) async rethrows -> T {
-        await acquire()
-        defer { release() }
-        return try await body()
-    }
-
-    /// Skip if another model call already holds the gate (prewarm, token count).
-    func tryWithLock<T>(_ body: () async throws -> T) async -> T? {
-        guard tryAcquire() else { return nil }
-        defer { release() }
-        return try? await body()
-    }
-
-    /// Skip if another model call already holds the gate (prewarm).
-    @discardableResult
-    func tryRun(_ body: () async -> Void) async -> Bool {
-        guard tryAcquire() else { return false }
-        defer { release() }
-        await body()
-        return true
-    }
-
-    private func acquire() async {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            if busy {
-                waiters.append(continuation)
-                lock.unlock()
-            } else {
-                busy = true
-                lock.unlock()
-                continuation.resume()
-            }
-        }
-    }
-
-    private func tryAcquire() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if busy { return false }
-        busy = true
-        return true
-    }
-
-    private func release() {
-        lock.lock()
-        if waiters.isEmpty {
-            busy = false
-            lock.unlock()
-        } else {
-            let next = waiters.removeFirst()
-            lock.unlock()
-            next.resume()
-        }
-    }
-}
+// Every `SystemLanguageModel` call below runs under `ModelRuntimeGate`
+// (its own file): concurrent AFM calls EXC_BAD_ACCESS, and Ask goes first.
 
 // MARK: - Structured output (guided generation, no JSON parsing) — spec 017 R5
 
@@ -420,6 +354,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         speculativePool.replaceAll(pair.map { ($0.fingerprint, $0.session) })
     }
 
+    /// Monotonic prewarm request counter. A prewarm that queued behind the
+    /// gate only builds sessions if no newer request arrived meanwhile.
+    private var prewarmGeneration = 0
+
+    private func bumpPrewarmGeneration() -> Int {
+        stateLock.lock(); defer { stateLock.unlock() }
+        prewarmGeneration += 1
+        return prewarmGeneration
+    }
+
+    private func isCurrentPrewarmGeneration(_ generation: Int) -> Bool {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return prewarmGeneration == generation
+    }
+
     func consumeLastTurnPerf() -> AskTurnPerf? {
         stateLock.lock(); defer { stateLock.unlock() }
         let value = lastTurnPerf
@@ -635,35 +584,27 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Speculatively builds and prefills sessions for the NEXT turn of a
     /// conversation with this history. Warms every distinct recipe the next
-    /// message might pick (light, companion, notebook) so a hello does not
-    /// miss a pool that only prefilled ask-core@16. Callers time it for idle
-    /// windows — after `.final` in typed chat, after TTS drains in
-    /// narration, and on conversation open. Deduped by fingerprint.
+    /// message might pick (`ReplyChannel.speculativeChannels`: light,
+    /// companion, redirect, thread, notebook) so neither a hello nor a
+    /// follow-up misses a pool that only prefilled the notebook recipe.
+    /// Callers time it for idle windows — after `.final` in typed chat,
+    /// after TTS drains in narration, and on conversation open. Deduped by
+    /// fingerprint; queues behind a live send instead of being skipped.
     func prewarmConversation(history: [ChatTurn]) {
+        // Chat is in use: reflections hold off so the send finds the gate idle.
+        ModelRuntimeGate.shared.noteInteractiveActivity()
+        let generation = bumpPrewarmGeneration()
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             let personalization = PromptPersonalization.fromLocalProfile()
             let budget = ContextBudget(window: Self.currentWindow())
-            let lens = personalization.hasAskPersonalization ? personalization : .none
-            let variants: [(ReplyChannel, PromptPersonalization)] = [
-                (.phatic, .none),
-                (.companion, lens),
-                (.redirect, .none),
-                (.notebook, lens)
-            ]
 
             var plans: [AskTranscriptPlan] = []
             var seen = Set<String>()
-            for (channel, person) in variants {
-                let resolved = PromptRegistry.instructions(
-                    for: .ask, personalization: person, channel: channel
-                )
-                let plan = AskTranscriptPlan.build(
-                    instructions: resolved.text,
-                    history: history,
-                    budget: budget,
-                    includeExemplar: channel == .notebook
-                )
+            for channel in ReplyChannel.speculativeChannels {
+                let plan = AskTranscriptPlan.forAsk(
+                    channel: channel, stored: personalization, history: history, budget: budget
+                ).plan
                 guard seen.insert(plan.fingerprint).inserted else { continue }
                 plans.append(plan)
             }
@@ -672,7 +613,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 return
             }
 
-            await ModelRuntimeGate.shared.tryRun {
+            // Wait (behind Ask, ahead of reflections) rather than skip: a
+            // prewarm dropped because a backfill held the gate used to leave
+            // the first send with a cold session on top of the wait.
+            await ModelRuntimeGate.shared.withLock(.speculative) {
+                // A newer prewarm (next turn's history) superseded this one
+                // while it queued; let it do the work.
+                guard self.isCurrentPrewarmGeneration(generation) else { return }
                 let pair = plans.map { plan in
                     (fingerprint: plan.fingerprint, session: self.makeSession(from: plan))
                 }
@@ -798,7 +745,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     /// Session 7: measured prompt tokens when the SDK exposes `tokenCount`.
-    /// Runs off the TTFT path — callers overlap it with decode.
+    /// Runs AFTER decode, not overlapped with it: two `tokenCount` calls that
+    /// won the gate first put themselves in front of the send, and when they
+    /// lost they were skipped anyway. Diagnostics never sit on TTFT.
     private static func measurePromptTokens(
         instructions: String,
         prompt: String
@@ -980,12 +929,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             ? RetrievalLimits(budget: budget).narrowed()
             : RetrievalLimits(budget: budget)
         let storedPersonalization = PromptPersonalization.fromLocalProfile()
-        let resolved = PromptRegistry.resolve(
-            intent: .ask,
+        // Same builder as `prewarmConversation`, so on the on-device route
+        // this fingerprint is exactly what the speculative pool warmed.
+        let (resolved, plan) = AskTranscriptPlan.forAsk(
+            channel: channel,
+            stored: storedPersonalization,
+            history: history,
+            budget: budget,
             zone: route.executionZone,
-            degraded: route.useDegradedPrompt,
-            personalization: channel.omitsLens ? .none : storedPersonalization,
-            channel: channel
+            degraded: route.useDegradedPrompt
         )
         let request = GenerationRequest(
             intent: .ask,
@@ -993,15 +945,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             allowsDegradation: ModelRouter.row(for: .ask)?.degradedZone != nil,
             promptVersion: resolved.version,
             toolsEnabled: SearchJournalPolicy.shouldAttach(channel: channel) && Self.canAttachSearchTool
-        )
-        // Chat-speed: keep the live fingerprint tool-free so it matches
-        // `prewarmConversation`. SearchJournalTool attaches only after a
-        // speculative miss (see `adoptOrCreateSession`).
-        let plan = AskTranscriptPlan.build(
-            instructions: resolved.text,
-            history: history,
-            budget: budget,
-            includeExemplar: channel == .notebook
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
@@ -1281,9 +1224,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             speculativeHit: prepared.adopted.hit
         )
         do {
-            async let tokenCounts = Self.measurePromptTokens(
-                instructions: prep.resolved.text, prompt: prep.prompt
-            )
             let (body, citedRefs) = try await Self.respondToAsk(
                 session: prepared.adopted.session,
                 prompt: prep.prompt,
@@ -1292,7 +1232,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: prep.generationOptions,
                 bodyOnly: prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
             )
-            let counted = await tokenCounts
+            let counted = await Self.measurePromptTokens(
+                instructions: prep.resolved.text, prompt: prep.prompt
+            )
             return try makeResult(
                 heading1: nil, heading2: nil, body: body, citedRefs: citedRefs,
                 prep: prep, question: question, latency: clock.now - started,
@@ -1601,9 +1543,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
-                    async let tokenCounts = Self.measurePromptTokens(
-                        instructions: prep.resolved.text, prompt: prep.prompt
-                    )
                     let cachedLock = OSAllocatedUnfairLock<Int?>(initialState: nil)
 
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
@@ -1719,7 +1658,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         throw IntelligenceError.generationFailed("Stream ended without a result.")
                     }
 
-                    let counted = await tokenCounts
+                    let counted = await Self.measurePromptTokens(
+                        instructions: prep.resolved.text, prompt: prep.prompt
+                    )
                     let cached = cachedLock.withLock { $0 } ?? counted.cached
                     let result = try makeResult(heading1: tail.heading1, heading2: tail.heading2,
                                             body: tail.body, citedRefs: tail.citedRefs,
@@ -2441,7 +2382,7 @@ extension FoundationModelsIntelligenceService {
         """
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await ModelRuntimeGate.shared.withLock {
+            let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
                     to: prompt,
                     generating: EntryReflection.self,
@@ -2500,7 +2441,7 @@ extension FoundationModelsIntelligenceService {
         let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await ModelRuntimeGate.shared.withLock {
+            let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
                     to: prompt,
                     generating: PeriodReflection.self,
@@ -2577,7 +2518,7 @@ extension FoundationModelsIntelligenceService {
         """
         let session = LanguageModelSession(instructions: resolved.text)
         do {
-            let response = try await ModelRuntimeGate.shared.withLock {
+            let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
                     to: prompt,
                     generating: ProfileEstimateAnswer.self,
