@@ -1,0 +1,4 @@
+// Copy to Supabase.xcconfig (gitignored) and fill the publishable anon key.
+// Never put service_role in this file, the app, or the repo.
+SUPABASE_URL = https://ibdtqiembpexzeoyhfim.supabase.co
+SUPABASE_ANON_KEY =

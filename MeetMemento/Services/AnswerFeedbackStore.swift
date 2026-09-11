@@ -4,7 +4,8 @@
 //
 //  On-device JSON store for spec 041 answer feedback. Mirrors LocalChatStore:
 //  Application Support, complete file protection, lock + write-behind.
-//  Never leaves the device (REQ-PRIV-001).
+//  Local store remains the source of truth. A consented verification upload
+//  (spec 042) may leave the device; journal entries never sync.
 //
 
 import Foundation

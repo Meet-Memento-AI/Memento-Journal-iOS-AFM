@@ -272,7 +272,7 @@ merges while the decision block still reads OPEN.
   still unlocked** — on-device-only satisfaction near PCC satisfaction means
   the absolute-privacy claim Memento currently concedes is available after
   all. Raising the finding is this spec's job; acting on it is Out of Scope.
-- **Instruments** (`REQ-EVAL-005`): all study telemetry is manually collected
+- **Instruments** (`REQ-EVAL-005`): all *study* telemetry is manually collected
   — surveys and interviews, no in-app analytics SDK; slower, and the price
   of the privacy label. In-app collection is limited to the
   reflection-helpfulness micro-survey (target ≥ 80%) persisted locally on
@@ -280,6 +280,11 @@ merges while the decision block still reads OPEN.
   the participant's explicit, manual share. Willingness-to-pay (≥ 70%) comes
   from the end-of-study survey. Exports contain ratings and survey answers
   only — never journal content.
+  **Narrowed 2026-09-11 (spec [042](042-feedback-telemetry-supabase.md)):**
+  volunteered in-chat answer feedback may leave the device for quality
+  *verification* when the user opts in. That path is not an analytics SDK
+  and is not study instrumentation; it does not relax this rule for
+  journal content, reflections, or chat history.
 
 **Acceptance (Given/When/Then):** given the study protocol document, when
 reviewed before recruitment, then cohort definitions, the near-parity
@@ -347,8 +352,9 @@ string). Re-confirm this is still true when implementation starts.
 
 - Building the golden-set harness's underlying fixture corpus — spec 013 already
   owns that; this spec reuses it.
-- Any in-app analytics SDK — explicitly excluded by `REQ-EVAL-005`; all telemetry
-  is manual survey/interview collection.
+- Any in-app analytics SDK — explicitly excluded by `REQ-EVAL-005`; study
+  telemetry remains manual survey/interview collection. Spec 042's
+  verification RPC is not an SDK and is not this study's instrument.
 - Acting on study findings (e.g. revisiting the §1.3 positioning claim if the
   forced-degradation cohort's result warrants it) — that's a product decision for
   whoever reads this study's output, not something this spec resolves in advance.

@@ -21,7 +21,12 @@ class PreferencesService: ObservableObject {
         static let processOnDeviceOnly = "processOnDeviceOnly"
         static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
         static let speechRate = "speechRate"
+        static let shareFeedbackWithDeveloper = PreferencesService.shareFeedbackKey
     }
+
+    /// UserDefaults key for the spec 042 verification toggle. Read by the
+    /// outbox from any queue; keep in sync with `shareFeedbackWithDeveloper`.
+    static let shareFeedbackKey = "shareFeedbackWithDeveloper"
 
     // MARK: - Published Properties
     @Published var aiEnabled: Bool {
@@ -74,6 +79,17 @@ class PreferencesService: ObservableObject {
         }
     }
 
+    /// Spec 042: opt-in so volunteered chat feedback may leave this device
+    /// for quality verification. Off by default. Journal entries never sync.
+    @Published var shareFeedbackWithDeveloper: Bool {
+        didSet {
+            defaults.set(shareFeedbackWithDeveloper, forKey: Keys.shareFeedbackWithDeveloper)
+            if oldValue && !shareFeedbackWithDeveloper {
+                FeedbackSyncService.shared.withdrawConsent()
+            }
+        }
+    }
+
     // MARK: - Theme Preference
     var themePreference: AppThemePreference {
         get {
@@ -94,6 +110,8 @@ class PreferencesService: ObservableObject {
         self.selectedVoiceIdentifier = defaults.string(forKey: Keys.selectedVoiceIdentifier)
         self.speechRate = defaults.object(forKey: Keys.speechRate) as? Float
             ?? SpeechRatePreset.brisk.rawValue
+        self.shareFeedbackWithDeveloper =
+            defaults.object(forKey: Keys.shareFeedbackWithDeveloper) as? Bool ?? false
     }
 
     /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
@@ -103,6 +121,7 @@ class PreferencesService: ObservableObject {
         defaults.removeObject(forKey: Keys.processOnDeviceOnly)
         defaults.removeObject(forKey: Keys.selectedVoiceIdentifier)
         defaults.removeObject(forKey: Keys.speechRate)
+        defaults.removeObject(forKey: Keys.shareFeedbackWithDeveloper)
         // Retired 2026-08-18 with the compact-voice nudge (spec 033 R6). Removed
         // here as well so "delete everything" does not leave an orphan behind —
         // resetToDefaults() never cleared this key even when it was live.
@@ -111,5 +130,6 @@ class PreferencesService: ObservableObject {
         processOnDeviceOnly = false
         selectedVoiceIdentifier = nil
         speechRate = SpeechRatePreset.brisk.rawValue
+        shareFeedbackWithDeveloper = false
     }
 }

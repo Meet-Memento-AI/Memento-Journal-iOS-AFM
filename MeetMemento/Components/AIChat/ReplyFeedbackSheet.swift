@@ -10,23 +10,24 @@ import SwiftUI
 struct ReplyFeedbackSheet: View {
     let draft: FeedbackDraft
     var onCancel: () -> Void
-    var onSubmit: (AnswerFeedbackCategory, String) -> Void
+    var onSubmit: (AnswerFeedbackCategory, String, Bool) -> Void
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @ObservedObject private var preferences = PreferencesService.shared
 
     @State private var category: AnswerFeedbackCategory?
     @State private var note: String = ""
+    @State private var includeTextForReview = false
 
     private var isReport: Bool { draft.source == .report }
     private var canSubmit: Bool { category != nil }
+    private var sharingEnabled: Bool { preferences.shareFeedbackWithDeveloper }
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text(isReport
-                     ? "We'll review this reply manually. It stays on this device."
-                     : "Tell us what went wrong. This stays on this device and helps us revise replies.")
+                Text(disclosureCopy)
                     .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
 
@@ -47,6 +48,16 @@ struct ReplyFeedbackSheet: View {
                     )
                     .accessibilityIdentifier("chat.feedback.note")
 
+                if isReport && sharingEnabled {
+                    Toggle(isOn: $includeTextForReview) {
+                        Text("Include the question and answer for review")
+                            .font(type.body2)
+                            .foregroundStyle(theme.foreground)
+                    }
+                    .tint(theme.primary)
+                    .accessibilityIdentifier("chat.feedback.includeText")
+                }
+
                 Spacer(minLength: 0)
 
                 HStack(spacing: Spacing.sm) {
@@ -60,7 +71,8 @@ struct ReplyFeedbackSheet: View {
                     Button {
                         guard let category else { return }
                         let trimmed = String(note.trimmingCharacters(in: .whitespacesAndNewlines).prefix(280))
-                        onSubmit(category, trimmed)
+                        let includeText = isReport && sharingEnabled && includeTextForReview
+                        onSubmit(category, trimmed, includeText)
                     } label: {
                         Text(isReport ? "Submit report" : "Submit")
                             .font(type.body2Medium)
@@ -85,9 +97,21 @@ struct ReplyFeedbackSheet: View {
         .onAppear {
             category = draft.category
             note = draft.note
+            includeTextForReview = false
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private var disclosureCopy: String {
+        if sharingEnabled {
+            return isReport
+                ? "We'll review this reply. Ratings and your note can be sent for verification. Journal text is included only if you choose that below."
+                : "Tell us what went wrong. If quality feedback sharing is on, the rating and note can be sent for verification — not your journal."
+        }
+        return isReport
+            ? "We'll review this reply on this device. Turn on Share quality feedback in Settings to send a report for verification."
+            : "Tell us what went wrong. This is stored on this device unless you turn on Share quality feedback in Settings."
     }
 
     private func categoryChip(_ item: AnswerFeedbackCategory) -> some View {

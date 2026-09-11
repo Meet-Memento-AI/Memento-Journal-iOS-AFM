@@ -216,6 +216,9 @@ class AppStateStore: ObservableObject {
         // `ChatService.clearHistory()` so deletion stays deterministic: a
         // fire-and-forget Task in an erasure path can outlive the call.
         LocalChatStore.shared.clear()
+        // Capture the verification device id before local identity is wiped
+        // so remote erase stays addressable (spec 042).
+        FeedbackSyncService.shared.beginRemoteErase()
         AnswerFeedbackStore.shared.clear()
         // Cached entry embedding vectors are content-derived (CONSTITUTION §4
         // rule 8), so they go too — both the in-process cache and the

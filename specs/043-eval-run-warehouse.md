@@ -138,9 +138,11 @@ harness and every gate.
 
 ## Out of Scope
 
-- **Real device telemetry** — spec 042 owns `feedback.*`, its consent tiers, and
-  the app's network client. This spec touches no app-target code. The bridge
-  from 042's landing zone into this warehouse is written only when 042 ships.
+- **Real device telemetry** — spec 042 owns the client and consent model.
+  **Amended 2026-09-11:** 042 did not create a `feedback` schema. Live device
+  rows land directly on `public.answer_feedback` with `origin = device_human`
+  via `submit_device_feedback`. `import_answer_feedback` remains the
+  service-role export path. This spec still touches no app-target code.
 - **Stamping run identity inside the Swift harnesses** — required to reach
   `provenance = 'captured'`, tracked as R2 of a follow-up. Until then imports
   carry attribution from CLI flags and are marked `reconstructed`.
