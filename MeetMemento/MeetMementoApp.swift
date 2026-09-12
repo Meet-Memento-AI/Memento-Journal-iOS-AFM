@@ -88,6 +88,7 @@ struct MeetMementoApp: App {
             .task {
                 appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()
+                FeedbackSyncService.shared.resumePendingWork()
             }
             .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
@@ -103,10 +104,12 @@ struct MeetMementoApp: App {
                     // Drain the chat store's write-behind queue so a suspension
                     // can't strand a persisted turn in memory (spec 029 R3).
                     LocalChatStore.shared.flush()
+                    FeedbackSyncService.shared.resumePendingWork()
                 }
                 if newPhase == .active && appState.hasCompletedOnboarding {
                     // Update activity timestamp when app becomes active
                     SecurityService.shared.updateActivityTimestamp()
+                    FeedbackSyncService.shared.resumePendingWork()
                 }
             }
         }

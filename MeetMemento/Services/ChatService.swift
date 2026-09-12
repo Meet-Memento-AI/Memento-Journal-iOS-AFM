@@ -652,14 +652,14 @@ class ChatService {
         return ChatSummaryResponse(title: outcome.value.title, content: outcome.value.body)
     }
 
-    // MARK: - Chat Feedback (spec 041 — on-device store)
+    // MARK: - Chat Feedback (spec 041 local store + spec 042 verification enqueue)
 
     /// Rating-only write for leftover callers. The chat UI uses
     /// `AnswerFeedbackStore` directly so category/note can travel with the row.
     func submitFeedback(messageId: UUID, type: FeedbackType) async throws -> FeedbackType? {
         let rating: AnswerFeedbackRating = type == .positive ? .positive : .negative
         let existing = AnswerFeedbackStore.shared.feedback(for: messageId)
-        _ = AnswerFeedbackStore.shared.upsert(AnswerFeedback(
+        let stored = AnswerFeedbackStore.shared.upsert(AnswerFeedback(
             messageID: messageId,
             sessionID: nil,
             rating: rating,
@@ -671,6 +671,7 @@ class ChatService {
             assistantReply: existing?.assistantReply ?? "",
             citationEntryIDs: existing?.citationEntryIDs ?? []
         ))
+        FeedbackSyncService.shared.record(stored, includeTextForReview: false)
         AppLogger.log("👍 [ChatService] Feedback \(type.rawValue) stored for \(messageId.uuidString.prefix(8))")
         return type
     }

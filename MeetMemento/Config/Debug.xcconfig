@@ -1,3 +1,6 @@
 // Debug build configuration.
-// The app is on-device only (no accounts, no backend), so no secrets or
-// API keys are required to build or run.
+// Journal stays on-device. Spec 042 verification keys are optional: missing
+// values make FeedbackSyncService a no-op so a fresh clone still builds.
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+#include? "Supabase.xcconfig"

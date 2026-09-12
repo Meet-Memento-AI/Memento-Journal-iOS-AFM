@@ -117,6 +117,7 @@ class ChatViewModel: ObservableObject {
 
     private let chatService: ChatServiceProtocol
     private let feedbackStore: AnswerFeedbackStore
+    private let feedbackSync: FeedbackSyncService
     private let maxMessagesInMemory = 100
 
     /// Per-session message cache to avoid re-fetching on tab switches
@@ -160,9 +161,11 @@ class ChatViewModel: ObservableObject {
     // MARK: - Initialization
 
     init(chatService: ChatServiceProtocol = ChatService.shared,
-         feedbackStore: AnswerFeedbackStore = .shared) {
+         feedbackStore: AnswerFeedbackStore = .shared,
+         feedbackSync: FeedbackSyncService = .shared) {
         self.chatService = chatService
         self.feedbackStore = feedbackStore
+        self.feedbackSync = feedbackSync
         seedUITestTranscriptIfRequested()
     }
 
@@ -908,7 +911,9 @@ class ChatViewModel: ObservableObject {
         feedbackDraft = nil
     }
 
-    func submitFeedbackDraft(category: AnswerFeedbackCategory, note: String) {
+    func submitFeedbackDraft(category: AnswerFeedbackCategory,
+                             note: String,
+                             includeTextForReview: Bool = false) {
         guard let draft = feedbackDraft else { return }
         feedbackDraft = nil
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -922,7 +927,8 @@ class ChatViewModel: ObservableObject {
                 flaggedForReview: isReported(draft.messageID),
                 category: category,
                 note: trimmed.isEmpty ? nil : trimmed,
-                source: .thumbsDown
+                source: .thumbsDown,
+                includeTextForReview: false
             )
             feedbackToast = "Thanks — we'll use this to improve."
         case .report:
@@ -941,7 +947,8 @@ class ChatViewModel: ObservableObject {
                 flaggedForReview: true,
                 category: category,
                 note: trimmed.isEmpty ? nil : trimmed,
-                source: .report
+                source: .report,
+                includeTextForReview: includeTextForReview
             )
             feedbackToast = "Reported for review."
         }
@@ -1000,10 +1007,11 @@ class ChatViewModel: ObservableObject {
         flaggedForReview: Bool,
         category: AnswerFeedbackCategory?,
         note: String?,
-        source: AnswerFeedbackSource
+        source: AnswerFeedbackSource,
+        includeTextForReview: Bool = false
     ) {
         let snapshot = snapshot(for: messageID)
-        _ = feedbackStore.upsert(AnswerFeedback(
+        let stored = feedbackStore.upsert(AnswerFeedback(
             messageID: messageID,
             sessionID: currentSessionId,
             rating: rating,
@@ -1020,6 +1028,7 @@ class ChatViewModel: ObservableObject {
             wasDegraded: snapshot.wasDegraded,
             safetyPresentation: snapshot.safety
         ))
+        feedbackSync.record(stored, includeTextForReview: includeTextForReview)
     }
 
     private func snapshot(for messageID: UUID) -> (

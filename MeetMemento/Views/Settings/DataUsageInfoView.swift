@@ -69,6 +69,14 @@ public struct DataUsageInfoView: View {
                 title: "Personalization",
                 description: "What you tell us about yourself and your goals during setup, used only to tailor reflections to you."
             )
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "hand.thumbsup.fill",
+                title: "Quality Feedback (opt-in)",
+                description: "If you turn on Share quality feedback, volunteered ratings, reason chips, and notes can be sent for verification. The question and answer leave the device only when you report a reply and choose to include them."
+            )
         }
     }
 
@@ -128,8 +136,8 @@ public struct DataUsageInfoView: View {
 
             SettingsInfoRow(
                 icon: "eye.slash.fill",
-                title: "Nothing Collected",
-                description: "We don't operate accounts, analytics, or servers for your journal — so there is nothing for us to share, sell, or use for advertising."
+                title: "Journal Not Uploaded",
+                description: "We don't operate accounts or analytics SDKs for your journal. If you turn on Share quality feedback, volunteered ratings and optional report text can be sent for review — not journal entries or chat history."
             )
         }
     }

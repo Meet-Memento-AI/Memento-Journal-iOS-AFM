@@ -12,9 +12,9 @@
 #                         (Guideline 5.1.2). Hard failure.
 #
 # Also asserts the target privacy posture: NSPrivacyTracking = false, no tracking
-# domains, no collected data types ("Data Not Collected", REQ-MON-004), and no
-# NSUserTrackingUsageDescription anywhere (declaring tracking without ATT is the
-# literal Nov 2025 rejection).
+# domains, collected data types that match the spec 042 verification path (or
+# empty if that client is absent), and no NSUserTrackingUsageDescription
+# anywhere (declaring tracking without ATT is the literal Nov 2025 rejection).
 #
 # Background: docs/app-store/03-privacy-labels-and-manifest.md
 #
@@ -90,16 +90,7 @@ if command -v plutil >/dev/null 2>&1; then
   fi
 
   collected="$(plutil -extract NSPrivacyCollectedDataTypes raw -o - "$MANIFEST" 2>/dev/null || echo "MISSING")"
-  if [ "$collected" != "0" ]; then
-    echo "FAIL: NSPrivacyCollectedDataTypes is non-empty (count: $collected)."
-    note "Target label is 'Data Not Collected' (REQ-MON-004, spec 021 R5). If a"
-    note "disclosure is genuinely required, update this check together with the"
-    note "App Store Connect label AND the published privacy policy - all three"
-    note "must agree. See docs/app-store/03 section 1."
-    fail=1
-  else
-    echo "OK   NSPrivacyCollectedDataTypes = [] (Data Not Collected)"
-  fi
+  echo "OK   NSPrivacyCollectedDataTypes count reported by plutil: $collected"
 else
   if grep -A1 "NSPrivacyTracking</key>" "$MANIFEST" | grep -q "<false/>"; then
     echo "OK   NSPrivacyTracking = false (grep fallback; plutil unavailable)"
@@ -107,10 +98,39 @@ else
     echo "FAIL: NSPrivacyTracking is not <false/>."
     fail=1
   fi
-  if grep -A1 "NSPrivacyCollectedDataTypes</key>" "$MANIFEST" | grep -q "<array/>"; then
-    echo "OK   NSPrivacyCollectedDataTypes = [] (grep fallback)"
+fi
+
+# Spec 042 verification-only collection. Journal content is still not collected.
+# The declaration and the shipping client must agree in both directions.
+verification_client="${SRC_ROOT}/Services/Feedback/SupabaseFeedbackClient.swift"
+required_types=(
+  "NSPrivacyCollectedDataTypeOtherUserContent"
+  "NSPrivacyCollectedDataTypeOtherDataTypes"
+  "NSPrivacyCollectedDataTypeUserID"
+)
+if [ -f "$verification_client" ]; then
+  for t in "${required_types[@]}"; do
+    if grep -q "<string>${t}</string>" "$MANIFEST"; then
+      echo "OK   collected type declared: $t"
+    else
+      echo "FAIL: $verification_client exists but $MANIFEST is missing $t"
+      note "Spec 042 volunteered feedback is collection. Declare the type or remove the client."
+      fail=1
+    fi
+  done
+  if grep -A1 "NSPrivacyCollectedDataTypeTracking</key>" "$MANIFEST" | grep -q "<true/>"; then
+    echo "FAIL: a collected data type declares Tracking = true."
+    note "Spec 042 is verification, not tracking. Keep NSPrivacyCollectedDataTypeTracking false."
+    fail=1
   else
-    echo "FAIL: NSPrivacyCollectedDataTypes is not an empty array."
+    echo "OK   collected data types are not marked Tracking"
+  fi
+else
+  if grep -A1 "NSPrivacyCollectedDataTypes</key>" "$MANIFEST" | grep -q "<array/>"; then
+    echo "OK   NSPrivacyCollectedDataTypes = [] (no verification client)"
+  else
+    echo "FAIL: NSPrivacyCollectedDataTypes is non-empty but $verification_client is absent."
+    note "Remove the collected-type declarations or restore the verification client."
     fail=1
   fi
 fi

@@ -110,6 +110,7 @@ iOSInjectionProject/
 MeetMemento/Secrets.swift
 MeetMemento/Config/Debug.local.xcconfig
 MeetMemento/Config/Release.local.xcconfig
+MeetMemento/Config/Supabase.xcconfig
 
 # Environment variables
 .env
