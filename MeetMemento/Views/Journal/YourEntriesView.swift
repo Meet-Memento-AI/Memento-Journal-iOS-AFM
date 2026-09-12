@@ -13,11 +13,6 @@ struct YourEntriesView: View {
     @State private var entryToDelete: Entry?
     @State private var lastScrollOffset: CGFloat = 0
     @StateObject private var scrollDebouncer = ScrollDebouncer(delay: 0.25)
-    /// Bumped when a thumbnail finishes loading, purely to re-render the rows.
-    /// The decoded images themselves live in `PhotoThumbnailCache` (an NSCache)
-    /// so they evict under memory pressure — holding a second copy in local
-    /// `@State` would pin them for the life of this view and defeat that.
-    @State private var thumbnailRevision = 0
 
     private let scrollThreshold: CGFloat = 50
 
@@ -192,13 +187,8 @@ struct YourEntriesView: View {
                         // Entries for this month.
                         VStack(spacing: 16) {
                                 ForEach(monthGroup.entries) { entry in
-                                    JournalCard(
-                                        title: entry.displayTitle,
-                                        excerpt: entry.excerpt,
-                                        date: entry.createdAt,
-                                        photoImage: thumbnail(for: entry),
-                                        photoSample: backdropSample(for: entry),
-                                        hasPhoto: entry.hasPhoto,
+                                    JournalEntryCardRow(
+                                        entry: entry,
                                         onTap: {
                                             onNavigateToEntry(.edit(entry.id))
                                         },
@@ -210,20 +200,6 @@ struct YourEntriesView: View {
                                             showDeleteConfirmation = true
                                         }
                                     )
-                                    .entryZoomSource(
-                                        EntryRoute.edit(entry.id).zoomSourceID,
-                                        cornerRadius: theme.radius.xxl
-                                    )
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .id(entry.id) // Explicit ID for better diffing
-                                    // Keyed on updatedAt as well as id: replacing an
-                                    // entry's photo keeps the same id, so an id-only
-                                    // task would never re-fire and the list would keep
-                                    // showing the old photo until relaunch.
-                                    .task(id: thumbnailToken(for: entry)) {
-                                        await loadThumbnailIfNeeded(for: entry)
-                                    }
                                 }
                         }
                     }
@@ -263,39 +239,6 @@ struct YourEntriesView: View {
         }
     }
 
-    /// Changes whenever the entry's photo could have changed, so `.task(id:)`
-    /// re-runs after an edit that replaced or removed the photo.
-    private func thumbnailToken(for entry: Entry) -> String {
-        "\(entry.id.uuidString)-\(entry.updatedAt.timeIntervalSince1970)-\(entry.hasPhoto)"
-    }
-
-    /// The decoded cover photo for a row, if it's already cached. Reading
-    /// `thumbnailRevision` here is what ties the cache (which SwiftUI can't
-    /// observe) to this view's render cycle.
-    private func thumbnail(for entry: Entry) -> Image? {
-        _ = thumbnailRevision
-        guard entry.hasPhoto,
-              let uiImage = PhotoThumbnailCache.shared.image(for: entry.id) else { return nil }
-        return Image(uiImage: uiImage)
-    }
-
-    private func backdropSample(for entry: Entry) -> JournalBackdropSample? {
-        _ = thumbnailRevision
-        guard entry.hasPhoto else { return nil }
-        return PhotoThumbnailCache.shared.sample(for: entry.id)
-    }
-
-    /// Backfill for photos added after first load (edit/save) and cache
-    /// eviction. First paint is gated on `PhotoThumbnailCache.prefetch` in
-    /// `EntryViewModel.loadEntries`.
-    private func loadThumbnailIfNeeded(for entry: Entry) async {
-        guard entry.hasPhoto else { return }
-        if PhotoThumbnailCache.shared.image(for: entry.id) != nil { return }
-        await PhotoThumbnailCache.shared.loadIfNeeded(entryId: entry.id)
-        guard PhotoThumbnailCache.shared.image(for: entry.id) != nil else { return }
-        thumbnailRevision &+= 1
-    }
-
     private func updateTabBarVisibility(scrollOffset: CGFloat, binding: Binding<Bool>) {
         let delta = scrollOffset - lastScrollOffset
 
@@ -311,6 +254,71 @@ struct YourEntriesView: View {
         lastScrollOffset = scrollOffset
     }
 
+}
+
+/// One journal row. Owns its own cache-revision so a finished decode
+/// re-renders this card only — not the whole month list. The UIImage
+/// itself stays in `PhotoThumbnailCache`.
+private struct JournalEntryCardRow: View {
+    let entry: Entry
+    var onTap: () -> Void
+    var onEditTapped: () -> Void
+    var onDeleteTapped: () -> Void
+
+    @Environment(\.theme) private var theme
+    @State private var photoRevision = 0
+
+    var body: some View {
+        JournalCard(
+            title: entry.displayTitle,
+            excerpt: entry.excerpt,
+            date: entry.createdAt,
+            photoImage: thumbnail,
+            photoSample: backdropSample,
+            hasPhoto: entry.hasPhoto,
+            onTap: onTap,
+            onEditTapped: onEditTapped,
+            onDeleteTapped: onDeleteTapped
+        )
+        .entryZoomSource(
+            EntryRoute.edit(entry.id).zoomSourceID,
+            cornerRadius: theme.radius.xxl
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .id(entry.id)
+        .task(id: thumbnailToken) {
+            await loadThumbnailIfNeeded()
+        }
+    }
+
+    private var thumbnailToken: String {
+        "\(entry.id.uuidString)-\(entry.updatedAt.timeIntervalSince1970)-\(entry.hasPhoto)"
+    }
+
+    private var thumbnail: Image? {
+        _ = photoRevision
+        guard entry.hasPhoto,
+              let uiImage = PhotoThumbnailCache.shared.image(for: entry.id) else { return nil }
+        return Image(uiImage: uiImage)
+    }
+
+    private var backdropSample: JournalBackdropSample? {
+        _ = photoRevision
+        guard entry.hasPhoto else { return nil }
+        return PhotoThumbnailCache.shared.sample(for: entry.id)
+    }
+
+    private func loadThumbnailIfNeeded() async {
+        guard entry.hasPhoto else { return }
+        if PhotoThumbnailCache.shared.image(for: entry.id) != nil {
+            photoRevision &+= 1
+            return
+        }
+        await PhotoThumbnailCache.shared.loadIfNeeded(entryId: entry.id)
+        guard PhotoThumbnailCache.shared.image(for: entry.id) != nil else { return }
+        photoRevision &+= 1
+    }
 }
 
 // MARK: - First-paint dissolve

@@ -56,12 +56,32 @@ struct JournalCard: View {
     /// Photo rows always use photo chrome, even before the image arrives.
     static func usesPhotoChrome(hasPhoto: Bool) -> Bool { hasPhoto }
 
+    /// White title sits on the treated cover (or the sample plate) — never
+    /// `theme.foreground`, which is the text-only card.
+    static func photoChromeTitleIsWhite(hasPhoto: Bool) -> Bool { hasPhoto }
+
+    /// Solid plate shown under / instead of the cover so a cache miss still
+    /// reads as a photo card. Uses the cover's average when we have it.
+    static func photoPlaceholderFill(sample: JournalBackdropSample?) -> Color {
+        let rgb = photoPlaceholderRGB(sample: sample)
+        return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+    }
+
+    static func photoPlaceholderRGB(sample: JournalBackdropSample?) -> (red: Double, green: Double, blue: Double) {
+        if let sample {
+            return (sample.red, sample.green, sample.blue)
+        }
+        return (
+            JournalBackdropShader.scrimRed,
+            JournalBackdropShader.scrimGreen,
+            JournalBackdropShader.scrimBlue
+        )
+    }
+
     private var card: some View {
         Group {
-            if let photoImage {
-                photoCardBody(photoImage)
-            } else if hasPhoto {
-                photoPlaceholderBody
+            if Self.usesPhotoChrome(hasPhoto: hasPhoto) {
+                photoChromeBody
             } else {
                 plainCardBody
             }
@@ -85,23 +105,26 @@ struct JournalCard: View {
         }
     }
 
-    private func photoCardBody(_ image: Image) -> some View {
+    /// Treated cover when pixels are ready; sample-color plate otherwise.
+    /// Title stays white in both states so the row never flips to text chrome.
+    private var photoChromeBody: some View {
         cardChrome {
             contentStack(titleColor: BaseColors.white)
                 .padding(Spacing.xl)
                 .background {
-                    JournalPhotoBackdrop(image: image, sample: photoSample)
+                    ZStack {
+                        Self.photoPlaceholderFill(sample: photoSample)
+                            .overlay(
+                                JournalBackdropShader.scrimColor.opacity(
+                                    JournalBackdropShader.scrimOpacity
+                                )
+                            )
+                        if let photoImage {
+                            JournalPhotoBackdrop(image: photoImage, sample: photoSample)
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: photoImage != nil)
                 }
-        }
-    }
-
-    /// Same chip + title stack as a photo card, flat fill until the cover
-    /// is in cache. Title stays `theme.foreground` — white only on the image.
-    private var photoPlaceholderBody: some View {
-        cardChrome {
-            contentStack(titleColor: theme.foreground)
-                .padding(Spacing.xl)
-                .background(theme.journalCardFill)
         }
     }
 
@@ -358,6 +381,7 @@ private enum JournalCardPreviewAssets {
         title: "Took the long way home through the park and watched the leaves change without rushing",
         excerpt: JournalCard.sampleExcerpt,
         date: .now.addingTimeInterval(-86_400),
+        photoSample: JournalCardPreviewAssets.sample,
         hasPhoto: true
     )
     .padding()
