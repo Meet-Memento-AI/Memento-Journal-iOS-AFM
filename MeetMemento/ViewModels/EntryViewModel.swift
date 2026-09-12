@@ -147,9 +147,6 @@ class EntryViewModel: ObservableObject {
         }.value
         self.entries = JournalService.shared.purgeOnboardingSeedEntries(from: localEntries)
         updateEntriesByMonth()
-        await PhotoThumbnailCache.shared.prefetch(
-            entryIds: self.entries.filter(\.hasPhoto).map(\.id)
-        )
         await loadUserProfile()
         hasInitiallyLoaded = true
         #endif
@@ -158,6 +155,15 @@ class EntryViewModel: ObservableObject {
         hasInitiallyLoaded = true
         #endif
         isLoading = false
+
+        #if !USE_MOCK_DATA
+        // Covers decode in the background. First paint is the text list
+        // with photo chrome; rows hydrate as thumbs land.
+        let photoIds = entries.filter(\.hasPhoto).map(\.id)
+        Task {
+            await PhotoThumbnailCache.shared.prefetch(entryIds: photoIds)
+        }
+        #endif
     }
 
     /// No accounts (spec 023) — the display name is a local cache, not a
@@ -226,6 +232,9 @@ class EntryViewModel: ObservableObject {
             // PhotoStorage file is written in mock mode, so a thumbnail set
             // here won't reload on a later list load.
             MockDataProvider.shared.addMockEntry(newEntry)
+            if case .set(let photoData) = photoAction {
+                PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entryId)
+            }
             AppLogger.log("📱 UI Mode: Created mock entry")
             #else
             // Production Mode — local-only (no accounts, spec 023). There is
@@ -248,6 +257,10 @@ class EntryViewModel: ObservableObject {
                     }
                 } else {
                     AppLogger.log("⚠️ [EntryViewModel] Failed to encrypt photo for \(entryId)")
+                }
+
+                if photoWriteSucceeded {
+                    PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entryId)
                 }
 
                 if !photoWriteSucceeded {
@@ -276,6 +289,7 @@ class EntryViewModel: ObservableObject {
                     self.errorMessage = "Failed to save entry."
                 }
                 PhotoStorage.shared.deleteEncrypted(entryId: entryId)
+                PhotoThumbnailCache.shared.removeImage(for: entryId)
             } else {
                 EntrySaveSideEffects.afterSuccessfulSave(
                     Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded),
@@ -319,6 +333,14 @@ class EntryViewModel: ObservableObject {
             // UI Testing Mode - Update mock data. Known limitation: no
             // PhotoStorage file is written/deleted in mock mode.
             MockDataProvider.shared.updateMockEntry(finalEntry)
+            switch photoAction {
+            case .set(let photoData):
+                PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entry.id)
+            case .removed:
+                PhotoThumbnailCache.shared.removeImage(for: entry.id)
+            case .unchanged:
+                break
+            }
             await MainActor.run {
                 if let i = self.entries.firstIndex(where: { $0.id == entry.id }) {
                     self.entries[i] = finalEntry
@@ -343,11 +365,10 @@ class EntryViewModel: ObservableObject {
                 } else {
                     AppLogger.log("⚠️ [EntryViewModel] Failed to encrypt photo for \(entry.id)")
                 }
-                // Replacing overwrites the file under the same key, so the
-                // previously decoded thumbnail is now stale — drop it or the
-                // list keeps rendering the old photo until relaunch.
-                PhotoThumbnailCache.shared.removeImage(for: entry.id)
-                if !succeeded {
+                if succeeded {
+                    PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entry.id)
+                } else {
+                    PhotoThumbnailCache.shared.removeImage(for: entry.id)
                     photoWriteFailed = true
                     finalEntry.hasPhoto = false
                 }
