@@ -35,6 +35,7 @@ specs/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
     ├── 044-045-implementation-sessions.md    ← session-by-session build order for 044+045
+    ├── android-port-architecture.md          ← Kotlin/Compose replication plan, mints DEC-A0nn
     └── technology/                           ← Apple-framework API reference library
         └── 00…13-*.md                        ← cited by tech_refs in specs 013–036
 ```
