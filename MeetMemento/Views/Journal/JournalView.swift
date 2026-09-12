@@ -1,4 +1,3 @@
-
 //
 //  JournalView.swift
 //  MeetMemento
@@ -7,20 +6,6 @@
 //
 
 import SwiftUI
-
-// MARK: - Month Header Position Tracking
-
-struct MonthHeaderPositionEntry: Equatable {
-    let monthStart: Date
-    let y: CGFloat
-}
-
-struct MonthHeaderPositionPreferenceKey: PreferenceKey {
-    static var defaultValue: [MonthHeaderPositionEntry] { [] }
-    static func reduce(value: inout [MonthHeaderPositionEntry], nextValue: () -> [MonthHeaderPositionEntry]) {
-        value.append(contentsOf: nextValue())
-    }
-}
 
 public struct JournalView: View {
     /// When true, hides internal NavigationStack (uses external from ContentView)
@@ -34,7 +19,6 @@ public struct JournalView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
     @EnvironmentObject var appState: AppStateStore
 
-    @StateObject private var chatViewModel = ChatViewModel()
     @State private var internalNavigationPath = NavigationPath()
 
     // Month picker state
@@ -45,6 +29,8 @@ public struct JournalView: View {
 
     // Scroll-based month detection
     @State private var visibleMonthStart: Date? = nil
+    /// Set after the month picker confirms so the list can jump to that month.
+    @State private var scrollToMonth: Date? = nil
 
     // Task for loading data
     @State private var loadingTask: Task<Void, Never>?
@@ -77,18 +63,6 @@ public struct JournalView: View {
         return Array(years).sorted(by: >)
     }
 
-    private var currentMonthDisplay: String {
-        // Since scroll syncs with picker, we always use selectedDate
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM, yyyy"
-        return formatter.string(from: selectedDate)
-    }
-
-    /// All entries grouped by month - no filtering for instant display of new entries
-    private var allEntriesByMonth: [MonthGroup] {
-        entryViewModel.entriesByMonth
-    }
-
     private var availableMonthsForYear: [Int] {
         let calendar = Calendar.current
         let monthsForYear = availableMonths
@@ -110,6 +84,7 @@ public struct JournalView: View {
     public var body: some View {
         journalContent
             .onAppear {
+                guard loadingTask == nil else { return }
                 loadingTask = Task {
                     await entryViewModel.loadEntriesIfNeeded()
                     guard !Task.isCancelled else { return }
@@ -125,6 +100,7 @@ public struct JournalView: View {
                         selectedYear = calendar.component(.year, from: mostRecent.monthStart)
                     }
 
+                    #if MEMENTO_AI
                     // Warm passage embeddings off the send path so Chat never
                     // pays NLEmbedding on the first notebook question.
                     let snapshot = entryViewModel.entries
@@ -138,11 +114,8 @@ public struct JournalView: View {
                     Task.detached(priority: .utility) {
                         await ProfileRefreshCoordinator.refreshIfDue(entries: snapshot)
                     }
+                    #endif
                 }
-            }
-            .onDisappear {
-                loadingTask?.cancel()
-                loadingTask = nil
             }
             .sheet(isPresented: $showMonthPicker) {
                 monthPickerSheet
@@ -164,14 +137,6 @@ public struct JournalView: View {
                     .navigationDestination(for: SettingsRoute.self) { route in
                         settingsDestination(for: route)
                     }
-                    .navigationDestination(for: AIChatRoute.self) { route in
-                        switch route {
-                        case .main:
-                            AIChatView(viewModel: chatViewModel)
-                                .toolbar(.hidden, for: .tabBar)
-                                .environment(\.fabVisible, false)
-                        }
-                    }
                     .navigationDestination(for: EntryRoute.self) { route in
                         EntryEditorDestination(route: route)
                     }
@@ -190,14 +155,13 @@ public struct JournalView: View {
 
         RootPageScaffold(
             footerBottomPadding: showsFAB ? 16 : 0,
-            pageBackground: theme.secondaryBackground,
+            pageBackground: theme.background,
             header: { if isEmbedded { journalHeader } },
             footer: {
                 if showsFAB {
                     HStack {
                         Spacer(minLength: 0)
                         NewEntryFAB(
-                            size: AppHeaderMetrics.footerButtonSize,
                             title: fabTitle
                         ) {
                             presentEntry(.create)
@@ -232,10 +196,9 @@ public struct JournalView: View {
                     ToolbarItem(placement: .navigationBarLeading) {
                         AvatarInitialButton(
                             initial: appState.firstName?.first.map { String($0) },
-                            size: 32,
                             enableHaptic: true,
                             accessibilityLabel: "Menu",
-                            onTap: {}
+                            onTap: { showProfileSheet = true }
                         )
                     }
 
@@ -276,7 +239,7 @@ public struct JournalView: View {
     private var yourEntriesContent: some View {
         YourEntriesView(
             entryViewModel: entryViewModel,
-            monthGroups: allEntriesByMonth,
+            monthGroups: entryViewModel.entriesByMonth,
             topContentPadding: AppHeaderMetrics.contentTopPadding,
             bottomContentPadding: isEmbedded
                 ? PositionedNewEntryFAB.scrollClearance
@@ -288,6 +251,14 @@ public struct JournalView: View {
                 selectedYear = Calendar.current.component(.year, from: monthStart)
                 visibleMonthStart = monthStart
             },
+            onMonthHeaderTapped: { monthStart in
+                selectedDate = monthStart
+                selectedMonth = Calendar.current.component(.month, from: monthStart)
+                selectedYear = Calendar.current.component(.year, from: monthStart)
+                visibleMonthStart = monthStart
+                showMonthPicker = true
+            },
+            scrollToMonth: $scrollToMonth,
             onNavigateToEntry: { route in
                 presentEntry(route)
             }
@@ -296,9 +267,6 @@ public struct JournalView: View {
 
     /// Pushes the editor onto the overlay (embedded) or standalone stack.
     private func presentEntry(_ route: EntryRoute) {
-        if case .edit(let id) = route {
-            entryViewModel.selectedEntryId = id
-        }
         navigationPath.wrappedValue.append(route)
     }
 
@@ -316,32 +284,25 @@ public struct JournalView: View {
                 onTap: { showProfileSheet = true }
             )
         } trailing: {
-            HStack(spacing: 12) {
-                HeaderIconButton(
-                    systemName: "magnifyingglass",
-                    accessibilityLabel: "Search"
-                ) {
+            #if MEMENTO_AI
+            JournalHeaderActionCluster(
+                onSearch: {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                         showJournalSearch = true
                     }
-                }
-
-                // Top-right, facing its destination: Chat is the page to the
-                // right, and a left swipe reveals it. Tap and swipe are the same
-                // navigation.
-                // Label is "AI chat", NOT "Chat with Memento": the composer's
-                // idle button on the chat page already uses that label, and two
-                // controls sharing one label is ambiguous for VoiceOver and
-                // makes `app.buttons["Chat with Memento"]` resolve to whichever
-                // page the pager happens to hand back first.
-                HeaderIconButton(
-                    systemName: "message",
-                    accessibilityLabel: "AI chat",
-                    accessibilityHint: "Double-tap to open the AI chat, or swipe left"
-                ) {
-                    onOpenChat?()
+                },
+                onChat: { onOpenChat?() }
+            )
+            #else
+            HeaderIconButton(
+                systemName: "magnifyingglass",
+                accessibilityLabel: "Search"
+            ) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    showJournalSearch = true
                 }
             }
+            #endif
         }
     }
 
@@ -385,6 +346,7 @@ public struct JournalView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         updateSelectedDate()
+                        scrollToMonth = selectedDate
                         showMonthPicker = false
                     }
                     .foregroundStyle(theme.foreground)
@@ -397,6 +359,12 @@ public struct JournalView: View {
         .onAppear {
             selectedMonth = Calendar.current.component(.month, from: selectedDate)
             selectedYear = Calendar.current.component(.year, from: selectedDate)
+        }
+        .onChange(of: selectedYear) { _, _ in
+            if !availableMonthsForYear.contains(selectedMonth),
+               let first = availableMonthsForYear.first {
+                selectedMonth = first
+            }
         }
     }
 
@@ -430,10 +398,15 @@ public struct JournalView: View {
             AppearanceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #if MEMENTO_AI
         case .voice:
             VoiceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #else
+        case .voice:
+            EmptyView()
+        #endif
         case .security:
             SecuritySettingsView()
                 .environmentObject(entryViewModel)
@@ -447,6 +420,7 @@ public struct JournalView: View {
             AcknowledgmentsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #if MEMENTO_AI
         case .weekly:
             WeeklyReflectionView()
                 .environmentObject(entryViewModel)
@@ -457,6 +431,10 @@ public struct JournalView: View {
                 .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #else
+        case .weekly, .patterns:
+            EmptyView()
+        #endif
         }
     }
 }

@@ -71,6 +71,9 @@ final class StoredEntry {
     var moodLabels: [String] = []
     var topicLabels: [String] = []
     var audioAssetID: String?
+    /// Short display place only (e.g. `"Dallas, TX"`). Optional + defaulted
+    /// for CloudKit; never store coordinates on this model.
+    var placeName: String? = nil
     var healthJSON: Data?
     @Relationship(deleteRule: .cascade, inverse: \StoredAttachment.entry)
     var attachments: [StoredAttachment]? = []

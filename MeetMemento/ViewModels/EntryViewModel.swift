@@ -69,9 +69,8 @@ class EntryViewModel: ObservableObject {
     func setSessionPIN(_ pin: String) {
         self.legacyPIN = pin
         AppLogger.log("🔐 [EntryViewModel] Legacy-read PIN set")
-        if entries.isEmpty {
-            Task { await loadEntries() }
-        }
+        guard !hasInitiallyLoaded, entries.isEmpty, !isLoadingEntries else { return }
+        Task { await loadEntries() }
     }
 
     /// Clears the legacy-read PIN (call on app lock). Entries stay readable —
@@ -108,9 +107,12 @@ class EntryViewModel: ObservableObject {
         }
 
         isLoadingEntries = true
-        defer { isLoadingEntries = false }
-
         isLoading = true
+        defer {
+            isLoadingEntries = false
+            isLoading = false
+        }
+
         errorMessage = nil
 
         #if USE_MOCK_DATA
@@ -157,7 +159,6 @@ class EntryViewModel: ObservableObject {
         #if USE_MOCK_DATA
         hasInitiallyLoaded = true
         #endif
-        isLoading = false
     }
 
     /// No accounts (spec 023) — the display name is a local cache, not a
@@ -191,7 +192,12 @@ class EntryViewModel: ObservableObject {
     /// and no network involved. Losing a journal entry is the one failure mode
     /// this app cannot have, so a failed disk save rolls back the insert and
     /// surfaces an error rather than pretending it worked.
-    func createEntry(title: String, text: String, photoAction: PhotoAction = .unchanged) {
+    func createEntry(
+        title: String,
+        text: String,
+        photoAction: PhotoAction = .unchanged,
+        locationAction: LocationAction = .unchanged
+    ) {
         // One ID from the start, shared by the UI entry and the local
         // encrypted file.
         let entryId = UUID()
@@ -199,6 +205,8 @@ class EntryViewModel: ObservableObject {
         let now = Date()
         let hasPhoto: Bool
         if case .set = photoAction { hasPhoto = true } else { hasPhoto = false }
+        let placeName: String?
+        if case .set(let name) = locationAction { placeName = name } else { placeName = nil }
 
         guard !pendingOperations.contains(entryId) else {
             AppLogger.log("⚠️ [EntryViewModel] Duplicate create operation blocked for \(entryId)")
@@ -206,7 +214,15 @@ class EntryViewModel: ObservableObject {
         }
         pendingOperations.insert(entryId)
 
-        let newEntry = Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, hasPhoto: hasPhoto)
+        let newEntry = Entry(
+            id: entryId,
+            title: resolvedTitle,
+            text: text,
+            createdAt: now,
+            updatedAt: now,
+            hasPhoto: hasPhoto,
+            placeName: placeName
+        )
 
         // Optimistic insert - UI updates instantly
         entries.insert(newEntry, at: 0)
@@ -265,7 +281,8 @@ class EntryViewModel: ObservableObject {
 
             let saved = JournalService.shared.saveEntryLocally(
                 entryId: entryId, title: resolvedTitle, content: text,
-                createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded
+                createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded,
+                placeName: placeName
             )
             if !saved {
                 // Local save failed (e.g. disk/Keychain issue) — this is a
@@ -277,16 +294,30 @@ class EntryViewModel: ObservableObject {
                 }
                 PhotoStorage.shared.deleteEncrypted(entryId: entryId)
             } else {
+                #if MEMENTO_AI
                 EntrySaveSideEffects.afterSuccessfulSave(
-                    Entry(id: entryId, title: resolvedTitle, text: text, createdAt: now, updatedAt: now, hasPhoto: photoWriteSucceeded),
+                    Entry(
+                        id: entryId,
+                        title: resolvedTitle,
+                        text: text,
+                        createdAt: now,
+                        updatedAt: now,
+                        hasPhoto: photoWriteSucceeded,
+                        placeName: placeName
+                    ),
                     saved: true
                 )
+                #endif
             }
             #endif
         }
     }
 
-    func updateEntry(_ entry: Entry, photoAction: PhotoAction = .unchanged) {
+    func updateEntry(
+        _ entry: Entry,
+        photoAction: PhotoAction = .unchanged,
+        locationAction: LocationAction = .unchanged
+    ) {
         // Prevent concurrent operations on the same entry
         guard !pendingOperations.contains(entry.id) else {
                        AppLogger.log("⚠️ [EntryViewModel] Duplicate update operation blocked", type: .error)
@@ -302,6 +333,11 @@ class EntryViewModel: ObservableObject {
         case .set: finalEntry.hasPhoto = true
         case .removed: finalEntry.hasPhoto = false
         case .unchanged: break // entry's existing hasPhoto passes through as-is
+        }
+        switch locationAction {
+        case .set(let name): finalEntry.placeName = name
+        case .removed: finalEntry.placeName = nil
+        case .unchanged: break
         }
 
         Task { [weak self] in
@@ -360,7 +396,8 @@ class EntryViewModel: ObservableObject {
             let updatedEntry = finalEntry
             let saved = JournalService.shared.saveEntryLocally(
                 entryId: updatedEntry.id, title: updatedEntry.title, content: updatedEntry.text,
-                createdAt: updatedEntry.createdAt, updatedAt: Date(), hasPhoto: updatedEntry.hasPhoto
+                createdAt: updatedEntry.createdAt, updatedAt: Date(),
+                hasPhoto: updatedEntry.hasPhoto, placeName: updatedEntry.placeName
             )
             await MainActor.run {
                 // Only reflect the edit in the UI if it actually reached disk —
@@ -376,7 +413,9 @@ class EntryViewModel: ObservableObject {
                 }
             }
             if saved {
+                #if MEMENTO_AI
                 EntrySaveSideEffects.afterSuccessfulSave(updatedEntry, saved: true)
+                #endif
             }
             #endif
 

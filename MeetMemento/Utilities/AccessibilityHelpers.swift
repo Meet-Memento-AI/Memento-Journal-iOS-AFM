@@ -137,17 +137,20 @@ public extension EnvironmentValues {
 
 // MARK: - Minimum Touch Target
 
-/// Ensures interactive elements meet the 44x44pt minimum touch target.
+/// Ensures interactive elements meet the 48×48pt product floor.
 public struct MinimumTouchTargetModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
-            .frame(minWidth: 44, minHeight: 44)
+            .frame(
+                minWidth: AppHeaderMetrics.controlSize,
+                minHeight: AppHeaderMetrics.controlSize
+            )
             .contentShape(Rectangle())
     }
 }
 
 public extension View {
-    /// Ensures the view meets Apple's 44x44pt minimum touch target requirement.
+    /// Ensures the view meets the product 48×48pt minimum touch target.
     func minimumTouchTarget() -> some View {
         modifier(MinimumTouchTargetModifier())
     }

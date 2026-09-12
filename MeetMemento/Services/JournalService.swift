@@ -33,13 +33,28 @@ class JournalService {
         /// a synthesized `Decodable` throws on a missing key even with a
         /// default value, so decoding is implemented explicitly below.
         let hasPhoto: Bool
+        /// Short display place only. Optional so pre-location envelopes still
+        /// decode; omitted on encode when nil so we never persist coordinates.
+        let placeName: String?
 
-        init(title: String, content: String, createdAt: Date, updatedAt: Date, hasPhoto: Bool) {
+        enum CodingKeys: String, CodingKey {
+            case title, content, createdAt, updatedAt, hasPhoto, placeName
+        }
+
+        init(
+            title: String,
+            content: String,
+            createdAt: Date,
+            updatedAt: Date,
+            hasPhoto: Bool,
+            placeName: String? = nil
+        ) {
             self.title = title
             self.content = content
             self.createdAt = createdAt
             self.updatedAt = updatedAt
             self.hasPhoto = hasPhoto
+            self.placeName = placeName
         }
 
         init(from decoder: Decoder) throws {
@@ -49,6 +64,17 @@ class JournalService {
             createdAt = try container.decode(Date.self, forKey: .createdAt)
             updatedAt = try container.decode(Date.self, forKey: .updatedAt)
             hasPhoto = try container.decodeIfPresent(Bool.self, forKey: .hasPhoto) ?? false
+            placeName = try container.decodeIfPresent(String.self, forKey: .placeName)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(title, forKey: .title)
+            try container.encode(content, forKey: .content)
+            try container.encode(createdAt, forKey: .createdAt)
+            try container.encode(updatedAt, forKey: .updatedAt)
+            try container.encode(hasPhoto, forKey: .hasPhoto)
+            try container.encodeIfPresent(placeName, forKey: .placeName)
         }
     }
 
@@ -62,7 +88,8 @@ class JournalService {
         content: String,
         createdAt: Date,
         updatedAt: Date,
-        hasPhoto: Bool = false
+        hasPhoto: Bool = false,
+        placeName: String? = nil
     ) -> Bool {
         MementoDataStore.upsertEntry(
             id: entryId,
@@ -70,13 +97,21 @@ class JournalService {
             transcript: content,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            hasPhoto: hasPhoto
+            hasPhoto: hasPhoto,
+            placeName: placeName
         )
         if MementoDataStore.hasCompletedLegacyImport {
             noteMutation()
             return true
         }
-        let envelope = LocalEntryEnvelope(title: title, content: content, createdAt: createdAt, updatedAt: updatedAt, hasPhoto: hasPhoto)
+        let envelope = LocalEntryEnvelope(
+            title: title,
+            content: content,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            hasPhoto: hasPhoto,
+            placeName: placeName
+        )
         guard let json = try? JSONEncoder().encode(envelope),
               let jsonString = String(data: json, encoding: .utf8),
               let encrypted = encryptionService.encrypt(jsonString) else {
@@ -115,7 +150,9 @@ class JournalService {
     func deleteEntryLocally(entryId: UUID) {
         LocalJournalStorage.shared.deleteEncrypted(entryId: entryId)
         MementoDataStore.deleteEntry(id: entryId)
+        #if MEMENTO_AI
         EmbeddingService.shared.removeEmbeddings(for: [entryId])
+        #endif
         noteMutation()
     }
 
@@ -265,7 +302,9 @@ class JournalService {
         // vectors of entries that no longer exist on disk (covers delete
         // paths that bypass `deleteEntryLocally`). `ids` includes entries that
         // fail to decrypt below, so this never over-purges.
+        #if MEMENTO_AI
         EmbeddingService.shared.retainEmbeddings(only: Set(ids))
+        #endif
 
         // Decrypt failures are tracked per id (with the mtime seen at failure)
         // so the good subset can still be cached; a failed id is retried only
@@ -305,7 +344,7 @@ class JournalService {
                     // Correct envelope, legacy key — rewrite under the data key.
                     if saveEntryLocally(entryId: id, title: envelope.title, content: envelope.content,
                                         createdAt: envelope.createdAt, updatedAt: envelope.updatedAt,
-                                        hasPhoto: envelope.hasPhoto) {
+                                        hasPhoto: envelope.hasPhoto, placeName: envelope.placeName) {
                         selfMutations &+= 1
                     }
                     AppLogger.log("🔐 [JournalService] Re-encrypted entry under the data key: \(id)")
@@ -316,7 +355,8 @@ class JournalService {
                     text: envelope.content,
                     createdAt: envelope.createdAt,
                     updatedAt: envelope.updatedAt,
-                    hasPhoto: envelope.hasPhoto
+                    hasPhoto: envelope.hasPhoto,
+                    placeName: envelope.placeName
                 )
             }
 

@@ -32,8 +32,15 @@ public enum RootPage: String, CaseIterable, Identifiable, Hashable {
 
     public var id: String { rawValue }
 
+    /// Pages the pager actually lists. Standard is journal-only; `.chat`
+    /// stays on the enum for the full product but never appears in the TabView.
+    public static var visibleCases: [RootPage] {
+        ProductCapabilities.includesGenerativeAI ? allCases : [.journal]
+    }
+
     /// Programmatic pager navigation — same horizontal slide as a swipe.
     public static func select(_ page: RootPage, in selection: Binding<RootPage>) {
+        guard visibleCases.contains(page) else { return }
         guard selection.wrappedValue != page else { return }
         withAnimation(.default) {
             selection.wrappedValue = page
@@ -78,10 +85,10 @@ public struct RootPager<Content: View>: View {
             let topLift = max(proxy.frame(in: .global).minY, 0)
             let bottomLift = topLift > 0 ? AppHeaderMetrics.windowBottom : 0
             TabView(selection: $selection) {
-                ForEach(RootPage.allCases) { page in
+                ForEach(RootPage.visibleCases) { page in
                     content(page)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.clear)
+                        .background(theme.background)
                         .ignoresSafeArea()
                         .tag(page)
                 }
@@ -101,7 +108,7 @@ public struct RootPager<Content: View>: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             #endif
         }
-        .background(theme.secondaryBackground.ignoresSafeArea())
+        .background(theme.background.ignoresSafeArea())
     }
 }
 

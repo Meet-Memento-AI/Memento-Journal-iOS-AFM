@@ -288,7 +288,7 @@ struct ChatMessagesView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollContentBackground(.hidden)
-        .background(.clear)
+        .background(theme.background)
         // `.soft`, not hidden. Hidden left the transcript fully crisp behind the
         // header: `AppHeader` puts blur only in the Dynamic Island strip so its
         // glass can sample content, which meant the previous turn scrolled up

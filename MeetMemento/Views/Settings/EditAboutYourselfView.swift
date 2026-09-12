@@ -102,6 +102,7 @@ public struct EditAboutYourselfView: View {
         isSaving = true
         Task {
             LocalProfileStore.personalizationText = trimmedText.isEmpty ? nil : trimmedText
+            #if MEMENTO_AI
             do {
                 _ = try await ExperienceProfileBuilder.rebuildLens(
                     replaceConfirmedWithSuggestions: false
@@ -116,6 +117,12 @@ public struct EditAboutYourselfView: View {
                     isSaving = false
                 }
             }
+            #else
+            await MainActor.run {
+                isSaving = false
+                dismiss()
+            }
+            #endif
         }
     }
 }

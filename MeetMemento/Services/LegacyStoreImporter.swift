@@ -23,14 +23,18 @@ enum LegacyStoreImporter {
         let resolved = container ?? JournalContainer.make()
 
         importJournals(encryptionService: encryptionService, legacyPIN: legacyPIN, container: resolved)
+        #if MEMENTO_AI
         importChats(container: resolved)
+        #endif
         importProfile(container: resolved)
         importWeeklyReflection(container: resolved)
 
         MementoDataStore.markLegacyImportComplete()
 
         LocalJournalStorage.shared.clearAll()
+        #if MEMENTO_AI
         LocalChatStore.shared.clear()
+        #endif
 
         AppLogger.log("[LegacyStoreImporter] Imported local stores into SwiftData")
         return true
@@ -52,11 +56,13 @@ enum LegacyStoreImporter {
                 createdAt: entry.createdAt,
                 updatedAt: entry.updatedAt,
                 hasPhoto: entry.hasPhoto,
+                placeName: entry.placeName,
                 container: container
             )
         }
     }
 
+    #if MEMENTO_AI
     private static func importChats(container: ModelContainer) {
         let sessions = LocalChatStore.shared.sessions()
         for session in sessions {
@@ -85,6 +91,7 @@ enum LegacyStoreImporter {
             }
         }
     }
+    #endif
 
     private static func importProfile(container: ModelContainer) {
         let first = UserDefaults.standard.string(forKey: "memento_first_name") ?? ""

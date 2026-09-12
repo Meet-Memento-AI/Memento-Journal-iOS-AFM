@@ -48,13 +48,15 @@ else
   echo "OK   Xcode major $xcode_major >= $MIN_XCODE_MAJOR"
 fi
 
-# --- Scheme ------------------------------------------------------------------
-if xcodebuild -list -project MeetMemento.xcodeproj 2>/dev/null | grep -Eq "^[[:space:]]*${SCHEME}$"; then
-  echo "OK   scheme $SCHEME present"
-else
-  echo "FAIL: scheme $SCHEME not found in MeetMemento.xcodeproj"
-  fail=1
-fi
+# --- Schemes -----------------------------------------------------------------
+for required_scheme in MeetMemento; do
+  if xcodebuild -list -project MeetMemento.xcodeproj 2>/dev/null | grep -Eq "^[[:space:]]*${required_scheme}$"; then
+    echo "OK   scheme $required_scheme present"
+  else
+    echo "FAIL: scheme $required_scheme not found in MeetMemento.xcodeproj"
+    fail=1
+  fi
+done
 
 # --- Deployment target -------------------------------------------------------
 deploy_targets="$(grep -oE 'IPHONEOS_DEPLOYMENT_TARGET = [^;]+' "$PBXPROJ" \

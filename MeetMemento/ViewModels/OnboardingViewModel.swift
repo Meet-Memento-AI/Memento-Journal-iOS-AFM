@@ -123,7 +123,11 @@ class OnboardingViewModel: ObservableObject {
         if overlapsSuggestions, let trimmedLens, !trimmedLens.isEmpty {
             resolvedLens = trimmedLens
         } else {
+            #if MEMENTO_AI
             resolvedLens = ExperienceProfileBuilder.deterministicLens(themes: validated)
+            #else
+            resolvedLens = nil
+            #endif
         }
         self.promptLens = resolvedLens
 

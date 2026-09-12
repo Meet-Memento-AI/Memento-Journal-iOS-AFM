@@ -259,23 +259,12 @@ public struct WelcomeView: View {
     private var getStartedSection: some View {
         Button(action: { getStarted() }) {
             Text("Get Started")
-                .font(type.body1Bold)
-                // AX5: minHeight lets the button grow instead of clipping/overlapping
-                // the label text when it scales up at large Dynamic Type sizes.
-                .frame(minHeight: AppHeaderMetrics.controlSize)
+                .font(type.button)
                 .frame(maxWidth: .infinity)
                 .foregroundStyle(.white)
-                // Real Liquid Glass: `.regular` frost in a capsule, tinted
-                // through the material. No fill, no `Material`, no
-                // `.interactive()` — those flatten the refraction or paint a rim.
-                .glassEffect(
-                    .regular.tint(BaseColors.black.opacity(Self.getStartedGlassTintOpacity)),
-                    in: .capsule
+                .mementoGlassButtonChrome(
+                    .regular.tint(BaseColors.black.opacity(Self.getStartedGlassTintOpacity))
                 )
-                // Glass can report a tiny inner text frame as the hit target
-                // (same failure as `AvatarInitialButton` without this). The
-                // capsule is the control.
-                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .disabled(isExiting)

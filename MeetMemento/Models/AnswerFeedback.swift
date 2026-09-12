@@ -98,7 +98,7 @@ struct AnswerFeedback: Codable, Equatable, Identifiable {
         modelIdentifier: String? = nil,
         zone: String? = nil,
         wasDegraded: Bool? = nil,
-        safetyPresentation: String = ChatSafetyPresentation.none.rawValue,
+        safetyPresentation: String = "none",
         appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
         createdAt: Date = Date(),
         updatedAt: Date = Date()

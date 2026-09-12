@@ -104,6 +104,54 @@ final class JournalServiceTests: XCTestCase {
         XCTAssertEqual(entry.text, "Some journal content")
         XCTAssertEqual(entry.createdAt, created)
         XCTAssertEqual(entry.updatedAt, updated)
+        XCTAssertNil(entry.placeName)
+    }
+
+    func test_saveEntryLocally_roundTripsPlaceName() {
+        let service = makeService()
+        let entryId = UUID()
+        let now = Date()
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: entryId, title: "Out", content: "Walked downtown",
+            createdAt: now, updatedAt: now, placeName: "Dallas, TX"
+        ))
+        let all = service.loadAllEntriesLocally(legacyPIN: nil)
+        XCTAssertEqual(all.first(where: { $0.id == entryId })?.placeName, "Dallas, TX")
+    }
+
+    func test_loadAllEntriesLocally_envelopeWithoutPlaceName_stillDecodes() {
+        let service = makeService()
+        let entryId = UUID()
+        let envelopeJSON = #"{"title":"Old","content":"Before location","createdAt":0,"updatedAt":0,"hasPhoto":false}"#
+        guard let encrypted = service.encryptionService.encrypt(envelopeJSON) else {
+            return XCTFail("failed to encrypt fixture")
+        }
+        try? LocalJournalStorage.shared.saveEncrypted(entryId: entryId, encryptedData: encrypted)
+
+        let loaded = service.loadAllEntriesLocally(legacyPIN: nil)
+        guard let entry = loaded.first(where: { $0.id == entryId }) else {
+            return XCTFail("envelope without placeName must still decode")
+        }
+        XCTAssertEqual(entry.title, "Old")
+        XCTAssertNil(entry.placeName)
+    }
+
+    func test_localEntryEnvelope_persistsPlaceNameWithoutCoordinates() {
+        let service = makeService()
+        let entryId = UUID()
+        let now = Date()
+        XCTAssertTrue(service.saveEntryLocally(
+            entryId: entryId, title: "T", content: "B",
+            createdAt: now, updatedAt: now, placeName: "Dallas, TX"
+        ))
+        guard let data = LocalJournalStorage.shared.loadEncrypted(entryId: entryId),
+              let json = service.encryptionService.decrypt(data),
+              let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else {
+            return XCTFail("saved envelope must decrypt to JSON")
+        }
+        XCTAssertEqual(object["placeName"] as? String, "Dallas, TX")
+        let keys = object.keys.map { $0.lowercased() }
+        XCTAssertFalse(keys.contains { $0.contains("lat") || $0.contains("lon") || $0.contains("coord") })
     }
 
     // MARK: - Data-key decoupling

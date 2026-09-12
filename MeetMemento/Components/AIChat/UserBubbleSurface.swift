@@ -84,7 +84,7 @@ struct UserBubbleSurface: View {
         )
     }
 
-    /// Vertical `gray50` (`#FAFAFA`) → `gray100` (`#F5F5F5`). Dark uses the
+    /// Vertical `gray50` (`#FCFCFC`) → `gray100` (`#F5F5F5`). Dark uses the
     /// night card wash so the bubble does not flash as a light-gray panel.
     private var bubbleFill: LinearGradient {
         let colors: [Color] = colorScheme == .dark

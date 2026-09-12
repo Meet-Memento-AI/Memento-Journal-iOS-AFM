@@ -87,6 +87,10 @@ struct EntryEditorDestination: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbar(.hidden, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
+            // The destination must not paint the system plate into the
+            // Dynamic Island strip; AddEntryView's cover (or canvas) is
+            // the fill, and it ignores the top safe area to reach y=0.
+            .containerBackground(.clear, for: .navigation)
             .environment(\.fabVisible, false)
             .modifier(EntryZoomDestinationModifier(sourceID: route.zoomSourceID))
     }
@@ -95,29 +99,35 @@ struct EntryEditorDestination: View {
     private var editor: some View {
         switch route {
         case .create:
-            AddEntryView(state: .create) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
+            AddEntryView(state: .create) { title, text, photoAction, locationAction in
+                entryViewModel.createEntry(
+                    title: title, text: text,
+                    photoAction: photoAction, locationAction: locationAction
+                )
                 onSaved()
             }
         case .createWithTitle(let prefillTitle):
-            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
+            AddEntryView(state: .createWithTitle(prefillTitle)) { title, text, photoAction, locationAction in
+                entryViewModel.createEntry(
+                    title: title, text: text,
+                    photoAction: photoAction, locationAction: locationAction
+                )
                 onSaved()
             }
         case .createWithContent(let prefillTitle, let prefillContent):
-            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text, photoAction in
-                entryViewModel.createEntry(title: title, text: text, photoAction: photoAction)
+            AddEntryView(state: .createWithContent(title: prefillTitle, content: prefillContent)) { title, text, photoAction, locationAction in
+                entryViewModel.createEntry(
+                    title: title, text: text,
+                    photoAction: photoAction, locationAction: locationAction
+                )
                 onSaved()
             }
         case .edit(let id):
             if let entry = entryViewModel.entry(id: id) {
-                AddEntryView(state: .edit(entry)) { title, text, photoAction in
-                    var updated = entry
-                    updated.title = title
-                    updated.text = text
-                    entryViewModel.updateEntry(updated, photoAction: photoAction)
-                    onSaved()
-                }
+                // Existing entries page horizontally through the timeline.
+                // They open in view; the pencil starts an in-place edit.
+                // The zoom source stays the card that was tapped.
+                EntryEditorPager(startEntry: entry)
             } else {
                 Color.clear
                     .onAppear { onSaved() }

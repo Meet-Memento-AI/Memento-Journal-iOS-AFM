@@ -40,6 +40,8 @@ struct YourEntriesView: View {
     let topContentPadding: CGFloat  // windowTop + header row + 16pt air
     let bottomContentPadding: CGFloat  // FAB + windowBottom + 16pt + 8pt air
     let onMonthVisibilityChanged: ((Date) -> Void)
+    let onMonthHeaderTapped: (Date) -> Void
+    @Binding var scrollToMonth: Date?
     let onNavigateToEntry: (EntryRoute) -> Void
 
     @Environment(\.theme) private var theme
@@ -53,6 +55,8 @@ struct YourEntriesView: View {
         topContentPadding: CGFloat = 0,
         bottomContentPadding: CGFloat = 20,
         onMonthVisibilityChanged: ((Date) -> Void)? = nil,
+        onMonthHeaderTapped: ((Date) -> Void)? = nil,
+        scrollToMonth: Binding<Date?> = .constant(nil),
         onNavigateToEntry: @escaping (EntryRoute) -> Void
     ) {
         self.entryViewModel = entryViewModel
@@ -60,6 +64,8 @@ struct YourEntriesView: View {
         self.topContentPadding = topContentPadding
         self.bottomContentPadding = bottomContentPadding
         self.onMonthVisibilityChanged = onMonthVisibilityChanged ?? { _ in }
+        self.onMonthHeaderTapped = onMonthHeaderTapped ?? { _ in }
+        self._scrollToMonth = scrollToMonth
         self.onNavigateToEntry = onNavigateToEntry
     }
 
@@ -155,7 +161,8 @@ struct YourEntriesView: View {
     }
 
     private var entriesList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 32, pinnedViews: []) {
 
                 // Show error banner if there's an error (but we have cached entries)
@@ -182,12 +189,18 @@ struct YourEntriesView: View {
                 // Month groups - entries organized by month
                 ForEach(monthGroups) { monthGroup in
                     VStack(alignment: .leading, spacing: 16) {
-                        // Month header
-                        Text(monthGroup.monthLabel)
-                            .font(type.h3)
-                            .foregroundStyle(theme.foreground)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 16)
+                        // Month header — tap opens the month picker (PRES-022).
+                        Button {
+                            onMonthHeaderTapped(monthGroup.monthStart)
+                        } label: {
+                            Text(monthGroup.monthLabel)
+                                .font(type.h3)
+                                .foregroundStyle(theme.foreground)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 16)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Double-tap to jump to another month")
 
                         // Entries for this month.
                         VStack(spacing: 16) {
@@ -227,6 +240,8 @@ struct YourEntriesView: View {
                                 }
                         }
                     }
+                    .id(Self.monthScrollID(monthGroup.monthStart))
+                    .onAppear { onMonthVisibilityChanged(monthGroup.monthStart) }
                 }
             }
             .padding(.horizontal, 16)
@@ -245,7 +260,7 @@ struct YourEntriesView: View {
         .coordinateSpace(name: "scroll")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .scrollContentBackground(.hidden)
-        .background(.clear)
+        .background(theme.background)
         // The system scroll-edge material paints an opaque (usually white)
         // band into the top and bottom safe areas. Hide it so those regions
         // stay transparent and the page fill / glass can show through.
@@ -261,6 +276,21 @@ struct YourEntriesView: View {
                 }
             }
         }
+        .onChange(of: scrollToMonth) { _, date in
+            guard let date else { return }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(Self.monthScrollID(date), anchor: .top)
+            }
+            scrollToMonth = nil
+        }
+        }
+    }
+
+    /// Year-month key so picker `DateComponents(day: 1)` matches
+    /// `dateInterval(of: .month).start` even when the hour/timezone differ.
+    private static func monthScrollID(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.year, .month], from: date)
+        return "month-\(parts.year ?? 0)-\(parts.month ?? 0)"
     }
 
     /// Changes whenever the entry's photo could have changed, so `.task(id:)`

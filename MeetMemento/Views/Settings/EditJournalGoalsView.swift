@@ -101,6 +101,7 @@ public struct EditJournalGoalsView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         isSaving = true
         Task {
+            #if MEMENTO_AI
             do {
                 _ = try await ExperienceProfileBuilder.rebuildLensPreservingThemes(
                     confirmedThemeIds: Array(selectedIds),
@@ -123,6 +124,16 @@ public struct EditJournalGoalsView: View {
                     dismiss()
                 }
             }
+            #else
+            await MainActor.run {
+                var profile = LocalProfileStore.experienceProfile ?? .empty
+                profile.confirmedThemeIds = ThemeCatalog.validate(Array(selectedIds))
+                profile.builtAt = Date()
+                LocalProfileStore.experienceProfile = profile
+                isSaving = false
+                dismiss()
+            }
+            #endif
         }
     }
 }

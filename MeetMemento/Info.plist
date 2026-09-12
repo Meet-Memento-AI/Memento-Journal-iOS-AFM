@@ -33,6 +33,8 @@
 	<string>Memento needs camera access to add a photo to your journal entries.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Memento uses Face ID to protect your private journal entries.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Memento uses your location to attach a place name to a new journal entry. It does not store your coordinates.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Memento needs microphone access to transcribe your voice into journal entries.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

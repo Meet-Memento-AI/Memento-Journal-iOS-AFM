@@ -125,7 +125,9 @@ class AppStateStore: ObservableObject {
             LegacyStoreImporter.importIfNeeded()
         }
         Task {
+            #if MEMENTO_AI
             await SyncStatusStore.shared.refresh()
+            #endif
             await EntrySpotlightIndexer.rebuildFromStore()
         }
 
@@ -207,6 +209,7 @@ class AppStateStore: ObservableObject {
         // means to read anything restored from a backup.
         EncryptionService.shared.clearAll()
         LocalProfileStore.clearAll()
+        #if MEMENTO_AI
         // Chat transcripts are journal content: every stored assistant message
         // carries verbatim entry excerpts in its `sources[].preview`. They live
         // under Application Support, outside LocalJournalStorage and outside
@@ -221,6 +224,7 @@ class AppStateStore: ObservableObject {
         // rule 8), so they go too — both the in-process cache and the
         // persisted vector files under Application Support (spec 029 R8).
         EmbeddingService.shared.clearCache()
+        #endif
         UserDefaults.standard.removeObject(forKey: Self.firstNameKey)
         UserDefaults.standard.removeObject(forKey: Self.lastNameKey)
         UserDefaults.standard.removeObject(forKey: Self.onboardingCompleteKey)

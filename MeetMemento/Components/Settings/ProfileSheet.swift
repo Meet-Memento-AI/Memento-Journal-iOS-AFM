@@ -63,6 +63,7 @@ struct ProfileSheet: View {
 
                             SettingsRowDivider()
 
+                            #if MEMENTO_AI
                             NavigationLink(value: SettingsRoute.weekly) {
                                 SettingsRow(
                                     icon: "calendar",
@@ -84,6 +85,7 @@ struct ProfileSheet: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            #endif
                         }
 
                         SettingsSection(title: "App") {
@@ -187,8 +189,13 @@ struct ProfileSheet: View {
             ProfileSettingsView()
         case .appearance:
             AppearanceSettingsView()
+        #if MEMENTO_AI
         case .voice:
             VoiceSettingsView()
+        #else
+        case .voice:
+            EmptyView()
+        #endif
         case .security:
             SecuritySettingsView()
                 .environmentObject(entryViewModel)
@@ -196,12 +203,17 @@ struct ProfileSheet: View {
             AboutSettingsView()
         case .acknowledgments:
             AcknowledgmentsView()
+        #if MEMENTO_AI
         case .weekly:
             WeeklyReflectionView()
                 .environmentObject(entryViewModel)
         case .patterns:
             PatternsView()
                 .environmentObject(entryViewModel)
+        #else
+        case .weekly, .patterns:
+            EmptyView()
+        #endif
         }
     }
 

@@ -5,7 +5,9 @@
 //  Spec 015 R2 / 040: passive CloudKit status. Never blocks capture.
 //
 
+#if MEMENTO_AI
 import CloudKit
+#endif
 import Foundation
 import SwiftUI
 
@@ -52,6 +54,8 @@ final class SyncStatusStore: ObservableObject {
     }
 
     func refresh() async {
+        #if MEMENTO_AI
+        guard ProductCapabilities.includesCloudKit else { return }
         do {
             let account = try await CKContainer(identifier: JournalSchema.cloudKitContainerID).accountStatus()
             switch account {
@@ -67,5 +71,6 @@ final class SyncStatusStore: ObservableObject {
         } catch {
             status = .offline
         }
+        #endif
     }
 }

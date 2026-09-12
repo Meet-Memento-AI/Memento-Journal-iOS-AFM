@@ -13,7 +13,7 @@ import SwiftUI
 
 public struct NewEntryFAB: View {
     let action: () -> Void
-    var size: CGFloat = 64
+    var size: CGFloat = 56
     var title: String? = nil
     var enableHaptic: Bool = true
 
@@ -22,25 +22,20 @@ public struct NewEntryFAB: View {
     @Environment(\.colorScheme) private var colorScheme
 
     /// Figma 791:2889 — icon-to-label gap on the empty-state pill.
-    private static let labeledGap: CGFloat = 10
-    /// Figma 791:2889 — padding around icon + label.
+    private static let labeledGap: CGFloat = 8
+    /// Horizontal inset around icon + label. Vertical size is the 56pt footer floor.
     private static let labeledPadding: CGFloat = 16
-    /// 24pt glyph; `type.h4` (20pt) is one step smaller so the label sits
-    /// just under the icon's optical height.
-    private static let labeledGlyphSize: CGFloat = 24
-    /// 16 + 24 + 16. Floor the pill before glass so TabView overlays cannot
-    /// collapse the labeled control to a zero hit box.
-    static let labeledMinHeight: CGFloat = 56
+    static var labeledMinHeight: CGFloat { AppHeaderMetrics.footerButtonSize }
     /// Half of `labeledMinHeight` — a real capsule radius for zoom source
     /// clip. `theme.radius.round` (999) can swallow the control.
-    static let labeledCornerRadius: CGFloat = labeledMinHeight / 2
+    static var labeledCornerRadius: CGFloat { labeledMinHeight / 2 }
     /// Same frost density as Welcome Get Started / Summarize Chat: tint
     /// reads through the material instead of covering it. Light uses black;
     /// dark flips to white.
     private static let labeledGlassTintOpacity: Double = 0.9
 
     public init(
-        size: CGFloat = 64,
+        size: CGFloat = 56,
         title: String? = nil,
         enableHaptic: Bool = true,
         action: @escaping () -> Void
@@ -80,10 +75,13 @@ public struct NewEntryFAB: View {
     /// in light mode and a light one in dark.
     private var iconLabel: some View {
         Image(systemName: "square.and.pencil")
-            .font(.system(size: size * 0.4, weight: .bold)) // icon-size: not user text
+            .font(AppHeaderMetrics.controlSymbolFont)
             .foregroundStyle(theme.foreground)
-            .frame(width: size, height: size)
-            .glassEffect(.regular.interactive(), in: .circle)
+            .mementoGlassButtonChrome(
+                .regular.interactive(),
+                shape: .circle,
+                minLength: AppHeaderMetrics.footerGlassButtonLength(size)
+            )
     }
 
     /// Labeled CTA. Glass in a capsule: black frost + white type in light,
@@ -97,19 +95,16 @@ public struct NewEntryFAB: View {
 
         return HStack(spacing: Self.labeledGap) {
             Image(systemName: "square.and.pencil")
-                .font(.system(size: Self.labeledGlyphSize, weight: .bold)) // icon-size: not user text
+                .font(AppHeaderMetrics.controlSymbolFont)
             Text(title)
-                .font(type.h4)
+                .font(type.button)
                 .lineLimit(1)
         }
         .foregroundStyle(ink)
-        .padding(Self.labeledPadding)
-        .frame(minHeight: Self.labeledMinHeight)
-        .glassEffect(
-            .regular.tint(tint).interactive(),
-            in: .capsule
+        .padding(.horizontal, Self.labeledPadding)
+        .mementoFooterGlassButtonChrome(
+            .regular.tint(tint).interactive()
         )
-        .contentShape(Capsule())
     }
 }
 

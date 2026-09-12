@@ -37,6 +37,7 @@ enum MementoDataStore {
         createdAt: Date,
         updatedAt: Date,
         hasPhoto: Bool,
+        placeName: String? = nil,
         container: ModelContainer? = nil
     ) {
         let context = context(container: container)
@@ -50,6 +51,8 @@ enum MementoDataStore {
         row.transcript = transcript
         row.createdAt = createdAt
         row.updatedAt = updatedAt
+        let trimmedPlace = placeName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        row.placeName = (trimmedPlace?.isEmpty == false) ? trimmedPlace : nil
         if hasPhoto {
             if row.attachments?.isEmpty ?? true {
                 let attachment = StoredAttachment()
@@ -78,7 +81,8 @@ enum MementoDataStore {
                 text: row.transcript,
                 createdAt: row.createdAt,
                 updatedAt: row.updatedAt,
-                hasPhoto: !(row.attachments ?? []).isEmpty
+                hasPhoto: !(row.attachments ?? []).isEmpty,
+                placeName: row.placeName
             )
         }
     }
@@ -217,7 +221,7 @@ enum MementoDataStore {
         weekStart: Date,
         observation: String = "",
         citationIDs: [UUID] = [],
-        zoneRaw: String = TrustZone.z0Device.identifier,
+        zoneRaw: String = "z0.device",
         promptVersion: String = "weekly@1",
         entries: [Entry] = [],
         container: ModelContainer? = nil
@@ -239,7 +243,7 @@ enum MementoDataStore {
         row.createdAt = weekStart
         row.zoneRaw = zoneRaw
         row.promptVersion = promptVersion
-        row.vocabularyVersion = ReflectionVocabulary.version
+        row.vocabularyVersion = "mood@1+topic@1"
         for old in row.citations ?? [] {
             context.delete(old)
         }

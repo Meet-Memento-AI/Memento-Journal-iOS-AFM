@@ -30,9 +30,11 @@ public struct ThemeConfirmationView: View {
 
     var onComplete: ((ThemeSelectionOutcome) -> Void)?
     public var onBack: (() -> Void)?
+    #if MEMENTO_AI
     // Internal: `IntelligenceService` / `FoundationModelsIntelligenceService`
     // are app-internal types, so this can't be part of the public API.
     var intelligence: IntelligenceService
+    #endif
 
     @State private var selectedIds: Set<String> = []
     @State private var suggestedIds: [String] = []
@@ -42,6 +44,7 @@ public struct ThemeConfirmationView: View {
     @State private var isEstimating = true
     @State private var usedFallback = false
 
+    #if MEMENTO_AI
     init(
         intelligence: IntelligenceService = FoundationModelsIntelligenceService.shared,
         onComplete: ((ThemeSelectionOutcome) -> Void)? = nil,
@@ -51,6 +54,15 @@ public struct ThemeConfirmationView: View {
         self.onComplete = onComplete
         self.onBack = onBack
     }
+    #else
+    init(
+        onComplete: ((ThemeSelectionOutcome) -> Void)? = nil,
+        onBack: (() -> Void)? = nil
+    ) {
+        self.onComplete = onComplete
+        self.onBack = onBack
+    }
+    #endif
 
     public var body: some View {
         OnboardingPageScaffold(
@@ -181,6 +193,7 @@ public struct ThemeConfirmationView: View {
             return
         }
 
+        #if MEMENTO_AI
         do {
             let result = try await intelligence.estimateProfile(reflection: reflection)
             suggestedIds = ThemeCatalog.validate(
@@ -193,21 +206,27 @@ public struct ThemeConfirmationView: View {
             selectedIds = Set(Array(suggestedIds.prefix(ThemeCatalog.defaultSuggestionCount)))
             usedFallback = false
         } catch {
-            // Keyword overlap fallback when AFM is unavailable or fails.
-            suggestedIds = ThemeCatalog.suggestFromKeywords(reflection)
-            selectedIds = Set(suggestedIds)
-            promptLens = nil
-            // Keyword overlap is not a model — leave provenance nil rather than
-            // stamping a model that did not produce this.
-            estimateModelIdentifier = nil
-            estimatePromptVersion = nil
-            usedFallback = true
+            applyKeywordFallback(reflection)
             AppLogger.log("⚠️ Theme estimate fell back to keywords: \(error.localizedDescription)")
         }
+        #else
+        applyKeywordFallback(reflection)
+        #endif
 
         // Animated swap: spinner eases out, sections (with suggested pills
         // already copper) ease in — no hard pop when the estimate lands.
         withAnimation(.easeInOut(duration: 0.25)) { isEstimating = false }
+    }
+
+    private func applyKeywordFallback(_ reflection: String) {
+        suggestedIds = ThemeCatalog.suggestFromKeywords(reflection)
+        selectedIds = Set(suggestedIds)
+        promptLens = nil
+        // Keyword overlap is not a model — leave provenance nil rather than
+        // stamping a model that did not produce this.
+        estimateModelIdentifier = nil
+        estimatePromptVersion = nil
+        usedFallback = true
     }
 }
 

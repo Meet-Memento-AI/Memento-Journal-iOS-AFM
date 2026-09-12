@@ -68,6 +68,9 @@ enum EntrySpotlightIndexer {
         attributes.contentCreationDate = entry.createdAt
         attributes.contentModificationDate = entry.updatedAt
         attributes.identifier = entry.id.uuidString
+        if let placeName = entry.placeName, !placeName.isEmpty {
+            attributes.namedLocation = placeName
+        }
         return CSSearchableItem(
             uniqueIdentifier: entry.id.uuidString,
             domainIdentifier: domainIdentifier,

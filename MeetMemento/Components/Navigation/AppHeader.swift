@@ -23,11 +23,15 @@ import UIKit
 /// Drawn diameter and padding for every control in `AppHeader`.
 /// Journal and Chat (including Chat's narration mode) all use these so chrome stays matched.
 enum AppHeaderMetrics {
-    /// Drawn diameter for every header / nav glass icon button.
+    /// Floor for every Liquid Glass *button* (HIG: ≥44pt hit region). 48pt so a
+    /// 12pt gap puts neighbouring centres 60pt apart (Apple's spacing rule).
+    /// Icon-only chrome is 48×48; labeled chrome grows only in width.
     static let controlSize: CGFloat = 48
-    /// Hit-target floor. Matches `controlSize` now that controls clear Apple's
-    /// 44pt minimum on their own; kept so smaller sizes still expand cleanly.
-    static let minimumTapTarget: CGFloat = max(44, controlSize)
+    /// Hit-target floor. Matches `controlSize`.
+    static let minimumTapTarget: CGFloat = controlSize
+    /// SF Symbol style for glass chrome. Body + semibold is an HIG text
+    /// style, so it tracks Dynamic Type instead of a hardcoded point size.
+    static var controlSymbolFont: Font { .body.weight(.semibold) }
     /// Bottom pad under the control row, and the 16pt air above the home
     /// indicator (Chat footer / FAB contract).
     static let rowBottomPadding: CGFloat = 16
@@ -36,8 +40,23 @@ enum AppHeaderMetrics {
     static let edgeInset: CGFloat = 16
     /// Breathing room between the header row and the first line of content.
     static let contentGap: CGFloat = 16
-    /// Footer / FAB circle diameter (Narration footer buttons and ChatInputField).
-    static let footerButtonSize: CGFloat = 64
+    /// Chat composer well — not a button. 8pt inset around 48pt trailing
+    /// controls, so the field stays 64pt at rest.
+    static let composerMinHeight: CGFloat = controlSize + 16
+    /// Floating footer glass (FAB, editor mic/Capture, narration circles).
+    /// Taller than header chrome; labeled pills grow only in width.
+    static let footerButtonSize: CGFloat = 56
+
+    /// Never smaller than `controlSize`. Larger is for footer FABs (56) and
+    /// display-only circles (profile avatar).
+    static func glassButtonLength(_ requested: CGFloat) -> CGFloat {
+        max(requested, controlSize)
+    }
+
+    /// Footer floating glass never drops below `footerButtonSize`.
+    static func footerGlassButtonLength(_ requested: CGFloat = footerButtonSize) -> CGFloat {
+        max(requested, footerButtonSize)
+    }
 
     /// Status-bar / Dynamic Island inset from the key window. Root pages
     /// ignore the system safe area and apply this as padding on the header.
@@ -79,6 +98,83 @@ extension View {
     func rootEdgeInset() -> some View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             max(length - AppHeaderMetrics.edgeInset * 2, 0)
+        }
+    }
+
+    /// Shared Liquid Glass button chrome. Apply last — after padding and
+    /// foreground — so the material samples the 48pt (or larger) frame.
+    /// Capsules hug width past 48pt; circles stay square.
+    func mementoGlassButtonChrome(
+        interactive: Bool = true,
+        shape: MementoGlassButtonShape = .capsule,
+        minLength: CGFloat = AppHeaderMetrics.controlSize
+    ) -> some View {
+        mementoGlassButtonChrome(
+            .native(interactive: interactive),
+            shape: shape,
+            minLength: minLength
+        )
+    }
+
+    func mementoGlassButtonChrome(
+        _ glass: Glass,
+        shape: MementoGlassButtonShape = .capsule,
+        minLength: CGFloat = AppHeaderMetrics.controlSize
+    ) -> some View {
+        modifier(MementoGlassButtonChrome(
+            glass: glass,
+            shape: shape,
+            minLength: AppHeaderMetrics.glassButtonLength(minLength)
+        ))
+    }
+
+    /// Floating footer glass: 56×56 floor, width hugs labeled content.
+    func mementoFooterGlassButtonChrome(
+        interactive: Bool = true,
+        shape: MementoGlassButtonShape = .capsule
+    ) -> some View {
+        mementoGlassButtonChrome(
+            interactive: interactive,
+            shape: shape,
+            minLength: AppHeaderMetrics.footerButtonSize
+        )
+    }
+
+    func mementoFooterGlassButtonChrome(
+        _ glass: Glass,
+        shape: MementoGlassButtonShape = .capsule
+    ) -> some View {
+        mementoGlassButtonChrome(
+            glass,
+            shape: shape,
+            minLength: AppHeaderMetrics.footerButtonSize
+        )
+    }
+}
+
+/// Capsule for labeled / icon chrome; circle for avatar and icon-only FABs.
+enum MementoGlassButtonShape {
+    case capsule
+    case circle
+}
+
+private struct MementoGlassButtonChrome: ViewModifier {
+    let glass: Glass
+    let shape: MementoGlassButtonShape
+    let minLength: CGFloat
+
+    func body(content: Content) -> some View {
+        switch shape {
+        case .capsule:
+            content
+                .frame(minWidth: minLength, minHeight: minLength)
+                .glassEffect(glass, in: .capsule)
+                .contentShape(Capsule())
+        case .circle:
+            content
+                .frame(width: minLength, height: minLength)
+                .glassEffect(glass, in: .circle)
+                .contentShape(Circle())
         }
     }
 }
@@ -131,48 +227,115 @@ struct AppHeader<Leading: View, Trailing: View>: View {
 
 // MARK: - Header Icon Button
 
-/// A circular glass icon button. Layout stays at `size` at rest;
+/// A glass icon button. 48pt minimum (HIG hit target + 60pt centre spacing
+/// with the 12pt header gap). Width hugs the glyph. No fill under glass.
 /// `.interactive()` glass supplies the press scale.
 struct HeaderIconButton: View {
-    let systemName: String
+    private enum Glyph {
+        case system(String)
+        case asset(String)
+    }
+
+    private let glyph: Glyph
     /// Defaults to `AppHeaderMetrics.controlSize` so Journal and Chat stay matched.
     var size: CGFloat = AppHeaderMetrics.controlSize
     var accessibilityLabel: String
     var accessibilityHint: String?
-    /// Override for photo-backed surfaces where `theme.foreground` would
-    /// disappear into the treated backdrop. Nil uses `theme.foreground`.
+    /// Override for the glyph. Nil uses `theme.foreground` (black in
+    /// light, white in dark). Do not force white on a cover — glass frost
+    /// already holds the icon.
     var foreground: Color? = nil
+    /// `.interactive()` press refraction. Callers that already hold
+    /// `accessibilityReduceMotion` pass `!reduceMotion`; otherwise the
+    /// environment is read here so Journal/Chat headers stay in lockstep.
+    var interactive: Bool? = nil
+    /// Photo-backed chrome may pass a cover-derived wash. Nil is `Glass.native()`.
+    var glass: Glass? = nil
     let action: () -> Void
 
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Figma header glyphs (`ic:outline-lens`, `ic:outline-lens-blur`) are 24pt.
+    private static let assetGlyphSize: CGFloat = 24
+
+    init(
+        systemName: String,
+        size: CGFloat = AppHeaderMetrics.controlSize,
+        accessibilityLabel: String,
+        accessibilityHint: String? = nil,
+        foreground: Color? = nil,
+        interactive: Bool? = nil,
+        glass: Glass? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.glyph = .system(systemName)
+        self.size = size
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityHint = accessibilityHint
+        self.foreground = foreground
+        self.interactive = interactive
+        self.glass = glass
+        self.action = action
+    }
+
+    init(
+        assetName: String,
+        size: CGFloat = AppHeaderMetrics.controlSize,
+        accessibilityLabel: String,
+        accessibilityHint: String? = nil,
+        foreground: Color? = nil,
+        interactive: Bool? = nil,
+        glass: Glass? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.glyph = .asset(assetName)
+        self.size = size
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityHint = accessibilityHint
+        self.foreground = foreground
+        self.interactive = interactive
+        self.glass = glass
+        self.action = action
+    }
 
     var body: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         } label: {
-            // Glass on the view CONTAINING the glyph, not a layer behind it:
-            // only content composited inside the effect gets the system's
-            // vibrancy treatment. As a sibling background the glyph keeps its
-            // literal token colour and washes out. Same note as
-            // `AvatarInitialButton`.
-            Image(systemName: systemName)
-                .font(.system(size: size * 0.5, weight: .medium)) // icon-size: not user text
+            glyphView
                 .foregroundStyle(foreground ?? theme.foreground)
-                .frame(width: size, height: size)
-                .glassEffect(.regular.interactive(), in: .circle)
-                // Lock layout at rest. `.interactive()` still scales the glass
-                // on press; this outer frame keeps neighbours from shifting.
-                .frame(width: size, height: size)
-                .contentShape(Circle())
+                .mementoGlassButtonChrome(resolvedGlass, minLength: size)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
         .modifier(OptionalHint(hint: accessibilityHint))
     }
+
+    @ViewBuilder
+    private var glyphView: some View {
+        switch glyph {
+        case .system(let name):
+            Image(systemName: name)
+                .font(AppHeaderMetrics.controlSymbolFont)
+                .contentTransition(.symbolEffect(.replace))
+        case .asset(let name):
+            Image(name)
+                .resizable()
+                .renderingMode(.template)
+                .scaledToFit()
+                .frame(width: Self.assetGlyphSize, height: Self.assetGlyphSize)
+                .contentTransition(.opacity)
+        }
+    }
+
+    private var resolvedGlass: Glass {
+        glass ?? .native(interactive: interactive ?? !reduceMotion)
+    }
 }
 
-private struct OptionalHint: ViewModifier {
+struct OptionalHint: ViewModifier {
     let hint: String?
     func body(content: Content) -> some View {
         if let hint {
@@ -180,6 +343,21 @@ private struct OptionalHint: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+/// Press scale on a cluster glyph only. `.interactive()` stays off the
+/// shared capsule — that would scale the whole bubble when either icon is tapped.
+struct ClusterGlyphPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
+                value: configuration.isPressed
+            )
     }
 }
 
@@ -194,18 +372,19 @@ private struct OptionalHint: ViewModifier {
             AvatarInitialButton(initial: "S", size: AppHeaderMetrics.controlSize,
                                 enableHaptic: true, accessibilityLabel: "Menu") {}
         } trailing: {
-            HStack(spacing: 12) {
-                HeaderIconButton(systemName: "magnifyingglass",
-                                 accessibilityLabel: "Search") {}
-                HeaderIconButton(systemName: "message",
-                                 accessibilityLabel: "Chat with Memento") {}
-            }
+            #if MEMENTO_AI
+            JournalHeaderActionCluster(onSearch: {}, onChat: {})
+            #else
+            HeaderIconButton(systemName: "magnifyingglass",
+                             accessibilityLabel: "Search") {}
+            #endif
         }
     }
     .useTheme()
     .useTypography()
 }
 
+#if MEMENTO_AI
 #Preview("Chat header") {
     ZStack(alignment: .top) {
         LinearGradient(colors: [GrayScale.gray100, GrayScale.gray50],
@@ -245,3 +424,5 @@ private struct OptionalHint: ViewModifier {
     .useTheme()
     .useTypography()
 }
+#endif
+

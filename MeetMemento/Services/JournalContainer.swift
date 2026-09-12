@@ -54,26 +54,39 @@ enum JournalContainer {
         if inMemory {
             return makeInMemory()
         }
-        do {
-            let mirrored = ModelConfiguration(
-                "memento-journal",
-                schema: schema,
-                cloudKitDatabase: .private(cloudKitIdentifier)
-            )
-            return try ModelContainer(for: schema, configurations: mirrored)
-        } catch {
-            AppLogger.log("[JournalContainer] CloudKit configuration failed; local-only. \(error.localizedDescription)")
-            let local = ModelConfiguration(
-                "memento-journal-local",
-                schema: schema,
-                cloudKitDatabase: .none
-            )
+        if ProductCapabilities.includesCloudKit {
             do {
-                return try ModelContainer(for: schema, configurations: local)
+                let mirrored = ModelConfiguration(
+                    "memento-journal",
+                    schema: schema,
+                    cloudKitDatabase: .private(cloudKitIdentifier)
+                )
+                return try ModelContainer(for: schema, configurations: mirrored)
             } catch {
-                AppLogger.log("[JournalContainer] Local SwiftData store failed: \(error.localizedDescription)")
+                AppLogger.log("[JournalContainer] CloudKit configuration failed; retrying same store locally. \(error.localizedDescription)")
+            }
+            do {
+                let localSameStore = ModelConfiguration(
+                    "memento-journal",
+                    schema: schema,
+                    cloudKitDatabase: .none
+                )
+                return try ModelContainer(for: schema, configurations: localSameStore)
+            } catch {
+                AppLogger.log("[JournalContainer] Local memento-journal store failed: \(error.localizedDescription)")
                 return makeInMemory()
             }
+        }
+        let local = ModelConfiguration(
+            "memento-journal-local",
+            schema: schema,
+            cloudKitDatabase: .none
+        )
+        do {
+            return try ModelContainer(for: schema, configurations: local)
+        } catch {
+            AppLogger.log("[JournalContainer] Local SwiftData store failed: \(error.localizedDescription)")
+            return makeInMemory()
         }
     }
 

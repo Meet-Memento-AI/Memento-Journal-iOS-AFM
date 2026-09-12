@@ -315,6 +315,7 @@ public struct AIChatView: View {
     private var scaffold: some View {
         RootPageScaffold(
             footerBottomPadding: footerBottomPadding,
+            pageBackground: theme.background,
             elevated: true,
             header: { if isEmbedded { chatHeader } },
             footer: { chatFooter },

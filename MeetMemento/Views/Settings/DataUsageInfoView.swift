@@ -19,7 +19,9 @@ public struct DataUsageInfoView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 dataCollectionSection
                 dataUsageSection
+                #if MEMENTO_AI
                 aiServicesSection
+                #endif
                 dataStorageSection
                 yourRightsSection
 
@@ -51,9 +53,10 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "doc.text.fill",
                 title: "Journal Entries",
-                description: "Your journal entries, including titles, content, and dates. This is the core data you create in MeetMemento."
+                description: "Your journal entries, including titles, content, and dates. This is the core data you create in Memento."
             )
 
+            #if MEMENTO_AI
             SettingsRowDivider()
 
             SettingsInfoRow(
@@ -61,6 +64,7 @@ public struct DataUsageInfoView: View {
                 title: "Conversations",
                 description: "Your chats with the AI companion, which grounds its replies in your own entries and cites the ones it drew from."
             )
+            #endif
 
             SettingsRowDivider()
 
@@ -77,9 +81,12 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "iphone",
                 title: "Stored On Your Device",
-                description: "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account. If you are signed into iCloud, a private replica can appear on your other Apple devices."
+                description: ProductCapabilities.includesCloudKit
+                    ? "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account. If you are signed into iCloud, a private replica can appear on your other Apple devices."
+                    : "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account and no iCloud replica."
             )
 
+            #if MEMENTO_AI
             SettingsRowDivider()
 
             SettingsInfoRow(
@@ -87,6 +94,7 @@ public struct DataUsageInfoView: View {
                 title: "Ground the AI Companion",
                 description: "When you chat, relevant entries are retrieved on \(DeviceCopy.thisDevice) and used as context, so answers come from what you actually wrote."
             )
+            #endif
 
             SettingsRowDivider()
 
@@ -98,6 +106,7 @@ public struct DataUsageInfoView: View {
         }
     }
 
+    #if MEMENTO_AI
     private var aiServicesSection: some View {
         SettingsSection(title: "AI Features") {
             SettingsInfoRow(
@@ -115,13 +124,16 @@ public struct DataUsageInfoView: View {
             )
         }
     }
+    #endif
 
     private var dataStorageSection: some View {
         SettingsSection(title: "Data Storage") {
             SettingsInfoRow(
                 icon: "lock.shield.fill",
                 title: "Encrypted at Rest",
-                description: "On \(DeviceCopy.thisDevice), the journal uses Data Protection. iCloud, when signed in, holds a private replica we cannot read. There is no Memento server copy."
+                description: ProductCapabilities.includesCloudKit
+                    ? "On \(DeviceCopy.thisDevice), the journal uses Data Protection. iCloud, when signed in, holds a private replica we cannot read. There is no Memento server copy."
+                    : "On \(DeviceCopy.thisDevice), the journal uses Data Protection. There is no iCloud replica and no Memento server copy."
             )
 
             SettingsRowDivider()

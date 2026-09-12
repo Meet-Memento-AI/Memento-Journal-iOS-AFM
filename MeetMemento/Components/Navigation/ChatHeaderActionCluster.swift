@@ -14,6 +14,7 @@ import UIKit
 /// One glass bubble for Chat's trailing actions. Collapsed it is a 48pt
 /// capsule with `list.bullet`. When `showsSummarize` is true it grows
 /// leftward to fit `square.and.pencil` beside history. Glyphs sit *inside*
+/// leftward to fit `square.and.pencil` beside history. Glyphs sit *inside*
 /// the capsule's glass — they are not individually glassed, so this remains
 /// a single sampling region inside `AppHeader`'s `GlassEffectContainer`.
 struct ChatHeaderActionCluster: View {
@@ -25,9 +26,6 @@ struct ChatHeaderActionCluster: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var size: CGFloat { AppHeaderMetrics.controlSize }
-    private var clusterWidth: CGFloat {
-        showsSummarize ? size * 2 : size
-    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -50,11 +48,7 @@ struct ChatHeaderActionCluster: View {
                 action: onHistory
             )
         }
-        .frame(width: clusterWidth, height: size)
-        .glassEffect(.regular, in: Capsule())
-        // Lock layout at rest so the expanding capsule grows left into the
-        // header spacer instead of shoving neighbours.
-        .frame(width: clusterWidth, height: size)
+        .mementoGlassButtonChrome(interactive: false)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: showsSummarize)
         .accessibilityElement(children: .contain)
     }
@@ -77,40 +71,14 @@ struct ChatHeaderActionCluster: View {
             action()
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: size * 0.5, weight: .medium))
+                .font(AppHeaderMetrics.controlSymbolFont)
                 .foregroundStyle(theme.foreground)
-                .frame(width: size, height: size)
+                .frame(minWidth: size, minHeight: size)
                 .contentShape(Rectangle())
         }
         .buttonStyle(ClusterGlyphPressStyle())
         .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier(accessibilityIdentifier)
-        .modifier(ClusterOptionalHint(hint: accessibilityHint))
-    }
-}
-
-/// Press scale on the glyph only. `.interactive()` is not on the capsule —
-/// that would scale the whole bubble when either icon is tapped.
-private struct ClusterGlyphPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
-                value: configuration.isPressed
-            )
-    }
-}
-
-private struct ClusterOptionalHint: ViewModifier {
-    let hint: String?
-    func body(content: Content) -> some View {
-        if let hint {
-            content.accessibilityHint(hint)
-        } else {
-            content
-        }
+        .modifier(OptionalHint(hint: accessibilityHint))
     }
 }

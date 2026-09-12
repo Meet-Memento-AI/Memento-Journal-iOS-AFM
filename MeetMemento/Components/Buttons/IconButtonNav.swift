@@ -7,9 +7,9 @@
 
 import SwiftUI
 
-/// A circular navigation button with Liquid Glass.
-/// Matches `HeaderIconButton` / `AvatarInitialButton`: glass on the view that
-/// contains the glyph, `.regular.interactive()`, no opaque fill underneath.
+/// A navigation button with Liquid Glass.
+/// Matches `HeaderIconButton`: 48pt minimum, width hugs the glyph, Body
+/// semibold symbol, `Glass.native()`, no opaque fill.
 struct IconButtonNav: View {
     // MARK: - Inputs
     let icon: String
@@ -33,17 +33,9 @@ struct IconButtonNav: View {
             onTap?()
         }) {
             Image(systemName: icon)
-                .font(.system(size: iconSize, weight: .bold)) // icon-size: not user text
+                .font(AppHeaderMetrics.controlSymbolFont)
                 .foregroundStyle(foregroundColor ?? theme.foreground)
-                .frame(width: buttonSize, height: buttonSize)
-                // Glass on the view CONTAINING the glyph, not a layer behind it:
-                // only content composited inside the effect gets vibrancy.
-                // No opaque Circle fill — that would read as the old gray chip.
-                .glassEffect(.regular.interactive(), in: .circle)
-                // Lock layout at rest. `.interactive()` still scales the glass
-                // on press; this outer frame keeps neighbours from shifting.
-                .frame(width: buttonSize, height: buttonSize)
-                .contentShape(Circle())
+                .mementoGlassButtonChrome(minLength: buttonSize)
         }
         // `.plain`, not a custom press style: `.interactive()` supplies the
         // system press scale/bounce. A second scale would compound it.
@@ -147,7 +139,7 @@ struct IconButtonNav: View {
     .useTheme()
 }
 
-#Preview("Various Sizes") {
+#Preview("Glass floor") {
     ZStack {
         LinearGradient(
             colors: [GrayScale.gray100, GrayScale.gray50],
@@ -159,20 +151,11 @@ struct IconButtonNav: View {
         HStack(spacing: 20) {
             IconButtonNav(
                 icon: "chevron.left",
-                iconSize: 20,
-                buttonSize: 40,
                 onTap: {}
             )
 
             IconButtonNav(
-                icon: "chevron.left",
-                onTap: {}
-            )
-
-            IconButtonNav(
-                icon: "chevron.left",
-                iconSize: 32,
-                buttonSize: 64,
+                icon: "magnifyingglass",
                 onTap: {}
             )
         }

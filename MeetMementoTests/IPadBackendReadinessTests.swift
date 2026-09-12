@@ -37,12 +37,14 @@ final class IPadBackendReadinessTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_700_000_000),
             updatedAt: Date(timeIntervalSince1970: 1_700_000_100),
             hasPhoto: false,
+            placeName: "Dallas, TX",
             container: container
         )
 
         let fetched = MementoDataStore.entry(id: id, container: container)
         XCTAssertEqual(fetched?.title, "Morning")
         XCTAssertEqual(fetched?.text, "Wrote on this device")
+        XCTAssertEqual(fetched?.placeName, "Dallas, TX")
         XCTAssertEqual(MementoDataStore.entryCount(container: container), 1)
 
         MementoDataStore.deleteEntry(id: id, container: container)

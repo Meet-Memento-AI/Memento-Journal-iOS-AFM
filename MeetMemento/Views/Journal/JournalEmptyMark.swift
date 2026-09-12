@@ -26,7 +26,7 @@ struct JournalEmptyMark: View {
     }
 
     /// Light gray on the journal canvas; a low-opacity white in dark so the
-    /// mark still reads on `#0A0A0A`. Inner shadow is Figma's inset treatment.
+    /// mark still reads on black. Inner shadow is Figma's inset treatment.
     private var fillStyle: some ShapeStyle {
         fillColor.shadow(.inner(color: innerShadowColor, radius: 3.5, y: 1))
     }

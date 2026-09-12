@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import AVFoundation
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme
@@ -19,7 +18,9 @@ struct SettingsView: View {
 
     @ObservedObject private var preferences = PreferencesService.shared
     @ObservedObject private var sampleContent = SampleContentService.shared
+    #if MEMENTO_AI
     @ObservedObject private var syncStatus = SyncStatusStore.shared
+    #endif
     @State private var isSampleWorking = false
 
     @State private var exportURLs: [URL] = []
@@ -31,7 +32,9 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 appearanceSection
+                #if MEMENTO_AI
                 voiceSection
+                #endif
                 securitySection
                 aboutSection
                 syncStatusSection
@@ -43,7 +46,9 @@ struct SettingsView: View {
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())
+        #if MEMENTO_AI
         .task { await syncStatus.refresh() }
+        #endif
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showDataUsageInfo) {
@@ -103,7 +108,8 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var syncStatusSection: some View {
-        if let banner = syncStatus.banner {
+        #if MEMENTO_AI
+        if ProductCapabilities.includesCloudKit, let banner = syncStatus.banner {
             SettingsSection(title: "iCloud") {
                 SettingsInfoRow(
                     icon: "icloud",
@@ -112,6 +118,7 @@ struct SettingsView: View {
                 )
             }
         }
+        #endif
     }
 
     private var appearanceSection: some View {
@@ -131,6 +138,7 @@ struct SettingsView: View {
 
     /// Read-aloud voice + speed (spec 018 R7). A presentation preference, so
     /// it sits with Appearance rather than in Your Data's privacy narrative.
+    #if MEMENTO_AI
     private var voiceSection: some View {
         SettingsSection(title: "Voice") {
             NavigationLink(value: SettingsRoute.voice) {
@@ -158,6 +166,7 @@ struct SettingsView: View {
         // computed property — is gone with the download it described.
         VoiceCatalog.resolve(persistedID: PreferencesService.shared.selectedVoiceIdentifier).displayName
     }
+    #endif
 
     /// The app lock, controllable after onboarding. `SecuritySettingsView`
     /// explains why this was structurally impossible until the encryption key
@@ -191,7 +200,7 @@ struct SettingsView: View {
             NavigationLink(value: SettingsRoute.about) {
                 SettingsRow(
                     icon: "info.circle.fill",
-                    title: "About MeetMemento",
+                    title: "About Memento",
                     subtitle: "Version, legal, and support",
                     showChevron: true,
                     action: nil
@@ -217,6 +226,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
+            #if MEMENTO_AI
             SettingsRowDivider()
 
             SettingsToggleRow(
@@ -255,6 +265,7 @@ struct SettingsView: View {
                             + "Double-tap to keep everything on this device."
                 )
             }
+            #endif
 
             SettingsRowDivider()
 
@@ -267,7 +278,9 @@ struct SettingsView: View {
                 title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
                 subtitle: sampleContent.isLoaded
                     ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
-                    : "Adds a fictional 9-month journal so you can try reflections right away",
+                    : ProductCapabilities.includesGenerativeAI
+                        ? "Adds a fictional 9-month journal so you can try reflections right away"
+                        : "Adds a fictional 9-month journal so you can see how entries look",
                 showChevron: false,
                 showProgress: isSampleWorking,
                 accessibilityIdentifier: "settings.sampleEntries",
@@ -361,6 +374,7 @@ struct SettingsView: View {
         }
         do {
             var urls = try JournalExporter.writeExportFiles(entries: ownEntries)
+            #if MEMENTO_AI
             if let feedback = try AnswerFeedbackStore.shared.exportJSONData() {
                 let stamp = Date().formatted(as: "yyyy-MM-dd")
                 let feedbackURL = JournalExporter.exportDirectory
@@ -368,6 +382,7 @@ struct SettingsView: View {
                 try feedback.write(to: feedbackURL, options: [.atomic, .completeFileProtection])
                 urls.append(feedbackURL)
             }
+            #endif
             exportURLs = urls
             showExportSheet = true
         } catch {

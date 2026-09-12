@@ -22,8 +22,8 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     /// `keyboardHeight - windowBottom + 16` so the composer sits 16pt above
     /// the keys. Pass 0 to skip the home-indicator pad (no footer).
     var footerBottomPadding: CGFloat = 16
-    /// Page fill behind content. Defaults to `theme.background`; Journal passes
-    /// `theme.secondaryBackground` for its subtle gray canvas.
+    /// Page fill behind content. Defaults to `theme.background` (`#FFFFFF`
+    /// in light). Journal and Chat both use that canvas when there is no image.
     var pageBackground: Color? = nil
     /// Chat-only: round the top- and bottom-leading corners of the page fill
     /// so Journal's canvas shows through the seam. The page is clipped to its

@@ -135,7 +135,9 @@ public struct ContentView: View {
     @State private var navigationPath = NavigationPath()
 
     @StateObject private var defaultEntryViewModel = EntryViewModel()
+    #if MEMENTO_AI
     @StateObject private var chatViewModel = ChatViewModel()
+    #endif
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
     @Environment(\.previewInitialTab) private var previewInitialTab: RootPage?
 
@@ -155,7 +157,7 @@ public struct ContentView: View {
     public var body: some View {
         ZStack(alignment: .leading) {
             // Full-screen background that extends to all edges
-            theme.secondaryBackground
+            theme.background
                 .ignoresSafeArea()
 
             // Journal and Chat share RootPageScaffold on the pager.
@@ -167,8 +169,11 @@ public struct ContentView: View {
                     JournalView(
                         isEmbedded: true,
                         externalNavigationPath: $navigationPath,
-                        onOpenChat: { RootPage.select(.chat, in: $selectedPage) }
+                        onOpenChat: ProductCapabilities.includesGenerativeAI
+                            ? { RootPage.select(.chat, in: $selectedPage) }
+                            : nil
                     )
+                #if MEMENTO_AI
                 case .chat:
                     AIChatView(
                         viewModel: chatViewModel,
@@ -176,12 +181,13 @@ public struct ContentView: View {
                         hasEntries: !entryViewModel.entries.isEmpty,
                         onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
                         onPresentEntry: { route in
-                            if case .edit(let id) = route {
-                                entryViewModel.selectedEntryId = id
-                            }
                             navigationPath.append(route)
                         }
                     )
+                #else
+                case .chat:
+                    EmptyView()
+                #endif
                 }
             }
 
@@ -266,7 +272,9 @@ public struct ContentView: View {
                 entryViewModel.setSessionPIN(pin)
             }
             navigationState.primarySection = selectedPage
+            #if MEMENTO_AI
             await chatViewModel.fetchSessions()
+            #endif
         }
         .onChange(of: selectedPage) { _, page in
             navigationState.primarySection = page
@@ -283,8 +291,9 @@ public struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            // Clear session PIN when app goes to background (locks)
-            if newPhase == .background || newPhase == .inactive {
+            // Clear session PIN when app goes to background (locks). Not on
+            // `.inactive`: that fires for the app's own system sheets too.
+            if newPhase == .background {
                 entryViewModel.clearSessionPIN()
             } else if newPhase == .active {
                 // Restore the PIN on return to foreground, for every mode
@@ -325,10 +334,15 @@ public struct ContentView: View {
             AppearanceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #if MEMENTO_AI
         case .voice:
             VoiceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #else
+        case .voice:
+            EmptyView()
+        #endif
         case .security:
             SecuritySettingsView()
                 .environmentObject(entryViewModel)
@@ -342,6 +356,7 @@ public struct ContentView: View {
             AcknowledgmentsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #if MEMENTO_AI
         case .weekly:
             WeeklyReflectionView()
                 .environmentObject(entryViewModel)
@@ -352,6 +367,10 @@ public struct ContentView: View {
                 .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        #else
+        case .weekly, .patterns:
+            EmptyView()
+        #endif
         }
     }
 
@@ -385,6 +404,7 @@ public struct ContentView: View {
         .preferredColorScheme(.dark)
 }
 
+#if MEMENTO_AI
 #Preview("Insights tab with entries") {
     @Previewable @StateObject var entryViewModel = EntryViewModel.withPreviewEntries()
     ContentView()
@@ -395,3 +415,4 @@ public struct ContentView: View {
         .useTheme()
         .useTypography()
 }
+#endif

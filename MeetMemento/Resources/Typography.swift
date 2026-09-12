@@ -102,9 +102,15 @@ public struct Typography {
     /// (`size * 1.5 - UIFont.lineHeight`). SwiftUI's value is the gap
     /// *above* the font's built-in line height, not CSS `line-height`.
     public func bodyLineSpacing(for size: CGFloat) -> CGFloat {
+        extraLineSpacing(for: size, lineHeight: size * 1.5)
+    }
+
+    /// Extra SwiftUI `.lineSpacing` so Figtree Medium at `size` lands on
+    /// a `lineHeight` line box.
+    public func extraLineSpacing(for size: CGFloat, lineHeight: CGFloat) -> CGFloat {
         let font = UIFont(name: bodyMediumFontName, size: size)
             ?? .systemFont(ofSize: size)
-        return max(0, size * 1.5 - font.lineHeight)
+        return max(0, lineHeight - font.lineHeight)
     }
 
     /// Body1 (16pt) line spacing — 24pt line box.

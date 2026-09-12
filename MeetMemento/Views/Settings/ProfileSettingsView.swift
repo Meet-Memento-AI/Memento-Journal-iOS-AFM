@@ -106,7 +106,9 @@ public struct ProfileSettingsView: View {
                     .padding(Spacing.md)
                 }
 
+                #if MEMENTO_AI
                 lensSection
+                #endif
 
                 Spacer(minLength: Spacing.xxxl)
             }
@@ -139,6 +141,7 @@ public struct ProfileSettingsView: View {
         editedLens = LocalProfileStore.ensureMigratedProfile().proposedPromptLens ?? ""
     }
 
+    #if MEMENTO_AI
     @ViewBuilder
     private var lensSection: some View {
         let profile = LocalProfileStore.ensureMigratedProfile()
@@ -196,6 +199,7 @@ public struct ProfileSettingsView: View {
             .padding(Spacing.md)
         }
     }
+    #endif
 
     private func saveProfile() {
         guard canSave else { return }

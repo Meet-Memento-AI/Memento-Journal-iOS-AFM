@@ -23,8 +23,11 @@
 > content composited inside the effect receives the system's vibrancy treatment;
 > outside it, glyphs keep their literal token colour and wash out.
 >
-> Current usage: `.regular` only, untinted, navigation layer only — content
-> surfaces (list rows, cards, the crisis card) stay flat.
+> Current usage: `.regular` only, navigation layer only — content surfaces
+> (list rows, cards, the crisis card) stay flat. Theme-backed chrome is
+> **untinted**. Photo chrome may take a capped backdrop wash
+> (`JournalBackdropContrast.chromeTint`). Capture is the one prominence
+> tint (`Glass.prominentFrost`) so the action still reads through frost.
 
 **Read when:** applying, changing, or reviewing any Liquid Glass surface — nav
 bars, pills, FABs, cards, input fields, listening panels.
@@ -166,22 +169,23 @@ opaque material approximation to "fix" the simulator.
 
 ## 9. How Memento uses it (call-site map)
 
-Native `.glassEffect` is used directly in the view files (there is no wrapper):
-- **Clear interactive glass** (translucent controls): icon/avatar buttons
-  (`AvatarInitialButton`, `IconButtonNav`, `NarrateButton`, `TopNavHeader` icon,
-  `AddEntryView` icon/date), the tab pill (`TopTabNav`), listening panel
-  (`ListeningPanel`), chat-history "new" pill (`ChatHistorySheet`).
-- **Regular glass** (frosted surfaces): chat input bar (`ChatInputField`),
-  settings section cards (`SettingsView`, `AppearanceSettingsView`,
-  `AboutSettingsView`, `DataUsageInfoView`), chat-history cards
-  (`ChatHistoryItem`), drawer settings button (`DrawerMenuView`), mic FABs
-  (`AddEntryView`, `EditAboutYourselfView`, `LearnAboutYourselfView`).
-- **Prominent tinted glass** (primary actions): new-entry FAB (`NewEntryFAB`,
-  `.glassProminent`), submit button (`AddEntryView`), active-chat action button
-  (`TopNavHeader`).
-- **Container:** `TopNavHeader` groups its three glass controls in a
-  `GlassEffectContainer(spacing: 0)`.
+Native `.glassEffect` is used directly in the view files (there is no wrapper).
+`.buttonStyle(.glass)` / `.glassProminent` are unused — custom `.plain` plus
+`.contentShape` is load-bearing for hit targets (PRES-024).
 
-Theme tokens: `theme.glassFill` is the subtle tint for `.regular` surfaces;
-`theme.glassBorder` is a decorative hairline on **non-glass** insight cards. The
-old `theme.glassFallback` token was removed with the material fallbacks.
+- **Untinted `.regular` chrome** (theme surfaces): `AvatarInitialButton`,
+  `IconButtonNav`, icon-only `NewEntryFAB`, `HeaderIconButton` on Journal/Chat,
+  AddEntry back/lens/save/mic/Capture, chat header cluster, Welcome
+  mark shapes, narration circles, Chat summary Cancel.
+- **Prominence frost** (one primary action): Welcome Get Started and Chat
+  summary Summarize use black at 0.24. Labeled `NewEntryFAB` still uses a
+  denser 0.9 frost (PRES-007; out of this pass).
+- **Canvas frost densify:** `ChatInputField` tints `.regular` with
+  `theme.background` at 0.2 so the composer bar holds over the transcript.
+- **Container:** `AppHeader` and AddEntry's header row each wrap adjacent
+  controls in `GlassEffectContainer(spacing: 12)`. The editor footer wraps
+  mic + Capture in one container (both native). Mixing prominence-tinted and
+  untinted glass in one container traps on device.
+
+`theme.glassBorder` is a decorative hairline on **non-glass** insight cards.
+The old `theme.glassFill` / `theme.glassFallback` tokens are gone.

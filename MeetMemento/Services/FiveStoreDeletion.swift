@@ -6,7 +6,9 @@
 //  (1) SwiftData  (2) audio files  (3) Spotlight  (4) TTS cache  (5) CloudKit
 //
 
+#if MEMENTO_AI
 import CloudKit
+#endif
 import Foundation
 import SwiftData
 
@@ -58,6 +60,14 @@ enum FiveStoreDeletion {
 
     /// Issues a private-DB wipe. Offline / signed-out → pending, never a silent skip.
     static func deleteCloudKitRecords() async {
+        #if !MEMENTO_AI
+        lastCloudKitOutcome = .skippedNoAccount
+        return
+        #else
+        guard ProductCapabilities.includesCloudKit else {
+            lastCloudKitOutcome = .skippedNoAccount
+            return
+        }
         let container = CKContainer(identifier: JournalSchema.cloudKitContainerID)
         do {
             let status = try await container.accountStatus()
@@ -95,8 +105,10 @@ enum FiveStoreDeletion {
             await MainActor.run { SyncStatusStore.shared.markDeletionPending() }
             AppLogger.log("[FiveStoreDeletion] CloudKit wipe queued: \(error.localizedDescription)")
         }
+        #endif
     }
 
+    #if MEMENTO_AI
     private static func deleteRecords(ofType typeName: String, in database: CKDatabase) async -> Bool {
         do {
             let query = CKQuery(recordType: typeName, predicate: NSPredicate(value: true))
@@ -122,6 +134,7 @@ enum FiveStoreDeletion {
             return false
         }
     }
+    #endif
 }
 
 enum TTSRenderCache {

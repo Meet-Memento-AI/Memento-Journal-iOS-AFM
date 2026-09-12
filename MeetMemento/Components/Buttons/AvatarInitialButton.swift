@@ -19,8 +19,8 @@ struct AvatarInitialButton: View {
 
     @Environment(\.theme) private var theme
 
-    private var resolvedFontSize: CGFloat {
-        fontSize ?? size * 0.4
+    private var resolvedFont: Font {
+        fontSize.map { .system(size: $0, weight: .semibold) } ?? .headline
     }
 
     var body: some View {
@@ -33,26 +33,15 @@ struct AvatarInitialButton: View {
             ZStack {
                 if let initial, !initial.isEmpty {
                     Text(initial.uppercased())
-                        .font(.system(size: resolvedFontSize, weight: .semibold)) // icon-size: not user text (avatar initial glyph scales with button size)
+                        .font(resolvedFont)
                         .foregroundStyle(theme.foreground)
                 } else {
                     Image(systemName: "person.fill")
-                        .font(.system(size: resolvedFontSize, weight: .medium)) // icon-size: not user text
+                        .font(AppHeaderMetrics.controlSymbolFont)
                         .foregroundStyle(theme.foreground)
                 }
             }
-            .frame(width: size, height: size)
-            // Glass goes on the view that CONTAINS the glyph, not on a sibling
-            // layer behind it. Only content composited inside the glass effect
-            // receives the system's vibrancy treatment — which adjusts colour,
-            // brightness and saturation for legibility against whatever the
-            // glass is refracting. As a separate `.background(...)` layer the
-            // glyph kept its literal token colour and washed out.
-            .glassEffect(.regular.interactive(), in: .circle)
-            // Lock layout at rest. `.interactive()` still scales the glass
-            // on press; this outer frame keeps neighbours from shifting.
-            .frame(width: size, height: size)
-            .contentShape(Circle())
+            .mementoGlassButtonChrome(shape: .circle, minLength: size)
         }
         // `.plain`, not IconButtonPressStyle: the glass is `.interactive()`, which
         // supplies its own press scale/bounce. Keeping the custom 0.92 scale on
@@ -79,7 +68,7 @@ struct AvatarInitialButton: View {
 
         HStack(spacing: 16) {
             AvatarInitialButton(initial: "S", onTap: { AppLogger.log("Menu") })
-            AvatarInitialButton(initial: "S", size: 32, onTap: { AppLogger.log("Menu") })
+            AvatarInitialButton(initial: "S", size: 96, onTap: { AppLogger.log("Menu") })
         }
     }
     .useTheme()

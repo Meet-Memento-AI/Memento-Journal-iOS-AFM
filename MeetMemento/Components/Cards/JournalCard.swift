@@ -110,7 +110,7 @@ struct JournalCard: View {
             dateChip
             Text(title)
                 .typographyH4()
-                .foregroundStyle(titleColor)
+                .photoCoverForeground(titleColor, shadowed: photoImage != nil)
                 // Button injects `lineLimit(1)` into its label environment;
                 // override so the card grows with the full title instead of
                 // clipping to a single line in LazyVStack.
@@ -122,19 +122,26 @@ struct JournalCard: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    /// Date as a 16pt-radius chip. No calendar glyph — Figma 804:3342 is type only.
+    /// Date / time / day as native clear glass (hair of frost). Type only —
+    /// Figma 804:3342 has no calendar glyph.
     private var dateChip: some View {
         Text(formattedDate)
             .font(type.body1Bold)
-            .foregroundStyle(theme.journalCardChipForeground)
+            .photoCoverForeground(dateChipForeground, shadowed: photoImage != nil)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
-            .background(
-                RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
-                    .fill(theme.journalCardChipBackground)
+            .glassEffect(
+                .native(interactive: false),
+                in: .rect(cornerRadius: theme.radius.button, style: .continuous)
             )
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Journal entry date \(formattedDate)")
+    }
+
+    /// White on a treated cover, same as editor chrome. Theme ink on the
+    /// flat canvas / photo placeholder, where white would vanish into frost.
+    private var dateChipForeground: Color {
+        photoImage != nil ? BaseColors.white : theme.foreground
     }
 
     private var formattedDate: String {
@@ -284,7 +291,7 @@ private struct JournalCardHarness: View {
         )
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Theme.light.secondaryBackground)
+        .background(Theme.light.background)
         .useTheme()
         .useTypography()
     }
@@ -301,7 +308,7 @@ private struct JournalCardHarness: View {
         date: .now.addingTimeInterval(-36_00)
     )
     .padding()
-    .background(Theme.light.secondaryBackground)
+        .background(Theme.light.background)
     .useTheme()
     .useTypography()
 }
@@ -329,7 +336,7 @@ private enum JournalCardPreviewAssets {
         hasPhoto: true
     )
     .padding()
-    .background(Theme.light.secondaryBackground)
+        .background(Theme.light.background)
     .useTheme()
     .useTypography()
 }
@@ -344,7 +351,7 @@ private enum JournalCardPreviewAssets {
         hasPhoto: true
     )
     .padding()
-    .background(Theme.dark.secondaryBackground)
+        .background(Theme.dark.background)
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)
@@ -358,7 +365,7 @@ private enum JournalCardPreviewAssets {
         hasPhoto: true
     )
     .padding()
-    .background(Theme.light.secondaryBackground)
+        .background(Theme.light.background)
     .useTheme()
     .useTypography()
 }
@@ -370,7 +377,7 @@ private enum JournalCardPreviewAssets {
         date: .now
     )
     .padding()
-    .background(Theme.dark.secondaryBackground)
+        .background(Theme.dark.background)
     .useTheme()
     .useTypography()
     .preferredColorScheme(.dark)

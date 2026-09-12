@@ -799,17 +799,30 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Session 7: measured prompt tokens when the SDK exposes `tokenCount`.
     /// Runs off the TTFT path — callers overlap it with decode.
+    ///
+    /// Two gates, answering two different questions. `compiler(>=6.3)` is the
+    /// SDK check `currentWindow` documents: the iOS 26 SDK does not declare
+    /// the member at all. `#available` is the runtime one, and it is needed
+    /// here where `contextSize` did not need it — `tokenCount(for:)` is not
+    /// back-deployed, so on 26.0…26.3 there is nothing to call and the turn
+    /// logs its prompt size as unreported.
     private static func measurePromptTokens(
         instructions: String,
         prompt: String
     ) async -> (prompt: Int?, cached: Int?) {
         #if compiler(>=6.3)
-        return await ModelRuntimeGate.shared.tryWithLock {
+        guard #available(iOS 26.4, *) else { return (nil, nil) }
+        // `tryWithLock` infers `T` from the closure *and* from the `??`
+        // context. Left implicit, the body offers an unlabeled `(Int?, Int?)`
+        // while the context wants this function's labeled return, and 6.3 no
+        // longer reconciles the two — it reports conflicting bindings for `T`.
+        // Spelling the labels on both sides pins `T` to one tuple type.
+        return await ModelRuntimeGate.shared.tryWithLock { () -> (prompt: Int?, cached: Int?) in
             let model = SystemLanguageModel.default
             let inst = try await model.tokenCount(for: Instructions(instructions))
             let user = try await model.tokenCount(for: prompt)
-            return (inst + user, nil as Int?)
-        } ?? (nil, nil)
+            return (prompt: inst + user, cached: nil)
+        } ?? (prompt: nil, cached: nil)
         #else
         return (nil, nil)
         #endif

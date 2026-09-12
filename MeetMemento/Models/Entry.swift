@@ -20,6 +20,9 @@ public struct Entry: Identifiable, Hashable {
     /// path/URL — the file location is fully deterministic from `id`, so a
     /// stored path would be redundant, driftable state.
     public var hasPhoto: Bool
+    /// Short display place (e.g. `"Dallas, TX"`). Never coordinates —
+    /// those are dropped after reverse geocode (spec 018 R6).
+    public var placeName: String?
 
     public init(
         id: UUID = UUID(),
@@ -27,7 +30,8 @@ public struct Entry: Identifiable, Hashable {
         text: String = "",
         createdAt: Date = Date(),
         updatedAt: Date? = nil,
-        hasPhoto: Bool = false
+        hasPhoto: Bool = false,
+        placeName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -35,6 +39,7 @@ public struct Entry: Identifiable, Hashable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.hasPhoto = hasPhoto
+        self.placeName = placeName
     }
 }
 

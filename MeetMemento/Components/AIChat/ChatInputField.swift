@@ -91,11 +91,11 @@ struct ChatInputField: View {
 
     // MARK: - Design Constants
 
-    /// Capsule height — same 64pt as Narration footer circles / FAB.
-    private let pillHeight: CGFloat = AppHeaderMetrics.footerButtonSize
-    /// Figma: every control in the bar is a 40pt circle.
-    private let iconButtonSize: CGFloat = 40
-    private let glyphSize: CGFloat = 22          // icon-size: not user text
+    /// Capsule height — a 64pt well around 48pt trailing controls, not a button.
+    private let pillHeight: CGFloat = AppHeaderMetrics.composerMinHeight
+    /// Every control in the bar is a 48pt circle, matching product glass chrome.
+    private let iconButtonSize: CGFloat = AppHeaderMetrics.controlSize
+    private var glyphFont: Font { AppHeaderMetrics.controlSymbolFont }
     /// Figma 431:5946 — attachment thumbs inside the glass.
     private let photoThumbHeight: CGFloat = 112
     private static let maxAttachments = 3
@@ -288,18 +288,18 @@ struct ChatInputField: View {
     }
 
     /// The + / field / trailing-controls row. Figma's input row is always the
-    /// 64pt bar (`py-12` around 40pt circles), whether or not thumbs sit above.
+    /// 64pt well (`8pt` inset around 48pt circles), whether or not thumbs sit above.
     private var inputRow: some View {
-        // `.top`, not the default `.center`. At rest every child is 40pt inside a
-        // 64pt bar, so there is no slack and the two alignments are identical —
-        // the resting spacing is untouched. Once the field wraps, though, centre
+        // `.top`, not the default `.center`. At rest every child is 48pt inside a
+        // 64pt bar, so there is 8pt of air — the resting spacing is untouched.
+        // Once the field wraps, though, centre
         // alignment drifts the controls down to the middle of a tall bar, away
         // from the line being typed. Top-aligning pins them beside the first
         // line, which is where the eye already is.
         HStack(alignment: .top, spacing: 8) {
             leadingContent
 
-            // Trailing controls. Both are 40pt circles in every state; only the
+            // Trailing controls. Both are 48pt circles in every state; only the
             // glyph and the fill change, so the two slots stay put as the field
             // morphs instead of sliding around.
             HStack(alignment: .top, spacing: 8) {
@@ -307,7 +307,7 @@ struct ChatInputField: View {
                 trailingPrimaryButton
             }
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .frame(minHeight: pillHeight)
         .frame(maxWidth: .infinity)
     }
@@ -409,7 +409,7 @@ struct ChatInputField: View {
             matching: .images
         ) {
             Image(systemName: "plus")
-                .font(.system(size: glyphSize, weight: .medium)) // icon-size: not user text
+                .font(glyphFont)
                 .foregroundStyle(theme.foreground)
                 .frame(width: iconButtonSize, height: iconButtonSize)
                 .contentShape(Circle())
@@ -457,7 +457,7 @@ struct ChatInputField: View {
             // mic.slash was worse still: it now reads as discard, which this no
             // longer does.
             Image(systemName: recording ? "keyboard" : "mic")
-                .font(.system(size: glyphSize, weight: .medium)) // icon-size: not user text
+                .font(glyphFont)
                 .foregroundStyle(theme.foreground)
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: iconButtonSize, height: iconButtonSize)
@@ -496,7 +496,7 @@ struct ChatInputField: View {
             onNarrate?()
         } label: {
             Image(systemName: "waveform")
-                .font(.system(size: glyphSize, weight: .semibold)) // icon-size: not user text
+                .font(glyphFont)
                 // theme.foreground is gray900 (#1C2329, Figma's exact fill) in
                 // light and gray50 in dark, so the button inverts correctly
                 // instead of staying a near-black disc on a dark background.
@@ -513,7 +513,7 @@ struct ChatInputField: View {
     private var sendButton: some View {
         Button(action: sendMessage) {
             Image(systemName: "arrow.up")
-                .font(.system(size: glyphSize, weight: .bold)) // icon-size: not user text
+                .font(glyphFont.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(width: iconButtonSize, height: iconButtonSize)
                 .background(
@@ -538,13 +538,13 @@ struct ChatInputField: View {
                     // `stopRecording()` removes the audio tap, so the waveform
                     // goes flat for up to 1.8s while the final transcript
                     // resolves. Without a cue here there'd be nothing at all —
-                    // this fills the same 40pt circle, so nothing moves.
+                    // this fills the same 48pt circle, so nothing moves.
                     ProgressView()
                         .progressViewStyle(.circular)
                         .tint(.white)
                 } else {
                     Image(systemName: "arrow.up")
-                        .font(.system(size: glyphSize, weight: .bold)) // icon-size: not user text
+                        .font(glyphFont.weight(.bold))
                         .foregroundStyle(.white)
                 }
             }

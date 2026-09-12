@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Hex helpers
 extension Color {
@@ -64,11 +65,11 @@ extension Color {
 /// brown used for filled buttons. Kept under the name `GrayScale` because
 /// ~40 call sites depend on it.
 struct GrayScale {
-    /// Figma `neutral/50`. Journal canvas (`theme.secondaryBackground`) and
-    /// the top of the user-bubble wash.
-    static let gray50  = Color(hex: "#FAFAFA")
+    /// Figma `neutral/50`. First gray step under white — JournalCard's
+    /// default fill on the white journal canvas.
+    static let gray50  = Color(hex: "#FCFCFC")
     static let gray100 = Color(hex: "#F5F5F5") // Figma `neutral/100`
-    /// Figma `neutral/150` — JournalCard fill, one step under `gray100`.
+    /// Figma `neutral/150`.
     static let gray150 = Color(hex: "#EEEEEE")
     static let gray200 = Color(hex: "#E5E5E5") // border
     static let gray300 = Color(hex: "#D4D4D4") // border-strong
@@ -135,11 +136,12 @@ struct BrandColors {
     static let surfaceDark = Color(hex: "#111111")
 }
 
-/// Base colors - pure white and black
+/// Base colors — locked to sRGB so light-mode canvases are `#FFFFFF`, not
+/// a Display-P3 or template white that can read as gray.
 struct BaseColors {
-    static let white = Color(hex: "#FFFFFF")
+    static let white = Color(uiColor: UIColor(red: 1, green: 1, blue: 1, alpha: 1))
     static let offWhite = Color(hex: "#EFEFEF")
-    static let black = Color(hex: "#000000")
+    static let black = Color(uiColor: UIColor(red: 0, green: 0, blue: 0, alpha: 1))
 }
 
 // MARK: - Theme
@@ -172,7 +174,7 @@ struct Theme {
 
     // Color palette (semantic)
     let background: Color
-    /// Journal-only page canvas — the lightest gray surface step beneath cards.
+    /// Secondary surface (cards, wells). Light is `gray50`; not the page canvas.
     let secondaryBackground: Color
     let foreground: Color
     let card: Color
@@ -277,6 +279,7 @@ struct Theme {
     // MARK: - Palettes
 
     static let light = Theme(
+        // Light-mode page canvas is sRGB `#FFFFFF` (`BaseColors.white`).
         background: BaseColors.white,
         secondaryBackground: GrayScale.gray50,
         foreground: BaseColors.black,
@@ -308,7 +311,7 @@ struct Theme {
         chart4: Color(hex: "#FFB900"),
         chart5: Color(hex: "#FE9A00"),
 
-        journalCardFill: GrayScale.gray150,
+        journalCardFill: GrayScale.gray50,
         journalCardGradientStart: GrayScale.gray100,
         journalCardGradientEnd: GrayScale.gray150,
         journalCardChipBackground: WarmNeutral.w100,
@@ -386,7 +389,7 @@ struct Theme {
         // Derived from the dark ramp: `#1A1A1A` is `cardBackground`, `#2A2A2A`
         // is `border`, `#A3A3A3` is `mutedForeground`. `#141414` is the one new
         // value — it reproduces Figma's downward darkening while staying
-        // clearly above the `#0A0A0A` journal canvas.
+        // clearly above the black journal canvas.
         journalCardFill: Color(hex: "#141414"),
         journalCardGradientStart: Color(hex: "#1A1A1A"),
         journalCardGradientEnd: Color(hex: "#141414"),

@@ -118,18 +118,16 @@ public struct ChatSummarySheet: View {
                         .tint(BaseColors.white)
                 } else {
                     Image(systemName: "square.and.pencil")
+                        .font(AppHeaderMetrics.controlSymbolFont)
                 }
                 Text(isSummarizing ? "Generating..." : "Summarize Chat")
-                    .font(type.body1Bold)
+                    .font(type.button)
             }
-            .frame(minHeight: AppHeaderMetrics.controlSize)
             .frame(maxWidth: .infinity)
             .foregroundStyle(BaseColors.white)
-            .glassEffect(
-                .regular.tint(BaseColors.black.opacity(Self.primaryGlassTintOpacity)),
-                in: .capsule
+            .mementoGlassButtonChrome(
+                .regular.tint(BaseColors.black.opacity(Self.primaryGlassTintOpacity))
             )
-            .contentShape(Capsule())
         }
         .buttonStyle(PrimaryButtonPressStyle())
         .disabled(isSummarizing)
@@ -143,12 +141,10 @@ public struct ChatSummarySheet: View {
             dismiss()
         } label: {
             Text("Cancel")
-                .font(type.body1Bold)
-                .frame(minHeight: AppHeaderMetrics.controlSize)
+                .font(type.button)
                 .frame(maxWidth: .infinity)
                 .foregroundStyle(theme.foreground)
-                .glassEffect(.regular, in: .capsule)
-                .contentShape(Capsule())
+                .mementoGlassButtonChrome()
         }
         .buttonStyle(PrimaryButtonPressStyle())
         .disabled(isSummarizing)

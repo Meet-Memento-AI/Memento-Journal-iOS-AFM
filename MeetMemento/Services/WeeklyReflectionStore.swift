@@ -71,7 +71,7 @@ enum WeeklyReflectionStore {
         observation: String = "",
         citationIDs: [UUID] = [],
         hasNothingToSay: Bool = false,
-        zoneRaw: String = TrustZone.z0Device.identifier,
+        zoneRaw: String = "z0.device",
         promptVersion: String = "weekly@1"
     ) {
         UserDefaults.standard.set(body, forKey: bodyKey)

@@ -9,8 +9,8 @@
 import SwiftUI
 import UIKit
 
-/// Footer swap while Chat is narrating. Same 16pt page margin and 64pt
-/// circles as the typing composer.
+/// Footer swap while Chat is narrating. Same 16pt page margin and 56pt
+/// floating glass circles as the Journal FAB.
 struct NarrationFooter: View {
     @ObservedObject var coordinator: NarrationCoordinator
     var onExit: () -> Void
@@ -52,7 +52,7 @@ struct NarrationFooter: View {
                     .foregroundStyle(transcriptColor)
                     .lineLimit(4)
                     .truncationMode(.head)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: AppHeaderMetrics.footerButtonSize, alignment: .leading)
                     .padding(16)
                     .glassEffect(
                         .regular.interactive(),
@@ -83,7 +83,6 @@ struct NarrationFooter: View {
         HStack(spacing: 8) {
             NarrationCircleButton(
                 systemName: "mic",
-                size: AppHeaderMetrics.footerButtonSize,
                 shadow: buttonShadow,
                 accessibilityLabel: coordinator.phase == .speaking ? "Interrupt" : "Microphone",
                 accessibilityHint: coordinator.phase == .speaking
@@ -101,7 +100,6 @@ struct NarrationFooter: View {
 
             NarrationCircleButton(
                 systemName: "xmark",
-                size: AppHeaderMetrics.footerButtonSize,
                 shadow: buttonShadow,
                 accessibilityLabel: "End voice conversation",
                 accessibilityHint: "Double-tap to return to typing"
@@ -113,11 +111,10 @@ struct NarrationFooter: View {
     }
 }
 
-/// Figma: 64pt translucent circle, soft foreground@8% shadow, 24pt glyph.
+/// 56pt glass circle, soft foreground@8% shadow. Glyph matches header chrome.
 /// Glass on the glyph's container, same reasoning as `HeaderIconButton`.
 private struct NarrationCircleButton: View {
     let systemName: String
-    let size: CGFloat
     let shadow: Color
     let accessibilityLabel: String
     var accessibilityHint: String?
@@ -131,12 +128,13 @@ private struct NarrationCircleButton: View {
             action()
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: size * 0.375, weight: .medium))
+                .font(AppHeaderMetrics.controlSymbolFont)
                 .foregroundStyle(theme.foreground)
-                .frame(width: size, height: size)
-                .glassEffect(.regular.interactive(), in: .circle)
+                .mementoFooterGlassButtonChrome(
+                    .regular.interactive(),
+                    shape: .circle
+                )
                 .shadow(color: shadow, radius: 16, y: 4)
-                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

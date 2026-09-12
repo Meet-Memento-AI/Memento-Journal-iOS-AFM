@@ -2,9 +2,9 @@
 //  JournalPhotoBackdrop.swift
 //  MeetMemento
 //
-//  Shared treated-photo fill for JournalCard and the photo-backed editor.
-//  Approximates Figma shader "Journal backdrop" (786:2721 / 818:4087):
-//  blur, saturation toward luma, mix toward a dark scrim.
+//  Treated-photo fill for JournalCard. Approximates Figma shader "Journal
+//  backdrop" (786:2721): blur and saturation toward luma. Resting scrim is 0;
+//  type on the card carries a light drop shadow instead.
 //
 
 import SwiftUI
@@ -19,45 +19,36 @@ struct JournalPhotoBackdrop: View {
 
     var body: some View {
         let params = resolved
+        let blur = min(params.blurStrength, JournalBackdropShader.maxBlur)
         image
             .resizable()
             .scaledToFill()
-            .scaleEffect(fillScale(for: params.blurStrength))
-            .blur(radius: params.blurStrength)
+            .scaleEffect(fillScale(for: blur))
+            .blur(radius: blur)
+            .brightness(blur > 0 ? JournalBackdropShader.treatedBrightness : 0)
             .saturation(params.saturation)
-            .overlay(JournalBackdropShader.scrimColor.opacity(params.scrimOpacity))
+            .overlay {
+                if params.scrimOpacity > 0.001 {
+                    JournalBackdropShader.scrimColor.opacity(params.scrimOpacity)
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
 
-    /// Radius 100 needs more overflow than the card's 12pt treatment or
-    /// the kernel hard-clips at the frame edge.
+    /// Overflow so the clamped kernel does not hard-clip at the frame edge.
     private func fillScale(for blur: CGFloat) -> CGFloat {
-        if blur >= 50 { return 1.4 }
-        if blur > 0 { return 1.12 }
-        return 1
+        blur > 0 ? 1.12 : 1
     }
 
     private var resolved: JournalBackdropParameters {
-        let increaseContrast = UIAccessibility.isDarkerSystemColorsEnabled
-        if let sample {
-            return JournalBackdropContrast.parameters(
-                sample: sample,
-                base: defaults,
-                increaseContrast: increaseContrast,
-                reduceTransparency: reduceTransparency
-            )
-        }
-        var params = defaults
-        if reduceTransparency { params.blurStrength = 0 }
-        if increaseContrast {
-            params.scrimOpacity = max(
-                params.scrimOpacity,
-                JournalBackdropShader.increaseContrastFloor
-            )
-        }
-        return params
+        JournalBackdropContrast.resolved(
+            sample: sample,
+            base: defaults,
+            increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled,
+            reduceTransparency: reduceTransparency
+        )
     }
 }

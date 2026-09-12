@@ -70,6 +70,11 @@ final class SpeechService: ObservableObject {
     }
 
     private var durationTimer: Timer?
+    /// Start is long — permission, asset inventory, analyzer bring-up — and
+    /// `isRecording` stays false throughout it. Without this a second tap in
+    /// that window ran a second `startRecording` that tore down the first
+    /// one's analyzer mid-flight and left two duration timers running.
+    private var isStarting = false
     private var finalizationTimeoutTask: Task<Void, Never>?
     private var smoothedLevel: Float = 0
     /// When true, recognition callbacks are ignored (cancel path / teardown).
@@ -119,6 +124,19 @@ final class SpeechService: ObservableObject {
         return 0
     }
 
+    /// VAD arrives at 20 Hz and is usually the same value it was last hop.
+    /// `@Published` fires on every set rather than on every *change*, so
+    /// assigning unconditionally invalidated every observer of the service
+    /// twenty times a second to say nothing had happened.
+    private func updateSpeechDetected(_ present: Bool) {
+        if speechDetected != present {
+            speechDetected = present
+        }
+        #if MEMENTO_AI
+        ConversationAudioController.shared.handleVoiceActivity(present)
+        #endif
+    }
+
     private func updateAudioLevel(_ rms: Float) {
         smoothedLevel = smoothedLevel * 0.3 + rms * 0.7
         audioLevel = smoothedLevel
@@ -129,6 +147,10 @@ final class SpeechService: ObservableObject {
                     silenceStartTime = Date()
                 } else if let start = silenceStartTime,
                           Date().timeIntervalSince(start) >= silenceTimeout {
+                    // Clear first: this runs per audio buffer, and leaving the
+                    // start time set queued a fresh stop Task on every one of
+                    // them until the teardown finally landed.
+                    silenceStartTime = nil
                     Task { @MainActor in
                         await self.stopRecording()
                     }
@@ -174,6 +196,10 @@ final class SpeechService: ObservableObject {
     // MARK: - Recording
 
     func startRecording(ownerId: String, style: TranscriptionStyle = .dictation) async throws {
+        guard !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
+
         if analyzerEngine.isCapturePaused, activeStyle == style {
             do {
                 try await resumeCapture(ownerId: ownerId, style: style)
@@ -258,8 +284,7 @@ final class SpeechService: ObservableObject {
                 },
                 onSpeechDetected: { [weak self] present in
                     Task { @MainActor in
-                        self?.speechDetected = present
-                        ConversationAudioController.shared.handleVoiceActivity(present)
+                        self?.updateSpeechDetected(present)
                     }
                 }
             )
@@ -274,6 +299,7 @@ final class SpeechService: ObservableObject {
         isProcessing = true
         isRecording = true
         let startTime = Date()
+        durationTimer?.invalidate()
         durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isRecording else { return }
@@ -312,8 +338,7 @@ final class SpeechService: ObservableObject {
             },
             onSpeechDetected: { [weak self] present in
                 Task { @MainActor in
-                    self?.speechDetected = present
-                    ConversationAudioController.shared.handleVoiceActivity(present)
+                    self?.updateSpeechDetected(present)
                 }
             }
         )
