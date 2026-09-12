@@ -109,7 +109,9 @@ struct JournalCard: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             dateChip
             Text(title)
-                .typographyH4()
+                // Same 18pt semibold prompt face as `AISuggestionCard` so
+                // journal tiles and chat starters read as one family.
+                .font(type.promptTitle)
                 .foregroundStyle(titleColor)
                 // Button injects `lineLimit(1)` into its label environment;
                 // override so the card grows with the full title instead of
@@ -123,9 +125,10 @@ struct JournalCard: View {
     }
 
     /// Date as a 16pt-radius chip. No calendar glyph — Figma 804:3342 is type only.
+    /// Chip type matches `AISuggestionCard`'s theme pill (`body2Medium`).
     private var dateChip: some View {
         Text(formattedDate)
-            .font(type.body1Bold)
+            .font(type.body2Medium)
             .foregroundStyle(theme.journalCardChipForeground)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
