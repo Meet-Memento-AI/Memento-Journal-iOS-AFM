@@ -1,9 +1,11 @@
 # docs/app-store/ — App Store Connect submission and review readiness
 
 **Compiled 2026-08-07** against Apple's published documentation; **1.x submit
-path updated 2026-08-17.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
-on-device Foundation Models, "Data Not Collected" privacy label.** iOS 27 GA,
-SwiftData/CloudKit, PCC, and RevenueCat are **2.0** and do not block this submit.
+path updated 2026-09-12.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
+on-device Foundation Models.** The privacy label is **not** “Data Not Collected”:
+opt-in quality feedback is declared (spec 042); the journal itself is not
+collected; CloudKit, when the user is signed into iCloud, is a private replica
+we cannot read. PCC and RevenueCat are **2.0** and do not block this submit.
 Account Holder clicks live in [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md).
 
 This folder is the **single source of truth for everything Apple requires before

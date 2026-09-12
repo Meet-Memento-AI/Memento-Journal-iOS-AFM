@@ -29,8 +29,8 @@ public struct SetupPinView: View {
     /// Subtitle explaining purpose
     private var subtitleText: String {
         isFaceIDBackup
-            ? "This PIN unlocks your app if Face ID fails and encrypts your journals locally."
-            : "This PIN will protect and encrypt your private journals."
+            ? "This PIN unlocks your app if Face ID fails and protects your journals."
+            : "This PIN will unlock and protect your private journals."
     }
 
     public init(

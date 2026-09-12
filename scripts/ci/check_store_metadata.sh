@@ -7,7 +7,7 @@
 #
 #   1. ITSAppUsesNonExemptEncryption present  -> otherwise every upload prompts
 #      for export compliance (spec 002 R1).
-#   2. All three usage-description keys present and non-boilerplate -> Apple's
+#   2. Usage-description keys present and non-boilerplate -> Apple's
 #      own common-rejection #6 is unclear data-access requests.
 #   3. Usage strings defined EXACTLY ONCE -> GENERATE_INFOPLIST_FILE = YES merges
 #      Info.plist with INFOPLIST_KEY_* build settings and the winner is
@@ -48,6 +48,8 @@ REQUIRED_KEYS=(
   NSFaceIDUsageDescription
   NSMicrophoneUsageDescription
   NSSpeechRecognitionUsageDescription
+  NSCameraUsageDescription
+  NSLocationWhenInUseUsageDescription
 )
 
 for key in "${REQUIRED_KEYS[@]}"; do

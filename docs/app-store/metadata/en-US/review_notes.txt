@@ -1,92 +1,84 @@
 REVIEW NOTES — Memento 1.0
 
-1. NO ACCOUNT REQUIRED. NO DEMO CREDENTIALS NEEDED.
+1. NO ACCOUNT. NO DEMO CREDENTIALS.
 
-Memento has no sign-in of any kind — no account system, no server, no login
-screen. Every feature is reachable immediately after installing. The Sign-In
-Information fields are blank for this reason, not by oversight.
+No sign-in, no account, no login screen. Every feature is reachable after
+install. Sign-In Information fields are blank for this reason, not by
+oversight.
 
 Onboarding offers an OPTIONAL app lock (Face ID or 4-digit PIN), skippable
-via "Not now". If enabled, the lock screen offers a device-passcode fallback.
-Do not look for a PIN in these notes; the fallback is the recovery path.
-
+via "Skip for now". If enabled, the lock screen offers a device-passcode
+fallback. Do not look for a PIN in these notes; that fallback is the recovery
+path.
 
 2. HOW TO REACH THE CORE EXPERIENCE
 
-Memento's AI companion draws on what has been written, and a fresh install has
-no entries yet. To see it working:
+The AI companion draws on what has been written; a fresh install has none.
 
   a. Complete onboarding (~20 seconds; skip the app lock).
-  b. On Journal, tap the initials button in the top-left (VoiceOver: "Menu")
-     to open Profile, then open Settings. Tap "Load Sample Entries". This
-     adds a fictional journal so the companion has something to draw from.
-     Reversible from the same row; it never touches real entries.
-  c. Return to Journal. Swipe left, or tap the chat icon in the top-right,
-     and ask a question, e.g. "what have I been writing about?". The reply
-     is grounded in those entries and cites the ones it drew from — tap a
-     citation to see the source.
+  b. Journal → initials button top-left (VoiceOver: "Menu") → Profile →
+     Settings → "Load Sample Entries". Adds a fictional journal. Reversible
+     from the same row; never touches real entries.
+  c. Return to Journal. Swipe left, or tap the chat icon top-right, and ask
+     e.g. "what have I been writing about?". Replies cite sources; tap a
+     citation to open the entry.
 
-To test capture: tap the new-entry button, grant microphone and speech
-recognition access, and speak. The text appears as you talk.
+Capture: new-entry button, grant microphone and speech recognition, speak.
+Photos: in a new entry, camera or picker (optional).
+Location: a new entry may prompt for Location When In Use to attach a place
+name. Coordinates are not stored. Denying location still saves the entry.
+Export: Settings → "Export Your Journal" (Markdown + JSON; samples excluded).
 
-To test photos: in a new entry, add a photo from the camera or the picker.
-Camera access is optional and only used to attach a picture to an entry.
-
-To test export: Settings → "Export Your Journal" shares the user's entries
-as Markdown and JSON files (sample entries are excluded from exports).
-
-NOTE: The AI companion uses Apple's on-device Foundation Models and requires
-a device with Apple Intelligence enabled. On other devices the app degrades
-gracefully — capture, timeline, search, and export all still work.
-
+NOTE: The companion uses Apple's on-device Foundation Models and needs Apple
+Intelligence. On other devices, capture, timeline, search, and export still
+work.
 
 3. HOW DATA IS PROCESSED (Guidelines 5.1.1, 5.1.2)
 
-No account, no analytics SDK, no third-party AI service, no server of ours.
+No account. No analytics SDK. No third-party AI.
 
-Entries are stored only on the device, encrypted at rest with a key held in
-the device Keychain. There is no cloud sync of any kind in this version.
+Entries are encrypted at rest with a Keychain key. The device is the system
+of record. If the user is signed into iCloud, a private CloudKit replica can
+appear on their other Apple devices. We cannot read that database. There is
+no Memento server copy of the journal.
 
-Text generation runs on device via Apple's Foundation Models framework. No
-user content is sent to any non-Apple service. Speech is transcribed with
-Apple's speech recognition framework with requiresOnDeviceRecognition set to
-true, so audio is not sent off the device for transcription.
+Text generation runs on device via Apple's Foundation Models. Speech uses
+Apple's SpeechAnalyzer / on-device recognition; audio is not sent off-device
+for transcription.
 
-Our privacy policy describes all of this and is linked from Settings → About
-in the app as well as from the product page.
+Settings includes an off-by-default toggle, "Share Quality Feedback". When
+on, volunteered ratings and optional report text can be sent to our
+verification database (hosted on Supabase). The question and answer leave
+the device only when the user files a Report and chooses to include them.
+Journal entries and chat history are not part of that path.
 
+Privacy policy: Settings → About, and on the product page.
 
 4. PERMISSIONS
 
-  Microphone          recording voice entries, only while actively recording
-  Speech Recognition  turning those recordings into journal text (on-device
-                      recognition required)
-  Camera              optional photo attached to an entry
-  Face ID             unlocking the optional app lock; LocalAuthentication
-                      only, never used for identification
+  Microphone            voice entries, only while recording
+  Speech Recognition    journal text (on-device)
+  Camera                optional photo on an entry
+  Location When In Use  optional place name; coordinates not stored
+  Face ID               optional app lock; LocalAuthentication only,
+                        never used for identification
 
-No location, contacts, calendar, or tracking permission is requested, and
-the app contains no tracking functionality.
-
+No contacts, calendar, or tracking permission. No tracking.
 
 5. AGE RATING AND CONTENT
 
-A private, single-user journal. No content sharing, messaging, social
-features, in-app web browsing, or advertising.
+Private single-user journal. No sharing, messaging, social features, in-app
+browsing, or ads.
 
-The AI companion converses about what the user wrote. The app does not
-diagnose, offer treatment information, or present itself as a medical
-product. Where an entry suggests possible crisis, the companion shows a
-static support-resource card rather than generating advice.
-
+The companion talks about what the user wrote. It does not diagnose, offer
+treatment, or present as a medical product. If an entry suggests possible
+crisis, it shows a static support-resource card rather than advice.
 
 6. WHAT IS IN THIS VERSION
 
-First release. Voice and text capture with on-device transcription; photos
-on entries; searchable timeline; an AI companion that answers questions from
-the user's own entries with citations; Markdown and JSON export; optional
-Face ID or PIN lock.
-
+Voice and text capture; photos; optional place name; searchable timeline; AI
+companion with citations; Markdown/JSON export; optional Face ID or PIN;
+optional iCloud private replica; opt-in quality-feedback sharing.
 
 7. CONTACT
 

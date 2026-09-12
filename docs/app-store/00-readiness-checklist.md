@@ -77,7 +77,7 @@ reject us on.
 | C5 | Submission noise removed: `Configuration.storekit` with placeholder product IDs `12345678`/`123456789`; dead `SubscriptionPlan.swift` with Supabase-era `CodingKeys`; linked-but-unused `AuthenticationServices.framework`; unhandled `memento://` URL scheme; orphan `GoogleIcon.imageset`. | agent | ✅ **Closed 2026-08-11** — all five deleted (storekit + navigator refs + `membershipExceptions` entries cleaned from pbxproj; `CFBundleURLTypes` removed from Info.plist); `check_archive_hygiene.sh` now reports "no .storekit configuration in the project" |
 | C6 | Release bundle contains only shipping resources — no xcconfigs, no `.storekit`, no internal docs. | agent | ✅ **Re-verified on the 2026-08-17 archive product** — no `.xcconfig`, `.storekit`, or `.md` under `MeetMemento.app`. Still guarded by `check_archive_hygiene.sh`. |
 | C7 | Usage-description strings are specific and defined exactly once. Apple's own common-rejection #6 is vague purpose strings. | agent | ✅ Present in `Info.plist`; wording review in `02` |
-| C8 | App icon is 1024×1024 PNG, opaque, no alpha, square corners. | agent | ✅ `AppIcon.png` (spec 002 Task 2); **1.x skip recorded 2026-08-17** — no dark/tinted variants |
+| C8 | App icon is 1024×1024 PNG, opaque, no alpha, square corners. | agent | ✅ **Flattened 2026-09-12** — `AppIcon-iOS.png` 1024×1024, `sips -g hasAlpha` → no. **1.x skip** — no dark/tinted variants |
 | C9 | A reviewer opening the app for the first time can reach the core experience. **>40% of unresolved App Review issues are Guideline 2.1**, and the reviewer will open an empty journal with no meeting to record. | agent | ✅ **Decision recorded 2026-08-11**: review-notes-only (no product change). `SampleContentService` + the Settings "Load Sample Entries" row are the path; `review_notes.txt` §2 walks the reviewer through it step by step |
 
 ### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
@@ -125,8 +125,8 @@ export keep working. **That is `DEC-001` Option A, already implemented**; see
 | D3 | Support email standardized on **`contact@sebastianmendo.design`** (the developer-account address, already verified with Apple). Three addresses are currently in circulation. | agent + ☐ user | ✅ **Agent half closed 2026-08-11** — in-app sites now read `Constants.Legal.supportEmail`; `docs/{privacy,terms,support}.html` collapsed to the one address. Remaining: confirm ASC fields use it |
 | D4 | Categories: primary **Lifestyle**. Do **not** choose Health & Fitness or Medical — see `01` on 1.4.1 / 5.1.1(ix). | ☐ user | ✅ In project (`public.app-category.lifestyle`); confirm in ASC |
 | D5 | Copyright string, content rights declaration, licence agreement. | ☐ user | ☐ Open — values in `02` |
-| D6 | App Privacy nutrition label set to the target and **matching `PrivacyInfo.xcprivacy` and the privacy policy**. The label is editable without a build, which is exactly how it drifted last time. | ☐ user | ☐ Open — `03` |
-| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | ☐ Open — paste `metadata/en-US/review_notes.txt` (updated 2026-08-17 for Profile sheet + Chat pager). Click path in `13`. |
+| D6 | App Privacy nutrition label set to the spec 042 target and **matching `PrivacyInfo.xcprivacy` and the privacy policy**. Tracking = No; Other User Content, Other Data Types, User ID (linked, not tracking; App Functionality + Analytics). Journal is not collected. CloudKit private DB is the user’s iCloud. **Not** Data Not Collected. The label is editable without a build, which is exactly how it drifted last time. | ☐ user | ☐ Open — `03`, click path in `13` |
+| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | ☐ Open — paste `metadata/en-US/review_notes.txt` (updated 2026-09-12 for location, iCloud private replica, opt-in feedback). Click path in `13`. |
 | D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | ☐ Open — paste `metadata/en-US/` via `13` |
 | D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | ☐ user | ☐ Open — shot list in `13` |
 | D10 | Price and **tax category** — both required before submission. | ☐ user | 1.x has **no IAP**. Set Free, or a paid-download tier after A2. Subscription `DEC-004` is 2.0. See `13`. |
@@ -158,7 +158,7 @@ Each was verified to **fail on a planted violation** before being wired.
 
 | Gate | Enforces | Mode |
 |---|---|---|
-| `scripts/ci/check_privacy_manifest.sh` | Every required-reason API declared in `PrivacyInfo.xcprivacy` has a call site, **and every call site is declared**. Plus `NSPrivacyTracking = false`, empty `NSPrivacyCollectedDataTypes`, and no `NSUserTrackingUsageDescription` anywhere | Blocking |
+| `scripts/ci/check_privacy_manifest.sh` | Every required-reason API declared in `PrivacyInfo.xcprivacy` has a call site, **and every call site is declared**. Plus `NSPrivacyTracking = false`, spec 042 collected types when the verification client is present, and no `NSUserTrackingUsageDescription` anywhere | Blocking |
 | `scripts/ci/check_store_metadata.sh` | `ITSAppUsesNonExemptEncryption` present; usage strings present, specific, and defined exactly once; no `com.testing.*` bundle ids; build number above the recorded floor | Blocking |
 | `scripts/ci/check_archive_hygiene.sh` | Every doc, config, and fixture under `MeetMemento/` is individually excluded from the target. Placeholder StoreKit product ids reported | Blocking; StoreKit half **report-only** until `DEC-004` |
 | `scripts/ci/check_asc_metadata.sh` | Field character/byte limits; `REQ-POS-001`; no pricing or accuracy claims; no clinical vocabulary | Blocking |
@@ -180,10 +180,16 @@ Connect privacy label matches the manifest. Those need evidence, not a script.
    and the App Store Connect URLs point at that host. **(B1, B2, A6)** —
    `scripts/ci/check_live_legal_urls.sh`
 2. The published privacy policy describes the app that actually exists — no
-   OpenAI, no Google, no Supabase — and matches the **1.x on-device** binary
-   (do **not** mention Private Cloud Compute until Z1 ships). **(B2, B4)**
+   OpenAI, no Google AI — and matches the **1.x** binary: device is the journal
+   source of truth, optional iCloud private replica, opt-in Share Quality
+   Feedback hosted on Supabase (spec 042). Do **not** mention Private Cloud
+   Compute until Z1 ships. **(B2, B4)**
 3. `PrivacyInfo.xcprivacy`, the App Store Connect privacy label, and the privacy
-   policy **all say the same thing** (Data Not Collected). **(B3, D6)**
+   policy **all say the same thing**: Tracking = No; declare Other User Content,
+   Other Data Types, and User ID (linked, not tracking; App Functionality +
+   Analytics) for opt-in feedback. Journal content is not collected. CloudKit
+   private DB is the user’s iCloud, not our collection. **Do not** submit
+   Data Not Collected. **(B3, D6)**
 4. `xcodebuild archive` → `-exportArchive` → `altool --validate-app` completes
    with **zero ITMS errors**. **(C1–C6, `07`)**
 5. A reviewer who launches the app cold can reach capture → transcription →

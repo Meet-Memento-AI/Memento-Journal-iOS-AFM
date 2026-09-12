@@ -59,7 +59,7 @@ public struct FaceIDView: View {
                         .font(type.h3)
                         .foregroundStyle(theme.foreground)
 
-                    Text("Use Face ID to encrypt your journals")
+                    Text("Use Face ID to unlock and protect your journals")
                         .font(type.body1Medium)
                         .foregroundStyle(theme.mutedForeground)
                 }

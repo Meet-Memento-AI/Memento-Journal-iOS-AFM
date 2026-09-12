@@ -20,11 +20,20 @@ Export — Everything you have written, in Markdown and JSON, whenever you want,
 
 HOW IT HANDLES YOUR WRITING
 
-No account. No analytics. No third-party AI. Your words are processed on your iPhone with Apple's on-device models.
+No account. No analytics. No third-party AI. Companion replies are generated
+on your iPhone with Apple's on-device models.
 
-Entries are stored only on your device, encrypted at rest. There is no server holding your journal, because there is no account to attach one to. We could not read your entries if we wanted to — they are not where we are.
+Your journal is encrypted at rest on this device. If you are signed into
+iCloud, a private replica can appear on your other Apple devices — that
+database is yours, and we cannot read it. There is no Memento server copy of
+your journal.
 
-You can lock the app with Face ID or a passcode. You can turn the companion off entirely and use Memento as a plain, quiet journal.
+Share Quality Feedback is off by default. If you turn it on, volunteered
+ratings and optional report text can be sent so we can review answer quality.
+Journal entries and chat history are not part of that path.
+
+You can lock the app with Face ID or a passcode. You can turn the companion off
+entirely and use Memento as a plain, quiet journal.
 
 
 WHAT IT WILL NOT DO
