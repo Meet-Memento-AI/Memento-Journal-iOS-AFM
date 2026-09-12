@@ -65,10 +65,11 @@ extension Color {
 /// brown used for filled buttons. Kept under the name `GrayScale` because
 /// ~40 call sites depend on it.
 struct GrayScale {
-    /// Figma `neutral/50`. First gray step under white — JournalCard's
-    /// default fill on the white journal canvas.
+    /// Figma `neutral/50`. First gray step under white — wells and chrome,
+    /// not the journal card plate.
     static let gray50  = Color(hex: "#FCFCFC")
-    static let gray100 = Color(hex: "#F5F5F5") // Figma `neutral/100`
+    /// Figma `neutral/100`. JournalCard's light fill on the white canvas.
+    static let gray100 = Color(hex: "#F7F7F7")
     /// Figma `neutral/150`.
     static let gray150 = Color(hex: "#EEEEEE")
     static let gray200 = Color(hex: "#E5E5E5") // border
@@ -174,7 +175,7 @@ struct Theme {
 
     // Color palette (semantic)
     let background: Color
-    /// Secondary surface (cards, wells). Light is `gray50`; not the page canvas.
+    /// Secondary surface (wells). Light is `gray50`; not the page canvas.
     let secondaryBackground: Color
     let foreground: Color
     let card: Color
@@ -311,7 +312,7 @@ struct Theme {
         chart4: Color(hex: "#FFB900"),
         chart5: Color(hex: "#FE9A00"),
 
-        journalCardFill: GrayScale.gray50,
+        journalCardFill: GrayScale.gray100,
         journalCardGradientStart: GrayScale.gray100,
         journalCardGradientEnd: GrayScale.gray150,
         journalCardChipBackground: WarmNeutral.w100,

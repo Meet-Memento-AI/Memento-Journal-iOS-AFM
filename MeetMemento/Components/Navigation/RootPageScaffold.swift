@@ -25,6 +25,8 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     /// Page fill behind content. Defaults to `theme.background` (`#FFFFFF`
     /// in light). Journal and Chat both use that canvas when there is no image.
     var pageBackground: Color? = nil
+    /// Optional full-bleed gradient. When set, it replaces `pageBackground`.
+    var pageFill: LinearGradient? = nil
     /// Chat-only: round the top- and bottom-leading corners of the page fill
     /// so Journal's canvas shows through the seam. The page is clipped to its
     /// bounds so nothing paints onto Journal. Header, footer, and content
@@ -44,6 +46,7 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     init(
         footerBottomPadding: CGFloat = 16,
         pageBackground: Color? = nil,
+        pageFill: LinearGradient? = nil,
         elevated: Bool = false,
         @ViewBuilder header: () -> Header,
         @ViewBuilder footer: () -> Footer,
@@ -52,6 +55,7 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     ) {
         self.footerBottomPadding = footerBottomPadding
         self.pageBackground = pageBackground
+        self.pageFill = pageFill
         self.elevated = elevated
         self.header = header()
         self.footer = footer()
@@ -65,8 +69,15 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
             : AppHeaderMetrics.windowBottom + footerBottomPadding
     }
 
-    private var resolvedBackground: Color {
-        pageBackground ?? theme.background
+    private var resolvedBackground: some View {
+        Group {
+            if let pageFill {
+                pageFill
+            } else {
+                pageBackground ?? theme.background
+            }
+        }
+        .ignoresSafeArea()
     }
 
     private var leadingSheetShape: UnevenRoundedRectangle {
@@ -82,7 +93,6 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
     var body: some View {
         ZStack(alignment: .bottom) {
             resolvedBackground
-                .ignoresSafeArea()
                 .clipLeadingSheet(elevated, shape: leadingSheetShape)
 
             content
@@ -151,6 +161,7 @@ extension RootPageScaffold where BackgroundOverlay == EmptyView {
     init(
         footerBottomPadding: CGFloat = 16,
         pageBackground: Color? = nil,
+        pageFill: LinearGradient? = nil,
         elevated: Bool = false,
         @ViewBuilder header: () -> Header,
         @ViewBuilder footer: () -> Footer,
@@ -159,6 +170,7 @@ extension RootPageScaffold where BackgroundOverlay == EmptyView {
         self.init(
             footerBottomPadding: footerBottomPadding,
             pageBackground: pageBackground,
+            pageFill: pageFill,
             elevated: elevated,
             header: header,
             footer: footer,

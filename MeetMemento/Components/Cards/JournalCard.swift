@@ -31,6 +31,7 @@ struct JournalCard: View {
     // MARK: - Environment
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         card
@@ -98,11 +99,13 @@ struct JournalCard: View {
     }
 
     private var plainCardBody: some View {
-        cardChrome {
-            contentStack(titleColor: theme.foreground)
-                .padding(Spacing.xl)
-                .background(theme.journalCardFill)
-        }
+        contentStack(titleColor: theme.foreground)
+            .padding(Spacing.xl)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            // `journalCardFill` is light `gray100` (`#F7F7F7`), not page white.
+            .background(theme.journalCardFill, in: cardShape)
+            .contentShape(cardShape)
+            .containerShape(cardShape)
     }
 
     /// Treated cover when pixels are ready; sample-color plate otherwise.
@@ -132,9 +135,8 @@ struct JournalCard: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             dateChip
             Text(title)
-                // Same 18pt semibold prompt face as `AISuggestionCard` so
-                // journal tiles and chat starters read as one family.
-                .font(type.promptTitle)
+                // One step above `promptTitle` (18pt): 20pt Figtree Semibold.
+                .font(type.h4Medium)
                 .photoCoverForeground(titleColor, shadowed: photoImage != nil)
                 // Button injects `lineLimit(1)` into its label environment;
                 // override so the card grows with the full title instead of
@@ -147,26 +149,36 @@ struct JournalCard: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    /// Date as native clear glass (hair of frost). Type only — Figma 804:3342
-    /// has no calendar glyph. Chip type matches `AISuggestionCard`'s theme pill.
+    /// Date as the same capsule as `AISuggestionCard`'s theme pill.
+    /// Type only — Figma 804:3342 has no calendar glyph.
     private var dateChip: some View {
         Text(formattedDate)
             .font(type.body2Medium)
-            .photoCoverForeground(dateChipForeground, shadowed: photoImage != nil)
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
-            .glassEffect(
-                .native(interactive: false),
-                in: .rect(cornerRadius: theme.radius.button, style: .continuous)
-            )
+            .foregroundStyle(dateChipForeground)
+            .lineLimit(1)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xxs)
+            .background(Capsule().fill(dateChipFill))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Journal entry date \(formattedDate)")
     }
 
-    /// White on a treated cover, same as editor chrome. Theme ink on the
-    /// flat canvas / photo placeholder, where white would vanish into frost.
+    private var dateChipFill: Color {
+        if photoImage != nil {
+            return BaseColors.white.opacity(0.08)
+        }
+        return colorScheme == .dark
+            ? theme.journalCardChipBackground
+            : PrimaryScale.primary200
+    }
+
     private var dateChipForeground: Color {
-        photoImage != nil ? BaseColors.white : theme.foreground
+        if photoImage != nil {
+            return BaseColors.white
+        }
+        return colorScheme == .dark
+            ? theme.journalCardChipForeground
+            : PrimaryScale.primary700
     }
 
     private var formattedDate: String {

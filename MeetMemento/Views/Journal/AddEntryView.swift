@@ -238,7 +238,18 @@ public struct AddEntryView: View {
         guard keyboardObserver.isKeyboardVisible else {
             return AppHeaderMetrics.windowBottom + AppHeaderMetrics.rowBottomPadding
         }
-        return keyboardObserver.keyboardHeight + AppHeaderMetrics.rowBottomPadding
+        return max(keyboardObserver.keyboardHeight - AppHeaderMetrics.windowBottom, 0)
+            + AppHeaderMetrics.rowBottomPadding
+    }
+
+    /// Scroll content sits this far above the physical bottom so the last
+    /// line of body text cannot crowd the footer FABs. Keyboard up: the
+    /// same 16pt `contentGap` as rest, just measured from the lifted chrome.
+    private var editorScrollBottomMargin: CGFloat {
+        guard !isViewingExisting else { return 0 }
+        return keyboardBottomPadding
+            + AppHeaderMetrics.footerButtonSize
+            + AppHeaderMetrics.contentGap
     }
 
     public var body: some View {
@@ -251,7 +262,6 @@ public struct AddEntryView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     titleField
                     bodyField
-                    editorBottomSpacer
                 }
                 .padding(.top, AppHeaderMetrics.headerClearance + Spacing.xxl)
                 .padding(.horizontal, AppHeaderMetrics.edgeInset)
@@ -260,6 +270,7 @@ public struct AddEntryView: View {
                 // jump. Chrome still springs via `modeTransition`.
                 .transaction(value: isViewingExisting) { $0.animation = nil }
             }
+            .contentMargins(.bottom, editorScrollBottomMargin, for: .scrollContent)
             .scrollDismissesKeyboard(.interactively)
             .scrollEdgeEffectHidden(true, for: .top)
             .scrollEdgeEffectHidden(true, for: .bottom)
@@ -465,14 +476,6 @@ public struct AddEntryView: View {
         )
     }
 
-    /// Reserves the bottom chrome band so body text can never crowd the FABs.
-    private var editorBottomSpacer: some View {
-        Spacer(minLength: AppHeaderMetrics.windowBottom
-               + AppHeaderMetrics.rowBottomPadding
-               + AppHeaderMetrics.footerButtonSize
-               + AppHeaderMetrics.contentGap)
-    }
-
     /// Footer chrome depends on mode:
     /// - Viewing an existing entry: nothing (lens lives in the header).
     /// - Editing an existing entry: mic + Capture.
@@ -639,7 +642,9 @@ public struct AddEntryView: View {
                 .tint(isViewingExisting ? .clear : titleForeground)
                 .focused($focusedField, equals: .body)
                 .scrollContentBackground(.hidden)
-                .scrollDisabled(isViewingExisting)
+                // Outer ScrollView owns scrolling so the caret stays above the
+                // footer inset instead of sitting flush against the FABs.
+                .scrollDisabled(true)
                 .background { FlushTextEditorInsets() }
                 .frame(minHeight: 300, alignment: .topLeading)
                 .allowsHitTesting(!isViewingExisting)

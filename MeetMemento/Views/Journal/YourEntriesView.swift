@@ -87,7 +87,7 @@ struct YourEntriesView: View {
         }
         .animation(reduceMotion ? nil : Motion.journalEntriesDissolve, value: listPhase)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.clear)
+        .background(theme.background)
         .confirmationDialog(
             "Delete this entry?",
             isPresented: $showDeleteConfirmation,
