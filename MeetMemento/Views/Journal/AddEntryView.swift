@@ -74,7 +74,6 @@ public struct AddEntryView: View {
     @State private var showCameraCapture = false
     @State private var showCameraUnavailable = false
     @State private var showCameraPermissionDenied = false
-    @State private var showCaptureOptions = false
     @State private var showLibraryPicker = false
     /// The cover shown untreated (Figma 824:4211). Not a separate screen: the
     /// editor's own backdrop dissolves its shader away, so every piece of
@@ -171,8 +170,6 @@ public struct AddEntryView: View {
     /// Existing entry, read-only chrome (pencil, header lens).
     private var isViewingExisting: Bool { editingEntry != nil && !isEditingExisting }
 
-    /// Existing entry after the pencil — mic + Capture, save stays on page.
-
     /// What to report to `onSave` — computed from the session's photo state,
     /// not diffed against `Data`, since the explicit `photoDidChange` flag is
     /// cheap and unambiguous (see `PhotoAction`'s doc comment).
@@ -184,10 +181,21 @@ public struct AddEntryView: View {
 
     private var hasCoverPhoto: Bool { photoPreviewImage != nil }
 
-    /// Ink on Liquid Glass chrome. Black in light, white in dark — same
-    /// as Journal / Chat — including over a cover. Title and body still
-    /// use `titleForeground` (white on a treated photo).
-    private var chromeForeground: Color { theme.foreground }
+    /// Ink on Liquid Glass chrome. Black is the default — the material
+    /// already frosts the capsule, so it holds dark glyphs on almost any
+    /// cover. White only when the treated surface is so dark that black
+    /// would fall below the UI-component contrast floor.
+    private var chromeForeground: Color {
+        if hasCoverPhoto,
+           JournalBackdropContrast.prefersWhiteChromeGlyphs(
+               sample: photoSample,
+               params: editorBackdropParameters,
+               scrimFactor: shaderRevealProgress
+           ) {
+            return BaseColors.white
+        }
+        return BaseColors.black
+    }
 
     private var titleForeground: Color {
         hasCoverPhoto ? BaseColors.white : theme.foreground
@@ -205,16 +213,11 @@ public struct AddEntryView: View {
         type.extraLineSpacing(for: 18, lineHeight: 24)
     }
 
-    /// View ⇄ edit chrome (footer, pencil/check). Title and body must not
-    /// use this — they are the same string in two representations, and a
-    /// crossfade stacks them for the duration of the spring.
+    /// View ⇄ edit chrome (footer, pencil/check). Fields stay mounted.
     private static let modeTransition = Animation.spring(response: 0.45, dampingFraction: 0.88)
 
-    /// Idle mic and Capture: 56pt minimum, width hugs content.
     private static let shaderRevealDuration: Double = 0.7
     private static let textRevealDuration: Double = 0.35
-    private static let captureLabelGap: CGFloat = 8
-    private static let capturePadding: CGFloat = 16
 
     /// How long the shader takes to dissolve off the cover, and back on.
     /// Longer than `shaderRevealDuration` on purpose: a capture reveal is the
@@ -242,16 +245,6 @@ public struct AddEntryView: View {
             + AppHeaderMetrics.rowBottomPadding
     }
 
-    /// Scroll content sits this far above the physical bottom so the last
-    /// line of body text cannot crowd the footer FABs. Keyboard up: the
-    /// same 16pt `contentGap` as rest, just measured from the lifted chrome.
-    private var editorScrollBottomMargin: CGFloat {
-        guard !isViewingExisting else { return 0 }
-        return keyboardBottomPadding
-            + AppHeaderMetrics.footerButtonSize
-            + AppHeaderMetrics.contentGap
-    }
-
     public var body: some View {
         // GeometryReader is the size: a plain VStack in a zooming
         // NavigationStack destination is proposed the source rect first (the
@@ -270,7 +263,6 @@ public struct AddEntryView: View {
                 // jump. Chrome still springs via `modeTransition`.
                 .transaction(value: isViewingExisting) { $0.animation = nil }
             }
-            .contentMargins(.bottom, editorScrollBottomMargin, for: .scrollContent)
             .scrollDismissesKeyboard(.interactively)
             .scrollEdgeEffectHidden(true, for: .top)
             .scrollEdgeEffectHidden(true, for: .bottom)
@@ -279,12 +271,9 @@ public struct AddEntryView: View {
             .accessibilityHidden(isViewingMemory)
             .allowsHitTesting(!isViewingMemory)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .overlay(alignment: .top) {
-                // Floating glass only — no blur plate. Type scrolls under
-                // the buttons the same way Journal/Chat headers work.
-                pageHeader
-            }
-            .overlay(alignment: .bottom) {
+            // Inset the scroller around the footer so the last line and the
+            // caret clear the FABs. Overlay would paint over the body.
+            .safeAreaInset(edge: .bottom, spacing: isViewingExisting ? 0 : AppHeaderMetrics.contentGap) {
                 VStack(spacing: 12) {
                     if showEditCompleteToast {
                         JournalToast(message: "Edits saved") {
@@ -298,6 +287,11 @@ public struct AddEntryView: View {
                     footerFABs
                 }
                 .accessibleAnimation(Self.modeTransition, value: showEditCompleteToast)
+            }
+            .overlay(alignment: .top) {
+                // Floating glass only — no blur plate. Type scrolls under
+                // the buttons the same way Journal/Chat headers work.
+                pageHeader
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -335,15 +329,6 @@ public struct AddEntryView: View {
                 }
                 photoPickerItem = nil
             }
-        }
-        .confirmationDialog("Capture", isPresented: $showCaptureOptions, titleVisibility: .hidden) {
-            Button("Take Photo") {
-                presentCameraOrHandleUnavailable()
-            }
-            Button("Choose from Library") {
-                showLibraryPicker = true
-            }
-            Button("Cancel", role: .cancel) {}
         }
         // Attach PhotosUI only when the library sheet is requested. The
         // modifier on the editor root was initializing PhotoKit during the
@@ -396,7 +381,7 @@ public struct AddEntryView: View {
             Task { await cancelDictationIfOwned() }
         }
     }
-    
+
     // MARK: - Subviews
 
     /// Canvas or cover, used both as the view background and as the
@@ -486,7 +471,7 @@ public struct AddEntryView: View {
             EmptyView()
         } else {
             GlassEffectContainer(spacing: Self.footerGlassSpacing) {
-                HStack {
+                HStack(alignment: .bottom) {
                     EditorDictationPill(
                         ownerId: speechOwnerId,
                         foreground: chromeForeground,
@@ -500,7 +485,12 @@ public struct AddEntryView: View {
 
                     Spacer(minLength: Self.footerGlassSpacing)
 
-                    captureFAB
+                    CaptureActionCluster(
+                        foreground: chromeForeground,
+                        interactive: !reduceMotion,
+                        onTakePhoto: presentCameraOrHandleUnavailable,
+                        onUploadPhoto: { showLibraryPicker = true }
+                    )
                 }
             }
             .padding(.horizontal, AppHeaderMetrics.edgeInset)
@@ -627,6 +617,16 @@ public struct AddEntryView: View {
 
     private var bodyField: some View {
         ZStack(alignment: .topLeading) {
+            // `TextEditor` does not hug its string. This hidden twin gives
+            // the stack a content height so the outer ScrollView can keep
+            // the caret above the footer inset.
+            Text(text.isEmpty ? " " : text)
+                .font(type.inputLarge)
+                .lineSpacing(editorBodyLineSpacing)
+                .hidden()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .accessibilityHidden(true)
+
             if !isViewingExisting && text.isEmpty {
                 Text("Start writing your journal...")
                     .font(type.inputLarge)
@@ -642,42 +642,16 @@ public struct AddEntryView: View {
                 .tint(isViewingExisting ? .clear : titleForeground)
                 .focused($focusedField, equals: .body)
                 .scrollContentBackground(.hidden)
-                // Outer ScrollView owns scrolling so the caret stays above the
-                // footer inset instead of sitting flush against the FABs.
                 .scrollDisabled(true)
                 .background { FlushTextEditorInsets() }
-                .frame(minHeight: 300, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
                 .allowsHitTesting(!isViewingExisting)
                 .accessibilityIdentifier("journal.entryEditor.body")
         }
     }
-    
+
     /// Gap between the mic pill and Capture.
     private static let footerGlassSpacing: CGFloat = 16
-
-    /// Figma 818:3843 silhouette — camera + "Capture". Native clear glass
-    /// with a hair of frost; 56pt minimum, width hugs the label.
-    private var captureFAB: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showCaptureOptions = true
-        } label: {
-            HStack(spacing: Self.captureLabelGap) {
-                Image(systemName: "camera")
-                    .font(AppHeaderMetrics.controlSymbolFont)
-                Text("Capture")
-                    .font(type.button)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(chromeForeground)
-            .padding(.horizontal, Self.capturePadding)
-            .mementoFooterGlassButtonChrome(interactive: !reduceMotion)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Capture")
-        .accessibilityHint("Double-tap to take a photo or choose one from your library")
-        .accessibilityIdentifier("journal.entryEditor.capture")
-    }
 
     /// One control, both directions (Figma 898:1784 ↔ 824:4211). A single
     /// `Button` keeps the glass capsule alive across the toggle, so the
@@ -1155,7 +1129,8 @@ public struct AddEntryView: View {
 
 #if DEBUG
 extension AddEntryView {
-    /// Seeds a cover so canvas previews can show the photo-backed chrome.
+    /// Seeds a cover so canvas hosts can show photo-backed chrome.
+    /// `fileprivate` is enough: only `AddEntryPreviewHost` in this file calls it.
     fileprivate init(
         state: EntryState,
         previewPhoto: UIImage,
@@ -1182,8 +1157,6 @@ extension AddEntryView {
             params: JournalBackdropShader.editorDefaults,
             displaySize: CGSize(width: 402, height: 874)
         ))
-        // The revealed state is the shader dissolved away, not a second view,
-        // so the preview flag has to seed the same scalars the toggle drives.
         _shaderRevealProgress = State(initialValue: previewViewingMemory ? 0 : 1)
         _entryContentOpacity = State(initialValue: previewViewingMemory ? 0 : 1)
     }
@@ -1197,6 +1170,59 @@ private enum AddEntryPreviewAssets {
             context.fill(CGRect(origin: .zero, size: size))
         }
     }()
+}
+
+/// Canvas host. `#Preview` only constructs this type so the generated thunk
+/// never calls the photo init or `AddEntryPreviewAssets` directly.
+struct AddEntryPreviewHost: View {
+    enum Kind {
+        case create
+        case photo
+        case memory
+        case edit
+        case page
+    }
+
+    var kind: Kind = .create
+    var colorScheme: ColorScheme = .light
+
+    var body: some View {
+        Group {
+            if kind == .page {
+                NavigationStack { editor }
+            } else {
+                editor
+            }
+        }
+        .useTheme()
+        .useTypography()
+        .preferredColorScheme(colorScheme)
+    }
+
+    @ViewBuilder
+    private var editor: some View {
+        switch kind {
+        case .create, .page:
+            AddEntryView(state: .create) { _, _, _, _ in }
+        case .photo:
+            AddEntryView(
+                state: .create,
+                previewPhoto: AddEntryPreviewAssets.photo,
+                previewTitle: "A quiet morning in September makes me always remember more than I wish to",
+                previewBody: "The air had that unmistakable crispness this morning — summer finally loosening its grip."
+            ) { _, _, _, _ in }
+        case .memory:
+            AddEntryView(
+                state: .create,
+                previewPhoto: AddEntryPreviewAssets.photo,
+                previewTitle: "A quiet morning in September makes me always remember more than I wish to",
+                previewBody: "The air had that unmistakable crispness this morning — summer finally loosening its grip.",
+                previewViewingMemory: true
+            ) { _, _, _, _ in }
+        case .edit:
+            AddEntryView(state: .edit(Entry.sampleEntries[0])) { _, _, _, _ in }
+        }
+    }
 }
 #endif
 
@@ -1242,6 +1268,9 @@ private struct FlushTextEditorInsets: UIViewRepresentable {
             if textView.textContainer.lineFragmentPadding != 0 {
                 textView.textContainer.lineFragmentPadding = 0
             }
+            if textView.isScrollEnabled {
+                textView.isScrollEnabled = false
+            }
         }
     }
 
@@ -1270,55 +1299,28 @@ private struct FlushTextEditorInsets: UIViewRepresentable {
     }
 }
 
-// MARK: - Previews
-
+#if DEBUG
 #Preview("Create Entry") {
-    AddEntryView(state: .create) { _, _, _, _ in }
-        .useTheme()
-        .useTypography()
+    AddEntryPreviewHost()
 }
 
-#Preview("Create Entry • Photo") {
-    AddEntryView(
-        state: .create,
-        previewPhoto: AddEntryPreviewAssets.photo,
-        previewTitle: "A quiet morning in September makes me always remember more than I wish to",
-        previewBody: "The air had that unmistakable crispness this morning — summer finally loosening its grip."
-    ) { _, _, _, _ in }
-        .useTheme()
-        .useTypography()
+#Preview("Create Entry Photo") {
+    AddEntryPreviewHost(kind: .photo)
 }
 
-/// The shader dissolved off, which is all a revealed memory is.
 #Preview("Memory Revealed") {
-    AddEntryView(
-        state: .create,
-        previewPhoto: AddEntryPreviewAssets.photo,
-        previewTitle: "A quiet morning in September makes me always remember more than I wish to",
-        previewBody: "The air had that unmistakable crispness this morning — summer finally loosening its grip.",
-        previewViewingMemory: true
-    ) { _, _, _, _ in }
-        .useTheme()
-        .useTypography()
+    AddEntryPreviewHost(kind: .memory)
 }
 
 #Preview("Edit Entry") {
-    AddEntryView(state: .edit(Entry.sampleEntries[0])) { _, _, _, _ in }
-        .useTheme()
-        .useTypography()
+    AddEntryPreviewHost(kind: .edit)
 }
 
-#Preview("Create Entry • Dark") {
-    AddEntryView(state: .create) { _, _, _, _ in }
-        .useTheme()
-        .useTypography()
-        .preferredColorScheme(.dark)
+#Preview("Create Entry Dark") {
+    AddEntryPreviewHost(colorScheme: .dark)
 }
 
 #Preview("Page Presentation") {
-    NavigationStack {
-        AddEntryView(state: .create) { _, _, _, _ in }
-    }
-    .useTheme()
-    .useTypography()
+    AddEntryPreviewHost(kind: .page)
 }
+#endif

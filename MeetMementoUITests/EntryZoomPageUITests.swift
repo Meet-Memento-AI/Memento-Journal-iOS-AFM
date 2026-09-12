@@ -262,15 +262,13 @@ final class EntryZoomPageUITests: XCTestCase {
         }
         capture.tap()
 
-        let library = app.sheets.buttons["Choose from Library"].firstMatch.exists
-            ? app.sheets.buttons["Choose from Library"].firstMatch
-            : app.buttons["Choose from Library"]
+        let library = app.buttons["journal.entryEditor.capture.uploadPhoto"]
         guard library.waitForExistence(timeout: 4) else {
             // Simulator camera is often missing; dismiss any unavailable alert.
             if app.alerts.firstMatch.exists {
                 app.alerts.buttons["OK"].tap()
             }
-            throw XCTSkip("Capture sheet never appeared; cannot attach a cover")
+            throw XCTSkip("Upload photo control never appeared; cannot attach a cover")
         }
         library.tap()
 
