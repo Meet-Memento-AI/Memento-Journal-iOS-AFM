@@ -32,7 +32,13 @@ Submit until" item 3 is this rule.
 
 ## 1. The nutrition label
 
-### Target: **Data Not Collected**
+### Target: **Data Not Collected** for the journal; **opt-in feedback is collected**
+
+**Amended 2026-09-11 (spec 042).** Journal entries, chat history, and
+retrieval excerpts are still not collected. Volunteered quality feedback
+is collection once the Settings toggle is on. The App Store Connect
+nutrition label must be updated before the next upload that includes
+`SupabaseFeedbackClient`.
 
 Apple's definition of "collect", verbatim:
 
@@ -50,10 +56,12 @@ Apple's definition of "collect", verbatim:
 | Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
 | Crash and performance data | Apple's own, opt-in at the OS level, never surfaced to us via an SDK | **No** |
+| Quality feedback (opt-in, spec 042) | Write-only RPC to the evaluations Supabase project: ratings, reason, note; question/answer only on explicit Report + include-text | **Yes** — Other User Content, Other Data Types, User ID. Linked, not tracking. Purposes: App Functionality + Analytics |
 
 Corroborating evidence: `grep -rn "URLSession" MeetMemento --include="*.swift"`
-returns **zero hits** (2026-08-07). The only outbound calls in shipping code are
-two `UIApplication.shared.open` links to the privacy policy and terms.
+returned **zero hits** on 2026-08-07. **2026-09-11:** `SupabaseFeedbackClient`
+is the first third-party `URLSession` call site. Legal links remain
+`UIApplication.shared.open`.
 
 ### The two things that can break "Data Not Collected"
 
@@ -112,7 +120,8 @@ November 2025 rejection.
 ```
 NSPrivacyTracking            = false                    ✅
 NSPrivacyTrackingDomains     = []                       ✅
-NSPrivacyCollectedDataTypes  = []                       ✅  (already corrected — do not redo)
+NSPrivacyCollectedDataTypes  = Other User Content, Other Data Types, User ID
+                                (spec 042, 2026-09-11; empty until then)
 NSPrivacyAccessedAPITypes:
   UserDefaults    → CA92.1                              ✅  justified
   FileTimestamp   → C617.1                              ✅  justified
@@ -233,8 +242,10 @@ and the hazard.
 Steps for the target state:
 
 1. Privacy Policy URL — the published, corrected policy (`00` B2, A6).
-2. Data collection question → **"Data Not Collected"**, assuming V8 resolves
-   favorably or RevenueCat is not shipped.
+2. Data collection question → declare the spec 042 types (Other User Content,
+   Other Data Types, User ID; linked; not tracking; App Functionality +
+   Analytics). **"Data Not Collected" is no longer accurate** once a build
+   with `SupabaseFeedbackClient` ships. Journal content remains uncollected.
 3. Save, then **re-read the product page preview** and confirm it says what the
    `.xcprivacy` and the policy say.
 4. Record the date and the answer in `00` D6, with a screenshot path as evidence.

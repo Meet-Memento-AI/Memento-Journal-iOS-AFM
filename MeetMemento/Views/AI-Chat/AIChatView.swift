@@ -204,8 +204,12 @@ public struct AIChatView: View {
             ReplyFeedbackSheet(
                 draft: draft,
                 onCancel: { viewModel.cancelFeedbackDraft() },
-                onSubmit: { category, note in
-                    viewModel.submitFeedbackDraft(category: category, note: note)
+                onSubmit: { category, note, includeText in
+                    viewModel.submitFeedbackDraft(
+                        category: category,
+                        note: note,
+                        includeTextForReview: includeText
+                    )
                 }
             )
         }

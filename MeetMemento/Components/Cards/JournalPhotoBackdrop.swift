@@ -17,13 +17,20 @@ struct JournalPhotoBackdrop: View {
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
+    /// Editor treatment is blur 100; list cards stay on the 12pt token.
+    private var isEditorTreatment: Bool { defaults.blurStrength >= 50 }
+
     var body: some View {
         let params = resolved
-        let blur = min(params.blurStrength, JournalBackdropShader.maxBlur)
+        // Cards clamp the kernel; the editor keeps blur 100 so fillScale
+        // can take the 1.4 overflow path.
+        let blur = isEditorTreatment
+            ? params.blurStrength
+            : min(params.blurStrength, JournalBackdropShader.maxBlur)
         image
             .resizable()
             .scaledToFill()
-            .scaleEffect(fillScale(for: blur))
+            .scaleEffect(Self.fillScale(for: blur, isEditor: isEditorTreatment))
             .blur(radius: blur)
             .brightness(blur > 0 ? JournalBackdropShader.treatedBrightness : 0)
             .saturation(params.saturation)
@@ -36,11 +43,16 @@ struct JournalPhotoBackdrop: View {
             .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+            .modifier(ListBackdropRasterizeModifier(enabled: !isEditorTreatment))
     }
 
-    /// Overflow so the clamped kernel does not hard-clip at the frame edge.
-    private func fillScale(for blur: CGFloat) -> CGFloat {
-        blur > 0 ? 1.12 : 1
+    /// Radius 100 needs more overflow than the card's 12pt treatment or
+    /// the kernel hard-clips at the frame edge. List cards never take the
+    /// 1.4 path — that scale exists only for the editor.
+    static func fillScale(for blur: CGFloat, isEditor: Bool) -> CGFloat {
+        if isEditor && blur >= 50 { return 1.4 }
+        if blur > 0 { return 1.12 }
+        return 1
     }
 
     private var resolved: JournalBackdropParameters {
@@ -50,5 +62,20 @@ struct JournalPhotoBackdrop: View {
             increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled,
             reduceTransparency: reduceTransparency
         )
+    }
+}
+
+/// Rasterizes the treated cover once so a scrolling LazyVStack does not
+/// re-blur every frame. Off for the editor — blur 100 is a full-bleed
+/// page fill, not a recycled row.
+private struct ListBackdropRasterizeModifier: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.drawingGroup()
+        } else {
+            content
+        }
     }
 }

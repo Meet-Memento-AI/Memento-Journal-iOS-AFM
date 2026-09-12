@@ -1,12 +1,18 @@
 # MeetMemento
 
-A private journaling app with an on-device AI companion. Everything runs
-**on device** — there are no accounts and no backend, and your journal never
-leaves the phone.
+A private journaling app with an on-device AI companion. Journal entries
+stay on device — there are no accounts. Optional, off-by-default quality
+feedback can be sent for verification (spec 042).
 
 ## Setup
 
-No configuration, accounts, or API keys are required.
+No accounts are required. A fresh clone builds without API keys (verification
+upload is a no-op until you add them).
+
+To send volunteered chat feedback to the live evaluations project, copy
+`MeetMemento/Config/Supabase.xcconfig.example` to
+`MeetMemento/Config/Supabase.xcconfig` and fill the publishable anon key.
+Never put a `service_role` key in the app or the repo.
 
 1. Open `MeetMemento.xcodeproj` in Xcode.
 2. Select a device or simulator.
@@ -39,9 +45,9 @@ MeetMemento/
 
 ## Privacy & security
 
-- Journal content is stored in encrypted local storage; there is no server copy.
-- No accounts, no sign-in, no third-party data processors.
-- AI generation and journal retrieval run entirely on device.
+- Journal content is stored in encrypted local storage; there is no server copy of the journal.
+- No accounts and no sign-in. If you opt in to Share quality feedback, volunteered ratings (and optional report text) are written to a verification database.
+- AI generation and journal retrieval run on device.
 
 ## Development
 

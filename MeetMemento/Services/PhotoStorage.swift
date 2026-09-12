@@ -23,14 +23,24 @@ class PhotoStorage {
 
     /// Directory for encrypted photo files — separate from EncryptedJournals.
     private var encryptedStorageURL: URL {
+        directory(named: "EncryptedPhotos")
+    }
+
+    /// Downsampled list thumbs — sibling of `EncryptedPhotos` so a list
+    /// paint never has to decrypt the 1600px original.
+    private var encryptedThumbURL: URL {
+        directory(named: "EncryptedPhotoThumbs")
+    }
+
+    private func directory(named name: String) -> URL {
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let storageURL = documentsURL.appendingPathComponent("EncryptedPhotos", isDirectory: true)
+        let storageURL = documentsURL.appendingPathComponent(name, isDirectory: true)
 
         if !fileManager.fileExists(atPath: storageURL.path) {
             do {
                 try fileManager.createDirectory(at: storageURL, withIntermediateDirectories: true)
             } catch {
-                AppLogger.log("⚠️ [PhotoStorage] Failed to create storage directory: \(error)")
+                AppLogger.log("⚠️ [PhotoStorage] Failed to create \(name) directory: \(error)")
             }
         }
 
@@ -43,6 +53,10 @@ class PhotoStorage {
         encryptedStorageURL.appendingPathComponent("\(entryId.uuidString).encrypted")
     }
 
+    private func thumbFileURL(for entryId: UUID) -> URL {
+        encryptedThumbURL.appendingPathComponent("\(entryId.uuidString).encrypted")
+    }
+
     /// Saves an entry's encrypted photo, overwriting any existing one — single
     /// photo per entry, so a save always replaces rather than appends.
     ///
@@ -53,6 +67,8 @@ class PhotoStorage {
     func saveEncrypted(entryId: UUID, encryptedData: Data) throws {
         let url = fileURL(for: entryId)
         try encryptedData.write(to: url, options: [.atomic, .completeFileProtection])
+        // Replacing the full cover invalidates any list thumb derived from it.
+        deleteEncryptedThumb(entryId: entryId)
         AppLogger.log("📁 [PhotoStorage] Saved encrypted photo: \(entryId)")
     }
 
@@ -76,13 +92,15 @@ class PhotoStorage {
     /// Deletes an entry's photo. Safe no-op if it has none.
     func deleteEncrypted(entryId: UUID) {
         let url = fileURL(for: entryId)
-        guard fileManager.fileExists(atPath: url.path) else { return }
-        do {
-            try fileManager.removeItem(at: url)
-            AppLogger.log("🗑️ [PhotoStorage] Deleted encrypted photo: \(entryId)")
-        } catch {
-            AppLogger.log("⚠️ [PhotoStorage] Failed to delete encrypted photo \(entryId): \(error)")
+        if fileManager.fileExists(atPath: url.path) {
+            do {
+                try fileManager.removeItem(at: url)
+                AppLogger.log("🗑️ [PhotoStorage] Deleted encrypted photo: \(entryId)")
+            } catch {
+                AppLogger.log("⚠️ [PhotoStorage] Failed to delete encrypted photo \(entryId): \(error)")
+            }
         }
+        deleteEncryptedThumb(entryId: entryId)
     }
 
     /// Clears all stored photos (e.g. Delete Everything).
@@ -95,6 +113,50 @@ class PhotoStorage {
             AppLogger.log("🗑️ [PhotoStorage] Cleared all encrypted photos (\(contents.count) files)")
         } catch {
             AppLogger.log("⚠️ [PhotoStorage] Failed to clear all: \(error)")
+        }
+        clearAllThumbs()
+    }
+
+    // MARK: - List thumbnails
+
+    func saveEncryptedThumb(entryId: UUID, encryptedData: Data) throws {
+        let url = thumbFileURL(for: entryId)
+        try encryptedData.write(to: url, options: [.atomic, .completeFileProtection])
+    }
+
+    func loadEncryptedThumb(entryId: UUID) -> Data? {
+        let url = thumbFileURL(for: entryId)
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        do {
+            return try Data(contentsOf: url)
+        } catch {
+            AppLogger.log("⚠️ [PhotoStorage] Failed to load photo thumb \(entryId): \(error)")
+            return nil
+        }
+    }
+
+    func hasEncryptedThumb(entryId: UUID) -> Bool {
+        fileManager.fileExists(atPath: thumbFileURL(for: entryId).path)
+    }
+
+    func deleteEncryptedThumb(entryId: UUID) {
+        let url = thumbFileURL(for: entryId)
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        do {
+            try fileManager.removeItem(at: url)
+        } catch {
+            AppLogger.log("⚠️ [PhotoStorage] Failed to delete photo thumb \(entryId): \(error)")
+        }
+    }
+
+    func clearAllThumbs() {
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: encryptedThumbURL, includingPropertiesForKeys: nil)
+            for file in contents {
+                try fileManager.removeItem(at: file)
+            }
+        } catch {
+            AppLogger.log("⚠️ [PhotoStorage] Failed to clear photo thumbs: \(error)")
         }
     }
 }

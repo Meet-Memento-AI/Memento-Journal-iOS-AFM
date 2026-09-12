@@ -43,6 +43,7 @@
 			membershipExceptions = (
 				Config/Debug.xcconfig,
 				Config/Release.xcconfig,
+				Config/Supabase.xcconfig.example,
 				Info.plist,
 				PLAN.md,
 				"Preview Content/PreviewMocks.json",

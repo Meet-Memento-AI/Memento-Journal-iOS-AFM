@@ -224,9 +224,12 @@ These outlive the specs. Every future change follows them:
    Postgres to apply RLS to.)*
 8. **No journal content, transcript, derived reflection, embedding, tag, mood
    value, or content-derived metadata may cross into Z2 (third-party) under any
-   configuration** (`REQ-PRIV-001`). Every generation surface declares its zone in
-   code and renders it in the UI at the point of use (`REQ-PRIV-002`). Owned by
-   spec 014.
+   configuration** (`REQ-PRIV-001`), **except** the named
+   `Z2ContentException.answerFeedbackVerification` in spec 014 / 042:
+   volunteered chat-quality feedback for verification/triage, off by default,
+   write-only, never a `GenerationRequest` or general sync. Every generation
+   surface declares its zone in code and renders it in the UI at the point of
+   use (`REQ-PRIV-002`). Owned by spec 014.
 9. **Docs**: engineering docs → `docs/`; work-stream specs → `specs/` using the
    template in `specs/README.md`; the Memento 2.0 source document lives at
    `specs/reference/memento-2.0-architecture-spec.md` and is cited by `REQ-`/`DEC-`

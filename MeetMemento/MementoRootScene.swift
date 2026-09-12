@@ -92,6 +92,9 @@ struct MementoRootScene: Scene {
             .task {
                 appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()
+                #if MEMENTO_AI
+                FeedbackSyncService.shared.resumePendingWork()
+                #endif
             }
             .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
@@ -111,11 +114,15 @@ struct MementoRootScene: Scene {
                     // can't strand a persisted turn in memory (spec 029 R3).
                     #if MEMENTO_AI
                     LocalChatStore.shared.flush()
+                    FeedbackSyncService.shared.resumePendingWork()
                     #endif
                 }
                 if newPhase == .active && appState.hasCompletedOnboarding {
                     // Update activity timestamp when app becomes active
                     SecurityService.shared.updateActivityTimestamp()
+                    #if MEMENTO_AI
+                    FeedbackSyncService.shared.resumePendingWork()
+                    #endif
                 }
             }
         }

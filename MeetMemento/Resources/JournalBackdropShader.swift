@@ -11,7 +11,7 @@
 import SwiftUI
 
 /// Average sRGB of a cover photo, sampled once when the thumbnail decrypts.
-struct JournalBackdropSample: Equatable, Sendable {
+struct JournalBackdropSample: Equatable, Sendable, Codable {
     let red: Double
     let green: Double
     let blue: Double

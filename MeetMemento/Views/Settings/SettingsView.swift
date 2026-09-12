@@ -210,9 +210,9 @@ struct SettingsView: View {
         }
     }
 
-    /// "Your Data" (spec 023 R4): one section for the whole local-only story —
-    /// profile, AI on-device toggle, privacy policy, data-usage explainer,
-    /// and Delete Everything. No accounts, so no Sign Out.
+    /// "Your Data" (spec 023 R4 / 042): profile, AI toggles, opt-in quality
+    /// feedback sharing, privacy policy, data-usage explainer, and Delete
+    /// Everything. No accounts, so no Sign Out.
     private var yourDataSection: some View {
         SettingsSection(title: "Your Data") {
             NavigationLink(value: SettingsRoute.profile) {
@@ -266,6 +266,21 @@ struct SettingsView: View {
                 )
             }
             #endif
+
+            SettingsRowDivider()
+
+            SettingsToggleRow(
+                icon: "hand.thumbsup",
+                title: "Share Quality Feedback",
+                subtitle: preferences.shareFeedbackWithDeveloper
+                    ? "Ratings and optional report text can leave this device for verification"
+                    : "Off — thumbs and reports stay on this device",
+                isOn: $preferences.shareFeedbackWithDeveloper,
+                accessibilityIdentifier: "settings.shareFeedback",
+                accessibilityHint: preferences.shareFeedbackWithDeveloper
+                    ? "Quality feedback may be sent for review. Double-tap to keep it on this device."
+                    : "Feedback stays on this device. Double-tap to share ratings for verification."
+            )
 
             SettingsRowDivider()
 
@@ -330,7 +345,7 @@ struct SettingsView: View {
             SettingsRow(
                 icon: "trash.fill",
                 title: "Delete Everything",
-                subtitle: "Permanently delete all your data from this device",
+                subtitle: "Permanently delete journal data on this device and any shared quality feedback",
                 isDestructive: true,
                 showProgress: isDeletingEverything,
                 accessibilityIdentifier: "settings.deleteEverything",

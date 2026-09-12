@@ -21,8 +21,10 @@ assistant reply is a live quality sample. Spec [019](019-surfaces.md) owns
 the Ask surface; spec [022](022-evaluation-and-quality-study.md) owns the
 eval harness and may later consume this store. Spec
 [014](014-privacy-model-and-trust-boundary.md) `REQ-PRIV-001` forbids
-shipping transcripts or journal-derived text to Z2 — feedback stays
-on-device.
+shipping transcripts or journal-derived text to Z2 as a *generation*
+path. The on-device store in this spec remains the source of truth.
+A later, consented verification upload is owned by spec
+[042](042-feedback-telemetry-supabase.md) (amended 2026-09-11).
 
 Numbered 041 because [040](040-ipad-backend-readiness.md) already owns iPad
 backend readiness.
@@ -93,7 +95,8 @@ went wrong?"; report: "Report answer". Required single-select chips:
 Wrong recall, Made something up, Didn't answer, Tone, Safety, Other.
 Optional note, about 280 chars. Primary disabled until a category is
 selected. Report on an already-downvoted message pre-fills category/note.
-Subtitle discloses that the report stays on this device.
+Subtitle discloses on-device storage unless the user has opted into
+spec 042 verification sharing.
 
 **Acceptance:** both entry points present the same sheet; report copy
 differs; prefill works when a negative row already exists.
@@ -121,7 +124,8 @@ the flag; payload has no citation excerpts.
 ### R6. On-device store, restore on load
 
 `AnswerFeedbackStore` JSON under Application Support (mirror
-`LocalChatStore`). No network. `loadFeedbackForMessages()` restores filled
+`LocalChatStore`). The local write is synchronous and never waits on
+network. `loadFeedbackForMessages()` restores filled
 thumbs and Reported overflow after relaunch. Delete Everything (spec 023)
 clears the store. Journal bodies are not copied into reports.
 
@@ -129,7 +133,8 @@ clears the store. Journal bodies are not copied into reports.
 
 ### R7. Copy and a11y
 
-Sheet discloses on-device storage. Identifiers: `chat.reply.thumbsUp`,
+Sheet discloses on-device storage, and when spec 042 sharing is on it
+discloses the verification path instead. Identifiers: `chat.reply.thumbsUp`,
 `chat.reply.thumbsDown`, `chat.reply.more`, `chat.reply.report`,
 `chat.feedback.category.<id>`, `chat.feedback.submit`. Overflow after
 report: ellipsis accent, menu row disabled **Reported**.
@@ -141,7 +146,10 @@ when any rows exist. No in-app review inbox.
 
 ## Out of Scope
 
-- Remote / Supabase `chat-feedback` (violates REQ-PRIV-001)
+- ~~Remote / Supabase `chat-feedback` (violates REQ-PRIV-001)~~
+  **Amended 2026-09-11:** a verification-only, opt-in write path is
+  specified by [042](042-feedback-telemetry-supabase.md). Journal
+  entries, chat history, and retrieval excerpts remain out of scope.
 - LLM-as-judge; in-app review queue (spec 022)
 - Thumbs-up reason; auto-opening the sheet from thumbs down after a delay
 - Crisis-card overflow
@@ -184,5 +192,8 @@ when any rows exist. No in-app review inbox.
 - Regenerates still last-reply-only
 - Crisis card (spec 026) unchanged — no overflow, no thumbs
 - REQ-PRIV-001: no Z2 upload of prompt, reply, or journal text
+  **except** the dated spec 042 verification exception (Report +
+  include-text, Settings toggle off by default). Thumbs-only must
+  not send journal-derived text.
 - Action bar layout (HStack spacing 8, top padding 8) must not reintroduce
   the empty-placeholder gap above "Memento is thinking"

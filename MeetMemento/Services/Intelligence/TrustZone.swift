@@ -16,11 +16,12 @@
 import Foundation
 
 /// The innermost zone an operation required, per architecture spec §3.2.
-/// There is no `.z2` case: REQ-PRIV-001 requires content never cross into
-/// Z2 under any configuration, so a type that could represent Z2-tagged
-/// content would itself be a way to violate that rule. Z2 (RevenueCat
-/// receipts + anonymous ID only, spec 021) never carries anything this
-/// enum tags.
+/// There is no `.z2` case: REQ-PRIV-001 requires generation content never
+/// cross into Z2, so a type that could represent Z2-tagged content would
+/// itself be a way to violate that rule. Named exceptions that are **not**
+/// `GenerationRequest`s: RevenueCat receipts + anonymous ID (spec 021) and
+/// volunteered answer-feedback verification (spec 042). Neither is tagged
+/// with this enum.
 enum TrustZone: Equatable, Hashable, Codable, Sendable {
     /// Never leaves the device. Works in airplane mode. Transcription,
     /// entry reflection, mood/tag inference, retrieval, search, TTS.
