@@ -128,8 +128,10 @@ struct PatternsView: View {
         let moods = MementoDataStore.moodLabelsByEntry()
         let facts = InsightEngine.facts(entries: entryViewModel.entries, moodLabels: moods)
         let cadence = facts.filter { $0.kind == .cadence }
-        let hours = cadence.filter { $0.label.hasPrefix("Around ") }
-        let cadenceRows = cadence.filter { !$0.label.hasPrefix("Around ") }
+        let timeOfDay = InsightEngine.timeOfDayFacts(entries: entryViewModel.entries)
+        let cadenceRows = cadence.filter {
+            !$0.label.hasPrefix("Around ") && !InsightEngine.timeOfDayLabels.contains($0.label)
+        }
         let people = facts.filter { $0.kind == .person }
         let places = facts.filter { $0.kind == .place }
         let clusters = facts.filter { $0.kind == .cluster }
@@ -150,16 +152,26 @@ struct PatternsView: View {
                         .foregroundStyle(theme.mutedForeground)
                 }
 
-                PatternCountChart(facts: stats.weekFacts)
-                    .frame(height: 160)
+                if stats.weekFacts.contains(where: { $0.n > 0 }) {
+                    Text("Entries by week")
+                        .font(.headline)
+                    InsightBarChart(
+                        facts: stats.weekFacts,
+                        yTitle: "Entries",
+                        accessibilityLabel: "Entries per week this month"
+                    )
                     .accessibilityIdentifier("patterns.chart")
+                }
 
-                if !hours.isEmpty {
+                if timeOfDay.contains(where: { $0.n > 0 }) {
                     Text("Time of day")
                         .font(.headline)
-                    PatternCountChart(facts: hours)
-                        .frame(height: 160)
-                        .accessibilityIdentifier("patterns.hourChart")
+                    InsightBarChart(
+                        facts: timeOfDay,
+                        yTitle: "Entries",
+                        accessibilityLabel: "Entries by time of day"
+                    )
+                    .accessibilityIdentifier("patterns.hourChart")
                 }
 
                 if !cadenceRows.isEmpty {
@@ -205,11 +217,12 @@ struct PatternsView: View {
                         Text(fact.value)
                             .font(.subheadline.weight(.semibold))
                     }
-                    Text("n = \(fact.n)")
-                        .font(.caption)
-                        .foregroundStyle(theme.mutedForeground)
                     if fact.isLowConfidence {
                         Text(InsightFact.lowConfidenceCopy(n: fact.n))
+                            .font(.caption)
+                            .foregroundStyle(theme.mutedForeground)
+                    } else if fact.n > 0 {
+                        Text(InsightFact.sampleSizeCopy(n: fact.n))
                             .font(.caption)
                             .foregroundStyle(theme.mutedForeground)
                     }
@@ -243,7 +256,7 @@ struct PatternStats: Equatable {
         let weekFacts = buckets.enumerated().map { index, hits in
             InsightFact(
                 kind: .cadence,
-                label: "W\(index + 1)",
+                label: "Week \(index + 1)",
                 value: "\(hits.count)",
                 n: hits.count,
                 window: fact.window,
@@ -255,41 +268,5 @@ struct PatternStats: Equatable {
             weeklyCounts: weekFacts.map(\.n),
             weekFacts: weekFacts
         )
-    }
-}
-
-struct PatternCountChart: View {
-    let facts: [InsightFact]
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let weeks = facts.map(\.n)
-        let maxValue = max(weeks.max() ?? 0, 1)
-        let sparse = facts.first { $0.n > 0 && $0.isLowConfidence }
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(alignment: .bottom, spacing: Spacing.sm) {
-                ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
-                    VStack {
-                        Text("n = \(fact.n)")
-                            .font(.caption2)
-                            .foregroundStyle(theme.mutedForeground)
-                        Capsule()
-                            .fill(theme.foreground.opacity(fact.isLowConfidence ? 0.35 : 0.7))
-                            .frame(width: 22, height: max(8, CGFloat(fact.n) / CGFloat(maxValue) * 120))
-                        Text(fact.label)
-                            .font(.caption2)
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-                    .opacity(fact.isLowConfidence ? 0.55 : 1)
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            if let sparse {
-                Text(InsightFact.lowConfidenceCopy(n: sparse.n))
-                    .font(.caption)
-                    .foregroundStyle(theme.mutedForeground)
-            }
-        }
-        .accessibilityLabel("Entries per week this month")
     }
 }

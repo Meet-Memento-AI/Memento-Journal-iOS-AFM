@@ -43,7 +43,7 @@ struct KeywordsCard: View {
                 Spacer()
                 let n = chips.reduce(0) { $0 + $1.n }
                 if n > 0 {
-                    Text("n = \(n)")
+                    Text(InsightFact.sampleSizeCopy(n: n))
                         .font(type.captionBold)
                         .foregroundStyle(theme.mutedForeground)
                 }

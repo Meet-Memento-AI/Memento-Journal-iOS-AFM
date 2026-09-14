@@ -44,6 +44,11 @@ public struct InsightFact: Sendable, Equatable, Codable, Hashable {
         "\(lowConfidenceCopyPrefix)\(n) entries — too few to call a pattern."
     }
 
+    /// On-screen sample size. Charts and lists use this instead of `n =`.
+    public static func sampleSizeCopy(n: Int) -> String {
+        n == 1 ? "1 entry" : "\(n) entries"
+    }
+
     /// Copy / speak text. Matches the Ask stat card so Swift `n` is audible.
     public var plainText: String {
         var lines = [label.capitalized, value, "n = \(n)"]

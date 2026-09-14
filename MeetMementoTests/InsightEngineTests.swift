@@ -319,6 +319,71 @@ final class InsightEngineTests: XCTestCase {
         XCTAssertFalse(cadence.filter { !$0.label.hasPrefix("Around ") }.isEmpty)
     }
 
+    func test_timeOfDayFacts_fourLabelsAndBucketN() {
+        let calendar = isoCalendar()
+        let day = day(2026, 8, 23, calendar: calendar)
+        func atHour(_ hour: Int, minute: Int) -> Date {
+            var components = calendar.dateComponents([.year, .month, .day], from: day)
+            components.hour = hour
+            components.minute = minute
+            return calendar.date(from: components) ?? day
+        }
+        var entries = (0..<5).map { index in
+            Entry(title: "M\(index)", text: "morning", createdAt: atHour(9, minute: index))
+        }
+        entries += (0..<2).map { index in
+            Entry(title: "A\(index)", text: "afternoon", createdAt: atHour(15, minute: index))
+        }
+        entries.append(Entry(title: "E0", text: "evening", createdAt: atHour(18, minute: 0)))
+        let facts = InsightEngine.timeOfDayFacts(
+            entries: entries, now: day, calendar: calendar
+        )
+        XCTAssertEqual(facts.map(\.label), ["Morning", "Afternoon", "Evening", "Night"])
+        XCTAssertEqual(facts.map(\.n), [5, 2, 1, 0])
+        XCTAssertEqual(facts[0].isLowConfidence, false)
+        XCTAssertEqual(facts[1].isLowConfidence, true)
+        XCTAssertEqual(facts[2].isLowConfidence, true)
+        XCTAssertEqual(facts[3].n, 0)
+        XCTAssertEqual(facts[3].supportingEntryIDs, [])
+        XCTAssertTrue(facts.allSatisfy { $0.n == $0.supportingEntryIDs.count })
+        XCTAssertEqual(facts[0].value, "5")
+    }
+
+    func test_timeOfDayFacts_emptyCorpus_allZeros() {
+        let calendar = isoCalendar()
+        let now = day(2026, 8, 23, calendar: calendar)
+        let facts = InsightEngine.timeOfDayFacts(
+            entries: [], now: now, calendar: calendar
+        )
+        XCTAssertEqual(facts.map(\.label), InsightEngine.timeOfDayLabels)
+        XCTAssertEqual(facts.count, 4)
+        XCTAssertTrue(facts.allSatisfy { $0.n == 0 })
+        XCTAssertTrue(facts.allSatisfy { $0.supportingEntryIDs.isEmpty })
+        XCTAssertTrue(facts.allSatisfy(\.isLowConfidence))
+    }
+
+    func test_timeOfDayFacts_nightWrapsLateAndEarlyHours() {
+        let calendar = isoCalendar()
+        let day = day(2026, 8, 23, calendar: calendar)
+        func atHour(_ hour: Int) -> Date {
+            var components = calendar.dateComponents([.year, .month, .day], from: day)
+            components.hour = hour
+            return calendar.date(from: components) ?? day
+        }
+        let entries = [
+            Entry(title: "Late", text: "night", createdAt: atHour(22)),
+            Entry(title: "Early", text: "night", createdAt: atHour(3)),
+            Entry(title: "Dawn", text: "morning", createdAt: atHour(5))
+        ]
+        let facts = InsightEngine.timeOfDayFacts(
+            entries: entries, now: day, calendar: calendar
+        )
+        XCTAssertEqual(facts.first { $0.label == "Night" }?.n, 2)
+        XCTAssertEqual(facts.first { $0.label == "Morning" }?.n, 1)
+        XCTAssertEqual(facts.first { $0.label == "Afternoon" }?.n, 0)
+        XCTAssertEqual(facts.first { $0.label == "Evening" }?.n, 0)
+    }
+
     func test_constructedThreeEntryWindow_isLowConfidence() {
         let calendar = isoCalendar()
         let now = day(2026, 8, 23, calendar: calendar)

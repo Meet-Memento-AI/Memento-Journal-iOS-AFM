@@ -123,4 +123,54 @@ extension InsightEngine {
                 )
             }
     }
+
+    /// Occupied day parts in clock order. Empty parts stay in the engine
+    /// result as `n = 0` for tests; the chart omits them. Night is 21–4.
+    static let timeOfDayLabels = DayPart.allCases.map(\.rawValue)
+
+    static func timeOfDayFacts(
+        entries: [Entry], now: Date = Date(), calendar: Calendar = .current
+    ) -> [InsightFact] {
+        var buckets: [DayPart: [UUID]] = Dictionary(
+            uniqueKeysWithValues: DayPart.allCases.map { ($0, []) }
+        )
+        for entry in entries {
+            let hour = calendar.component(.hour, from: entry.createdAt)
+            buckets[DayPart.from(hour: hour), default: []].append(entry.id)
+        }
+        let window: DateInterval
+        if let earliest = entries.map(\.createdAt).min() {
+            window = orderedInterval(start: earliest, end: now.addingTimeInterval(1))
+        } else {
+            window = orderedInterval(start: now, end: now.addingTimeInterval(1))
+        }
+        return DayPart.allCases.map { part in
+            let ids = buckets[part] ?? []
+            return InsightFact(
+                kind: .cadence,
+                label: part.rawValue,
+                value: "\(ids.count)",
+                n: ids.count,
+                window: window,
+                supportingEntryIDs: ids
+            )
+        }
+    }
+}
+
+private enum DayPart: String, CaseIterable {
+    case morning = "Morning"
+    case afternoon = "Afternoon"
+    case evening = "Evening"
+    case night = "Night"
+
+    /// Morning 5–11, afternoon 12–16, evening 17–20, night 21–4.
+    static func from(hour: Int) -> DayPart {
+        switch hour {
+        case 5..<12: return .morning
+        case 12..<17: return .afternoon
+        case 17..<21: return .evening
+        default: return .night
+        }
+    }
 }
