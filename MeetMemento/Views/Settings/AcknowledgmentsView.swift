@@ -29,6 +29,17 @@ struct AcknowledgmentsView: View {
                         .accessibilityIdentifier("acknowledgments.model")
                 }
 
+                if let openRAIL = openRAILText {
+                    SettingsSection(title: "BigScience Open RAIL-M License") {
+                        Text(openRAIL)
+                            .font(.caption2)
+                            .foregroundStyle(theme.mutedForeground)
+                            .padding(.vertical, Spacing.sm)
+                            .textSelection(.enabled)
+                            .accessibilityIdentifier("acknowledgments.openrail")
+                    }
+                }
+
                 if let ofl = oflText {
                     SettingsSection(title: "SIL Open Font License") {
                         Text(ofl)
@@ -61,6 +72,17 @@ struct AcknowledgmentsView: View {
         """
         On-device voice uses Supertonic 3 model weights (OpenRAIL-M) and a vendored inference runtime from soniqo/speech-swift (Apache-2.0). Weights are bundled in this app and are not downloaded at runtime. Use of the voices is limited to reading your own journal — impersonation and deceptive synthetic speech are not permitted.
         """
+    }
+
+    /// The weights' licence requires that recipients receive a copy of it and
+    /// that Attachment A's use restrictions be passed on (Section III) — so the
+    /// full text ships, exactly as the OFL text does. The one-paragraph summary
+    /// in `modelAttribution` above is orientation, not the notice.
+    private var openRAILText: String? {
+        guard let url = Bundle.main.url(forResource: "OpenRAIL-M", withExtension: "txt") else {
+            return nil
+        }
+        return try? String(contentsOf: url, encoding: .utf8)
     }
 
     private var oflText: String? {

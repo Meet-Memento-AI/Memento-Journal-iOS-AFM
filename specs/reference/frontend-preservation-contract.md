@@ -173,6 +173,8 @@ ID — the same convention as the architecture spec's §16.*
 
 **2026-09-11 (spec 042):** PRES-043's local thumbs / reason / Report path is
 unchanged. When Settings → Share Quality Feedback is on, the same local write
-may also enqueue a verification upload. Sheet copy no longer claims the report
-always stays on this device in that state. Journal entries and chat history
-are not part of PRES-043.
+may also enqueue a verification upload for ratings.
+
+**2026-09-12 (spec 042):** Submitting a Report is per-event consent: that
+question, answer, reason, and note are sent for review even when ratings
+sharing is off. Journal entries and chat history are not part of PRES-043.

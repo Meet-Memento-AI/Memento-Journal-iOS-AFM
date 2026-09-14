@@ -66,7 +66,8 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertFalse(prompt.contains("Follow it exactly"))
         XCTAssertFalse(prompt.contains("answer and stop"))
         XCTAssertFalse(prompt.contains("Meet them only"))
-        XCTAssertTrue(prompt.contains("do not skip continuers"))
+        // Sentence-initial in askCore; see AskPromptContractTests.
+        XCTAssertTrue(prompt.localizedCaseInsensitiveContains("do not skip continuers"))
         XCTAssertTrue(
             prompt.contains("what they just said") || prompt.contains("how they are")
         )

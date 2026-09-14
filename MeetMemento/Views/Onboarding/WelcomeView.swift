@@ -9,13 +9,17 @@
 import SwiftUI
 
 public struct WelcomeView: View {
+    @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @EnvironmentObject var appState: AppStateStore
 
     // Video loading and blur states
     @State private var isVideoReady = false
-    @State private var playbackProgress: Double = 0
-    @State private var hasCompletedFirstLoop = false
+    /// Applied as a one-shot animation, not per-tick from the playhead.
+    /// Driving SwiftUI `.blur` from a 10 Hz progress binding re-rasterized
+    /// the player every frame and made Welcome look like a slideshow.
+    @State private var appliedBlur: CGFloat = 0
 
     // Animation sequence states
     @State private var videoOpacity: Double = 0        // For video dissolve
@@ -42,62 +46,36 @@ public struct WelcomeView: View {
 
     public init() {}
 
-    /// Calculate blur amount based on video playback progress
-    /// Delayed start with quadratic ease-in for a more delicate feel
-    private var blurAmount: CGFloat {
-        // No blur during exit (dissolving to white)
-        if isExiting { return 0 }
+    /// Extra layout around the player so a 100pt kernel samples video, not
+    /// empty pixels. Fixed at the ceiling so the AVPlayer layer never resizes
+    /// while the blur eases in.
+    private var videoBlurOverflow: CGFloat { JournalBackdropShader.blurStrength }
 
-        // Don't blur until content has loaded
-        guard blurCanStart else { return 0 }
-
-        if hasCompletedFirstLoop {
-            return 40  // Stay at max blur after first loop
-        }
-
-        // Let video play clear for first 40%, then ease blur in
-        let blurStartThreshold: Double = 0.4
-
-        if playbackProgress < blurStartThreshold {
-            return 0  // Crystal clear video
-        }
-
-        // Remap 0.4-1.0 → 0-1, then apply ease-in curve
-        let normalizedProgress = (playbackProgress - blurStartThreshold) / (1.0 - blurStartThreshold)
-        let easedProgress = normalizedProgress * normalizedProgress  // Quadratic ease-in
-
-        return CGFloat(easedProgress) * 40
+    private var targetBlur: CGFloat {
+        if isExiting || reduceTransparency { return 0 }
+        return blurCanStart ? JournalBackdropShader.blurStrength : 0
     }
 
     public var body: some View {
         NavigationStack {
             ZStack {
-                // Layer 1: White background (always present, visible during dissolve)
-                Color.white
-                    .ignoresSafeArea()
-
-                // Layer 2: Video background (dissolves in/out)
-                VideoBackground(
-                    videoName: "welcome-bg",
-                    videoExtension: "mp4",
-                    isVideoReady: $isVideoReady,
-                    playbackProgress: $playbackProgress
-                )
-                .opacity(videoOpacity)
-                .blur(radius: blurAmount)
-                .ignoresSafeArea()
-                .onChange(of: playbackProgress) { _, newValue in
-                    // First forward pass reached the end. Lock blur so the
-                    // reverse half of ping-pong does not ease it back out.
-                    if newValue >= 0.95 {
-                        hasCompletedFirstLoop = true
-                    }
+                // White only while dissolving (intro in / Get Started out).
+                // A standing plate flashes through when the player wraps.
+                if isExiting || videoOpacity < 1 {
+                    Color.white
+                        .ignoresSafeArea()
                 }
 
-                // Layer 3: Gradient overlay (follows video opacity)
+                welcomeVideo
+
+                // Figma 905:2047 — light bottom scrim for the wordmark, not a
+                // top-white wash that reads as the video being cut off.
                 LinearGradient(
-                    colors: [Color.white.opacity(0.4), Color.white.opacity(0)],
-                    startPoint: .top,
+                    colors: [
+                        Color.clear,
+                        JournalBackdropShader.scrimColor.opacity(0.15)
+                    ],
+                    startPoint: .center,
                     endPoint: .bottom
                 )
                 .opacity(videoOpacity)
@@ -114,6 +92,7 @@ public struct WelcomeView: View {
                         .transition(.opacity.animation(.easeInOut(duration: 1.2)))
                 }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .animation(.easeInOut(duration: 1.0), value: isVideoReady)
             .onAppear {
                 // Check if returning from onboarding - skip intro animations
@@ -133,7 +112,7 @@ public struct WelcomeView: View {
                     showHeadline = true
                     showButtons = true
                     blurCanStart = true
-                    hasCompletedFirstLoop = true
+                    appliedBlur = targetBlur
                 }
             }
             .onChange(of: isVideoReady) { _, ready in
@@ -147,7 +126,7 @@ public struct WelcomeView: View {
                     showHeadline = true
                     showButtons = true
                     blurCanStart = true
-                    hasCompletedFirstLoop = true
+                    appliedBlur = targetBlur
                     return
                 }
 
@@ -165,14 +144,52 @@ public struct WelcomeView: View {
                     withAnimation(.easeInOut(duration: 0.8).delay(0.3)) { showHeadline = true }
                     withAnimation(.easeInOut(duration: 0.8).delay(0.6)) { showButtons = true }
 
-                    // Phase 3: After content loads, enable blur
+                    // Phase 3: Video stays readable while the CTA lands, then
+                    // the wash eases across most of the first forward pass so
+                    // it is fully live around the first reverse.
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
                         blurCanStart = true
+                        withAnimation(.easeInOut(duration: 6.0)) {
+                            appliedBlur = targetBlur
+                        }
                     }
                 }
             }
         }
+        .useTheme()
         .useTypography()
+    }
+
+    // MARK: - Video
+
+    /// Full-bleed player. Blur runs on a downscaled copy so a 100pt wash
+    /// does not re-rasterize 720p H.264 at full resolution every frame.
+    private var welcomeVideo: some View {
+        GeometryReader { geo in
+            let overflow = videoBlurOverflow
+            let downscale: CGFloat = 0.4
+            VideoBackground(
+                videoName: "welcome-bg",
+                videoExtension: "mp4",
+                loopMode: .pingPong,
+                isVideoReady: $isVideoReady
+            )
+            .transaction { $0.animation = nil }
+            .frame(
+                width: geo.size.width + overflow * 2,
+                height: geo.size.height + overflow * 2
+            )
+            .scaleEffect(downscale)
+            .blur(radius: appliedBlur * downscale)
+            .scaleEffect(1 / downscale)
+            .opacity(videoOpacity)
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Launch Loading View
@@ -194,79 +211,105 @@ public struct WelcomeView: View {
 
     // MARK: - Welcome Mark
 
-    /// Rebrand mark as Liquid Glass clipped to the SVG paths (hexagon + sparkle).
-    /// Not `.interactive()` — this is decoration, not a control.
-    /// Not `.clear` — that needs a dimming layer and bold content.
-    /// `spacing: 0` so the two glyphs share a sampling region without fusing.
-    private let welcomeMarkSize: CGFloat = 72
+    /// Figma 905:2057 — 56pt AppIcon. Same hexagon + sparkle paths as
+    /// `AppIcon-Transparent` (`WelcomeMarkShape`). White opacity ramps
+    /// 32% → 64% across the mark only; the wordmark stays solid.
+    private let welcomeMarkSize: CGFloat = 56
+
+    private var welcomeMarkFill: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(0.32),
+                Color.white.opacity(0.64)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 
     private var welcomeMark: some View {
-        GlassEffectContainer(spacing: 0) {
-            ZStack {
-                Color.clear
-                    .frame(width: welcomeMarkSize, height: welcomeMarkSize)
-                    .glassEffect(.regular, in: WelcomeMarkBodyShape())
-                Color.clear
-                    .frame(width: welcomeMarkSize, height: welcomeMarkSize)
-                    .glassEffect(.regular, in: WelcomeMarkSparkleShape())
+        welcomeMarkFill
+            .frame(width: welcomeMarkSize, height: welcomeMarkSize)
+            .mask {
+                ZStack {
+                    WelcomeMarkBodyShape()
+                    WelcomeMarkSparkleShape()
+                }
             }
-        }
-        .frame(width: welcomeMarkSize, height: welcomeMarkSize)
-        .accessibilityHidden(true)
+            .accessibilityHidden(true)
     }
 
     // MARK: - Content Overlay
 
-    /// Figma 248:672 — mark at y=280, headline 16pt below (y=368).
-    private let welcomeMarkTop: CGFloat = 280
-
+    /// Figma 905:2054 — bottom stack, 24pt sides, 32pt between copy and CTA.
     private var contentOverlay: some View {
         VStack(spacing: 0) {
-            VStack(spacing: Spacing.md) {
-                welcomeMark
-                    .opacity(showLogo ? 1 : 0)
-
-                Text("Journal with your voice, reflect privately on your device")
-                    .font(.custom("Lora-Bold", size: 32))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.horizontal, 24)
-                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                    .accessibilityIdentifier("welcome.headline")
-                    .opacity(showHeadline ? 1 : 0)
-            }
-            .padding(.top, welcomeMarkTop)
-            .frame(maxWidth: .infinity)
-
             Spacer(minLength: 0)
 
-            // Get Started — no sign-in step; moves straight into onboarding.
-            getStartedSection
-                .padding(.horizontal, 24)
-                .opacity(showButtons ? 1 : 0)
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    wordmarkRow
+                        .opacity(showLogo ? 1 : 0)
+
+                    Text("Journal with your voice, reflect privately on your device.")
+                        .font(.custom("Figtree-SemiBold", size: Typography.baseSize2XL, relativeTo: .title))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("welcome.positioning")
+                        .opacity(showHeadline ? 1 : 0)
+                }
+
+                getStartedSection
+                    .opacity(showButtons ? 1 : 0)
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.bottom, Spacing.md)
         }
-        .ignoresSafeArea(edges: .top)
+    }
+
+    /// Figma 905:2056 — 56pt mark, 8pt gap, Lora Bold 40 "Memento".
+    private var wordmarkRow: some View {
+        HStack(alignment: .center, spacing: Spacing.xs) {
+            welcomeMark
+            Text("Memento")
+                .font(type.h1)
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .accessibilityIdentifier("welcome.headline")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Memento")
     }
 
     // MARK: - Get Started
 
-    /// Darkens the glass from the inside so the capsule still *is* Liquid
-    /// Glass — the tint reads through the frost instead of covering it.
-    private static let getStartedGlassTintOpacity: Double = 0.24
+    /// Figma 905:2060 — white 64% frost, 16pt corners, warm-neutral/600 label.
+    private static let getStartedGlassTintOpacity: Double = 0.64
 
     @ViewBuilder
     private var getStartedSection: some View {
+        let shape = RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
+
         Button(action: { getStarted() }) {
             Text("Get Started")
-                .font(type.button)
+                .font(.custom("Figtree-Bold", size: 18, relativeTo: .body))
+                .kerning(-0.28)
+                .foregroundStyle(WarmNeutral.w600)
                 .frame(maxWidth: .infinity)
-                .foregroundStyle(.white)
-                .mementoGlassButtonChrome(
-                    .regular.tint(BaseColors.black.opacity(Self.getStartedGlassTintOpacity))
+                .padding(.vertical, Spacing.sm)
+                .padding(.horizontal, Spacing.xl)
+                .frame(minHeight: AppHeaderMetrics.minimumTapTarget)
+                .glassEffect(
+                    .regular.tint(Color.white.opacity(Self.getStartedGlassTintOpacity)),
+                    in: shape
                 )
+                .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PrimaryButtonPressStyle())
         .disabled(isExiting)
         .allowsHitTesting(showButtons && !isExiting)
         // Promote the Button itself so XCTest/`VoiceOver` see one control
@@ -275,6 +318,7 @@ public struct WelcomeView: View {
         .accessibilityLabel("Get Started")
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Double-tap to start setting up Memento")
+        .environment(\.colorScheme, .light)
         .accessibilityIdentifier("welcome.getStarted")
     }
 
@@ -288,6 +332,7 @@ public struct WelcomeView: View {
 
         withAnimation(.easeInOut(duration: Self.exitDissolveDuration)) {
             videoOpacity = 0
+            appliedBlur = 0
             showLogo = false
             showHeadline = false
             showButtons = false

@@ -2,8 +2,9 @@
 //  FeedbackConsent.swift
 //  MeetMemento
 //
-//  Spec 042 verification-only consent. Two tiers: metadata (default when the
-//  Settings toggle is on) and metadata-plus-text (Report + explicit include).
+//  Spec 042 verification consent. Thumbs need the Settings toggle
+//  (metadata only). Submitting a Report is per-event consent and always
+//  sends metadata plus the question and answer.
 //
 
 import Foundation
@@ -15,7 +16,7 @@ enum FeedbackConsentTier: String, Equatable {
 }
 
 enum FeedbackConsent {
-    /// Settings master switch. Off by default — nothing is queued or sent.
+    /// Settings switch for ratings. Off by default. Reports do not read this.
     static var shareWithDeveloper: Bool {
         PreferencesService.shared.shareFeedbackWithDeveloper
     }
@@ -25,10 +26,10 @@ enum FeedbackConsent {
         source: AnswerFeedbackSource,
         includeTextForReview: Bool
     ) -> FeedbackConsentTier {
-        guard shareWithDeveloper else { return .none }
-        if source == .report && includeTextForReview {
+        if source == .report {
             return .metadataAndText
         }
+        guard shareWithDeveloper else { return .none }
         return .metadata
     }
 }

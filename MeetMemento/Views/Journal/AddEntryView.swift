@@ -234,15 +234,17 @@ public struct AddEntryView: View {
     }
 
     /// Resting: `windowBottom + 16`, same as Journal FAB / Chat composer.
-    /// Keyboard up: 16pt above the keys. Applied *outside* the glass
-    /// container — insets around `glassEffect` are ignored under
-    /// `.ignoresSafeArea()`.
+    /// Keyboard up: 16pt above the keys. This view is not in
+    /// `RootPageScaffold`, which always adds `windowBottom` on top of its
+    /// extra-air value — so keyboard-up here is the *sum*
+    /// (`keyboardHeight + 16`), not `keyboardHeight - windowBottom + 16`.
+    /// Applied *outside* the glass container — insets around `glassEffect`
+    /// are ignored under `.ignoresSafeArea()`.
     private var keyboardBottomPadding: CGFloat {
         guard keyboardObserver.isKeyboardVisible else {
             return AppHeaderMetrics.windowBottom + AppHeaderMetrics.rowBottomPadding
         }
-        return max(keyboardObserver.keyboardHeight - AppHeaderMetrics.windowBottom, 0)
-            + AppHeaderMetrics.rowBottomPadding
+        return keyboardObserver.keyboardHeight + AppHeaderMetrics.rowBottomPadding
     }
 
     public var body: some View {

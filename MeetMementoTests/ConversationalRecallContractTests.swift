@@ -26,8 +26,12 @@ final class ConversationalRecallContractTests: XCTestCase {
     func test_interpretation_isForbidden() {
         let text = askText()
         XCTAssertTrue(text.contains("do not name the meaning") || text.contains("Put evidence in front of them"))
+        // ask-core@16 rephrased this ban from "Never name their emotions" to
+        // "Do not name their emotions or diagnose how they felt". Match the
+        // phrasing-agnostic substring, as test_emotionLabel_isForbidden already
+        // does — the contract is that the ban is stated, not how it is worded.
         XCTAssertTrue(text.contains("interpret character the evidence does not state")
-                      || text.contains("Never name their emotions"))
+                      || text.contains("name their emotions"))
     }
 
     func test_advice_isForbidden_andSafetyGateRemains() {

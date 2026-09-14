@@ -13,16 +13,36 @@ struct FeedbackSupabaseConfig: Equatable {
     let anonKey: String
 
     static func fromBundle(_ bundle: Bundle = .main) -> FeedbackSupabaseConfig? {
-        func cleaned(_ key: String) -> String? {
-            guard let raw = bundle.object(forInfoDictionaryKey: key) as? String else { return nil }
+        resolve(
+            urlString: bundle.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+            anonKey: bundle.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
+        )
+    }
+
+    /// Pure so the rules below are testable without rebuilding the app against
+    /// different xcconfig values — which is how the `https:` truncation bug went
+    /// unnoticed: nothing could exercise the parsing without a full build.
+    static func resolve(urlString: String?, anonKey: String?) -> FeedbackSupabaseConfig? {
+        func cleaned(_ raw: String?) -> String? {
+            guard let raw else { return nil }
             let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty { return nil }
+            // An unexpanded build variable means the xcconfig never supplied one.
             if trimmed.hasPrefix("$(") { return nil }
             return trimmed
         }
-        guard let urlString = cleaned("SUPABASE_URL"),
+        guard let urlString = cleaned(urlString),
               let url = URL(string: urlString),
-              let key = cleaned("SUPABASE_ANON_KEY") else {
+              let key = cleaned(anonKey) else {
+            return nil
+        }
+        // A host is required, not merely a parseable URL. `URL(string: "https:")`
+        // succeeds, so without this the app reports itself CONFIGURED and then
+        // fails every upload against a scheme-only endpoint — silently, because
+        // the outbox just retries. That exact value is what an xcconfig produces
+        // from a literal `https://host` line, since `//` starts a comment there
+        // (see Config/Supabase.xcconfig.example). Fail closed instead.
+        guard url.scheme != nil, let host = url.host, !host.isEmpty else {
             return nil
         }
         return FeedbackSupabaseConfig(url: url, anonKey: key)
@@ -85,9 +105,14 @@ final class SupabaseFeedbackClient: FeedbackSubmitting, @unchecked Sendable {
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
         request.httpBody = try JSONSerialization.data(withJSONObject: jsonObject)
 
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
         guard (200...299).contains(status) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            AppLogger.log(
+                "⚠️ [Feedback] RPC \(rpc) HTTP \(status) \(body.prefix(240))",
+                category: AppLogger.network
+            )
             throw FeedbackClientError.invalidResponse(status: status)
         }
     }

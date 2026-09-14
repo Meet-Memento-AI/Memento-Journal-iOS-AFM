@@ -52,25 +52,44 @@ final class FeedbackSyncService: @unchecked Sendable {
         self.tombstoneURL = base.appendingPathComponent("erase-tombstone.json")
     }
 
-    /// Enqueue a verification upload after the local store write. No-op when
-    /// the Settings toggle is off or keys are missing.
+    /// Enqueue a verification upload after the local store write.
+    /// Reports always queue (per-event consent). Thumbs no-op when the
+    /// Settings toggle is off or keys are missing.
     func record(_ row: AnswerFeedback, includeTextForReview: Bool = false) {
-        guard FeedbackConsent.tier(
-            shareWithDeveloper: defaults.bool(forKey: PreferencesService.shareFeedbackKey),
+        let share = defaults.bool(forKey: PreferencesService.shareFeedbackKey)
+        let tier = FeedbackConsent.tier(
+            shareWithDeveloper: share,
             source: row.source,
             includeTextForReview: includeTextForReview
-        ) != .none else { return }
-        guard client.isConfigured else { return }
+        )
+        guard tier != .none else {
+            AppLogger.log(
+                "⚠️ [Feedback] skip \(row.source.rawValue) — ratings sharing off",
+                category: AppLogger.network
+            )
+            return
+        }
+        guard client.isConfigured else {
+            AppLogger.log(
+                "⚠️ [Feedback] skip \(row.source.rawValue) — SUPABASE_URL / ANON_KEY missing",
+                category: AppLogger.network
+            )
+            return
+        }
 
         let deviceID = FeedbackDeviceIdentity.registered(defaults: defaults)
         guard let envelope = FeedbackEnvelope.make(
             from: row,
             deviceID: deviceID,
             includeTextForReview: includeTextForReview,
-            shareWithDeveloper: true
+            shareWithDeveloper: share
         ) else { return }
 
         outbox.enqueue(envelope)
+        AppLogger.log(
+            "✅ [Feedback] queued \(envelope.kind) textIncluded=\(envelope.textIncluded)",
+            category: AppLogger.network
+        )
         Task { await flush() }
     }
 
@@ -99,8 +118,16 @@ final class FeedbackSyncService: @unchecked Sendable {
             do {
                 try await client.submit(item.envelope)
                 outbox.markSucceeded(clientEventID: item.clientEventID)
+                AppLogger.log(
+                    "✅ [Feedback] uploaded \(item.envelope.kind)",
+                    category: AppLogger.network
+                )
             } catch {
                 outbox.markFailed(clientEventID: item.clientEventID)
+                AppLogger.log(
+                    "⚠️ [Feedback] upload failed \(item.envelope.kind): \(error)",
+                    category: AppLogger.network
+                )
             }
         }
     }

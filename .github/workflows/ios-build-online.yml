@@ -82,6 +82,29 @@ jobs:
           MIN_COVERAGE: "13"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 
+      - name: Release build for size measurement
+        # The size that matters is the Release product's, and resources (the
+        # ~147 MB of Core ML voice weights bundled per DEC-012) dominate it.
+        # Cheap relative to the test build above, which is already warm.
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -scheme MeetMemento \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .build-size \
+            build
+
+      - name: App size gate (docs/app-store/00 C10)
+        # Nothing measured app size until 2026-09-12. The ceiling is the 200 MB
+        # cellular-download threshold, not Apple's 4 GB limit: above 200 MB iOS
+        # prompts before downloading over cellular, which is a conversion tax on
+        # every install. Headroom is currently ~12 MB, so one more voice pack
+        # crosses it — which is exactly why this is a gate and not a note.
+        run: |
+          bash scripts/ci/check_app_size.sh \
+            .build-size/Build/Products/Release-iphonesimulator/MeetMemento.app
+
       - name: Install Periphery
         run: brew install peripheryapp/periphery/periphery
 

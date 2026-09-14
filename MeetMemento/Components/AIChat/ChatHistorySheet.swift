@@ -34,12 +34,7 @@ public struct ChatHistorySheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Drag handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(theme.mutedForeground.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
+            MementoSheetHandle()
 
             // Header with title and new chat button
             HStack {
@@ -67,9 +62,8 @@ public struct ChatHistorySheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 24)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.bottom, Spacing.xl)
 
             // Session list or empty/loading state
             if isLoading {
@@ -114,7 +108,7 @@ public struct ChatHistorySheet: View {
         }
         .background(theme.background.ignoresSafeArea())
         .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.hidden)
+        .mementoSheetPresentation()
     }
 
     // MARK: - New Button Background

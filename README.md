@@ -1,8 +1,9 @@
 # MeetMemento
 
 A private journaling app with an on-device AI companion. Journal entries
-stay on device — there are no accounts. Optional, off-by-default quality
-feedback can be sent for verification (spec 042).
+stay on device — there are no accounts. Submitting a Report sends that
+reply for verification. Ratings can be sent if you turn on Share quality
+feedback (spec 042).
 
 ## Setup
 
@@ -13,6 +14,10 @@ To send volunteered chat feedback to the live evaluations project, copy
 `MeetMemento/Config/Supabase.xcconfig.example` to
 `MeetMemento/Config/Supabase.xcconfig` and fill the publishable anon key.
 Never put a `service_role` key in the app or the repo.
+
+Keep the `SUPABASE_URL` line exactly as the example writes it — the slashes are
+composed through `$(SUPABASE_SLASH)` because xcconfig treats `//` as the start
+of a comment, so a literal `https://host` is silently truncated to `https:`.
 
 1. Open `MeetMemento.xcodeproj` in Xcode.
 2. Select a device or simulator.
@@ -46,7 +51,7 @@ MeetMemento/
 ## Privacy & security
 
 - Journal content is stored in encrypted local storage; there is no server copy of the journal.
-- No accounts and no sign-in. If you opt in to Share quality feedback, volunteered ratings (and optional report text) are written to a verification database.
+- No accounts and no sign-in. Submitting a Report writes that question and answer to a verification database. If you opt in to Share quality feedback, volunteered ratings can also be sent.
 - AI generation and journal retrieval run on device.
 
 ## Development
@@ -54,7 +59,13 @@ MeetMemento/
 ### Requirements
 - Xcode **26+** (the on-device intelligence layer needs the Foundation Models SDK)
 - iOS **26+**
-- Swift 6
+- Swift 5 language mode (`SWIFT_VERSION = 5.0`) on the Swift 6 compiler.
+  This is deliberate, not drift: a Release build currently emits ~44 warnings,
+  most of them `this is an error in the Swift 6 language mode` (non-Sendable
+  captures in `@Sendable` closures, non-Sendable stored properties on
+  `Sendable`-conforming classes, and locking calls unavailable from async
+  contexts). Moving to Swift 6 mode is a real concurrency-audit project, not a
+  build-setting flip — do it on its own branch with its own test run.
 
 ### Testing
 Online suite (matches merge CI — skips UITests and live FM generation):

@@ -273,13 +273,13 @@ struct SettingsView: View {
                 icon: "hand.thumbsup",
                 title: "Share Quality Feedback",
                 subtitle: preferences.shareFeedbackWithDeveloper
-                    ? "Ratings and optional report text can leave this device for verification"
-                    : "Off — thumbs and reports stay on this device",
+                    ? "Ratings can leave this device for verification. Submitting a Report always sends that reply."
+                    : "Off — thumbs stay on this device. Submitting a Report still sends that reply for review.",
                 isOn: $preferences.shareFeedbackWithDeveloper,
                 accessibilityIdentifier: "settings.shareFeedback",
                 accessibilityHint: preferences.shareFeedbackWithDeveloper
-                    ? "Quality feedback may be sent for review. Double-tap to keep it on this device."
-                    : "Feedback stays on this device. Double-tap to share ratings for verification."
+                    ? "Ratings may be sent for review. Reports always send. Double-tap to keep ratings on this device."
+                    : "Ratings stay on this device. Submitting a Report still sends that reply. Double-tap to share ratings."
             )
 
             SettingsRowDivider()

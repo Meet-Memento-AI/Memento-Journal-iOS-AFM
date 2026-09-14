@@ -15,10 +15,6 @@ public struct ChatSummarySheet: View {
     @Environment(\.typography) private var type
     @Environment(\.dismiss) private var dismiss
 
-    /// Same interior tint as Welcome's Get Started — darkens the frost
-    /// without covering it, so the capsule stays Liquid Glass.
-    private static let primaryGlassTintOpacity: Double = 0.24
-
     public init(
         onSummarize: @escaping () -> Void,
         isSummarizing: Bool
@@ -29,7 +25,7 @@ public struct ChatSummarySheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            dragHandle
+            MementoSheetHandle()
 
             heroIcon
                 .padding(.bottom, Spacing.md)
@@ -55,22 +51,11 @@ public struct ChatSummarySheet: View {
                 .padding(.bottom, Spacing.xxl)
         }
         .presentationDetents([.height(360)])
-        .presentationDragIndicator(.hidden)
-        .presentationCornerRadius(32)
+        .mementoSheetPresentation()
         .interactiveDismissDisabled(isSummarizing)
     }
 
     // MARK: - Chrome
-
-    /// House drag handle (`ChatHistorySheet`, `ProfileSheet`). The system
-    /// indicator is hidden so this one is the only affordance.
-    private var dragHandle: some View {
-        RoundedRectangle(cornerRadius: 2.5)
-            .fill(theme.mutedForeground.opacity(0.3))
-            .frame(width: 36, height: 5)
-            .padding(.top, Spacing.sm)
-            .padding(.bottom, Spacing.lg)
-    }
 
     /// Write glyph — the same mark as the header control and FAB that open
     /// this flow. Overlay on the sheet, not its own glass, so it does not
@@ -99,7 +84,7 @@ public struct ChatSummarySheet: View {
     /// larger than container spacing (8) so they stay two buttons, not one
     /// fused slab.
     private var actions: some View {
-        GlassEffectContainer(spacing: 8) {
+        GlassEffectContainer(spacing: Spacing.xs) {
             VStack(spacing: Spacing.sm) {
                 summarizeButton
                 cancelButton
@@ -125,9 +110,7 @@ public struct ChatSummarySheet: View {
             }
             .frame(maxWidth: .infinity)
             .foregroundStyle(BaseColors.white)
-            .mementoGlassButtonChrome(
-                .regular.tint(BaseColors.black.opacity(Self.primaryGlassTintOpacity))
-            )
+            .mementoGlassButtonChrome(MementoSheetChrome.primaryGlass)
         }
         .buttonStyle(PrimaryButtonPressStyle())
         .disabled(isSummarizing)

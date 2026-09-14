@@ -33,7 +33,7 @@ struct ProfileSheet: View {
         // the main stack, which reads as a two-stage jump.
         NavigationStack {
             VStack(spacing: 0) {
-                dragHandle
+                MementoSheetHandle()
                 header
 
                 ScrollView {
@@ -120,21 +120,10 @@ struct ProfileSheet: View {
             }
         }
         .presentationDetents([.fraction(0.95)])
-        .presentationDragIndicator(.hidden)
-        .presentationCornerRadius(32)
+        .mementoSheetPresentation()
     }
 
     // MARK: - Chrome
-
-    /// Hand-drawn to the house spec (`ChatHistorySheet`, `CitationsBottomSheet`),
-    /// which is why `.presentationDragIndicator` is hidden.
-    private var dragHandle: some View {
-        RoundedRectangle(cornerRadius: 2.5)
-            .fill(theme.mutedForeground.opacity(0.3))
-            .frame(width: 36, height: 5)
-            .padding(.top, 8)
-            .padding(.bottom, 20)
-    }
 
     private var header: some View {
         VStack(spacing: 12) {

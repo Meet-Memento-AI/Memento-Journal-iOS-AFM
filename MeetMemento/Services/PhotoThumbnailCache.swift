@@ -19,7 +19,7 @@ final class PhotoThumbnailCache {
     static let shared = PhotoThumbnailCache()
 
     /// Longest edge for list-card thumbnails. Cards hug title height and
-    /// already apply a 12pt blur; 400px is enough at 3x.
+    /// already apply a 100pt blur; 400px is enough at 3x.
     static let maxPixelSize: CGFloat = 400
     static let prefetchConcurrency = 4
 

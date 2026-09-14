@@ -11,6 +11,7 @@ import StoreKit
 
 public struct AboutSettingsView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.requestReview) private var requestReview
 
     @State private var showShareSheet = false
     @State private var showCopiedAlert = false
@@ -154,6 +155,12 @@ public struct AboutSettingsView: View {
                 subtitle: "Share your experience",
                 showChevron: false,
                 action: {
+                    // `SKStoreReviewController.requestReview(in:)` was deprecated
+                    // in iOS 18; the app's floor is iOS 26, so the SwiftUI
+                    // environment action is available unconditionally and needs
+                    // no `connectedScenes.first` lookup — that lookup was also
+                    // wrong on iPad, where the first scene is not necessarily the
+                    // active one.
                     requestReview()
                 }
             )
@@ -205,12 +212,6 @@ public struct AboutSettingsView: View {
     private func openURL(_ urlString: String) {
         guard let url = URL(string: urlString) else { return }
         UIApplication.shared.open(url)
-    }
-
-    private func requestReview() {
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: scene)
-        }
     }
 
     private var shareMessage: String {

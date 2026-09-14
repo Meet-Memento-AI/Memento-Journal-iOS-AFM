@@ -948,7 +948,7 @@ class ChatViewModel: ObservableObject {
                 category: category,
                 note: trimmed.isEmpty ? nil : trimmed,
                 source: .report,
-                includeTextForReview: includeTextForReview
+                includeTextForReview: true
             )
             feedbackToast = "Reported for review."
         }

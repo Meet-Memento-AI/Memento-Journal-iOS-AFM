@@ -113,6 +113,34 @@ jobs:
           STOREKIT_ENFORCE: "0"
         run: scripts/ci/check_archive_hygiene.sh
 
+  live-legal-urls:
+    name: Published legal site is live and accurate (docs/app-store/00 A6/B1/B2)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check the four legal URLs and the privacy policy's content
+        # This gate existed since August but was wired into NO workflow, which
+        # is how it went stale: it forbade any mention of "supabase" while spec
+        # 042 deliberately added a Supabase disclosure, so it failed a page that
+        # was correct. Fixed and wired 2026-09-12. It now checks both directions
+        # — no third-party AI backend named, AND the real opt-in egress
+        # disclosed — plus that Pages serves THIS repo's copy, which is the A6
+        # root cause (Pages was serving a different repository entirely).
+        run: scripts/ci/check_live_legal_urls.sh
+
+  tts-licence-path:
+    name: TTS path is GPL-free and G2P-free (spec 018 R12 / REQ-TTS-009)
+    runs-on: [self-hosted, Linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Scan the TTS path for GPL text and phonemizer components
+        # espeak-ng is GPL-3 and sits in the G2P path of Kokoro, sherpa-onnx and
+        # Piper alike, two levels down where nobody looks. R12 required this scan
+        # in CI; the script did not exist until 2026-09-12. Also asserts the
+        # OpenRAIL-M weight attribution surface still ships (spec 030 R6 /
+        # DEC-010) — that attribution is a licence term, not a courtesy.
+        run: scripts/ci/check_tts_license_path.sh
+
   asc-metadata:
     name: App Store copy limits + claims (docs/app-store/04, /08)
     runs-on: [self-hosted, Linux, x64]

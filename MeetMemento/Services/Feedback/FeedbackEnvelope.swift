@@ -3,8 +3,8 @@
 //  MeetMemento
 //
 //  Wire DTO for spec 042. Built from the on-device AnswerFeedback row after
-//  consent redaction. Journal text is present only when the include-text flag
-//  is set on an explicit Report. Citation UUIDs never travel — count only.
+//  consent redaction. Report events always carry the question and answer.
+//  Thumbs never do. Citation UUIDs never travel — count only.
 //
 
 import Foundation

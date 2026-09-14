@@ -8,23 +8,36 @@ Cloud Compute for this 1.x submit.
 
 **Legal host (A6, done):** `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`
 
-Confirm with:
+Confirm with the gate, not by hand:
 
 ```sh
-for p in index.html privacy.html terms.html support.html; do
-  printf '%s ' "$p"
-  curl -sS -o /dev/null -w '%{http_code}\n' \
-    "https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/$p"
-done
-curl -sS "https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html" \
-  | grep -ioE 'openai|supabase|gemini' || echo 'privacy: no third-party AI names'
+bash scripts/ci/check_live_legal_urls.sh
 ```
 
-All four must be **200**. Privacy must print the empty-grep line.
+**Updated 2026-09-12.** This used to be a hand-rolled `curl | grep -ioE
+'openai|supabase|gemini'` with the instruction "privacy must print the
+empty-grep line." That is now **wrong**: spec 042 deliberately added a Supabase
+disclosure, so the correct page fails that grep. The script checks both
+directions instead — no third-party AI backend named, *and* the opt-in egress
+actually disclosed — plus that Pages serves this repo's copy byte-for-byte,
+which is the A6 root cause. Verified passing 2026-09-12.
 
 ---
 
 ## A — Apple's clock
+
+### A0 — Accept the Xcode licence on the build Mac (1 minute, blocks everything)
+
+```sh
+sudo xcodebuild -license accept
+xcodebuild -version   # expect 26.x
+```
+
+**Found 2026-09-12.** `/Applications/Xcode.app` (26.6, 17F113) had an unaccepted
+licence, and that blocks far more than archiving: `git`, `xcodebuild`, and
+`simctl` all refuse to run through it, because the command-line shims check the
+licence first. Nothing local — build, test, or archive — works until this is
+done. It is not on Apple's clock, but it is the first gate in the chain.
 
 ### A1 — Program License Agreement
 

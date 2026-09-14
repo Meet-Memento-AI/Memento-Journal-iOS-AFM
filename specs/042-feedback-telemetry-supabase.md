@@ -18,10 +18,10 @@ supersedes:
 
 # 042 — Feedback Telemetry: Verification-Only Device Ingest
 
-Ship volunteered in-app chat feedback — thumbs, “why” reasons, and
-Report-for-review — to the existing live warehouse so
-`public.answer_feedback` (`origin = device_human`) gets rows when a tester
-opts in. Journal entries, chat history, and retrieval excerpts stay on
+Ship volunteered in-app chat feedback — thumbs (opt-in) and
+Report-for-review (per-event consent) — to the existing live warehouse so
+`public.answer_feedback` (`origin = device_human`) gets rows a tester can
+triage. Journal entries, chat history, and retrieval excerpts stay on
 device. Leaving the device is allowed only for this verification pipeline,
 not general sync or analytics.
 
@@ -58,28 +58,30 @@ feedback into that warehouse. Deferred pieces stay in §7.
 
 ## 1. What leaves the device
 
-| Signal | Local (041) | Remote when toggle is **on** |
+| Signal | Local (041) | Remote |
 |---|---|---|
-| Thumbs up / down / undo | `AnswerFeedbackStore` | Metadata only |
-| Why (category + note) | same row | Metadata (`note` is volunteered) |
-| Report | `flaggedForReview = true` | Metadata; journal-derived `userPrompt` / `assistantReply` **only** if the reporter also flips “Include the question and answer for review” |
+| Thumbs up / down / undo | `AnswerFeedbackStore` | Metadata only, and **only** when Settings → Share Quality Feedback is on |
+| Why (category + note) on thumbs-down | same row | Metadata (`note` is volunteered), same Settings gate |
+| Report | `flaggedForReview = true` | **Always.** Submitting a Report is consent for that turn: metadata **plus** `userPrompt` / `assistantReply`. Citation UUIDs never leave. |
 
 | Tier | Columns | Gate |
 |---|---|---|
-| `none` | nothing | **default** (toggle off, or missing keys) |
-| `metadata` | rating, category, note, source, zone, model, prompt version, `was_degraded`, safety presentation, app version, citation **count**, timestamps, anonymous `device_id` | Settings toggle |
-| `metadata_and_text` | the above + `user_prompt`, `assistant_reply` | toggle **and** per-report include-text switch |
+| `none` | nothing | thumbs with the Settings toggle off, or missing keys |
+| `metadata` | rating, category, note, source, zone, model, prompt version, `was_degraded`, safety presentation, app version, citation **count**, timestamps, anonymous `device_id` | Settings toggle (thumbs only) |
+| `metadata_and_text` | the above + `user_prompt`, `assistant_reply` | **Report** (per-event). The include-text sheet switch is gone. |
 
 Never sent: citation entry UUIDs, journal bodies, reflections, full chat
 history. The on-device row may still hold prompt/reply/citation IDs; the
-envelope redacts them. The RPC re-derives the text gate server-side so a
-tampered client cannot store transcript text on a thumbs event.
+envelope redacts them. The RPC still refuses transcript text on a thumbs
+event (`source = 'report' AND textIncluded`).
 
 ---
 
 ## 2. Database (what actually shipped)
 
 Migration: `supabase/migrations/20260911195100_device_verification_feedback.sql`
+Follow-up: `supabase/migrations/20260913001331_device_report_citation_count.sql`
+(`citation_count` integer; `answer_feedback_queue` includes `source`)
 
 - `public.answer_feedback.device_id uuid` — erase key; null on warehouse/eval rows
 - Stable `eval.run` labeled `device-verification-live` (`manual_device_session`)
@@ -124,10 +126,10 @@ write the local store first, then `record`. Network never blocks a thumb.
 Flush on enqueue, `scenePhase == .active` / background, and launch.
 
 `PreferencesService.shareFeedbackWithDeveloper` defaults **false** and is
-cleared by `resetToDefaults()`. Settings → Your Data shows the toggle.
-`ReplyFeedbackSheet` include-text switch appears only for Report when the
-toggle is on (default off). Copy no longer claims the report always stays
-on device when sharing is enabled.
+cleared by `resetToDefaults()`. Settings → Your Data shows the toggle for
+**ratings**. Submitting a Report always enqueues `metadata_and_text`.
+`ReplyFeedbackSheet` no longer has an include-text switch. Copy discloses
+that a Report sends the question, answer, reason, and note.
 
 ---
 
@@ -195,21 +197,25 @@ Untouched because §3 declines the SDK.
 ## 8. Verification
 
 **Unit**
-- Consent `none` → no envelope
-- `metadata` / report without include-text → `userPrompt` / `assistantReply` nil; no citation UUIDs
-- Report + include-text → prompt/reply present; citation IDs still absent
-- Missing keys → `record` enqueues nothing
+- Consent `none` → no envelope for thumbs
+- Thumbs `metadata` → `userPrompt` / `assistantReply` nil; no citation UUIDs
+- Report with sharing **off** → prompt/reply present; citation IDs still absent
+- Missing keys → `record` enqueues nothing (and logs)
 - Outbox duplicate `clientEventID` is a no-op; retry keeps the same id
 - Delete Everything captures `device_id` onto a tombstone before clearing it
 
 **Live (tester)**
-1. Copy `Supabase.xcconfig.example` → `Supabase.xcconfig` and fill the
-   publishable anon key (Dashboard → Settings → API).
-2. Settings → Your Data → **Share Quality Feedback** on.
-3. Thumbs-down a reply and submit a reason → row in
-   `public.answer_feedback` / `answer_feedback_queue` with empty
-   `user_prompt` / `assistant_reply` and `origin = device_human`.
-4. Report a reply with include-text on → those columns populated.
+1. `supabase login`, then `supabase link --project-ref ibdtqiembpexzeoyhfim`
+   (`supabase/` is already initialized — do not `--force` re-init).
+   Copy `Supabase.xcconfig.example` → `Supabase.xcconfig` and fill the
+   publishable anon key. Rebuild so Info.plist is not `$(SUPABASE_ANON_KEY)`.
+2. Report a reply (Settings toggle may stay off) → row in
+   `public.answer_feedback` / `answer_feedback_queue` with populated
+   `user_prompt` / `assistant_reply`, `source = report`,
+   `origin = device_human`.
+3. Thumbs-down a reply **without** Share Quality Feedback → no new remote row.
+4. Toggle Share Quality Feedback on, thumbs-down, submit a reason → metadata
+   row with empty prompt/reply.
 5. Toggle off or Delete Everything → that `device_id`’s rows are removed
    (or queued if offline).
 

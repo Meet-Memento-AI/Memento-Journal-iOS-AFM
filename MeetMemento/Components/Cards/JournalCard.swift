@@ -118,9 +118,7 @@ struct JournalCard: View {
                     ZStack {
                         Self.photoPlaceholderFill(sample: photoSample)
                             .overlay(
-                                JournalBackdropShader.scrimColor.opacity(
-                                    JournalBackdropShader.scrimOpacity
-                                )
+                                JournalBackdropShader.scrimColor.opacity(placeholderScrim)
                             )
                         if let photoImage {
                             JournalPhotoBackdrop(image: photoImage, sample: photoSample)
@@ -131,13 +129,22 @@ struct JournalCard: View {
         }
     }
 
+    /// WCAG veil for the sample plate while the cover decrypts. The treated
+    /// image carries its own overlay, so this is 0 once pixels are up.
+    private var placeholderScrim: Double {
+        guard photoImage == nil, let photoSample else {
+            return JournalBackdropShader.scrimOpacity
+        }
+        return JournalBackdropContrast.parameters(sample: photoSample).scrimOpacity
+    }
+
     private func contentStack(titleColor: Color) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             dateChip
             Text(title)
                 // One step above `promptTitle` (18pt): 20pt Figtree Semibold.
                 .font(type.h4Medium)
-                .photoCoverForeground(titleColor, shadowed: photoImage != nil)
+                .photoCoverForeground(titleColor, shadowed: hasPhoto)
                 // Button injects `lineLimit(1)` into its label environment;
                 // override so the card grows with the full title instead of
                 // clipping to a single line in LazyVStack.
@@ -308,7 +315,20 @@ extension JournalCard {
     static let sampleExcerpt = "I woke up feeling a bit groggy and not entirely refreshed. The alarm felt a bit harsh, and I struggled to get out of bed. Once I did, I noticed that the sky .."
 }
 
-private struct JournalCardHarness: View {
+/// Canvas host. `#Preview` only constructs this type — never JournalCard
+/// plus trailing modifiers — so the Preview macro cannot steal `.dark` /
+/// `.preferredColorScheme` as extra arguments.
+struct JournalCardPreviewHost: View {
+    enum Kind {
+        case sample
+        case longText
+        case photo
+        case photoPlaceholder
+    }
+
+    var kind: Kind = .sample
+    var colorScheme: ColorScheme = .light
+
     private var previewDate: Date {
         var components = DateComponents()
         components.year = 2026
@@ -317,41 +337,7 @@ private struct JournalCardHarness: View {
         return Calendar.current.date(from: components) ?? .now
     }
 
-    var body: some View {
-        JournalCard(
-            title: JournalCard.sampleTitle,
-            excerpt: JournalCard.sampleExcerpt,
-            date: previewDate,
-            onTap: { },
-            onEditTapped: { },
-            onDeleteTapped: { }
-        )
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Theme.light.background)
-        .useTheme()
-        .useTypography()
-    }
-}
-
-#Preview("JournalCard · light") {
-    JournalCardHarness()
-}
-
-#Preview("JournalCard · long text") {
-    JournalCard(
-        title: "Took the long way home through the park and watched the leaves change without rushing",
-        excerpt: "What went well: shipped UI preview harnesses, stabilized Xcode canvas.",
-        date: .now.addingTimeInterval(-36_00)
-    )
-    .padding()
-        .background(Theme.light.background)
-    .useTheme()
-    .useTypography()
-}
-
-private enum JournalCardPreviewAssets {
-    static let photo: Image = {
+    private static let photo: Image = {
         let size = CGSize(width: 4, height: 3)
         let uiImage = UIGraphicsImageRenderer(size: size).image { context in
             UIColor.systemTeal.setFill()
@@ -360,63 +346,81 @@ private enum JournalCardPreviewAssets {
         return Image(uiImage: uiImage)
     }()
 
-    static let sample = JournalBackdropSample(red: 0.25, green: 0.55, blue: 0.55)
+    private static let sample = JournalBackdropSample(red: 0.25, green: 0.55, blue: 0.55)
+
+    var body: some View {
+        card
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(canvas)
+            .useTheme()
+            .useTypography()
+            .preferredColorScheme(colorScheme)
+    }
+
+    private var canvas: Color {
+        colorScheme == .dark ? Theme.dark.background : Theme.light.background
+    }
+
+    @ViewBuilder
+    private var card: some View {
+        switch kind {
+        case .sample:
+            JournalCard(
+                title: JournalCard.sampleTitle,
+                excerpt: JournalCard.sampleExcerpt,
+                date: previewDate,
+                onTap: {},
+                onEditTapped: {},
+                onDeleteTapped: {}
+            )
+        case .longText:
+            JournalCard(
+                title: "Took the long way home through the park and watched the leaves change without rushing",
+                excerpt: "What went well: shipped UI preview harnesses, stabilized Xcode canvas.",
+                date: .now.addingTimeInterval(-3_600)
+            )
+        case .photo:
+            JournalCard(
+                title: "Took the long way home through the park and watched the leaves change without rushing",
+                excerpt: JournalCard.sampleExcerpt,
+                date: .now.addingTimeInterval(-86_400),
+                photoImage: Self.photo,
+                photoSample: Self.sample,
+                hasPhoto: true
+            )
+        case .photoPlaceholder:
+            JournalCard(
+                title: "Took the long way home through the park and watched the leaves change without rushing",
+                excerpt: JournalCard.sampleExcerpt,
+                date: .now.addingTimeInterval(-86_400),
+                photoSample: Self.sample,
+                hasPhoto: true
+            )
+        }
+    }
 }
 
-#Preview("JournalCard · with photo") {
-    JournalCard(
-        title: "Took the long way home through the park and watched the leaves change without rushing",
-        excerpt: JournalCard.sampleExcerpt,
-        date: .now.addingTimeInterval(-86_400),
-        photoImage: JournalCardPreviewAssets.photo,
-        photoSample: JournalCardPreviewAssets.sample,
-        hasPhoto: true
-    )
-    .padding()
-        .background(Theme.light.background)
-    .useTheme()
-    .useTypography()
+#Preview("JournalCard light") {
+    JournalCardPreviewHost()
 }
 
-#Preview("JournalCard · with photo, dark") {
-    JournalCard(
-        title: "Took the long way home through the park and watched the leaves change without rushing",
-        excerpt: JournalCard.sampleExcerpt,
-        date: .now.addingTimeInterval(-86_400),
-        photoImage: JournalCardPreviewAssets.photo,
-        photoSample: JournalCardPreviewAssets.sample,
-        hasPhoto: true
-    )
-    .padding()
-        .background(Theme.dark.background)
-    .useTheme()
-    .useTypography()
-    .preferredColorScheme(.dark)
+#Preview("JournalCard long text") {
+    JournalCardPreviewHost(kind: .longText)
 }
 
-#Preview("JournalCard · photo placeholder") {
-    JournalCard(
-        title: "Took the long way home through the park and watched the leaves change without rushing",
-        excerpt: JournalCard.sampleExcerpt,
-        date: .now.addingTimeInterval(-86_400),
-        photoSample: JournalCardPreviewAssets.sample,
-        hasPhoto: true
-    )
-    .padding()
-        .background(Theme.light.background)
-    .useTheme()
-    .useTypography()
+#Preview("JournalCard photo") {
+    JournalCardPreviewHost(kind: .photo)
 }
 
-#Preview("JournalCard · dark") {
-    JournalCard(
-        title: JournalCard.sampleTitle,
-        excerpt: JournalCard.sampleExcerpt,
-        date: .now
-    )
-    .padding()
-        .background(Theme.dark.background)
-    .useTheme()
-    .useTypography()
-    .preferredColorScheme(.dark)
+#Preview("JournalCard photo dark") {
+    JournalCardPreviewHost(kind: .photo, colorScheme: .dark)
+}
+
+#Preview("JournalCard photo placeholder") {
+    JournalCardPreviewHost(kind: .photoPlaceholder)
+}
+
+#Preview("JournalCard dark") {
+    JournalCardPreviewHost(colorScheme: .dark)
 }

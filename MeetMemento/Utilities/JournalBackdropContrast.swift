@@ -2,9 +2,11 @@
 //  JournalBackdropContrast.swift
 //  MeetMemento
 //
-//  Adapts JournalBackdropShader tokens. Scrim stays at the design token
-//  (0) so covers read through; Increase Contrast is the only switch that
-//  raises it. White type on a photo uses a light drop shadow instead.
+//  Adapts JournalBackdropShader tokens. Dark covers keep a 0 scrim so the
+//  photo reads through. Bright covers get the lightest dark overlay that
+//  puts white type at WCAG AA (4.5:1). Increase Contrast raises a floor;
+//  Reduce Transparency still zeroes blur. A drop shadow on the glyphs is
+//  extra insurance, not a substitute for the overlay.
 //
 
 import CoreGraphics
@@ -16,9 +18,8 @@ enum JournalBackdropContrast {
         averageSRGB(of: image)
     }
 
-    /// What a cover actually renders with. Accessibility switches apply to
-    /// `base`; a sample is still accepted so card and editor share one
-    /// resolution path even though resting scrim no longer searches.
+    /// What a cover actually renders with. Card and editor share this path
+    /// so a bright sky gets the same veil in the list and in the editor.
     static func resolved(
         sample: JournalBackdropSample?,
         base: JournalBackdropParameters,
@@ -73,18 +74,32 @@ enum JournalBackdropContrast {
     }
 
     /// Pure RGB path for tests (values in 0...1, display-referred sRGB).
+    ///
+    /// Scrim search is one-way: it only ever raises. Dark covers stay at the
+    /// token (0). Bright covers search up until white-on-composite hits
+    /// `minimumContrast`, then stop — the smallest veil that still passes.
+    /// A ceiling keeps a white sky from becoming a charcoal plate.
     static func parameters(
-        srgb _: (r: Double, g: Double, b: Double),
+        srgb: (r: Double, g: Double, b: Double),
         base: JournalBackdropParameters = JournalBackdropShader.designDefaults,
         increaseContrast: Bool = false,
         reduceTransparency: Bool = false
     ) -> JournalBackdropParameters {
         let sat = base.saturation
-        var scrim = base.scrimOpacity
-        if increaseContrast {
-            scrim = max(scrim, JournalBackdropShader.increaseContrastFloor)
-        }
         let blur = reduceTransparency ? 0 : base.blurStrength
+        let brightness = blur > 0 ? JournalBackdropShader.treatedBrightness : 0
+        var floor = base.scrimOpacity
+        if increaseContrast {
+            floor = max(floor, JournalBackdropShader.increaseContrastFloor)
+        }
+        let scrim = scrimOpacity(
+            srgb: srgb,
+            saturation: sat,
+            brightness: brightness,
+            floor: floor,
+            ceiling: JournalBackdropShader.scrimCeiling,
+            target: JournalBackdropShader.minimumContrast
+        )
         return JournalBackdropParameters(
             blurStrength: blur,
             scrimOpacity: scrim,
@@ -92,18 +107,60 @@ enum JournalBackdropContrast {
         )
     }
 
-    /// The colour a cover actually presents after the shader's saturation and
-    /// scrim. Shared by the WCAG search and the chrome tint so the two cannot
+    /// Smallest dark overlay that puts white ink at `target` on this cover.
+    /// Binary search so the veil is no heavier than WCAG requires.
+    static func scrimOpacity(
+        srgb: (r: Double, g: Double, b: Double),
+        saturation: Double,
+        brightness: Double,
+        floor: Double,
+        ceiling: Double,
+        target: Double
+    ) -> Double {
+        let loBound = min(max(floor, 0), ceiling)
+        let hiBound = max(ceiling, loBound)
+        func ratio(_ scrim: Double) -> Double {
+            contrast(
+                srgb: srgb,
+                saturation: saturation,
+                scrimOpacity: scrim,
+                brightness: brightness
+            )
+        }
+        if ratio(loBound) >= target { return loBound }
+        if ratio(hiBound) < target { return hiBound }
+        var lo = loBound
+        var hi = hiBound
+        for _ in 0..<16 {
+            let mid = (lo + hi) / 2
+            if ratio(mid) >= target {
+                hi = mid
+            } else {
+                lo = mid
+            }
+        }
+        return hi
+    }
+
+    /// The colour a cover actually presents after brightness, saturation and
+    /// scrim. Matches the card/editor stack: lift, then sat, then the overlay.
+    /// Shared by the WCAG search and the chrome tint so the two cannot
     /// disagree about what is behind the glass.
     static func composite(
         srgb: (r: Double, g: Double, b: Double),
         saturation: Double,
-        scrimOpacity: Double
+        scrimOpacity: Double,
+        brightness: Double = 0
     ) -> (r: Double, g: Double, b: Double) {
-        let lum = rec709Luma(srgb.r, srgb.g, srgb.b)
-        let saturatedR = mix(lum, srgb.r, saturation)
-        let saturatedG = mix(lum, srgb.g, saturation)
-        let saturatedB = mix(lum, srgb.b, saturation)
+        let lifted = (
+            r: min(1, max(0, srgb.r + brightness)),
+            g: min(1, max(0, srgb.g + brightness)),
+            b: min(1, max(0, srgb.b + brightness))
+        )
+        let lum = rec709Luma(lifted.r, lifted.g, lifted.b)
+        let saturatedR = mix(lum, lifted.r, saturation)
+        let saturatedG = mix(lum, lifted.g, saturation)
+        let saturatedB = mix(lum, lifted.b, saturation)
         return (
             mix(saturatedR, JournalBackdropShader.scrimRed, scrimOpacity),
             mix(saturatedG, JournalBackdropShader.scrimGreen, scrimOpacity),
@@ -111,15 +168,56 @@ enum JournalBackdropContrast {
         )
     }
 
-    /// White-on-composite contrast after the shader's sat + scrim mix.
+    /// White-on-composite contrast after the shader's lift + sat + scrim mix.
     static func contrast(
         srgb: (r: Double, g: Double, b: Double),
         saturation: Double,
-        scrimOpacity: Double
+        scrimOpacity: Double,
+        brightness: Double = 0
     ) -> Double {
-        let result = composite(srgb: srgb, saturation: saturation, scrimOpacity: scrimOpacity)
+        let result = composite(
+            srgb: srgb,
+            saturation: saturation,
+            scrimOpacity: scrimOpacity,
+            brightness: brightness
+        )
         let bg = relativeLuminance(result.r, result.g, result.b)
         return contrastRatio(foreground: 1.0, background: bg)
+    }
+
+    // MARK: - Chrome glyph ink
+
+    /// Black on Liquid Glass is the default. White only when a cover is so
+    /// dark that black glyphs on the frosted capsule fall below
+    /// `chromeGlyphBlackFloor`. No sample (plain editor) always prefers black.
+    static func prefersWhiteChromeGlyphs(
+        sample: JournalBackdropSample?,
+        params: JournalBackdropParameters,
+        scrimFactor: Double
+    ) -> Bool {
+        guard let sample else { return false }
+        let factor = min(max(scrimFactor, 0), 1)
+        let brightness = (params.blurStrength > 0 && factor > 0)
+            ? JournalBackdropShader.treatedBrightness * factor
+            : 0
+        let backdrop = composite(
+            srgb: (sample.red, sample.green, sample.blue),
+            saturation: params.saturation,
+            scrimOpacity: params.scrimOpacity * factor,
+            brightness: brightness
+        )
+        let frost = JournalBackdropShader.glassFrostOpacity
+        let surface = relativeLuminance(
+            mix(backdrop.r, 1, frost),
+            mix(backdrop.g, 1, frost),
+            mix(backdrop.b, 1, frost)
+        )
+        let blackContrast = contrastRatio(foreground: 0, background: surface)
+        if blackContrast >= JournalBackdropShader.chromeGlyphBlackFloor {
+            return false
+        }
+        let whiteContrast = contrastRatio(foreground: 1, background: surface)
+        return whiteContrast > blackContrast
     }
 
     // MARK: - Chrome tint

@@ -79,7 +79,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "hand.thumbsup.fill",
                 title: "Quality Feedback (opt-in)",
-                description: "If you turn on Share quality feedback, volunteered ratings, reason chips, and notes can be sent for verification. The question and answer leave the device only when you report a reply and choose to include them."
+                description: "Submitting a Report sends that question, answer, reason, and note for review so we can improve the model. If you turn on Share quality feedback, volunteered ratings can also be sent. Journal entries, chat history, and citation IDs stay on this device."
             )
         }
     }
@@ -149,7 +149,7 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "eye.slash.fill",
                 title: "Journal Not Uploaded",
-                description: "We don't operate accounts or analytics SDKs for your journal. If you turn on Share quality feedback, volunteered ratings and optional report text can be sent for review — not journal entries or chat history."
+                description: "We don't operate accounts or analytics SDKs for your journal. Submitting a Report sends that question and answer for review. Ratings leave the device only if Share quality feedback is on. Journal entries and chat history are not uploaded."
             )
         }
     }

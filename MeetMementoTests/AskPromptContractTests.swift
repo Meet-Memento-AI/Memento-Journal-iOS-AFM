@@ -131,8 +131,11 @@ final class AskPromptContractTests: XCTestCase {
             XCTAssertFalse(text.contains("Open only if [Shape:] asks"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Open only if a [Shape:] line asks"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Meet them only"), "degraded=\(degraded)")
+            // Shipped sentence-initial in askCore ("Do not skip continuers."),
+            // lower-case mid-sentence in askCoreDegraded. The contract is that
+            // the rule is stated; its capitalisation is prose, so match either.
             XCTAssertTrue(
-                text.contains("do not skip continuers"),
+                text.localizedCaseInsensitiveContains("do not skip continuers"),
                 "degraded=\(degraded)"
             )
             XCTAssertTrue(

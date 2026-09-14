@@ -1,6 +1,13 @@
 // Debug build configuration.
 // Journal stays on-device. Spec 042 verification keys are optional: missing
 // values make FeedbackSyncService a no-op so a fresh clone still builds.
+//
+// NOTE ON THE SLASH VARIABLE: xcconfig treats `//` as a comment, so writing
+// `SUPABASE_URL = https://host` silently truncates the value to `https:`.
+// That is not theoretical — it is what Supabase.xcconfig.example used to say,
+// so anyone who followed the README got a malformed endpoint and every
+// verification upload failed quietly. Compose the slashes through a variable.
+SUPABASE_SLASH = /
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
 #include? "Supabase.xcconfig"

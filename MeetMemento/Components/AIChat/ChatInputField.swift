@@ -3,11 +3,12 @@
 //  MeetMemento
 //
 //  The chat composer: one glass capsule that morphs between three states.
-//  Figma 433:1077 (State=Default), 431:6079 (State=Narration),
+//  Figma 433:1077 (Default), 976:2838 (single-line typing), 976:2850
+//  (paragraph — plus under the text, 24pt corners), 431:6079 (Narration),
 //  431:5946 (attachments inside the glass).
 //
 //  - Default:   + · "Chat with Memento" · mic · voice button
-//  - Chat:      + · growing text field · mic · send
+//  - Chat:      + · growing text field · mic · send (plus drops under wrap)
 //  - Narrate:   scrolling waveform · keyboard · send
 //
 //  Attached photos sit in a 112pt row *inside* the same glass, above the
@@ -85,16 +86,22 @@ struct ChatInputField: View {
     // Photo attachments (Figma 431:5946 — up to three, inside the glass).
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var attachedPhotos: [AttachedChatPhoto] = []
+    /// Text block height in `.chatActive`. When it exceeds one 48pt line,
+    /// Figma 976:2850 stacks the plus under the field and pins corners at 24.
+    @State private var textBlockHeight: CGFloat = 0
 
     /// Unique identifier for this view's speech session ownership
     private let speechOwnerId = "ChatInputField"
 
     // MARK: - Design Constants
 
-    /// Capsule height — a 64pt well around 48pt trailing controls, not a button.
+    /// Capsule height — 8pt inset around 48pt trailing controls (Figma p-[8px]).
     private let pillHeight: CGFloat = AppHeaderMetrics.composerMinHeight
-    /// Every control in the bar is a 48pt circle, matching product glass chrome.
+    /// Plus / mic layout slot. 48pt so the row stays aligned with header chrome.
     private let iconButtonSize: CGFloat = AppHeaderMetrics.controlSize
+    /// Filled narrate / send discs. Figma is 40pt (`theme.radius.lg` × 2);
+    /// the 48pt slot around them is the tap target, not the painted circle.
+    private var prominentButtonSize: CGFloat { theme.radius.lg * 2 }
     private var glyphFont: Font { AppHeaderMetrics.controlSymbolFont }
     /// Figma 431:5946 — attachment thumbs inside the glass.
     private let photoThumbHeight: CGFloat = 112
@@ -141,6 +148,15 @@ struct ChatInputField: View {
         max(0, Self.maxAttachments - attachedPhotos.count)
     }
 
+    /// Figma 976:2850 — wrapped typing, not the single-line pill.
+    /// Newlines always count; soft-wrap waits until the field is clearly
+    /// taller than one 48pt line so relocating the plus doesn't oscillate.
+    private var isParagraphLayout: Bool {
+        guard inputState == .chatActive else { return false }
+        if text.contains(where: { $0.isNewline }) { return true }
+        return textBlockHeight > iconButtonSize + 8
+    }
+
     // MARK: - Initializer
 
     init(
@@ -171,6 +187,7 @@ struct ChatInputField: View {
         // `capsule` (Figma 431:5946), not as a sibling chip above the glass.
         capsule
         .accessibleAnimation(Self.stateChange, value: inputState)
+        .accessibleAnimation(Self.stateChange, value: isParagraphLayout)
         .accessibleAnimation(Self.stateChange, value: attachedPhotos.map(\.id))
         .allowsHitTesting(isInteractive)
         // A single utterance can satisfy BOTH observers below (recording stops
@@ -211,6 +228,7 @@ struct ChatInputField: View {
                 withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
                     inputState = .defaultState
                 }
+                textBlockHeight = 0
                 onDismiss?()
             }
         }
@@ -240,11 +258,11 @@ struct ChatInputField: View {
             }
 
             inputRow
-                .padding(.leading, inputState == .narrateActive ? 12 : 0)
+                .padding(.leading, inputState == .narrateActive ? Spacing.sm : 0)
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 12)
-        .padding(.top, attachedPhotos.isEmpty ? 0 : 12)
+        .padding(.leading, Spacing.xs)
+        .padding(.trailing, Spacing.xs)
+        .padding(.top, attachedPhotos.isEmpty ? 0 : Spacing.sm)
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity)
         .rootEdgeInset()
@@ -275,41 +293,38 @@ struct ChatInputField: View {
         // rather than something pressed directly, and interactive glass here
         // would light the whole bar up when the mic or send is tapped.
         //
-        // A fixed 32pt radius rather than `.capsule`. A capsule's radius is half
-        // its height, so at the resting 64pt the two are identical — but the
-        // field grows to five lines, and the capsule's corners would swell with
-        // it. Pinning the token keeps the silhouette constant while typing.
+        // Rest / single-line stays 32pt (a pill at the 64pt well). Wrapped
+        // typing (Figma 976:2850) pins 24pt so the corners don't swell with
+        // five lines — and so attachments don't turn the bar into a capsule.
         .glassEffect(
             .regular.tint(theme.background.opacity(Self.glassFrostTintOpacity)),
-            in: .rect(cornerRadius: theme.radius.xxl, style: .continuous)
+            in: .rect(
+                cornerRadius: isParagraphLayout ? theme.radius.xl : theme.radius.xxl,
+                style: .continuous
+            )
         )
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { onComposerFrame?($0) }
     }
 
-    /// The + / field / trailing-controls row. Figma's input row is always the
-    /// 64pt well (`8pt` inset around 48pt circles), whether or not thumbs sit above.
+    /// Figma's input row is 8pt inset around the controls. Single-line stays
+    /// a pill (plus · text · trailing). Wrapped typing (976:2850) stacks the
+    /// plus under the field and pins the trailing pair to the first line.
     private var inputRow: some View {
-        // `.top`, not the default `.center`. At rest every child is 48pt inside a
-        // 64pt bar, so there is 8pt of air — the resting spacing is untouched.
-        // Once the field wraps, though, centre
-        // alignment drifts the controls down to the middle of a tall bar, away
-        // from the line being typed. Top-aligning pins them beside the first
-        // line, which is where the eye already is.
-        HStack(alignment: .top, spacing: 8) {
-            leadingContent
-
-            // Trailing controls. Both are 48pt circles in every state; only the
-            // glyph and the fill change, so the two slots stay put as the field
-            // morphs instead of sliding around.
-            HStack(alignment: .top, spacing: 8) {
-                trailingSecondaryButton
-                trailingPrimaryButton
-            }
+        HStack(alignment: isParagraphLayout ? .top : .center, spacing: Spacing.xs) {
+            leadingColumn
+            trailingControls
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Spacing.xs)
         .frame(minHeight: pillHeight)
         .frame(maxWidth: .infinity)
+    }
+
+    private var trailingControls: some View {
+        HStack(spacing: Spacing.xs) {
+            trailingSecondaryButton
+            trailingPrimaryButton
+        }
     }
 
     /// Figma 431:5946: three equal-flex 112pt thumbs, 8pt gap, 16pt corners.
@@ -332,72 +347,94 @@ struct ChatInputField: View {
 
     // MARK: - Leading Content
 
+    /// Figma placeholder `#8D97A3`. `mutedForeground` is gray600 in light
+    /// (too dark for this caption); gray400 is the nearest token in both modes.
+    private var composerPlaceholder: Color { GrayScale.gray400 }
+
     @ViewBuilder
-    private var leadingContent: some View {
+    private var leadingColumn: some View {
         switch inputState {
         case .defaultState:
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xxs) {
                 attachButton
-                // Only this region opens the composer. The + and the two
-                // trailing buttons are siblings inside the capsule, so wrapping
-                // the whole bar in a Button would swallow their taps.
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
-                        inputState = .chatActive
-                    }
-                    // Request focus HERE rather than in an onAppear. Focusing
-                    // on appear meant the sequence was: animation starts → view
-                    // appears → focus → keyboard notification → content shifts.
-                    // The composer and the conversation therefore moved on two
-                    // different curves, one beat apart. Asking for focus in the
-                    // same turn as the state change lets the keyboard begin
-                    // rising with the morph.
-                    isFocused = true
-                } label: {
-                    HStack(spacing: 0) {
-                        Text("Chat with Memento")
-                            .font(type.inputLarge)
-                            .foregroundStyle(theme.mutedForeground)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: iconButtonSize)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Chat with Memento")
-                .accessibilityHint("Double-tap to write a message")
+                placeholderOpenButton
             }
 
         case .chatActive:
-            // Also `.top`: the attach button has to stay level with the first
-            // line for the same reason as the trailing pair, otherwise it alone
-            // slides to the middle as the text wraps.
-            HStack(alignment: .top, spacing: 4) {
-                attachButton
-                TextField(
-                    "",
-                    text: $text,
-                    prompt: Text("Chat with Memento").foregroundStyle(theme.mutedForeground),
-                    axis: .vertical
-                )
-                .font(type.inputLarge)
-                .foregroundStyle(theme.foreground)
-                .focused($isFocused)
-                .lineLimit(1...5)
-                .textInputAutocapitalization(.sentences)
-                .submitLabel(.return)
-                // Vertically centers a single line against the round buttons.
-                .frame(minHeight: iconButtonSize)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // One TextField in a stable HStack so wrapping the plus underneath
+            // (Figma 976:2850) doesn't recreate the field and drop the caret.
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: Spacing.xxs) {
+                    if !isParagraphLayout {
+                        attachButton
+                    }
+                    composerTextField
+                }
+                if isParagraphLayout {
+                    attachButton
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
         case .narrateActive:
             DictationWaveform(audioLevel: speechService.audioLevel)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: iconButtonSize)
         }
+    }
+
+    /// Only this region opens the composer. The + and the two trailing
+    /// buttons are siblings inside the capsule, so wrapping the whole bar
+    /// in a Button would swallow their taps.
+    private var placeholderOpenButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAccessibleAnimation(Self.stateChange, reduceMotion: reduceMotion) {
+                inputState = .chatActive
+            }
+            // Request focus HERE rather than in an onAppear. Focusing
+            // on appear meant the sequence was: animation starts → view
+            // appears → focus → keyboard notification → content shifts.
+            // The composer and the conversation therefore moved on two
+            // different curves, one beat apart. Asking for focus in the
+            // same turn as the state change lets the keyboard begin
+            // rising with the morph.
+            isFocused = true
+        } label: {
+            HStack(spacing: 0) {
+                Text("Chat with Memento")
+                    .font(type.inputLarge)
+                    .foregroundStyle(composerPlaceholder)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.xs)
+            }
+            .padding(.horizontal, Spacing.xs)
+            .frame(maxWidth: .infinity, minHeight: iconButtonSize)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Chat with Memento")
+        .accessibilityHint("Double-tap to write a message")
+    }
+
+    private var composerTextField: some View {
+        TextField(
+            "",
+            text: $text,
+            prompt: Text("Chat with Memento").foregroundStyle(composerPlaceholder),
+            axis: .vertical
+        )
+        .font(type.inputLarge)
+        .foregroundStyle(theme.foreground)
+        .focused($isFocused)
+        .lineLimit(1...5)
+        .textInputAutocapitalization(.sentences)
+        .submitLabel(.return)
+        .padding(.horizontal, Spacing.xs)
+        .frame(minHeight: iconButtonSize)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .id("chatComposerField")
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { textBlockHeight = $0 }
     }
 
     // MARK: - Attach Button (Figma "ic:round-plus")
@@ -416,6 +453,7 @@ struct ChatInputField: View {
         }
         .disabled(remainingAttachmentSlots == 0)
         .opacity(remainingAttachmentSlots == 0 ? 0.4 : 1)
+        .id("composerAttach")
         .accessibilityLabel("Attach photo")
         .accessibilityHint(attachAccessibilityHint)
         .accessibilityValue(
@@ -501,25 +539,29 @@ struct ChatInputField: View {
                 // light and gray50 in dark, so the button inverts correctly
                 // instead of staying a near-black disc on a dark background.
                 .foregroundStyle(theme.background)
-                .frame(width: iconButtonSize, height: iconButtonSize)
-                .background(Circle().fill(theme.foreground))
-                .contentShape(Circle())
+                .modifier(ProminentComposerCircle(
+                    size: prominentButtonSize,
+                    slot: iconButtonSize,
+                    fill: theme.foreground
+                ))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Hands-free voice")
         .accessibilityHint("Double-tap to start a voice conversation")
     }
 
+    /// Figma 976:2838 / 976:2850 — same dark disc as the resting waveform
+    /// control (`#171717`), not the brand fill. Glyph inverts with the theme.
     private var sendButton: some View {
         Button(action: sendMessage) {
             Image(systemName: "arrow.up")
                 .font(glyphFont.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: iconButtonSize, height: iconButtonSize)
-                .background(
-                    Circle().fill(canSend ? theme.primary : theme.primary.opacity(0.5))
-                )
-                .contentShape(Circle())
+                .foregroundStyle(theme.background)
+                .modifier(ProminentComposerCircle(
+                    size: prominentButtonSize,
+                    slot: iconButtonSize,
+                    fill: canSend ? theme.foreground : theme.foreground.opacity(0.5)
+                ))
         }
         .buttonStyle(.plain)
         .disabled(!canSend)
@@ -538,7 +580,7 @@ struct ChatInputField: View {
                     // `stopRecording()` removes the audio tap, so the waveform
                     // goes flat for up to 1.8s while the final transcript
                     // resolves. Without a cue here there'd be nothing at all —
-                    // this fills the same 48pt circle, so nothing moves.
+                    // this fills the same 40pt disc, so nothing moves.
                     ProgressView()
                         .progressViewStyle(.circular)
                         .tint(.white)
@@ -548,9 +590,11 @@ struct ChatInputField: View {
                         .foregroundStyle(.white)
                 }
             }
-            .frame(width: iconButtonSize, height: iconButtonSize)
-            .background(Circle().fill(theme.primary))
-            .contentShape(Circle())
+            .modifier(ProminentComposerCircle(
+                size: prominentButtonSize,
+                slot: iconButtonSize,
+                fill: theme.primary
+            ))
         }
         .buttonStyle(.plain)
         // Not gated on whether anything has been heard yet: the partial
@@ -736,6 +780,7 @@ struct ChatInputField: View {
         // Return to default state after sending
         text = ""
         attachedPhotos = []
+        textBlockHeight = 0
         inputState = .defaultState
         // Focus is deliberately NOT dropped here. Dismissing the keyboard on
         // send dragged the footer ~300pt during the send flight and forced the
@@ -806,6 +851,21 @@ private struct AttachedChatPhoto: Identifiable, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
 }
 
+/// 40pt filled disc centered in the 48pt composer slot.
+private struct ProminentComposerCircle: ViewModifier {
+    let size: CGFloat
+    let slot: CGFloat
+    let fill: Color
+
+    func body(content: Content) -> some View {
+        content
+            .frame(width: size, height: size)
+            .background(Circle().fill(fill))
+            .frame(width: slot, height: slot)
+            .contentShape(Circle())
+    }
+}
+
 // MARK: - Speech Alerts Modifier
 
 private struct SpeechAlertsModifier: ViewModifier {
@@ -852,6 +912,15 @@ private struct SpeechAlertsModifier: ViewModifier {
     ChatInputFieldPreview(initialState: .chatActive, text: "What patterns do you see?")
         .useTheme()
         .useTypography()
+}
+
+#Preview("Paragraph Typing") {
+    ChatInputFieldPreview(
+        initialState: .chatActive,
+        text: "I've been noticing the same loop at work — I freeze, then I replay the conversation, then I write it down. What do you see in that?"
+    )
+    .useTheme()
+    .useTypography()
 }
 
 #Preview("Narrate Active") {

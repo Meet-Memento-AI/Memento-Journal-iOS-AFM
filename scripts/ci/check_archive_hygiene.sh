@@ -33,8 +33,26 @@ STOREKIT_ENFORCE="${STOREKIT_ENFORCE:-0}"
 fail=0
 note() { echo "  $*"; }
 
-# Extract the membershipExceptions block once.
-exceptions="$(awk '/membershipExceptions = \(/,/\);/' "$PBXPROJ")"
+# Extract the membershipExceptions block once, as one EXACT entry per line.
+#
+# Entries look like `Config/Debug.xcconfig,` or `"Preview Content/Foo.json",`.
+# Strip the indentation, the trailing comma, and the optional quotes so the
+# comparison below can be exact.
+#
+# 2026-09-12: this used to be a raw `grep -qF` against the whole block, which
+# matched on SUBSTRINGS. `Config/Supabase.xcconfig` was therefore reported as
+# excluded purely because `Config/Supabase.xcconfig.example` is in the set — the
+# real xcconfig (the one holding the anon key) was never actually checked. A
+# hygiene gate that can be satisfied by a prefix of a different filename is not
+# a gate.
+exceptions="$(awk '/membershipExceptions = \(/,/\);/' "$PBXPROJ" \
+  | sed -e '1d' -e '$d' \
+  | sed -e 's/^[[:space:]]*//' -e 's/,[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+
+# Exact, whole-line membership test.
+is_excluded() {
+  printf '%s\n' "$exceptions" | grep -qxF "$1"
+}
 
 echo "Checking non-shippable files under $APP_DIR/ against membershipExceptions"
 echo ""
@@ -45,11 +63,10 @@ missing=()
 while IFS= read -r path; do
   rel="${path#"$APP_DIR"/}"
   base="$(basename "$rel")"
-  # A file is excluded if either its path or its basename appears in the set.
-  if printf '%s' "$exceptions" | grep -qF "$rel"; then
-    continue
-  fi
-  if printf '%s' "$exceptions" | grep -qF "$base"; then
+  # A file is excluded if its target-relative path, or its bare basename, is an
+  # EXACT entry in the set. Xcode writes whichever form the group nesting
+  # produces, so both are accepted — but neither is accepted as a substring.
+  if is_excluded "$rel" || is_excluded "$base"; then
     continue
   fi
   missing+=("$rel")

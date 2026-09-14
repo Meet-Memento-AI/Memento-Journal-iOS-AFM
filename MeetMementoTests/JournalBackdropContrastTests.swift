@@ -12,12 +12,40 @@ final class JournalBackdropContrastTests: XCTestCase {
         XCTAssertEqual(params.saturation, JournalBackdropShader.saturation)
     }
 
-    func test_whitePhoto_doesNotRaiseScrim() {
+    func test_whitePhoto_raisesScrimUntilWhiteTypePassesWCAG() {
         let params = JournalBackdropContrast.parameters(
             srgb: (1, 1, 1)
         )
-        XCTAssertEqual(params.scrimOpacity, JournalBackdropShader.scrimOpacity, accuracy: 0.001)
+        XCTAssertGreaterThan(params.scrimOpacity, JournalBackdropShader.scrimOpacity)
+        XCTAssertLessThanOrEqual(params.scrimOpacity, JournalBackdropShader.scrimCeiling)
+        XCTAssertGreaterThanOrEqual(
+            JournalBackdropContrast.contrast(
+                srgb: (1, 1, 1),
+                saturation: params.saturation,
+                scrimOpacity: params.scrimOpacity,
+                brightness: JournalBackdropShader.treatedBrightness
+            ),
+            JournalBackdropShader.minimumContrast
+        )
         XCTAssertEqual(params.saturation, JournalBackdropShader.saturation)
+    }
+
+    func test_midBrightPhoto_raisesOnlyAsMuchAsNeeded() {
+        let bright = (0.7, 0.7, 0.7)
+        let params = JournalBackdropContrast.parameters(srgb: bright)
+        XCTAssertGreaterThan(params.scrimOpacity, 0)
+        XCTAssertLessThan(params.scrimOpacity, JournalBackdropShader.scrimCeiling)
+        XCTAssertGreaterThanOrEqual(
+            JournalBackdropContrast.contrast(
+                srgb: bright,
+                saturation: params.saturation,
+                scrimOpacity: params.scrimOpacity,
+                brightness: JournalBackdropShader.treatedBrightness
+            ),
+            JournalBackdropShader.minimumContrast
+        )
+        let white = JournalBackdropContrast.parameters(srgb: (1, 1, 1))
+        XCTAssertLessThan(params.scrimOpacity, white.scrimOpacity)
     }
 
     func test_restingScrim_staysAtTheToken() {
@@ -44,7 +72,7 @@ final class JournalBackdropContrastTests: XCTestCase {
         XCTAssertEqual(params.scrimOpacity, JournalBackdropShader.scrimOpacity, accuracy: 0.001)
     }
 
-    func test_editorDefaults_nearBlack_keepsZeroScrimAndLightBlur() {
+    func test_editorDefaults_nearBlack_keepsZeroScrimAndMaxBlur() {
         let params = JournalBackdropContrast.parameters(
             srgb: (0.05, 0.05, 0.05),
             base: JournalBackdropShader.editorDefaults
@@ -77,15 +105,21 @@ final class JournalBackdropContrastTests: XCTestCase {
         XCTAssertEqual(params.saturation, JournalBackdropShader.editorDefaults.saturation)
     }
 
-    func test_editorDefaults_whitePhoto_keepsZeroScrim() {
+    func test_editorDefaults_whitePhoto_raisesScrimUntilWhiteTypePassesWCAG() {
         let params = JournalBackdropContrast.parameters(
             srgb: (1, 1, 1),
             base: JournalBackdropShader.editorDefaults
         )
-        XCTAssertEqual(
-            params.scrimOpacity,
-            JournalBackdropShader.editorDefaults.scrimOpacity,
-            accuracy: 0.001
+        XCTAssertGreaterThan(params.scrimOpacity, JournalBackdropShader.editorDefaults.scrimOpacity)
+        XCTAssertLessThanOrEqual(params.scrimOpacity, JournalBackdropShader.scrimCeiling)
+        XCTAssertGreaterThanOrEqual(
+            JournalBackdropContrast.contrast(
+                srgb: (1, 1, 1),
+                saturation: params.saturation,
+                scrimOpacity: params.scrimOpacity,
+                brightness: JournalBackdropShader.treatedBrightness
+            ),
+            JournalBackdropShader.minimumContrast
         )
         XCTAssertEqual(
             params.blurStrength,
@@ -93,6 +127,20 @@ final class JournalBackdropContrastTests: XCTestCase {
             accuracy: 0.001
         )
         XCTAssertEqual(params.saturation, JournalBackdropShader.editorDefaults.saturation)
+    }
+
+    func test_scrimNeverExceedsCeiling() {
+        let params = JournalBackdropContrast.parameters(srgb: (1, 1, 1))
+        XCTAssertLessThanOrEqual(params.scrimOpacity, JournalBackdropShader.scrimCeiling)
+    }
+
+    func test_cardAndEditor_shareTheSameScrimSearch() {
+        let card = JournalBackdropContrast.parameters(srgb: (0.85, 0.8, 0.6))
+        let editor = JournalBackdropContrast.parameters(
+            srgb: (0.85, 0.8, 0.6),
+            base: JournalBackdropShader.editorDefaults
+        )
+        XCTAssertEqual(card.scrimOpacity, editor.scrimOpacity, accuracy: 0.001)
     }
 
     // MARK: - Chrome tint
@@ -261,5 +309,39 @@ final class JournalBackdropContrastTests: XCTestCase {
         )
         XCTAssertGreaterThan(raised, plain)
         XCTAssertLessThanOrEqual(raised, JournalBackdropShader.chromeTintCeiling)
+    }
+
+    // MARK: - Chrome glyph ink
+
+    private func prefersWhiteGlyphs(
+        srgb: (Double, Double, Double),
+        scrimFactor: Double = 1
+    ) -> Bool {
+        let sample = JournalBackdropSample(red: srgb.0, green: srgb.1, blue: srgb.2)
+        let params = JournalBackdropContrast.parameters(sample: sample)
+        return JournalBackdropContrast.prefersWhiteChromeGlyphs(
+            sample: sample,
+            params: params,
+            scrimFactor: scrimFactor
+        )
+    }
+
+    func test_chromeGlyphs_plainEditor_prefersBlack() {
+        XCTAssertFalse(
+            JournalBackdropContrast.prefersWhiteChromeGlyphs(
+                sample: nil,
+                params: JournalBackdropShader.editorDefaults,
+                scrimFactor: 1
+            )
+        )
+    }
+
+    func test_chromeGlyphs_brightCover_staysBlack() {
+        XCTAssertFalse(prefersWhiteGlyphs(srgb: (0.7, 0.7, 0.7)))
+        XCTAssertFalse(prefersWhiteGlyphs(srgb: (1, 1, 1)))
+    }
+
+    func test_chromeGlyphs_nearBlackCover_usesWhite() {
+        XCTAssertTrue(prefersWhiteGlyphs(srgb: (0.05, 0.05, 0.05)))
     }
 }

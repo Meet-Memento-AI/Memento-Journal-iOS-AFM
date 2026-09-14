@@ -67,7 +67,16 @@ final class PassageChunkerTests: XCTestCase {
     }
 
     func test_retrieve_usesBestPassageNotEntryPrefix() {
-        let filler = String(repeating: "Morning weather notes and grocery lists fill the start. ", count: 12)
+        // Each filler sentence is DISTINCT on purpose. With a repeating filler,
+        // `filler.prefix(80)` matches at a dozen offsets inside the filler
+        // region — including the neighbouring sentence that
+        // `PassageChunker.excerpt` legitimately widens into — so the assertion
+        // below failed on correct behaviour. Unique sentences make the prefix a
+        // real proxy for "the excerpt is the entry's opening", which is the only
+        // thing this test means to forbid.
+        let filler = (1...12)
+            .map { "Morning note \($0) about weather and grocery lists near the start. " }
+            .joined()
         XCTAssertGreaterThan(filler.count, 500)
         let gold = "The ceramic bicycle I painted with Priya sat in the garage all winter."
         let entry = Entry(

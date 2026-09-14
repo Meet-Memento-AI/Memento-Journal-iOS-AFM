@@ -2,7 +2,7 @@
 id: 018
 title: Capture and Voice Output
 tier: P1
-status: in-progress (2026-08-19) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only
+status: in-progress (2026-09-12) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only. R12's CI gate now exists (scripts/ci/check_tts_license_path.sh, wired into spec-gates.yml): it was specified in August but never written, so the GPL/G2P property held only by construction. Verified to fail on planted GPL text and on a planted espeak call site
 effort: 3 sessions
 depends_on: [013, 015, 017]
 findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first, tts-vendor-rule-was-a-privacy-rule, phonemizer-gpl-contamination-gate]

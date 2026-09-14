@@ -39,6 +39,24 @@ final class FeedbackVerificationTests: XCTestCase {
         XCTAssertNil(envelope)
     }
 
+    func test_report_withoutSharing_includesPromptAndReply() throws {
+        let envelope = try XCTUnwrap(FeedbackEnvelope.make(
+            from: sampleRow(source: .report, rating: .none, flagged: true),
+            deviceID: UUID(),
+            includeTextForReview: false,
+            shareWithDeveloper: false
+        ))
+        XCTAssertEqual(envelope.userPrompt, "How was Tuesday?")
+        XCTAssertEqual(envelope.assistantReply, "You wrote about eggs.")
+        XCTAssertTrue(envelope.textIncluded)
+        XCTAssertTrue(envelope.flaggedForReview)
+        XCTAssertEqual(envelope.kind, "report")
+        XCTAssertEqual(envelope.citationCount, 1)
+        let data = try JSONEncoder().encode(envelope)
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(json.contains("citationEntryIDs"))
+    }
+
     func test_thumbs_metadata_omitsJournalText() throws {
         let envelope = try XCTUnwrap(FeedbackEnvelope.make(
             from: sampleRow(source: .thumbsDown, rating: .negative),
@@ -60,16 +78,16 @@ final class FeedbackVerificationTests: XCTestCase {
         XCTAssertFalse(json.contains("citationEntryIDs"))
     }
 
-    func test_report_withoutIncludeText_omitsJournalText() throws {
+    func test_report_alwaysIncludesPromptAndReply() throws {
         let envelope = try XCTUnwrap(FeedbackEnvelope.make(
             from: sampleRow(source: .report, rating: .none, flagged: true),
             deviceID: UUID(),
             includeTextForReview: false,
             shareWithDeveloper: true
         ))
-        XCTAssertNil(envelope.userPrompt)
-        XCTAssertNil(envelope.assistantReply)
-        XCTAssertFalse(envelope.textIncluded)
+        XCTAssertEqual(envelope.userPrompt, "How was Tuesday?")
+        XCTAssertEqual(envelope.assistantReply, "You wrote about eggs.")
+        XCTAssertTrue(envelope.textIncluded)
         XCTAssertEqual(envelope.kind, "report")
     }
 
@@ -93,6 +111,35 @@ final class FeedbackVerificationTests: XCTestCase {
 
     func test_config_fromBundle_missingKeys_isNil() {
         XCTAssertNil(FeedbackSupabaseConfig.fromBundle(Bundle(for: type(of: self))))
+    }
+
+    /// Regression (2026-09-12): xcconfig treats `//` as a comment, so the
+    /// `SUPABASE_URL = https://host` line the example file used to carry was
+    /// truncated to `https:` before it reached Info.plist. `URL(string:)`
+    /// accepts that, so the client reported itself configured and then failed
+    /// every upload against a scheme-only endpoint — with the outbox quietly
+    /// retrying, so nothing surfaced. A host is now required.
+    func test_config_schemeOnlyURL_isNotConfigured() {
+        XCTAssertNil(
+            FeedbackSupabaseConfig.resolve(urlString: "https:", anonKey: "anon-key"),
+            "a scheme-only URL must read as NOT configured, not as a live endpoint"
+        )
+    }
+
+    func test_config_wellFormedURL_isConfigured() {
+        let config = FeedbackSupabaseConfig.resolve(
+            urlString: "https://example.supabase.co",
+            anonKey: "anon-key"
+        )
+        XCTAssertEqual(config?.url.host, "example.supabase.co")
+        XCTAssertEqual(config?.anonKey, "anon-key")
+    }
+
+    func test_config_unexpandedBuildVariable_isNotConfigured() {
+        XCTAssertNil(FeedbackSupabaseConfig.resolve(
+            urlString: "$(SUPABASE_URL)",
+            anonKey: "$(SUPABASE_ANON_KEY)"
+        ))
     }
 
     // MARK: - Sync no-op / outbox
@@ -147,6 +194,23 @@ final class FeedbackVerificationTests: XCTestCase {
         sync.record(sampleRow())
         XCTAssertEqual(outbox.count, 0)
         XCTAssertEqual(client.submitCount, 0)
+    }
+
+    func test_record_report_withoutSharing_enqueuesWhenConfigured() async {
+        let defaults = makeDefaults()
+        defaults.set(false, forKey: PreferencesService.shareFeedbackKey)
+        let client = RecordingFeedbackClient(configured: true)
+        let outbox = FeedbackOutbox(directory: makeTempDir())
+        let sync = FeedbackSyncService(
+            client: client,
+            outbox: outbox,
+            defaults: defaults,
+            directory: makeTempDir()
+        )
+        sync.record(sampleRow(source: .report, rating: .none, flagged: true), includeTextForReview: false)
+        await sync.flush()
+        XCTAssertEqual(client.submitCount, 1)
+        XCTAssertEqual(outbox.count, 0)
     }
 
     func test_outbox_duplicateClientEventID_isIdempotent() throws {

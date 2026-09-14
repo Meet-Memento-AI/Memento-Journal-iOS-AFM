@@ -2,7 +2,7 @@
 id: 030
 title: Neural TTS Model Assets — Bundled In-App
 tier: P1
-status: in-progress (2026-08-19) — Weights bundled; Acknowledgments UI landed (DEC-010); CI blocks huggingface.co on the TTS path
+status: in-progress (2026-09-12) — Weights bundled; Acknowledgments UI landed (DEC-010); CI blocks huggingface.co on the TTS path. R6 closed 2026-09-12: the full BigScience Open RAIL-M text now ships as MeetMemento/Resources/OpenRAIL-M.txt and renders in Acknowledgments (a paraphrase is not the notice — Section III requires recipients receive a copy and that Attachment A's restrictions be passed on), asserted by AcknowledgmentsLicenceTests. R7 size question now measured and gated: 188 MB, 12 MB under the 200 MB cellular threshold (docs/app-store/00 C10)
 effort: 2 sessions
 depends_on: [018]
 findings: [bundled-not-downloaded-dec-012, synchronized-group-flattens-to-bundle-root, huggingface-autodownload-in-tts-path, upstream-not-archived-premise-corrected, no-acknowledgments-screen-ofl-unattributed, model-weights-invisible-to-dependency-gate, asset-size-escalation-threshold]

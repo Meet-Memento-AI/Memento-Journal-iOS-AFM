@@ -1,4 +1,9 @@
 // Copy to Supabase.xcconfig (gitignored) and fill the publishable anon key.
 // Never put service_role in this file, the app, or the repo.
-SUPABASE_URL = https://ibdtqiembpexzeoyhfim.supabase.co
+//
+// The URL is composed through $(SUPABASE_SLASH) because xcconfig treats `//`
+// as a start-of-comment: written literally, `https://host` becomes `https:`
+// and every upload fails against a malformed endpoint. Do not "simplify" this
+// line back to a literal URL.
+SUPABASE_URL = https:$(SUPABASE_SLASH)$(SUPABASE_SLASH)ibdtqiembpexzeoyhfim.supabase.co
 SUPABASE_ANON_KEY =

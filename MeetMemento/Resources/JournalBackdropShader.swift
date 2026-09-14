@@ -49,7 +49,7 @@ struct JournalChromeTint: Equatable, Sendable {
 
 extension Glass {
     /// Hair of white on `.clear`. Enough to read as frost, not a plate.
-    static let nativeFrostOpacity: Double = 0.08
+    static let nativeFrostOpacity: Double = JournalBackdropShader.glassFrostOpacity
 
     /// Native Liquid Glass for floating chrome: `.clear` so it does not
     /// paint a white disc, plus `nativeFrostOpacity` so it still frosts.
@@ -91,11 +91,18 @@ extension Glass {
 }
 
 enum JournalBackdropShader {
-    /// Soft treatment for journal covers. Cards at 19.2pt, editor at 38.4pt
-    /// (double the prior 9.6 / 19.2) so the stylish blur still reads.
-    static let blurStrength: CGFloat = 19.2
-    /// Resting scrim. 0 — type uses a drop shadow instead of a dark plate.
+    /// Hair of white on `.clear` glass. Matches `Glass.nativeFrostOpacity`.
+    static let glassFrostOpacity: Double = 0.08
+    /// Full treatment for journal covers. Cards and the editor both use
+    /// 100pt so the photo is fully dissolved.
+    static let blurStrength: CGFloat = 100
+    /// Resting scrim. 0 on dark covers; raised per-photo only when white
+    /// type would miss WCAG AA. Ceiling keeps the overlay a veil, not a plate.
     static let scrimOpacity: Double = 0
+    /// Lightest dark overlay that can still put white ink at 4.5:1 on a
+    /// fully white cover (sRGB 1 mixed toward `scrimColor`). Past this the
+    /// photo reads as a charcoal card.
+    static let scrimCeiling: Double = 0.56
     /// Keep the cover's own colour. Pulling toward luma (the old 0.89–0.92)
     /// greys the photo and reads as another darkening pass.
     static let saturation: Double = 1.0
@@ -107,7 +114,7 @@ enum JournalBackdropShader {
     /// WCAG AA for normal text. Title is 20pt (large-text 3:1 would pass);
     /// white-on-photo still aims at 4.5.
     static let minimumContrast: Double = 4.5
-    static let maxBlur: CGFloat = 40
+    static let maxBlur: CGFloat = 100
     /// Gaussian blur pulls highlights toward midtones. A small lift after
     /// the blur keeps the cover from reading as a dark wash.
     static let treatedBrightness: Double = 0.08
@@ -146,6 +153,9 @@ enum JournalBackdropShader {
     /// AddEntry photo chrome applies this fraction of the solved wash so
     /// the cover shows through. `0.3` drops about 70% of the tint opacity.
     static let photoChromeTintKeep: Double = 0.3
+    /// Black glyphs on glass unless contrast against the frosted surface
+    /// falls below this (WCAG UI-component floor). White is the exception.
+    static let chromeGlyphBlackFloor: Double = 3.0
 
     /// Prominence-frost opacity after accessibility floors. Not a WCAG
     /// search against the canvas: even `chromeTintCeiling` cannot put white
@@ -172,10 +182,10 @@ enum JournalBackdropShader {
         saturation: saturation
     )
 
-    /// Editor cover — double the prior 19.2pt treatment.
+    /// Editor cover — same 100pt treatment as journal cards.
     static let editorDefaults = JournalBackdropParameters(
-        blurStrength: 38.4,
-        scrimOpacity: 0,
-        saturation: 1.0
+        blurStrength: blurStrength,
+        scrimOpacity: scrimOpacity,
+        saturation: saturation
     )
 }

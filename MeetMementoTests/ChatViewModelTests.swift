@@ -585,7 +585,20 @@ final class ChatViewModelTests: XCTestCase {
                                  reply: String = "You wrote about eggs.",
                                  citations: [JournalCitation]? = nil)
     -> (ChatViewModel, UUID) {
-        let vm = ChatViewModel(chatService: MockChatService(), feedbackStore: store)
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FeedbackSync-\(UUID().uuidString)", isDirectory: true)
+        let defaults = UserDefaults(suiteName: "ChatVMFeedback-\(UUID().uuidString)")!
+        let sync = FeedbackSyncService(
+            client: SilentFeedbackClient(),
+            outbox: FeedbackOutbox(directory: dir),
+            defaults: defaults,
+            directory: dir
+        )
+        let vm = ChatViewModel(
+            chatService: MockChatService(),
+            feedbackStore: store,
+            feedbackSync: sync
+        )
         let user = ChatMessage(content: prompt, isFromUser: true)
         let assistant = ChatMessage.aiMessage(
             body: reply,
@@ -892,4 +905,10 @@ final class ChatViewModelTests: XCTestCase {
             )
         )
     }
+}
+
+private final class SilentFeedbackClient: FeedbackSubmitting {
+    var isConfigured: Bool { false }
+    func submit(_ envelope: FeedbackEnvelope) async throws {}
+    func erase(deviceID: UUID) async throws {}
 }

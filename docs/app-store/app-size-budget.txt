@@ -1,0 +1,23 @@
+# App bundle size ceiling, in megabytes.
+#
+# Why this file exists: nothing in docs/app-store/ measured app size until
+# 2026-09-12, and DEC-012 bundles ~147 MB of Core ML voice weights
+# (VectorEstimator 61.7, Vocoder 48.4, TextEncoder 34.5, DurationPredictor 1.8).
+#
+# The number that matters is NOT Apple's hard limit. That limit is 4 GB
+# uncompressed and we are nowhere near it. The number that matters is the
+# 200 MB cellular-download threshold: above it, iOS asks the user to confirm
+# before downloading over cellular, which is a conversion tax paid on every
+# install. Crossing it should be a deliberate decision, not something a future
+# voice pack does silently.
+#
+# Read by scripts/ci/check_app_size.sh.
+# Format:  CEILING_MB <number>
+
+CEILING_MB 200
+
+# Measured history — append after each archive. Record what was measured, since
+# a simulator .app, a thinned device .app, and the App Store download size are
+# three different numbers.
+#
+#   2026-09-12  189 MB  Release, iOS Simulator arm64, unthinned .app

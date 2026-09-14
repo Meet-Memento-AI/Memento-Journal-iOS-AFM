@@ -58,11 +58,11 @@ final class PhotoThumbnailCacheTests: XCTestCase {
         XCTAssertNotEqual(fallback.red, 0.933, "placeholder must not be journalCardFill gray150")
     }
 
-    func test_listFillScale_neverUsesEditorOverflow() {
-        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 12, isEditor: false), 1.12)
-        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 100, isEditor: false), 1.12)
+    func test_listFillScale_usesOverflowAtMaxBlur() {
+        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 12), 1.12)
+        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 100), 1.4)
         XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 100, isEditor: true), 1.4)
-        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 0, isEditor: false), 1)
+        XCTAssertEqual(JournalPhotoBackdrop.fillScale(for: 0), 1)
     }
 
     func test_storeDownsampled_persistsAndSkipsFullFileOnReload() async {

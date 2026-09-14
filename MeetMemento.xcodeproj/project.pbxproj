@@ -33,16 +33,17 @@
 		A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
 		B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
-		B7F000032F00110000A00001 /* MeetMemento/Config/Debug.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.local.xcconfig.template; sourceTree = "<group>"; };
-		B7F000042F00110000A00001 /* MeetMemento/Config/Release.local.xcconfig.template */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.local.xcconfig.template; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		A55633722E8F75090007E35E /* Exceptions for "MeetMemento" folder in "MeetMemento" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Config/Debug.local.xcconfig,
 				Config/Debug.xcconfig,
+				Config/Release.local.xcconfig,
 				Config/Release.xcconfig,
+				Config/Supabase.xcconfig,
 				Config/Supabase.xcconfig.example,
 				Info.plist,
 				PLAN.md,
@@ -136,8 +137,6 @@
 			children = (
 				B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */,
 				B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */,
-				B7F000032F00110000A00001 /* MeetMemento/Config/Debug.local.xcconfig.template */,
-				B7F000042F00110000A00001 /* MeetMemento/Config/Release.local.xcconfig.template */,
 			);
 			name = Config;
 			sourceTree = "<group>";
