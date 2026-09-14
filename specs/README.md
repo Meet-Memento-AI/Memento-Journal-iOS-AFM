@@ -31,6 +31,7 @@ specs/
 │                        lean ask-core@16, living profile) — draft
 ├── 045-*.md           ← computed insights and period reflection (InsightEngine, entry
 │                        tagging, weekly PeriodReflection, quantitative Ask) — draft
+├── 046-*.md           ← CI/CD pipeline + TestFlight release automation (Gate T path)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

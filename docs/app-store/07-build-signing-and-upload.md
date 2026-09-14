@@ -15,6 +15,11 @@ License Agreement.
 
 This document is the pipeline that replaces that.
 
+**Automation backlog:** [`docs/CICD_PIPELINE.md`](../CICD_PIPELINE.md) and
+[`specs/046-cicd-pipeline-and-release-automation.md`](../../specs/046-cicd-pipeline-and-release-automation.md)
+turn these commands into `release-ios.yml` (validate + TestFlight internal).
+Until that ships, treat this file as the runbook.
+
 ---
 
 ## 1. Hard requirements at upload time

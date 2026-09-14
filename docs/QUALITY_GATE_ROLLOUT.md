@@ -14,18 +14,20 @@ Online merge stack (see [spec 025](../specs/025-ci-online-ios-build-gates.md)):
 
 ## Coverage threshold ratcheting
 
-Start with a conservative threshold and increase gradually.
+**Current honest floor (2026-09-14):** `MIN_COVERAGE=13` in
+`ios-build-online.yml`, measured on the **online** suite (`CI_ONLINE=1`).
+The previous 60% / 75–80% schedule below is a **target**, not a live gate —
+advertising 60% while enforcing 13% is the class of failure spec 006 forbids.
 
-Suggested schedule:
-- Week 1-2: 60%
-- Week 3-4: 62%
-- Week 5-6: 65%
-- Then increase by 2-3% every month until target range (75-80%)
+Suggested schedule *after* a re-measure (spec 046 R2 / 011 R5):
+- Re-measure the online suite; set the floor to that integer (only upward).
+- Then increase by 2–3% when new suites land, toward a 75–80% **target**.
 
 Rules:
 - Never reduce threshold unless CI is proven flaky.
 - Keep threshold changes in pull requests with release notes.
 - Pair threshold increases with test debt tickets.
+- Update this paragraph in the same PR as the workflow `MIN_COVERAGE` value.
 
 ## Periphery rollout model
 

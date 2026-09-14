@@ -5,7 +5,10 @@ what they must provide so a runner can be rebuilt or replaced (spec-006 / spec-0
 
 The app is **on-device only** — no accounts, no backend, no Supabase. CI therefore
 builds and tests the iOS app and runs security/governance gates; there are no
-deploy jobs.
+backend deploy jobs. The intended **store** CD job (archive / validate /
+TestFlight) is specified in [`docs/CICD_PIPELINE.md`](CICD_PIPELINE.md) and
+spec 046 — it will use the same macOS label set plus an `app-store` GitHub
+Environment.
 
 ## Online vs on-device (spec 025)
 
