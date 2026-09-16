@@ -1,36 +1,39 @@
 Memento is a journal that pays attention.
 
-Speak or type an entry. Memento transcribes it, files it, and remembers it — so when you ask what you said six months ago, it can answer, in your own words, with the entries to prove it.
+Take a photo, speak, or type. Memento files what you captured and remembers it — so when you ask what you said six months ago, or what that afternoon was like, it can answer in your own words, with the entries to prove it.
 
 It is an archivist, not an advisor. It does not tell you what to do. It tells you what you said.
 
 
 WHAT IT DOES
 
-Capture — Speak an entry and watch it become text as you talk, or type it. There is no wrong length. A sentence counts.
+Capture — Photograph a moment, speak an entry and watch it become text as you talk, or type it. A photo on its own is an entry. There is no wrong length. A sentence counts.
 
-Timeline — Every entry, in order, searchable. Your words stay legible and yours.
+Timeline — Every entry, in order, searchable, with your photographs the way you took them. Your words stay legible and yours.
 
-Ask — Put a question to your own archive. "When did I start feeling better about the move?" The companion answers from your entries and cites the ones it drew from, so you can always check its work against your own words.
+Ask — Put a question to your own archive. "When did I start feeling better about the move?" The companion answers from your entries and cites the ones it drew from, so you can always check its work against your own words. You can show it a photo and ask about that too.
 
 Keep the conversation — Any exchange with the companion can be turned into a first-person journal entry, so a thought worked out in conversation isn't lost.
+
+Read aloud — Reflections can be spoken back to you in one of four voices, synthesized on your iPhone.
 
 Export — Everything you have written, in Markdown and JSON, whenever you want, at no cost. Your words are yours. That is not a feature; it is the point.
 
 
 HOW IT HANDLES YOUR WRITING
 
-No account. No analytics. No third-party AI. Companion replies are generated
-on your iPhone with Apple's on-device models.
+Memento makes one network call. It is off by default, and it is about the app — never about you.
+
+No account. No server. No third-party AI. Your photographs and your words are read by your iPhone and nothing else, using Apple's on-device models.
 
 Your journal is encrypted at rest on this device. If you are signed into
-iCloud, a private replica can appear on your other Apple devices — that
-database is yours, and we cannot read it. There is no Memento server copy of
-your journal.
+iCloud, a private replica of your entries can appear on your other Apple
+devices — that database is yours, and we cannot read it. Your photographs stay
+on the device that took them. There is no Memento server copy of anything.
 
 Share Quality Feedback is off by default. If you turn it on, volunteered
 ratings and optional report text can be sent so we can review answer quality.
-Journal entries and chat history are not part of that path.
+Journal entries, photographs, and chat history are not part of that path.
 
 You can lock the app with Face ID or a passcode. You can turn the companion off
 entirely and use Memento as a plain, quiet journal.
@@ -40,9 +43,11 @@ WHAT IT WILL NOT DO
 
 Memento does not give advice, make recommendations, or comment on how you seem to be doing. It is not a wellness product and it is not a substitute for talking to a person. It observes and it remembers. That is the whole design.
 
+There are no streaks, no scores, and no notifications telling you that you have fallen behind. A journal you feel guilty about is a journal you stop keeping.
+
 
 REQUIREMENTS
 
-The companion uses Apple Intelligence and requires a compatible iPhone. Capture, transcription, timeline, search, and export work on every supported device.
+The companion uses Apple Intelligence and requires a compatible iPhone. Capture, photographs, transcription, timeline, search, read-aloud, and export work on every supported device.
 
 Privacy Policy and Terms of Service are linked below and inside the app.

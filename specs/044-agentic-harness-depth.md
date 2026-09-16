@@ -102,7 +102,7 @@ Line numbers accurate on 2026-09-06; re-verify before coding.
 | 2 | Context-block excerpt is the **first** `maxContentChars` (500) of the entry, not the matching passage | `EntryRetriever.swift` `RetrievedEntry` construction; `RetrievalLimits.init(budget:)` `EntryRetriever.swift:120-127` |
 | 3 | Hybrid weights (semantic 5.0, keyword 1.0, recency 0.5) and `RetrieverTuning` thresholds are hand-set; no offline test fits them to `Fixtures/gold` | `EntryRetriever.swift:146-149`, `EntryRetriever.swift:57-83`; `Fixtures/gold/*.json` carries `expectedEntryIDs` consumed only by live `ChatEvalGate` / `AgenticEval` |
 | 4 | `.noMatch` stance ships ambient entry text and tells the model nothing matches; withholding was tried and reverted because ordinary recall is `.noMatch` "only because retrieval under-scores them" | `FoundationModelsIntelligenceService.swift` `buildAskPrompt`, comment block above the `framing` selection (≈ lines 1370–1399) |
-| 5 | Tools are plumbed and hard-wired off | `FoundationModelsIntelligenceService.swift:394` (`toolDefinitions: []`), `:721` (`toolsEnabled: false`); `GenerationRequest.toolsEnabled` `IntelligenceService.swift:44` |
+| 5 | ~~Tools are plumbed and hard-wired off~~ **Corrected 2026-09-16: tools cannot be attached to Ask at all — this is a design blocker, not a switch.** `makeSession` logs `searchJournal requested; guided decode cannot host tools` and returns a bare session: *"Guided Ask (`respond(generating:)` / `streamResponse(generating:)`) cannot host Tool-calling sessions: the AFM decoder faults (EXC_BAD_ACCESS) when schema tokens and tool-call tokens mix."* `adoptOrCreateSession` sets `askSearchState = nil` on both branches and discards `attachSearchOnMiss`, so `toolsCalled` is structurally `0`. | ~~`:394`, `:721`~~ (drifted) → `FoundationModelsIntelligenceService.swift:573-581` (refusal + comment), `:552-558` (`adoptOrCreateSession`), `:743` (log line), `:1178` (`toolsCalled`); `GenerationRequest.toolsEnabled` `IntelligenceService.swift:44` |
 | 6 | Follow-up grounding re-runs retrieval on a single anchor text found by walking back ≤ 4 user turns; no second retrieval within a turn | `RetrievalPolicy.swift:136-149` (`followupAnchor`), `FoundationModelsIntelligenceService.swift:650-660` |
 | 7 | Onboarding stores name, reflection, `confirmedThemeIds`, `promptLens`; Ask injects only name + ≤ 80-char lens on companion/notebook/thread | `ExperienceProfile.swift:11-27`, `PromptRegistry.swift:98-105` (`hasAskPersonalization`), `:188` (`maxAskPromptLensChars = 80`), `:544-563` (`personalizationSection`) |
 | 8 | `confirmedThemeIds` reach chat only as starter-tile labels; never as a retrieval prior | `ThemeAwareChatStarters.swift`; no reference to `confirmedThemeIds`/`ThemeCatalog` in `EntryRetriever.swift` or `RetrievalPolicy.swift` |
@@ -209,6 +209,33 @@ prompt text.
   `scripts/ci/lint_forbidden_phrases.py`, then zero hits.
 
 ### R4. Bounded tool loop — `SearchJournalTool` on notebook and thread turns only (iOS 27 SDK)
+
+> **Amended 2026-09-16 — blocked by a decoder fault, not by the SDK. Do not
+> schedule this against an Xcode 27 upgrade.**
+>
+> This R-block is written as "iOS 27 SDK" work, implying the toolchain is the
+> only thing in the way. It is not. `makeSession`
+> (`FoundationModelsIntelligenceService.swift:573-581`) refuses tool attachment
+> unconditionally, and the reason is independent of SDK version:
+>
+> > *Guided Ask (`respond(generating:)` / `streamResponse(generating:)`) cannot
+> > host Tool-calling sessions: the AFM decoder faults (EXC_BAD_ACCESS) when
+> > schema tokens and tool-call tokens mix.*
+>
+> Ask is a guided-decode surface — that is what produces `AskAnswer` and makes
+> `[ref N]` citation reconciliation possible. So R4 as specified requires one of
+> three things that do not exist today: an upstream fix to the decoder fault,
+> an unguided Ask path (which forfeits the structured answer and the citation
+> contract), or a non-`Tool` mechanism for the second hop.
+>
+> **The third option is the tractable one** and is what R1–R3's passage
+> retrieval already moves toward: a deterministic second hop in Swift, called by
+> the pipeline rather than by the model. That needs no tool protocol, no
+> `toolCallingMode`, and no SDK bump. If R4 is re-scoped, re-scope it that way.
+>
+> Everything below stands as the design for whenever tool hosting becomes
+> possible. The channel gate, the 2-call cap and the `SessionCandidatePool`
+> ingestion rule all carry over to a Swift-side second hop unchanged.
 
 The single importer gains a `SearchJournalTool: Tool` wrapping
 `EntryRetriever.retrieve` with the same `RetrievalLimits` the pre-retrieval

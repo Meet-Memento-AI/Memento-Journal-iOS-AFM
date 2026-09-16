@@ -2,7 +2,7 @@
 id: 018
 title: Capture and Voice Output
 tier: P1
-status: in-progress (2026-09-12) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only. R12's CI gate now exists (scripts/ci/check_tts_license_path.sh, wired into spec-gates.yml): it was specified in August but never written, so the GPL/G2P property held only by construction. Verified to fail on planted GPL text and on a planted espeak call site
+status: in-progress (2026-09-16) — **R5 photo attachments never built; ownership of photo capture/storage moved to spec 046**, R5's intent survives there as `REQ-IMG-007` (not-started). SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only. R12's CI gate now exists (scripts/ci/check_tts_license_path.sh, wired into spec-gates.yml): it was specified in August but never written, so the GPL/G2P property held only by construction. Verified to fail on planted GPL text and on a planted espeak call site
 effort: 3 sessions
 depends_on: [013, 015, 017]
 findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first, tts-vendor-rule-was-a-privacy-rule, phonemizer-gpl-contamination-gate]
@@ -213,6 +213,17 @@ what the user explicitly selects. Zero privacy cost — no HealthKit read
 authorization, no Photos access, no location permission, no Memento network
 call. Zone: `.z0Device` (014 R1).
 
+> **Scope note added 2026-09-16 (spec [046](046-photo-capture-and-multimodal-recall.md)).**
+> "No Photos access" is true of **this** route and remains true — the system
+> picker is out-of-process. It is **not** true of the app as a whole: the entry
+> composer ships direct camera capture (`NSCameraUsageDescription`,
+> `Info.plist:36`) and library picking via `PhotosPicker`, both owned by 046 R1.
+> `PhotosPicker` is also out-of-process and still needs no
+> `NSPhotoLibraryUsageDescription`, so the *declared permission surface* gains
+> only the camera string — but do not cite this sentence as evidence that the app
+> requests no photo permissions. `docs/app-store/01-review-guidelines-digest.md`
+> made exactly that error and is corrected in the same pass.
+
 **Entitlement — corrected state (`REQ-CAP-009`).** The source doc's "requires
 a request to Apple with review lead time — file in week 1" framing is
 **superseded** by the 2026-07-23 re-research (spec 013 R5(c),
@@ -251,6 +262,42 @@ adds the metadata at capture; 016 owns the attribute schema.
   attribute set.
 
 ### R5. Photo attachments — Z0-only on-device descriptions as metadata
+
+> **Amended 2026-09-16 (spec [046](046-photo-capture-and-multimodal-recall.md))
+> — this requirement was never built, and a substantially larger photo feature
+> shipped in its place. Read both facts together; either alone is misleading.**
+>
+> **What R5 asks for does not exist.** No entry photo is ever described, no
+> description is persisted (`StoredAttachment` has no field for one), and
+> `EntrySpotlightIndexer` contains no image code — so entry photos are invisible
+> to `SearchJournalTool`, to `EntryRetriever`, and to every RAG path. R5's task
+> checkbox is correctly still open and stays open.
+>
+> **What shipped instead is not a subset of R5 — it is a different feature.**
+> Camera and library capture in the entry composer, an encrypted per-entry photo
+> store with a thumbnail sidecar, photo-as-card-backdrop with a WCAG contrast
+> solve, and up-to-3-photo attachment in the **Ask composer** with Vision-based
+> understanding of the current turn. None of that is in this spec, and R5 never
+> authorized it: R5 assumes photos arrive via Journaling Suggestions ("or added
+> directly", unelaborated) and its entire content is *generate a description and
+> index it*.
+>
+> **The two diverge in the direction that matters.** R5 exists because a photo you
+> took should be findable by what is in it. The shipped app does the opposite: it
+> can see a photo pasted into chat this minute and is permanently blind to every
+> photograph in the journal. The subsystem with the most code has the least
+> intelligence.
+>
+> **Ownership moves.** Photo capture, storage, cardinality, chat attachments,
+> presentation and accessibility are now spec 046 (`REQ-IMG-001`–`REQ-IMG-009`).
+> R5's *intent* survives as `REQ-IMG-007`, marked not-started there, with one
+> design change: the Spotlight-donation shape below is no longer right, because
+> retrieval is `EntryRetriever` over `NLEmbedding` passages (`DEC-002` Plan B),
+> not the Spotlight index. The tractable version persists the description as part
+> of the entry's indexed text so it chunks and embeds like any other passage.
+>
+> Everything below stands as written, and remains the correct statement of the
+> Z0-only constraint on image understanding — which `DEC-013` does not disturb.
 Photo attachments (whether picked via a Journaling Suggestion or added
 directly) get an on-device generated description that becomes searchable
 metadata on the entry, feeding spec 016 R2's attribute set. Vision input to

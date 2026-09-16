@@ -2,11 +2,11 @@
 id: 017
 title: Intelligence Boundary and Prompt Architecture
 tier: P0
-status: in-progress (2026-08-23) — Ask pipeline shipping (`ask@14` + spec 039 `chat-light@4`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
+status: in-progress (2026-09-16) — **`DEC-013` = on-device only** (R11): every intent resolves Z0, PCC seam stays dark, re-enabling requires an explicit opt-in. R3 quota and R4 degradation are dormant in consequence. Ask pipeline shipping (`ask@14` + spec 039 `chat-light@4`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`. One code fix outstanding: `DataUsageInfoView.swift:123` still claims PCC may be used
 effort: 3 sessions
 depends_on: [014, 015, 016]
-findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open]
-source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-INT-017, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003]
+findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open, dec-013-on-device-only, pcc-claim-in-data-usage-copy, guided-decode-cannot-host-tools]
+source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-INT-017, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003, DEC-013]
 tech_refs: [technology/01-foundation-models.md, technology/02-private-cloud-compute.md, technology/04-evaluations.md]
 ---
 
@@ -43,13 +43,26 @@ versioned Markdown prompts with an optional signed remote manifest.
 
 ## Current State (evidence)
 
-No direct Gemini SDK/HTTP calls exist in Swift — all LLM calls currently happen
+~~No direct Gemini SDK/HTTP calls exist in Swift — all LLM calls currently happen
 server-side in Deno edge functions, called via `ChatService.swift`
 (`MeetMemento/Services/ChatService.swift`) and `InsightsService.swift`. No
 `IntelligenceService`-shaped protocol, no `@Generable`/guided generation, no
 prompt registry exists client-side; prompt "versioning" today is an informally
 synced Markdown file (`supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` +
-`docs/prompts/`), not a system.
+`docs/prompts/`), not a system.~~
+
+> **Rewritten 2026-09-16.** The struck paragraph described the pre-2.0 app. The
+> edge functions and `supabase/` are gone; `IntelligenceService`, `@Generable`
+> guided generation and `PromptRegistry` all ship. Current state below.
+
+| # | Problem | Evidence | Severity |
+|---|---|---|---|
+| 1 | **PCC is unreachable — every Z1 row resolves to Z0.** `UnavailablePCCProvider { isSupported: false }` is the only conformance of `PCCSessionProviding` in the repository, and is the production default. `PrivateCloudComputeLanguageModel` appears only in comments. Recorded as the shipping posture by `DEC-013` (R11), not treated as a gap. | `PCCSessionProviding.swift:26-35`; `FoundationModelsIntelligenceService.swift:253` (default), `:685-696` (`resolveRoute` guard); `ModelRouter.swift:84,106` (the two Z1 rows), `:171-175` (`.sdkUnsupported` → `degradedZone`) | Resolved — `DEC-013` |
+| 2 | `QuotaGovernor.capability(for:)` is never called by shipping code; `NoPCCQuotaProvider.snapshot()` returns `nil`. R3's soft rate limit, degrade-first behaviour and quota UI are unbuilt. | `QuotaGovernor.swift:61-63,70,80-81` | Dormant — `DEC-013` |
+| 3 | `wasDegraded` is structurally `false` everywhere; the persisted columns carry a constant. R4's degraded prompt variant is never selected. | `ModelRouter.swift:177-185` (only writer, unreachable); `JournalSchema.swift:159`, `MementoDataStore.swift:140`, `ChatMessage.swift:147`, `FeedbackEnvelope.swift:28` | Dormant — `DEC-013` |
+| 4 | **`DataUsageInfoView.swift:123` tells users heavier reflections "may use Apple's Private Cloud Compute."** False of the shipping binary. An accuracy defect in the opposite direction from the one `REQ-POS-001`'s linter guards, so CI does not catch it. | `MeetMemento/Views/Settings/DataUsageInfoView.swift:123` | **P1 — owned here, code fix** |
+| 5 | No zone-at-point-of-use UI exists. `grep -rl TrustZone MeetMemento/Views MeetMemento/Components` returns zero files, so **P4** ("the trust boundary is a UI element") is aspirational. Spec 014 R2 owns the component. | — | Open — 014 R2 |
+| 6 | Tools cannot be attached to Ask at all — guided decode faults when schema and tool-call tokens mix. Not an SDK gap. | `FoundationModelsIntelligenceService.swift:573-581`, `:552-558`, `:1178` | Blocking for 044 R4 |
 
 ## Requirements
 
@@ -148,10 +161,17 @@ reasoning-level column per `technology/02` §5 (levels ✅ verified:
 | Mood + topics | Z0 | — | none needed |
 | Salience score | Z0 | — | none needed |
 | Entry reflection | Z0 | — | none needed |
-| Weekly reflection | Z1 (PCC) | `.moderate` | Z0, reduced entry set, labeled |
-| Monthly insight | Z1 (PCC) | `.deep` | Z0, shortened form, labeled |
-| Ask (chat) | Z1 (PCC) | `.light` | Z0, narrower retrieval, labeled |
+| Weekly reflection | ~~Z1 (PCC)~~ **Z0** | ~~`.moderate`~~ | ~~Z0, reduced entry set, labeled~~ n/a |
+| Monthly insight | ~~Z1 (PCC)~~ **Z0** | ~~`.deep`~~ | ~~Z0, shortened form, labeled~~ n/a — not a `GenerationIntent` |
+| Ask (chat) | ~~Z1 (PCC)~~ **Z0** | ~~`.light`~~ | ~~Z0, narrower retrieval, labeled~~ n/a |
 | Image understanding | Z0 | — | **none — no Z1 path exists** |
+
+> **Amended 2026-09-16 (`DEC-013`, R11).** Every row is Z0. The `.ask` and
+> `.weeklyReflection` rows still carry a Z1 `defaultZone` in
+> `ModelRouter.swift:84,106`, but resolve to `degradedZone` as the **baseline**
+> — `wasDegraded: false`, base prompt, `reason: .sdkUnsupported`. That
+> distinction is the point of `ModelRouter.swift:129-137` and is why the
+> degradation column reads n/a rather than "degrades to Z0".
 
 The reasoning column is a **starting hypothesis**, seeded from
 `technology/02` §5's recommendation and validated by spec 013 Spike B and
@@ -182,6 +202,26 @@ override, not per-surface logic — no surface can accidentally escape it.
   table edit with a recorded rationale, not a code change elsewhere.
 
 ### R3. `QuotaGovernor` — reactive-first actor
+
+> **Amended 2026-09-16 (`DEC-013`, R11) — specified, partially built, never
+> reached.** `QuotaGovernor` exists as a type, but
+> `QuotaGovernor.capability(for:)` is **never called by shipping code**:
+> `resolveRoute` (`FoundationModelsIntelligenceService.swift:685-696`) returns
+> `.sdkUnsupported` at `guard pccProvider.isSupported` before it gets there, and
+> the production provider (`NoPCCQuotaProvider`) returns `nil` from `snapshot()`
+> regardless — two independent guards, same answer.
+>
+> Three specific things in this R-block do not exist and should not be cited as
+> shipped behaviour: the **soft local rate limit** below the system limit
+> (`REQ-INT-006`) is not implemented in `QuotaGovernor.swift`; the
+> **degrade-to-Z0-first-on-`isApproachingLimit`** behaviour has nothing to
+> trigger it; and the **quota UI** it renders through has no component —
+> `approachingLimit` / `limitReached` / `limitIncreaseSuggestion` appear only
+> inside `QuotaGovernor.swift` itself. (`DeviceCopy.quotaExceeded` in
+> `SyncStatusStore.swift:50` is CloudKit *storage* quota, unrelated.)
+>
+> V4 and V5 below stay open and stay unanswerable — there is no live PCC traffic
+> to observe them with. Retained as the contract PCC would re-enter under.
 A `QuotaGovernor` actor tracks PCC consumption locally and protects
 scheduled surfaces (`REQ-INT-005`). Priority when budget is constrained:
 **weekly reflection > monthly insight > chat** — a user must never lose
@@ -237,6 +277,27 @@ alert (Apple's explicit guidance, `technology/02` §6). `REQ-INT-007`'s
   arithmetic) — reviewable assertion; this is the V4 posture.
 
 ### R4. Degradation contract — implements what 014 R2 promises
+
+> **Amended 2026-09-16 (`DEC-013`, R11) — nothing degrades, so nothing here
+> executes.** `wasDegraded` is structurally `false` for every generation
+> (`ModelRouter.swift:177-185` is the only writer, and neither arm is
+> reachable), `useDegradedPrompt` is always `false`, and `PromptRegistry` is
+> called with `degraded: false` at every site (`:941`, `:953`, `:1733`,
+> `:2382`, `:2451`, `:2514`). `REQ-INT-010`'s separate light-model prompt
+> variant is therefore never selected, and the persisted `promptVersion` never
+> identifies one.
+>
+> **Do not ship 014 R2's draft copy.** *"Written on this device. Shorter than
+> usual — your daily reflection allowance is used up until tomorrow"* describes
+> a state that cannot occur; `DeviceCopy.writtenOnDevice` does not exist and
+> should not be added. The honest version of this surface under `DEC-013` is not
+> a degradation notice at all — everything was written on this device, every
+> time. That belongs in the privacy explainer (`REQ-POS-001`), not in an error
+> taxonomy.
+>
+> The work-proportional prompt rule (spec 039 / `REQ-INT-017`) at the end of
+> this block is **unaffected** — channel selection is live and has nothing to do
+> with zone.
 Z1→Z0 degradation is attempted automatically, completed successfully, and
 disclosed (`REQ-INT-009`): persisted in spec 015's `Reflection.zone` /
 `Turn.wasDegraded` fields and rendered via spec 014 R2's
@@ -533,6 +594,45 @@ This spec owns source doc §16 items 4 and 14 (per the architecture spec's
 still-open with findings) before this spec's status moves to done; no other
 §16 items are owned here — 5 and 6 are spec 013 R5's, confirmed against
 `technology/11-verification-queue.md`.
+
+### R11. `DEC-013` — on-device only, PCC seam dark (added 2026-09-16)
+
+**Traceability:** resolves `DEC-013`, minted in source doc §7.6. Amends R2's
+routing table, R3 (dormant), R4 (dormant), and `REQ-POS-001` via spec 014 R3.
+
+Memento ships **on-device only**. Every `GenerationIntent` executes in
+`.z0Device`. The PCC seam stays in tree, compiled, tested, and unreferenced by
+any live path — the same posture `DEC-003` took for the remote prompt manifest.
+
+This is a decision, not a description of an SDK limitation. The app has been
+Z0-only in every shipped build as a side effect of the iOS 26 SDK; R11 makes
+that deliberate, and makes re-enabling PCC a product decision with its own gate
+rather than a consequence of upgrading Xcode.
+
+**The binding constraint.** Enabling PCC MUST be an explicit user-facing
+**opt-in**, default off, disclosed at the point of use per **P4**. Adding a
+second `PCCSessionProviding` conformance without that opt-in would silently move
+journal content off-device for `.ask` and `.weeklyReflection` and silently
+falsify `REQ-POS-001`. Such a change is a **P0 privacy defect**.
+
+**What stays true regardless:** image understanding has never had a Z1 path
+(R2's row, `technology/01` §6) and does not acquire one under any future
+reversal — photos are Z0 permanently. Spec
+[046](046-photo-capture-and-multimodal-recall.md) owns that guarantee.
+
+**Acceptance (Given/When/Then):**
+- Given any `GenerationIntent`, when routed under the shipping configuration,
+  then the resolved `executionZone` is `.z0Device` and `wasDegraded` is `false`
+  — asserted per intent, and asserted to be the *baseline* rather than a
+  degradation (the existing exhaustiveness test extended with a zone assertion).
+- Given the repository at any commit, when `PCCSessionProviding` conformances
+  are enumerated, then exactly one exists and its `isSupported` is `false`. A
+  second conformance without a user-facing opt-in fails review as a P0.
+- Given `DataUsageInfoView`, when its copy is read, then it makes no claim that
+  any reflection may use Private Cloud Compute. (Current State row 4 — this is
+  the one code change R11 requires.)
+- `DEC-013` is recorded in three places and they agree: source doc §7.6 and its
+  decision index, `ROADMAP.md`'s decision table, and this R-block.
 
 ## Out of Scope
 

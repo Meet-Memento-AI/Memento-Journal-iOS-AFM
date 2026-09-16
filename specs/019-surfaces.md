@@ -265,7 +265,30 @@ zombie or rebuilt in parallel.
   chart-subsystem row is claimed (adapted into the tab) or deleted in the
   same change — checked in R9's sweep.
 
-### R5. Ask (§9.5, Z1 `.light` → Z0 — ATTACH-01, restores PRES-040…048)
+### R5. Ask (§9.5, ~~Z1 `.light` → Z0~~ **Z0** — ATTACH-01, restores PRES-040…048)
+
+> **Amended 2026-09-16 — two corrections, one of which changes what this surface
+> *is*.**
+>
+> **1. Zone.** Ask is Z0, not "Z1 `.light` degrading to Z0" (`DEC-013`, spec 017
+> R11). The router row still carries a Z1 default but resolves to Z0 as the
+> **baseline**, so there is no degradation label to render and no PCC quota to
+> consume. The build-order rationale below — *"highest PCC-quota consumption"* —
+> no longer applies; quota consumption is zero.
+>
+> **2. Ask is multimodal in the current turn, and no spec says so.** The composer
+> accepts up to 3 photographs per message and the model is instructed to *"Look at
+> each image. Ground what you say in what is visibly there"*
+> (`FoundationModelsIntelligenceService.swift:2027`). On the iOS 26 SDK the
+> "seeing" is a Vision-derived text reading (`ChatImageUnderstanding`), not true
+> multimodal reasoning. Spec [046](046-photo-capture-and-multimodal-recall.md) R6
+> and R8 own this; spec 039's photo routing rule assumes it. `PRES-041` is
+> amended to include the attachment row.
+>
+> **The asymmetry worth naming:** Ask can see a photograph pasted into the
+> conversation this minute, and is blind to every photograph in the journal it is
+> answering questions about (spec 046 `REQ-IMG-007`, not-started). Users are
+> likely to read that as a bug rather than a scope boundary.
 Built **last**, per the source doc's build order — highest variance, highest
 PCC-quota consumption, highest safety surface. Ask replaces the Insights tab's
 backing service (ATTACH-01) and MUST restore the chat end-state invariants

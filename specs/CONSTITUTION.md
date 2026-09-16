@@ -23,11 +23,29 @@ frameworks is `specs/reference/technology/00-INDEX.md` (WWDC26 session notes wit
 ✅ VERIFIED / 🟡 LIKELY / 🔴 UNVERIFIED confidence markers) — read the file(s) a
 spec's `tech_refs:` front-matter names before implementing against P1–P7 below.
 
-- **App**: SwiftUI, **iOS 27.0** deployment target (raised from 17.0 —
-  `REQ-PLAT-001`, tracked in spec 015), universal iPhone+iPad. Bundle id
-  `com.sebastianmendo.MeetMemento`, display name "Memento", category Lifestyle.
-  **Swift 6 language mode, strict concurrency checking = complete** (`REQ-PLAT-002`);
-  all model-facing services are `actor`-isolated or `@MainActor`.
+- **App**: SwiftUI, **iOS 26.0** deployment target, universal iPhone+iPad. Bundle
+  id `com.sebastianmendo.MeetMemento`, display name "Memento", category
+  Lifestyle. All model-facing services are `actor`-isolated or `@MainActor` by
+  construction.
+
+  > **Corrected 2026-09-16.** This bullet previously read "**iOS 27.0**
+  > deployment target (raised from 17.0 — `REQ-PLAT-001`, tracked in spec 015)"
+  > and "**Swift 6 language mode, strict concurrency checking = complete**
+  > (`REQ-PLAT-002`)". **Both were false**, and because this document is the
+  > baseline other specs cite, both were being propagated as settled fact.
+  >
+  > Actual: `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on every configuration of every
+  > target (`project.pbxproj:378,437,469,505,527,545`), and `SWIFT_VERSION = 5.0`
+  > (`:479,515,532,550,566,582`) with no `SWIFT_STRICT_CONCURRENCY` setting
+  > anywhere in the project. The actor isolation above is real in the source but
+  > is **not compiler-enforced** — do not cite `REQ-PLAT-002` as a guarantee in
+  > a Regression Guards section.
+  >
+  > `REQ-PLAT-001`/`REQ-PLAT-002` remain the target and are amended in place in
+  > `specs/reference/memento-2.0-architecture-spec.md` §4. Spec
+  > [015](015-data-layer-swiftdata-cloudkit.md)'s status line — "deployment
+  > target stays 26.0 until the archive Mac runs Xcode 27" — is the accurate
+  > statement this bullet now agrees with.
 - **Pattern**: MVVM, unchanged by the rewrite. Entry point
   `MeetMemento/MeetMementoApp.swift`, route enums in `MeetMemento/Models/Routes.swift`
   — both re-verified, not replaced, as specs 013+ land.

@@ -73,6 +73,7 @@ feature late (app size and a licence nobody read) are decided here.
 | 3 | The stock SDK auto-downloads weights from Hugging Face on first run, inside the synthesis path | `technology/13` §1, §6 | **Critical** — violates `REQ-TTS-001` |
 | 4 | **No Acknowledgments screen exists**, and three OFL-licensed font families already ship unattributed | `MeetMemento/Views/Settings/AboutSettingsView.swift` has App Information / Support / Legal / Share only; `MeetMemento/Resources/Fonts/` contains Figtree, Lora, Manrope + an `OFL.txt` referenced by **no** Swift file (`grep -rn "OFL\|Acknowledg" MeetMemento --include="*.swift"` → no attribution surface) | High — a live licence gap, independent of TTS |
 | 5 | Model weights pass the dependency gate invisibly — it reads SPM package identities only | `scripts/ci/check_dependency_allowlist.sh` parses `repositoryURL = "…"` out of `project.pbxproj`; a 200 MB model is not a `repositoryURL` | Medium — governance blind spot |
+| 6 | **The blind spot is wider than row 5 says: the vendored *package* is invisible too.** `Packages/SupertonicTTS` is an `XCLocalSwiftPackageReference`, which has no `repositoryURL`, so the allowlist gate cannot see it either. `specs/dependency-allowlist.txt`'s claim that "the resolved third-party SPM set is now EMPTY" is technically true and materially incomplete — the app links a vendored third-party package the enforcing gate does not inspect. Flagged in `Packages/SupertonicTTS/VENDORING.md` ("Governance note"). | `project.pbxproj:629-634`; `Packages/SupertonicTTS/Package.swift`; no `Package.resolved` exists | Medium — governance blind spot (added 2026-09-16) |
 | 6 | ~~The dependency gate is still report-only~~ **RESOLVED 2026-08-18** — gate is enforcing and the resolved third-party SPM set is empty | `ALLOWLIST_ENFORCE=1 scripts/ci/check_dependency_allowlist.sh` exits 0; `svgkit/svgkit` removed (linked to no target, imported nowhere) along with its `cocoalumberjack` + `swift-log` pins; `Package.resolved` deleted; build and unit suite green | Closed — see R7 |
 | 7 | The fallback this spec must preserve is real and shipping | `MeetMemento/Services/VoicePlaybackService.swift:709` `bestVoiceIdentifier(from:currentLanguage:)`; `:243/:271/:297` the utterance-session primitives every caller uses | — (asset to protect) |
 
@@ -162,6 +163,27 @@ on first load still occurs, so `031` R3's warm-up remains necessary.
 | `voice_styles/` | F1, F2, M1, M3 **only** | 1.12 MB |
 | `voice_config.json`, `tts.json`, `unicode_indexer.json` | — | small |
 | **Total** | | **~148 MB** |
+
+> **Reconciled 2026-09-16 — four different totals were in circulation.** This
+> spec's status line said **188 MB**, this table and Current State row 1 say
+> **~148 MB**, `specs/dependency-allowlist.txt` says **~148 MB**, and `DEC-012`
+> in the architecture spec says **~156 MB**.
+>
+> **The measured figure is 146.42 MB of weights** — the sum of the `size` fields
+> in the Git-LFS pointers under `MeetMemento/Resources/Voices/`, which is the only
+> number derivable from the repository without an archive. The three numbers are
+> not all measuring the same thing: 146.42 MB is LFS payload, ~148 MB is that plus
+> the JSON assets (`unicode_indexer.json` at 272 KB, `tts.json`,
+> `voice_config.json`, four style vectors at 1.2 MB), and **188 MB is a release
+> archive measurement** including the binary and everything else — which is the
+> number `docs/app-store/00` C10 actually gates on.
+>
+> **Use each in its own place:** ~148 MB for "what the voice pack weighs",
+> 188 MB for "what the archive weighs against the 200 MB threshold". `DEC-012`'s
+> ~156 MB was a pre-measurement estimate and is superseded by the 188 MB archive
+> figure — it should not be cited as an archive size. The authoritative gate is
+> `scripts/ci/check_app_size.sh` against `docs/app-store/app-size-budget.txt`;
+> prefer reading it over quoting any number here.
 
 **Acceptance (Given/When/Then):**
 - Given a fresh install with **no network at any point**, when any voice feature

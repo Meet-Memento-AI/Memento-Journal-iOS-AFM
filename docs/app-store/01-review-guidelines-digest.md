@@ -490,9 +490,33 @@ without, say, microphone access.
 
 ### (iii) Data minimization — **verdict: currently exemplary, protect it**
 
-Only three permissions are requested and no location, photos, contacts, or
+> **Corrected 2026-09-16 (spec [046](../../specs/046-photo-capture-and-multimodal-recall.md)).**
+> The paragraph below was written in the future conditional about features that
+> have since shipped, and it is wrong in a way that matters for review: it tells a
+> reader the app requests **no photos** and **no location**, while the binary
+> already ships `NSCameraUsageDescription` (`MeetMemento/Info.plist:36`) and reads
+> the photo library through `PhotosPicker`. A reviewer comparing this document to
+> the binary would find them disagreeing.
+>
+> **Accurate permission surface, 2026-09-16:**
+>
+> | Permission | State |
+> |---|---|
+> | Microphone, Speech Recognition | Requested — capture |
+> | **Camera** (`NSCameraUsageDescription`) | **Requested and shipping** — entry composer, spec 046 R1 |
+> | `NSPhotoLibraryUsageDescription` | **Not requested, and correctly so.** `PhotosPicker` is an out-of-process picker that needs no library-read entitlement. Do not add it unless a future spec leaves `PhotosPicker` for a direct `PHAsset` read (`02-app-store-connect-record.md:87-91` already records this rule) |
+> | Location | **Not requested.** `EntryLocationService` uses `kCLLocationAccuracyReduced` on-device and discards the `CLLocation`; 018 R6's WeatherKit leg is unbuilt |
+> | HealthKit, Contacts, Calendar | Not requested |
+>
+> The *verdict* of this section — data minimization is exemplary — **still
+> holds**, and arguably more strongly than when written: one camera string is the
+> only permission added, and the app makes exactly one network call, off by
+> default. The guidance below about shipping permissions only when the feature
+> lands remains correct and should be kept.
+
+~~Only three permissions are requested and no location, photos, contacts, or
 calendar. Specs 018 R5 (photo attachments) and 018 R6 (place and weather) would
-add `NSPhotoLibraryUsageDescription` and `NSLocationWhenInUseUsageDescription`.
+add `NSPhotoLibraryUsageDescription` and `NSLocationWhenInUseUsageDescription`.~~
 Each new permission is a reviewer question and a privacy-label input. Ship them
 only when the feature genuinely lands, default-off, and update `03` and `04` when
 they do.

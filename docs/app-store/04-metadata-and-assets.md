@@ -28,9 +28,37 @@ Compute, so absolute-privacy claims are false. Forbidden, verbatim from
 
 Permitted, and used verbatim in the description:
 
-> ✅ "No account. No analytics. No third-party AI. Your words are processed on
+> ~~✅ "No account. No analytics. No third-party AI. Your words are processed on
 > your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is
-> independently verifiable. Nothing else."
+> independently verifiable. Nothing else."~~
+
+**Rewritten 2026-09-16 (`DEC-013`).** The claim above conceded Private Cloud
+Compute. Under `DEC-013` the app is on-device only and that concession is no
+longer true, so it is replaced. The permitted language is now:
+
+> ✅ "Memento makes one network call. It is off by default, and it is about the
+> app — never about you."
+>
+> ✅ "No account. No server. No third-party AI. Your photographs and your words
+> are read by your iPhone and nothing else. Your journal syncs through your own
+> iCloud, the way Photos and Notes do — we have no way to read it."
+
+Each clause is checkable against the tree; the evidence table lives in
+`specs/reference/memento-2.0-architecture-spec.md` §1.3.
+
+**This is stronger than the forbidden phrasings, and still passes the lint.**
+Note what it does *not* say: not "100% on-device", not "nothing leaves your
+device", not "no network calls". Those remain forbidden by
+`scripts/ci/lint_forbidden_phrases.py` and **the phrase list is not to be edited**
+— see spec 014 R3's 2026-09-16 amendment for the reasoning. The short version:
+CloudKit mirroring makes the absolutist phrasings false regardless of what the
+intelligence layer does (**P2**), and a precise claim survives audit where an
+absolute one does not.
+
+**Two claims that must stay out of store copy:**
+- *"reads it back in your own voice"* — Personal Voice is **not supported**
+  (`VoicePlaybackService.swift:95-96,794`). The four neural voices are the roster.
+- Any suggestion that reflections may use Private Cloud Compute.
 
 Overstating the trust boundary is an existential brand risk in exactly the
 community that would otherwise advocate for this app. It is also a Guideline

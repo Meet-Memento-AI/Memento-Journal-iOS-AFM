@@ -2,7 +2,7 @@
 id: 033
 title: Neural Voice Catalog and Picker
 tier: P1
-status: in-progress (2026-08-19) — Four-voice picker shipping (DEC-011); DEC-009 roster is F1/F2/M1/M3 pending V30 AEC freeze
+status: in-progress (2026-09-16) — Four-voice picker shipping (DEC-011), neural is the **default** engine not an option (`VoicePlaybackService.swift:126-142`); DEC-009 roster is F1/F2/M1/M3 pending V30 AEC freeze, and the picker is live to users with copy `VoiceCatalog.swift:44-50` still marks **PROVISIONAL**. Personal Voice is **not supported** — not deferred (see R-block amendments)
 effort: 1 session
 depends_on: [030, 031]
 findings: [picker-replacement-migration-path, character-not-gender-presentation, live-previews-replace-prerendered-clips, three-settings-route-resolution-sites, compact-voice-nudge-retirement]
@@ -70,6 +70,27 @@ explicitly because a picker that fetches a voice list or a preview is the easies
 way to violate this family's central rule without noticing.
 
 ### R1. `VoiceCatalog` is the single source of truth (`REQ-TTS-006`)
+
+> **Amended 2026-09-16 — two facts the corpus states too weakly.**
+>
+> **1. Personal Voice is not supported, not deferred.** `DEC-011` says it is
+> "unaffected in principle but its discovery flow is still gated on V6", which
+> reads as postponed. The code is a deliberate exclusion: there is **no**
+> `requestPersonalVoiceAuthorization()` call anywhere in the repository;
+> `VoicePlaybackService.swift:95-96` states *"Personal Voice deliberately not
+> offered"*; and `:794` uses `isPersonal: $0.voiceTraits.contains(.isPersonalVoice)`
+> inside `bestVoice()` to **filter personal voices out** of the system fallback.
+> `REQ-VOX-002`/`REQ-VOX-003` are amended in the architecture spec to match.
+> Consequence for copy: "reads it back in your own voice" is not a claim any
+> current build can make, and it has been removed from §1.1 and must stay out of
+> App Store metadata.
+>
+> **2. Provisional copy is shipping to users.** `VoiceCatalog.swift:44-50` marks
+> the four descriptors **PROVISIONAL** — *"must not be treated as decided copy"* —
+> and `DEC-009` is still pending the V30 AEC freeze. Both are internally
+> consistent, but the picker is live in users' hands *now*
+> (`VoiceSettingsView.swift:37`), which neither document makes obvious. Either
+> freeze the copy or accept that provisional strings are shipped strings.
 
 One type maps internal style ids → display name, character descriptor, style-vector
 resource, and turn-start mask clip (spec 032 R3). Previews are **not** a catalog

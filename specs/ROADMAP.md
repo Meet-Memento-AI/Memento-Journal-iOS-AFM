@@ -2,6 +2,29 @@
 
 Review date: **2026-07-13** · branch `sync/upstream-main` · workflow in `specs/README.md`.
 
+**2026-09-16 — corpus re-baseline.** A full survey found the specs had drifted
+from the app, with one root cause: **`REQ-PLAT-001`'s iOS 27 bet never landed.**
+The project ships `IPHONEOS_DEPLOYMENT_TARGET = 26.0` against the Xcode 26 SDK,
+and all three subsystems that requirement justified were independently replaced
+with an on-device Plan B that now ships:
+
+| iOS 27 feature | Plan B that shipped | Recorded as |
+|---|---|---|
+| `SpotlightSearchTool` | `EntryRetriever` hybrid ranker + `NLEmbedding` vector store | `DEC-002` Plan B / spec 016 |
+| PCC access | Z0-only generation, seam dark | **`DEC-013`** / spec 017 R11 |
+| AFM 3 | `SystemLanguageModel` on the iOS 26 SDK | `#if compiler(>=6.3)` gates |
+
+Each Plan B was recorded locally but never propagated upward, so the
+architecture spec's §1.2/§1.3/§3.2/§4/§6 described a product that does not
+exist. Those sections are now amended in place. Two drifts ran the other way —
+**spec 040 understated** (the SwiftData/CloudKit cutover landed) and **specs
+030–036 understated** (the neural voice stack is the shipping default). Photos
+gained their first owning spec, [046](046-photo-capture-and-multimodal-recall.md);
+`CONSTITUTION.md` §1's iOS 27 / Swift 6 claims were corrected. Also corrected:
+`Swift 6 strict concurrency = complete` is not in force (`SWIFT_VERSION = 5.0`,
+no strict-concurrency setting), and Personal Voice is **not supported** rather
+than deferred.
+
 **2026-07-23:** Memento 2.0 (see
 `specs/reference/memento-2.0-architecture-spec.md`) supersedes the pre-2.0
 architecture in priority. See "2.0 Rewrite — Phase Plan" immediately below. The
@@ -33,7 +56,8 @@ sequential (each phase's exit gate unlocks the next), per the source document.
 | **S — Ship** | [`docs/app-store/`](../docs/app-store/), [025](025-ci-online-ios-build-gates.md) | **Gate S — Submit for Review**: every item in [`docs/app-store/00-readiness-checklist.md`](../docs/app-store/00-readiness-checklist.md) closed with evidence; merge CI proves online-testable iOS build specs (not on-device FM generation) | in-progress (2026-08-07) — library compiled against Apple's current docs; four CI gates live; **three P0 defects found live in production or the binary**, see below; **025 done (2026-08-10)** — `ios-tests.yml` replaced by `ios-build-online.yml` + optional `ios-device-eval.yml` (CI-live / branch-protection rename is a user action) |
 | 6 — Experience (added 2026-08-18) | [026](026-behavioral-safety-guardrails.md), [027](027-navigation-redesign.md), [028](028-conversational-narration.md), [029](029-performance-and-speech-excellence.md), [037](037-conversational-recall-experience.md), [039](039-reply-channels-and-phatic-generation.md), [041](041-in-chat-answer-feedback.md) | Narration is a reliable multi-turn conversation inside Chat, at budget; Ask recall feels like a notebook beside them; simple turns are fast; finished replies collect on-device quality labels | in-progress — 027 shipped with the nav redesign; 028 and 029 landed their first passes 2026-08-17/18; 037 ask@14 notebook path; **039 complete** (`chat-light@4`, always-Open, ConversationalMove). Compact chrome stays 027 + `ChatHeaderActionCluster`; regular-width selection IDs are [040](040-ipad-backend-readiness.md). **041 complete** (thumbs + report overflow + on-device `AnswerFeedbackStore`). **042 shippable (2026-09-11)** — verification-only opted-in ingest into live `public.answer_feedback` (`origin=device_human`) via write-only RPC; journal/chat stay on device; draft `feedback` schema / Slack / pg_cron remain out of scope. **043 in-progress** (2026-08-27) — eval run identity and origin labeling: `eval` schema, run/generation/violation tables, article staging, metric views, and out-of-band import. Closes 022 R1's discard rule structurally.  These post-date the original phase plan and were previously untracked here |
 | 7 — Voice (added 2026-08-18) | [030](030-neural-tts-model-assets.md), [031](031-neural-synthesis-engine.md), [032](032-tts-streaming-and-latency.md), [033](033-neural-voice-catalog.md), [035](035-spoken-form-formatter.md), [036](036-neural-voice-verification.md); [034](034-full-duplex-conversation-audio.md) off the critical path | **Gate V — Voice**: 036's release gates pass on physical devices, with a proxy-verified zero-egress artifact archived | in-progress — model vendored; DEC-008/009/010/011/012 written (008/009 freeze after V29/V30 device traces); SpokenFormFormatter + conversation AEC + mask skip-if-missing; Gate V artifact still on-device |
-| 8 — Harness depth (added 2026-09-06) | [044](044-agentic-harness-depth.md), [045](045-computed-insights-and-period-reflection.md), [sessions](reference/044-045-implementation-sessions.md) | Retrieval measured and fit to gold; bounded second search hop; lean `ask-core@16`; consent-gated living lens; Swift-computed insights + entry tags + foreground weekly reflection | draft — Session 0 amendments landed (038 themeBoost, 022 retrieval-occurred, 043 `harness_retrieval`). Implement per the sessions doc: Evidence (044 R1–R3) → Facts (045 A/R5) → Prompt (044 R5) → Tags/Weekly (045 B/C) → Agency (044 R4, iOS 27) → Profile (044 R6) → arm gates. 019 R8 BG tasks and monthly `.deep` stay out |
+| 8 — Harness depth (added 2026-09-06) | [044](044-agentic-harness-depth.md), [045](045-computed-insights-and-period-reflection.md), [sessions](reference/044-045-implementation-sessions.md) | Retrieval measured and fit to gold; bounded second search hop; lean `ask-core@16`; consent-gated living lens; Swift-computed insights + entry tags + foreground weekly reflection | draft — Session 0 amendments landed (038 themeBoost, 022 retrieval-occurred, 043 `harness_retrieval`). Implement per the sessions doc: Evidence (044 R1–R3) → Facts (045 A/R5) → Prompt (044 R5) → Tags/Weekly (045 B/C) → ~~Agency (044 R4, iOS 27)~~ → Profile (044 R6) → arm gates. **2026-09-16: 044 R4 is blocked by a decoder fault, not by the SDK** — guided decode cannot host tool-calling sessions on any SDK, so do not schedule it against an Xcode 27 upgrade; re-scope it as a deterministic Swift second hop. 019 R8 BG tasks and monthly `.deep` stay out |
+| 9 — Photos (added 2026-09-16) | [046](046-photo-capture-and-multimodal-recall.md) | Photo capture, storage and multimodal recall have an owning spec; the device-local photo guarantee is citable by §1.3 | draft — written after the fact to document a subsystem that shipped without a spec. R1–R4, R6, R8, R9 describe existing code. **Two not-started requirements:** `REQ-IMG-005` (multi-photo entries — must break the UUID-derived filename convention) and `REQ-IMG-007` (entry photos in retrieval — inherits 018 R5's intent, the highest-value gap in the corpus). Supersedes 018 R5's ownership of photo capture/storage |
 
 **Gate S — Ship (added 2026-08-07).** Store readiness is not a spec, because it
 is mostly *not* code: it is App Store Connect fields, Apple-side filings with
@@ -83,7 +107,8 @@ resolving each:
 | `DEC-003` — remote prompt manifest in 2.0 or 2.1? | 017 | P2 | **2.0 = bundled only.** `PromptRegistry` remains Swift constants. No signed remote manifest. |
 | `DEC-005` — Watch companion in 2.0 or 2.1? | 020 | P2 | **2.0 via the four App Intents on-wrist.** Dedicated WatchKit host lives in `MeetMementoWatch/` (not on the iOS merge scheme). |
 | `DEC-001` — ship on non-Apple-Intelligence devices? | 021 | P1 | **Yes, Reduced-tier capture-only, no paywall.** Store copy must not claim Apple Intelligence is required. |
-| `DEC-004` — final pricing and trial length | 021 | P1 | **Keep $9.99/mo and $79/yr.** Trial length unchanged until App Store Connect is retuned. |
+| `DEC-004` — final pricing and trial length | 021 | P1 | **Keep $9.99/mo and $79/yr.** Trial length unchanged until App Store Connect is retuned. **Note 2026-09-16:** decided but not implemented — there is no paywall and RevenueCat is not integrated (021 Current State). |
+| `DEC-013` — ship with PCC routing enabled, or on-device only with the seam dark? | 017 | **P0** | **On-device only.** Every `GenerationIntent` resolves Z0; `UnavailablePCCProvider` is the only conformance in the tree. The PCC seam stays compiled and unreferenced (same posture as `DEC-003`). Re-enabling MUST be an explicit user-facing opt-in, default off — a second `PCCSessionProviding` conformance without one is a **P0 privacy defect**. Unlocks the stronger `REQ-POS-001` claim; makes §7.3 quota and §7.4 degradation dormant. |
 | `DEC-008` — ANE placement with dynamic shapes, or fixed-shape buckets? | 031 | P1 | **Lock `.cpuAndNeuralEngine`, GPU excluded, dynamic shapes.** V29 device traces still to be archived; code already matches this lock. |
 | `DEC-009` — is the provisional voice roster the shipping roster, under AEC? | 033 | P1 | **Four-voice catalog ships (F1/F2/M1/M3).** Freeze under AEC after V30 audition; picker already replaced the system-voice list (`DEC-011`). |
 | `DEC-010` — model-weight attribution placement | 030 | ✅ | Settings → About → Acknowledgments |

@@ -375,11 +375,26 @@ Spotlight-leg and TTS-leg assertions land as those stores come into existence
 **unblocked** now.
 
 ### R7. Platform baseline — target, concurrency, offline, capability tier
-- `IPHONEOS_DEPLOYMENT_TARGET = 27.0` (`REQ-PLAT-001`; currently 17.0 in
-  `project.pbxproj`). **Unblocked — Xcode 27 beta installed 2026-07-26** (spec
-  013 task 8); the bump is the last mechanical step, not the first, and must be
-  verified to build before dependent work proceeds.
+- `IPHONEOS_DEPLOYMENT_TARGET = 27.0` (`REQ-PLAT-001`; ~~currently 17.0 in
+  `project.pbxproj`~~). ~~**Unblocked — Xcode 27 beta installed 2026-07-26**
+  (spec 013 task 8)~~; the bump is the last mechanical step, not the first, and
+  must be verified to build before dependent work proceeds.
+
+  > **Corrected 2026-09-16.** Two errors in the struck text. The target is
+  > **26.0**, not 17.0 (`project.pbxproj:378,437,469,505,527,545`) — it was
+  > raised once already. And it is **not unblocked**: a beta installed on a dev
+  > machine is not the archive Mac, and this spec's own status line ("deployment
+  > target stays 26.0 until the archive Mac runs Xcode 27") is the accurate
+  > account. `docs/app-store/00-readiness-checklist.md`'s standing warning — *do
+  > not target iOS 27, and do not archive with the beta toolchain* — is the
+  > operative constraint. `REQ-PLAT-001` is amended in place in the architecture
+  > spec §4.
 - Swift 6 language mode, strict concurrency **complete** (`REQ-PLAT-002`);
+
+  > **Corrected 2026-09-16 — not in force.** `SWIFT_VERSION = 5.0`
+  > (`project.pbxproj:479,515,532,550,566,582`), no `SWIFT_STRICT_CONCURRENCY`
+  > setting anywhere. The isolation model below is followed by construction, not
+  > by compiler enforcement.
   isolation model per `technology/09` §1 (SwiftData `ModelContext`:
   `@MainActor` for UI contexts, background contexts explicit; R1's
   identifier-passing rule is the enforcement mechanism).

@@ -50,7 +50,34 @@ When generating a derived spec from this document, the prompt should be: *"Using
 
 ### 1.1 One sentence
 
-Memento is a voice-first journal that remembers what you said, notices what repeats, answers questions about your own history, and reads its reflections back to you in your own voice — without your words leaving Apple's trust boundary.
+~~Memento is a voice-first journal that remembers what you said, notices what repeats, answers questions about your own history, and reads its reflections back to you in your own voice — without your words leaving Apple's trust boundary.~~
+
+> **Rewritten 2026-09-16 (`DEC-013`; spec [046](../046-photo-capture-and-multimodal-recall.md)).**
+> The struck sentence was wrong in three places by the time it was read: it
+> omits photographs, which are the capture mode users respond to most; it
+> promises playback "in your own voice", which is **not supported** — Personal
+> Voice is actively filtered out of voice selection
+> (`VoicePlaybackService.swift:95-96,794`); and "without your words leaving
+> Apple's trust boundary" understates a product where words do not leave the
+> device at all.
+
+Memento is a private journal of photographs and voice that remembers what you captured, notices what repeats, and answers questions about your own history in a conversation — entirely on your own iPhone, with no account and no server.
+
+**What each clause is accountable to:**
+
+| Clause | Held up by |
+|---|---|
+| *photographs and voice* | `PhotoStorage`, `CameraCapturePicker`, `PhotosPicker`; a photo alone is savable content (`AddEntryView.swift:875-880`). Voice via `SpeechAnalyzer`/`SpeechTranscriber` |
+| *remembers what you captured* | SwiftData system of record (**P2**); `EntryRetriever` hybrid ranker over `NLEmbedding` passages (§6.1) |
+| *notices what repeats* | Weekly reflection, Patterns, `InsightEngine` (spec 045) |
+| *answers questions … in a conversation* | Ask (`ask@14`), multimodal in the current turn (spec 046) |
+| *entirely on your own iPhone* | `DEC-013` — every `GenerationIntent` resolves Z0 |
+| *no account and no server* | Spec 023; one `URLSession` call site, fail-closed and off by default (spec 014 R4) |
+
+**Reads aloud** remains a first-class capability and is deliberately out of the
+one-sentence definition until the voice it reads in is settled: the neural
+catalog ships four voices (`VoiceCatalog.swift:51-76`) and Personal Voice does
+not ship at all. `REQ-VOX-002`/`REQ-VOX-003` are amended accordingly.
 
 ### 1.2 What changed and why
 
@@ -59,6 +86,15 @@ Memento 1.3 was architected in 2025 around the assumption that meaningful RAG ov
 Three WWDC26 changes invalidated it:
 
 1. **`SpotlightSearchTool`** — the Foundation Models framework ships a built-in tool that lets a language model author its own queries against an app's Core Spotlight semantic index and reason over the results. Local RAG with no embedding pipeline, no vector store, no retrieval endpoint.
+
+   > **Amended 2026-09-16 — this one did not survive contact.** `SpotlightSearchTool`
+   > has no named-index source, so donated entries could not be hidden from
+   > system-wide search (`DEC-002`, 2026-08-19), and guided decode cannot host
+   > tool-calling sessions at all (§6.1). Memento therefore *does* have an
+   > embedding pipeline and *does* have a vector store — see §6.1. The conclusion
+   > below still holds, but this premise no longer supports it: the server tier
+   > was replaced by on-device work Memento performs itself, not by a framework
+   > doing it for free.
 2. **Foundation Models on Private Cloud Compute** — a server-class model reachable with no account, no authentication, no API key, and no token cost to the developer, subject to a daily per-user limit that rises for iCloud+ subscribers, available to apps under 2M first-time downloads whose developers are enrolled in the App Store Small Business Program.
 3. **The `LanguageModel` protocol** — the session API now fronts a *model slot* rather than a single model. On-device, PCC, Claude, Gemini, and local open-weights models are all reachable through one API, and swapping between them is an argument change rather than a rewrite.
 
@@ -70,16 +106,86 @@ The reference competitor is **Slate** (HSLA0001 Inc., July 2026): fully on-devic
 
 Memento does not compete on privacy absolutism — that position is taken, and taking it second is losing. Memento competes on **the ground Slate's doctrine vacates**:
 
-| Axis | Slate | Rosebud / Day One / Reflectly | Memento 2.0 |
+> **Rewritten 2026-09-16 (`DEC-013`, spec 046).** The 2026-07-23 table is
+> struck below and replaced. Two of its five axes had eroded by 2026-09:
+> **conversational recall is now table stakes** — Mindsera ships a feature named
+> "Ask Your Journal", Rosebud ships "Ask Rosebud" with citations back to
+> entries, Reflection ships journal-wide Q&A — so "yes, but on a vendor's
+> servers" no longer distinguishes anything on its own. And **voice-first does
+> not separate Memento from Slate**, whose own listing is *"press record and say
+> what's on your mind."* Slate is a voice journal.
+>
+> The table also had no row for the capability the shipped product is most
+> visibly built around — photographs — so the competitive argument was being
+> made about a product with no photos in it.
+
+| ~~Axis~~ | ~~Slate~~ | ~~Rosebud / Day One / Reflectly~~ | ~~Memento 2.0~~ |
 |---|---|---|---|
-| Data leaves device | Never | Yes, to vendor clouds | Never to a third party; optionally to Apple PCC, user-visible |
-| Conversational recall | Refused by design | Yes, but on a vendor's servers | Yes, inside Apple's trust boundary |
-| Reads back aloud | No | No | Yes, optionally in the user's own voice |
-| System integration | Minimal | Minimal | Deep (Spotlight, Siri, Health, Journaling Suggestions, Watch) |
-| Emotional register | Austere, cold by design | Coach-y, performative | Warm, specific, restrained |
+| ~~Data leaves device~~ | ~~Never~~ | ~~Yes, to vendor clouds~~ | ~~Never to a third party; optionally to Apple PCC, user-visible~~ |
+| ~~Conversational recall~~ | ~~Refused by design~~ | ~~Yes, but on a vendor's servers~~ | ~~Yes, inside Apple's trust boundary~~ |
+| ~~Reads back aloud~~ | ~~No~~ | ~~No~~ | ~~Yes, optionally in the user's own voice~~ |
+| ~~System integration~~ | ~~Minimal~~ | ~~Minimal~~ | ~~Deep~~ |
+| ~~Emotional register~~ | ~~Austere, cold by design~~ | ~~Coach-y, performative~~ | ~~Warm, specific, restrained~~ |
+
+**Competitive position, 2026-09-16.** Four clusters now, not two: privacy
+minimalists (Slate), funded cloud journals (Rosebud, Reflection, Mindsera,
+Mori, DeepJournal), incumbents (Day One, and Apple Journal itself — free,
+preinstalled, and generating writing prompts on-device as of iOS 27), and
+voice-capture tools (Yaps).
+
+| Axis | Slate | Cloud AI journals | Apple Journal | Memento |
+|---|---|---|---|---|
+| **Photographs as entry content** | No — voice only | Attachments at best | Yes | **Yes, first-class; a photo alone is an entry** |
+| **Conversational recall** | Refused by doctrine | Yes, on vendor servers | No | **Yes, on device** |
+| Generation location | On device | Vendor cloud | On device | **On device (`DEC-013`)** |
+| Photo bytes leave device | n/a | Yes | iCloud Photos | **Never** (spec 046) |
+| Reads back aloud | No | No | No | **Yes** — vendored neural TTS, four voices |
+| Emotional register | Austere by design | Coach-y, performative | Neutral, generic | Warm, specific, restrained |
+
+**Where the ground actually is.** Slate's doctrine — *the model observes, never
+replies, never advises, never chats* — buys its privacy position by forfeiting
+the product. Under `DEC-013` Memento holds the same privacy line and still ships
+the conversation, because local RAG makes recall possible without a server. The
+cloud journals ship the conversation but cannot make the privacy claim at all,
+and the objection is sharper for photographs than for text: *"photos of my
+family are analysed on someone's server"* is a visceral objection where *"my
+diary is on a server"* is an abstract one. **No competitor occupies the
+photographs + conversational recall + nothing-leaves-the-device cell.**
+
+Apple Journal is the commoditizer to watch. It will keep making prompts free;
+it will not build a queryable personal memory with a paid tier, and it does not
+hold the user's own interpretation.
 
 **Positioning claim (must be defensible verbatim):**
-> No account. No analytics. No third-party AI. Your words are processed on your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is independently verifiable. Nothing else.
+> ~~No account. No analytics. No third-party AI. Your words are processed on your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is independently verifiable. Nothing else.~~
+
+> **Rewritten 2026-09-16 (`DEC-013`).** The struck claim conceded Private Cloud
+> Compute. That concession is no longer true and was the one axis on which
+> Memento could not beat both Slate and the cloud journals at once. The claim
+> below is stronger *and* narrower — every clause is checkable against the tree,
+> which is what makes it survive the scrutiny of the audience most likely to
+> amplify it.
+
+> Memento makes one network call. It is off by default, and it is about the app — never about you.
+>
+> No account. No server. No third-party AI. Your photographs and your words are read by your iPhone and nothing else. Your journal syncs through your own iCloud, the way Photos and Notes do — we have no way to read it.
+
+**Evidence for each sentence**, so a future session can re-verify rather than trust:
+
+| Claim | Evidence |
+|---|---|
+| "one network call" | `URLSession`/`URLRequest` appear in exactly one file: `Services/Feedback/SupabaseFeedbackClient.swift` (spec 014 R4) |
+| "off by default" | `FeedbackConsent.swift:22`; and fail-closed — `Config/{Debug,Release}.xcconfig` ship the keys empty, so a fresh clone makes **zero** calls |
+| "no account. No server." | Spec 023; `supabase/` deleted in Phase 1 |
+| "no third-party AI" | Zero remote SPM packages; `SystemLanguageModel` only; `DEC-013` |
+| "read by your iPhone and nothing else" | `DEC-013`; image understanding has never had a Z1 path (§7.2) |
+| "photographs … nothing else" | Photo bytes never mirror — `MementoDataStore.swift:56-62` carries `fileAssetID` metadata only (spec 046) |
+| "syncs through your own iCloud" | `JournalContainer.swift:59-63`, `cloudKitDatabase: .private(...)` — **P2**, stated rather than hidden |
+
+**`REQ-POS-001` is unchanged and still binds.** The lint's forbidden-phrase list
+is not to be edited under `DEC-013` — see spec 014 R3's amendment for why. Note
+the claim above deliberately avoids every forbidden phrase while saying something
+stronger than any of them.
 
 **REQ-POS-001** — Marketing, App Store copy, and in-app text MUST NOT claim "nothing leaves your phone," "no network calls," or "airplane mode proves it" while PCC routing is enabled for any surface. Overstating the trust boundary is an existential brand risk and is treated as a P0 defect.
 
@@ -144,14 +250,18 @@ The 2.0 work is majority subtraction. Any proposal that reintroduces a service t
     │                       │                      │
 ┌───▼─────────┐   ┌─────────▼──────────┐   ┌───────▼─────────────┐
 │ RETRIEVAL   │   │ CAPTURE            │   │ VOICE OUT           │
-│ Core        │   │ SpeechAnalyzer     │   │ AVSpeechSynthesizer │
-│ Spotlight   │   │ SpeechTranscriber  │   │ Personal Voice      │
-│ +Search Tool│   │ AVAudioEngine      │   │ AVAudioSession      │
+│ EntryRetrvr │   │ SpeechAnalyzer     │   │ SupertonicTTS       │
+│ NLEmbedding │   │ SpeechTranscriber  │   │ (vendored, CoreML)  │
+│ PassageChnk │   │ AVAudioEngine      │   │ 4-voice catalog     │
+│ (Spotlight: │   │ PhotosPicker       │   │ AVSpeechSynthesizer │
+│  donate-only│   │ UIImagePickerCtrl  │   │  (fallback only)    │
+│  opt-in,off)│   │ ImageProcessor     │   │ AVAudioSession      │
 └───┬─────────┘   └─────────┬──────────┘   └───────┬─────────────┘
     │                       │                      │
 ┌───▼───────────────────────▼──────────────────────▼───────────────┐
 │  DATA LAYER                                                      │
 │  SwiftData (authoritative) ─ CloudKit private DB (replication)   │
+│  PhotoStorage (encrypted files, device-local, never mirrored)    │
 │  Data Protection · Keychain · LocalAuthentication                │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -176,7 +286,37 @@ Three concentric zones. Every operation in this document is tagged with the inne
 
 **REQ-PLAT-001** — Minimum deployment target: **iOS 27.0**. Justification: `SpotlightSearchTool`, PCC access, and AFM 3 are all iOS 27 features, and they are the architecture. A dual-baseline build supporting iOS 26 would require maintaining a vector store and a separate generation path — precisely the cost this rebuild exists to eliminate.
 
+> **Amended 2026-09-16 — the iOS 27 bet did not land, and this requirement's
+> justification is now its own refutation.** The project ships
+> `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on every configuration of every target
+> (`project.pbxproj:378,437,469,505,527,545`), built against the Xcode 26 SDK.
+> All three subsystems named above were independently replaced with an on-device
+> Plan B that now ships:
+>
+> | iOS 27 feature | Plan B that shipped | Recorded in |
+> |---|---|---|
+> | `SpotlightSearchTool` | `EntryRetriever` hybrid ranker + `NLEmbedding` | 016 Branch B / `DEC-002` |
+> | PCC access | Z0-only generation; `UnavailablePCCProvider` | `DEC-013` (§7.6) |
+> | AFM 3 | `SystemLanguageModel` on the iOS 26 SDK | 017, `#if compiler(>=6.3)` gates |
+>
+> **The predicted cost was paid anyway.** "A dual-baseline build … would require
+> maintaining a vector store" — the app maintains one, at
+> `Application Support/MementoEmbeddings/`. The iOS 27 floor is not what
+> prevented it; it never existed to prevent it.
+>
+> The floor is raised when the archive Mac runs Xcode 27, not before. Spec
+> [015](../015-data-layer-swiftdata-cloudkit.md)'s status line is authoritative
+> on the current state; this requirement states the target.
+
 **REQ-PLAT-002** — Swift 6 language mode with strict concurrency checking set to **complete**. All model-facing services are `actor`-isolated or `@MainActor`.
+
+> **Amended 2026-09-16 — not in force.** `SWIFT_VERSION = 5.0` at
+> `project.pbxproj:479,515,532,550,566,582`, and there is **no**
+> `SWIFT_STRICT_CONCURRENCY` or `SWIFT_UPCOMING_FEATURE` setting anywhere in the
+> project. The target builds in Swift 5 language mode with no strict-concurrency
+> checking. The actor isolation the second sentence describes is real in the
+> source — it is simply not enforced by the compiler. Treat this requirement as
+> a target, and do not cite it as a guarantee in any spec's Regression Guards.
 
 **REQ-PLAT-003** — The app MUST launch, capture, transcribe, index, search, reflect on a single entry, and read aloud with the network fully disabled. Only §7.3 (weekly), §7.4 (monthly), and §7.5 (chat) MAY require connectivity, and each MUST have a Z0 fallback.
 
@@ -186,10 +326,23 @@ Capability is not uniform across devices. The app MUST behave coherently at ever
 
 | Tier | Conditions | Behavior |
 |---|---|---|
-| **Full** | Apple Intelligence device, iOS 27, PCC eligible, quota available | All surfaces, PCC for heavy synthesis |
+| ~~**Full**~~ | ~~Apple Intelligence device, iOS 27, PCC eligible, quota available~~ | ~~All surfaces, PCC for heavy synthesis~~ |
 | **Local** | Apple Intelligence device, PCC unavailable/capped/disabled by user | All surfaces, on-device generation, labeled |
-| **Reduced** | iOS 27, non-Apple-Intelligence device | Capture, transcription, timeline, keyword search, TTS. Generative surfaces disabled with honest explanation. |
-| **Blocked** | < iOS 27 | Not installable |
+| **Reduced** | iOS 26+, non-Apple-Intelligence device | Capture, transcription, timeline, keyword search, TTS. Generative surfaces disabled with honest explanation. |
+| ~~**Blocked**~~ | ~~< iOS 27~~ | ~~Not installable~~ |
+
+> **Amended 2026-09-16 (`DEC-013`, `REQ-PLAT-001`).** Two rows are struck.
+>
+> **Full is unoccupiable.** No device can reach it: `DEC-013` makes Z0 the
+> shipping posture, and `UnavailablePCCProvider`
+> (`PCCSessionProviding.swift:26-35`) is the only conformance in the tree, so
+> `QuotaGovernor.capability(for:)` is never called by shipping code. Every
+> Apple Intelligence device lands in **Local**; every other device lands in
+> **Reduced**. The tier survives as the shape PCC would re-enter through, not as
+> a state the resolver can return.
+>
+> **Blocked is wrong.** The deployment target is 26.0, so iOS 26 devices install
+> and run. `< iOS 26` is the real floor.
 
 **REQ-PLAT-004** — Tier MUST be resolved at launch and re-resolved on `SystemLanguageModel.availability` change. The paywall MUST NOT be presentable in the Reduced tier without a clearly disclosed feature list. Selling AI reflection to a device that cannot generate it is a refund event and an App Review risk.
 
@@ -243,9 +396,32 @@ Capability is not uniform across devices. The app MUST behave coherently at ever
     var indexState: IndexState        // .pending, .indexed, .excluded
     var excludedFromIndex: Bool       // user-set, per entry
 
-    @Relationship(deleteRule: .cascade) var attachments: [Attachment]
+    @Relationship(deleteRule: .cascade) var attachments: [Attachment]  // see note below
     @Relationship(inverse: \Reflection.entries) var reflections: [Reflection]
 }
+```
+
+> **Amended 2026-09-16 (spec [046](../046-photo-capture-and-multimodal-recall.md)).**
+> `Attachment` is referenced here and **never defined** in this section — a gap
+> spec [015](../015-data-layer-swiftdata-cloudkit.md):120-123 filled with a
+> minimal contract (`id`, `kind`, `fileAssetID`). Spec 046 now owns the type in
+> full. Two things this declaration gets wrong about the shipped app:
+>
+> 1. **The array is vestigial.** Every write path collapses it to at most one:
+>    `MementoDataStore.swift:56-68` inserts an attachment only
+>    `if row.attachments?.isEmpty ?? true` and otherwise deletes all of them,
+>    reading back as the boolean `hasPhoto`; `PhotoStorage` uses one file per
+>    entry UUID and a save always overwrites; `PhotoAction.set(Data)` carries a
+>    single `Data`. A second photo cannot be created, and if a CloudKit merge
+>    ever produced one, `fileAssetID` is the *entry's* UUID rather than the
+>    attachment's, so its bytes would have nowhere to live. Multi-photo is
+>    `REQ-IMG-005`, not-started, and it must break the filename convention.
+> 2. **The bytes are not in this store and must never be.** Photo JPEGs live in
+>    `Documents/EncryptedPhotos` under the device DEK; only `fileAssetID`
+>    metadata mirrors to CloudKit. That is load-bearing for §1.3's positioning
+>    claim — see `REQ-IMG-004`.
+
+```swift
 
 @Model final class Reflection {
     var id: UUID
@@ -323,13 +499,52 @@ This section replaces the entirety of the 1.3 pgvector subsystem.
 
 ### 6.1 Model
 
-Retrieval works by **donating entries to Core Spotlight's semantic index** and then attaching `SpotlightSearchTool` to a `LanguageModelSession`. The model authors its own queries, Spotlight executes them against the semantic index, and the model reasons over the returned items. There is no chunking strategy, no embedding model, no vector store, and no similarity threshold to tune.
+~~Retrieval works by **donating entries to Core Spotlight's semantic index** and then attaching `SpotlightSearchTool` to a `LanguageModelSession`. The model authors its own queries, Spotlight executes them against the semantic index, and the model reasons over the returned items. There is no chunking strategy, no embedding model, no vector store, and no similarity threshold to tune.~~
 
-⚠️ VERIFY the exact tool name, initializer, and configuration surface against the iOS 27 SDK. WWDC26 session 241 and session 246 are the primary sources.
+~~⚠️ VERIFY the exact tool name, initializer, and configuration surface against the iOS 27 SDK. WWDC26 session 241 and session 246 are the primary sources.~~
+
+> **Rewritten 2026-09-16 (`DEC-002` Plan B, spec [016](../016-indexing-retrieval-core-spotlight.md)).**
+> The struck paragraph is withdrawn in full. **Every clause of its last sentence
+> is now false**, and it was the load-bearing claim of §1.2's whole argument.
+>
+> Retrieval is `MeetMemento/Services/Intelligence/EntryRetriever.swift` — a
+> hand-rolled hybrid ranker over the SwiftData corpus, combining on-device
+> semantic similarity, keyword overlap, and recency. Pure Swift +
+> NaturalLanguage; it does not import `FoundationModels`.
+>
+> | "There is no…" | What actually ships |
+> |---|---|
+> | chunking strategy | `PassageChunker.swift` |
+> | embedding model | `NLEmbedding` via `EmbeddingService.swift:6-7,31` |
+> | vector store | `Application Support/MementoEmbeddings/`, memory + disk cache |
+> | similarity threshold to tune | `RetrieverTuning.semanticFloorAbs = 0.30`, plus `sigmaK`, `semanticWeight`, `recencyWeight`, `passageMeanWeight` (`EntryRetriever.swift:56-100`) |
+>
+> **Core Spotlight is donation-only, opt-in, and default off.**
+> `EntrySpotlightIndexer.swift:5-6` states the posture; `IndexingPreferences.spotlightOptIn`
+> reads `false` by default (`:19-21`) and both `donate` and `rebuildFromStore`
+> guard on it (`:30,48`). **Nothing in the app ever queries the Spotlight index** —
+> there is no `CSUserQuery` or `CSSearchQuery` anywhere in the tree.
+>
+> **`SpotlightSearchTool` is not used, and `SearchJournalTool` cannot be.** The
+> latter is declared behind `#if compiler(>=6.3)` + `@available(iOS 27.0, *)`, so
+> it does not compile on this SDK — but the blocker is deeper than the SDK.
+> `makeSession` (`FoundationModelsIntelligenceService.swift:573-581`) refuses to
+> attach it at all: *"Guided Ask (`respond(generating:)` / `streamResponse(generating:)`)
+> cannot host Tool-calling sessions: the AFM decoder faults (EXC_BAD_ACCESS) when
+> schema tokens and tool-call tokens mix."* Ask is a guided-decode surface, so a
+> tool-based retrieval architecture is unavailable to it on **any** SDK until that
+> fault is resolved upstream. `toolsCalled` is structurally `0`.
 
 ### 6.2 Donation
 
 **REQ-IDX-001** — Every `Entry` where `excludedFromIndex == false` MUST be donated to Core Spotlight with a `CSSearchableItemAttributeSet` carrying at minimum: full transcript as textual content, title, `contentCreationDate`, mood labels, topics, and place name.
+
+> **Amended 2026-09-16 (`DEC-002` Plan B).** The default inverted: `excludedFromIndex`
+> is effectively `true` for every entry, because donation itself is opt-in and off
+> (`REQ-IDX-006`). So on a default install this requirement donates **nothing**, and
+> donation serves system search and Siri only — never retrieval, which is
+> `REQ-IDX-007`'s path. Read `REQ-IDX-001` through `REQ-IDX-005` as the shape
+> donation takes *when a user opts in*, not as a description of the running app.
 
 **REQ-IDX-002** — Entries MUST also conform to App Intents' `IndexedEntity` so the same donation serves Siri, Spotlight actions, and the search tool from one code path.
 
@@ -353,6 +568,25 @@ Required investigation, in priority order:
 **REQ-IDX-006** — If DEC-002 resolves negatively (entries cannot be hidden from system search), the app MUST default `excludedFromIndex` to **true** and present indexing as an explicit opt-in with a plain-language explanation of the tradeoff — accepting that retrieval quality degrades for users who decline.
 
 **REQ-IDX-007** — Fallback retrieval architecture, required as a designed contingency even if unbuilt: a hand-rolled `Tool` conforming to the Foundation Models tool protocol that queries SwiftData directly using date-range predicates, `NLTagger`-derived keyword matching, and mood/topic filters, returning the top-N entries as structured tool output. This is materially weaker than semantic retrieval but keeps the architecture serverless. It MUST be specified in `/specs/indexing-retrieval.spec.md` as Plan B with an explicit trigger condition.
+
+> **Amended 2026-09-16 — this is no longer a contingency. It is the shipped and
+> only retrieval path,** and it took a different shape than specified.
+>
+> - **Not a `Tool`.** It could not be — see §6.1's note on guided decode refusing
+>   tool attachment. `EntryRetriever` is called directly by the Ask pipeline; the
+>   model never authors a query.
+> - **Not "materially weaker than semantic retrieval." It *is* semantic
+>   retrieval**, via `NLEmbedding` over chunked passages, with keyword overlap and
+>   recency as additional ranking signals rather than as substitutes for meaning.
+>   The sentence conceded a quality loss that was never incurred.
+> - `SearchJournalPolicy.swift` (call caps, safety admission) exists as live
+>   pure-Swift logic with **no caller**, and is the vestige of the `Tool` shape
+>   this requirement originally described.
+>
+> The trigger condition this requirement asks for has fired and is recorded as
+> `DEC-002` Plan B (2026-08-19). Spec [016](../016-indexing-retrieval-core-spotlight.md)
+> is the owning spec; the file this requirement names
+> (`/specs/indexing-retrieval.spec.md`) was never created under that name.
 
 ### 6.4 Controlled vocabularies
 
@@ -414,14 +648,40 @@ struct GenerationOutcome<T: Sendable>: Sendable {
 | Mood + topics | Z0 | Guided generation, constrained enums | none needed |
 | Salience score | Z0 | Cheap, drives selection | none needed |
 | Entry reflection | Z0 | Single-entry context fits comfortably | none needed |
-| **Weekly reflection** | Z1 (PCC) | Multi-entry synthesis, needs reasoning + context | Z0 with reduced entry set, labeled |
-| **Monthly insight** | Z1 (PCC) | Heaviest retrieval + synthesis | Z0 shortened form, labeled |
-| **Ask (chat)** | Z1 (PCC) | Tool-calling loop + open-ended reasoning | Z0 with narrower retrieval, labeled |
+| **Weekly reflection** | ~~Z1 (PCC)~~ **Z0** | ~~Multi-entry synthesis, needs reasoning + context~~ `DEC-013` | ~~Z0 with reduced entry set, labeled~~ n/a — Z0 is the baseline |
+| **Monthly insight** | ~~Z1 (PCC)~~ **Z0** | ~~Heaviest retrieval + synthesis~~ `DEC-013` | ~~Z0 shortened form, labeled~~ n/a |
+| **Ask (chat)** | ~~Z1 (PCC)~~ **Z0** | ~~Tool-calling loop + open-ended reasoning~~ `DEC-013`; and guided decode cannot host tools (§6.1) | ~~Z0 with narrower retrieval, labeled~~ n/a |
 | Image understanding | Z0 | On-device model now accepts image input | none |
+
+> **Amended 2026-09-16 (`DEC-013`, §7.6).** Every intent resolves to Z0. The two
+> rows that still carry a Z1 *default* in code — `.ask`
+> (`ModelRouter.swift:84`) and `.weeklyReflection` (`:106`) — resolve to their
+> `degradedZone` at runtime because `UnavailablePCCProvider` is the only
+> conformance in the tree, and they do so as the **baseline**, not as a
+> degradation: `wasDegraded` is `false` and the base prompt is used.
+> `ModelRouter.swift:129-137` is the authoritative comment on that distinction
+> and should be read before touching this table. Monthly `.deep` is not a
+> `GenerationIntent` at all.
 
 **REQ-INT-004** — The routing table MUST be overridable by a user-facing setting (§10.2) that pins everything to Z0.
 
+> **Amended 2026-09-16 (`DEC-013`).** Vacuous as written — everything is already
+> pinned to Z0 with no setting involved. The setting becomes meaningful again
+> only if PCC is ever enabled, at which point `DEC-013` requires it be an
+> explicit **opt-in** rather than an override of an on-by-default behaviour.
+
 ### 7.3 Quota governance
+
+> **Amended 2026-09-16 (`DEC-013`) — this entire subsection is dormant.**
+> `QuotaGovernor` exists as a type, but `QuotaGovernor.capability(for:)` is
+> **never called by shipping code**: `resolveRoute`
+> (`FoundationModelsIntelligenceService.swift:685-696`) short-circuits on
+> `guard pccProvider.isSupported else { return .sdkUnsupported }` before reaching
+> it, and the production quota provider (`NoPCCQuotaProvider`) returns `nil` from
+> `snapshot()` anyway — two independent guards landing on the same answer.
+> `REQ-INT-005` through `REQ-INT-008` describe behaviour no user can observe.
+> Retained as the contract PCC would re-enter under; not implementable or
+> testable while `DEC-013` stands.
 
 PCC has a **daily per-user limit**, higher for iCloud+ subscribers. Chat is the only unbounded consumer and will exhaust it first.
 
@@ -434,6 +694,27 @@ PCC has a **daily per-user limit**, higher for iCloud+ subscribers. Chat is the 
 **REQ-INT-008** — iCloud+ raises the limit. The app MAY mention this factually at the point of exhaustion. It MUST NOT nag, and MUST NOT imply Memento requires iCloud+.
 
 ### 7.4 Degradation contract
+
+> **Amended 2026-09-16 (`DEC-013`) — there is no degradation to contract, and
+> the persisted fields are dead columns.**
+>
+> `wasDegraded` is structurally `false` for every generation in the shipping app.
+> It is set true only by `ModelRouter.resolve`'s `.unavailable` and
+> `.quotaConstrained` arms (`ModelRouter.swift:177-185`), and neither capability
+> value can be produced while PCC is absent. Consequences, all currently
+> carrying a constant: `JournalSchema.swift:159`, `MementoDataStore.swift:140`,
+> `IntelligenceService.swift:59/153/217`, `ChatMessage.swift:147`, and the
+> feedback envelope field at `FeedbackEnvelope.swift:28`. `useDegradedPrompt` is
+> likewise always false, so `PromptRegistry` never resolves a degraded variant
+> and `REQ-INT-010`'s separate light-model prompt is never selected.
+>
+> **The disclosure obligation survives in a different form.** Nothing is degraded,
+> so nothing needs a degradation label — but `REQ-INT-011`'s draft copy
+> (*"Written on this device. Shorter than usual — your daily reflection allowance
+> is used up until tomorrow"*) describes a state that cannot occur, and
+> `DeviceCopy.writtenOnDevice` does not exist. Do not ship that string. What is
+> true and worth saying is the simpler thing: everything was written on this
+> device, always. See `REQ-POS-001`.
 
 **REQ-INT-009** — Degradation from Z1 to Z0 MUST be: attempted automatically, completed successfully, and disclosed in the resulting artifact — both persisted (`Reflection.zone`, `Turn.wasDegraded`) and rendered.
 
@@ -483,7 +764,27 @@ PCC has a **daily per-user limit**, higher for iCloud+ subscribers. Chat is the 
 
 **REQ-INT-013** — `hasNothingToSay` is a first-class product feature, not an error path. When true, the app renders a deliberate empty state and generates no prose. Slate's strongest line — *when it has nothing real to say, it says nothing* — is correct product design and Memento adopts the principle without adopting the doctrine of silence generally.
 
-### 7.6 Streaming
+### 7.6 On-device-only posture — `DEC-013`
+
+**DEC-013** — Does Memento ship with Private Cloud Compute routing enabled for the Z1 surfaces (weekly, monthly, chat), or does it ship on-device only and keep the PCC seam dark? **Blocking for:** §1.3's positioning claim, §7.2's routing table, §7.3 quota governance, §7.4 degradation contract, §4.1's Full tier. **Owning spec:** [017](../017-intelligence-boundary-and-prompt-architecture.md). **RESOLVED 2026-09-16 (user): on-device only.**
+
+The app has been Z0-only in every shipped build, as a side effect of building against the iOS 26 SDK. This decision makes that deliberate and load-bearing rather than incidental.
+
+**What the code already does.** `PCCSessionProviding.swift:26-35` declares `UnavailablePCCProvider { isSupported: false }` as the only conformance in the repository; `FoundationModelsIntelligenceService.swift:253` takes it as the production default and nothing overrides it. Every session construction site (`:582, 1734, 1825, 2396, 2455, 2532`) builds a bare `LanguageModelSession` against `SystemLanguageModel`. `PrivateCloudComputeLanguageModel` appears only inside comments. **No `TrustZone` value carrying content off-device is ever constructed at runtime** — `z1AppleContent(reasoningLevel:)` has exactly three occurrences in `MeetMemento/`: the enum case declaration and the two routing-table rows that resolve away from it.
+
+**Why make it the decision rather than wait for Xcode 27.** Three reasons, in order of weight:
+
+1. **The experiment already ran.** `REQ-EVAL-003` proposed a forced-degradation cohort pinned to Z0 for a full study, and said that if on-device satisfaction came close to PCC satisfaction, *"that is a major finding — it means the true product can make the absolute privacy claim, and the positioning in §1.3 should be revisited before launch rather than after."* Every user to date has been in that cohort, at 100% enrollment, and the surface they respond to most is the photo-led reflection — which is Z0 by construction (`REQ-DATA-006`, and §7.2's image row has never had a Z1 path).
+2. **It converts a liability into the strongest claim available.** §1.3 concedes PCC in the positioning claim, which costs Memento the one axis where it can beat both the cloud journals and Slate at once. Z0-only makes the concession unnecessary. See `REQ-POS-001` as amended.
+3. **Retrieval does the heavy lifting.** `ModelRouter.swift:81-83` already argues this for Ask: *"Latency matters in conversation and retrieval does the heavy lifting, so ask asks for the cheapest reasoning level rather than the best."* The marginal value of a larger model is smallest exactly where the corpus is richest.
+
+**What this decision does NOT do.** It does not delete the seam. `PCCSessionProviding`, `QuotaGovernor`, `TrustZone.z1AppleContent`, `PCCReasoningLevel` and `ModelRouter`'s degradation arms all stay in tree, tested, and unreferenced by any live path — the same posture `DEC-003` took for remote prompts ("build the mechanism, ship it disabled"). The cost of keeping them is a few hundred lines; the cost of rebuilding them is the whole routing architecture.
+
+**The constraint that binds any future reversal:** enabling PCC MUST be an explicit, user-facing **opt-in**, defaulting off, disclosed at the point of use per **P4**. It MUST NOT arrive as a side effect of an SDK upgrade — adding a second `PCCSessionProviding` conformance would silently move journal content off-device for `.ask` and `.weeklyReflection`, and silently falsify `REQ-POS-001`. Any PR adding such a conformance without the opt-in is a **P0 privacy defect**.
+
+**Known inconsistency to fix in code (not this document's scope):** `DataUsageInfoView.swift:123` tells users *"Heavier reflections may use Apple's Private Cloud Compute, which stores nothing."* That is false of the shipping binary and is an accuracy defect in the opposite direction from the one `REQ-POS-001`'s linter guards. Owned by spec 017.
+
+### 7.6.1 Streaming
 
 **REQ-INT-014** — Chat uses snapshot streaming for perceived latency. Reflections do **not** stream; they arrive complete, because they are also audio artifacts (§8) and because a reflection assembling itself word by word reads as a chatbot rather than as a considered observation. This is a deliberate divergence in interaction model between the two surfaces.
 
@@ -557,6 +858,24 @@ This is the long-term differentiator and it must be designed for now, in v2.0, e
 
 **REQ-VOX-002** — Personal Voice support: request authorization via `AVSpeechSynthesizer.requestPersonalVoiceAuthorization()`; when granted, enumerate available personal voices and offer them for reflection playback. Generation is on-device (Z0). ⚠️ VERIFY current third-party access rules and any App Review restrictions on Personal Voice usage outside accessibility contexts.
 
+> **Amended 2026-09-16 — not supported, not merely deferred.** There is no
+> `requestPersonalVoiceAuthorization()` call anywhere in the repository.
+> `VoicePlaybackService.swift:95-96` states the position outright — *"Personal
+> Voice deliberately not offered (spec 018 R8 is verify-gated)"* — and
+> `:794` goes further, using `isPersonal: $0.voiceTraits.contains(.isPersonalVoice)`
+> inside `bestVoice()` to **exclude** personal voices when choosing the system
+> fallback.
+>
+> `DEC-011` (§8.6) says Personal Voice is "unaffected in principle but its
+> discovery flow is still gated on V6." That reads as deferred; the code is a
+> deliberate exclusion. State it as **not supported** wherever it is cited, and
+> in particular do not let it appear in §1.1's product definition or in App Store
+> copy — "reads it back in your own voice" is not a claim this build can make.
+>
+> This is a genuine product loss worth reconsidering deliberately rather than
+> inheriting: it was the one capability neither Slate (doctrine) nor the cloud
+> journals (they would have to ship your voice to a server) could match.
+
 **REQ-VOX-003** — Personal Voice is a **delighter tier**, never a default and never a gate. Training requires roughly fifteen minutes of the user reading phrases aloud; most users will not do it, and the ones who do will care deeply. Onboarding MUST NOT introduce it. It is discovered later, at a moment of demonstrated engagement — after a user's third or fourth weekly reflection.
 
 **REQ-VOX-004** — Rendered audio for a reflection is cached (`Reflection.audioAssetID`) so replay is instant and does not re-synthesize. **Amended 2026-08-18:** never implemented, and the premise is now weak — a neural engine at the target real-time factor synthesizes a reflection faster than reading a cached file avoids doing so, and a cache invalidated on every voice change is mostly cold in practice. Spec `018` R7 carries the written verdict; do not build the cache on the strength of this line alone.
@@ -613,7 +932,24 @@ Build order is prescriptive. Each surface has a Z-zone, a degradation story, and
 
 ### 9.1 Capture (Z0)
 
-Single primary action. Press, speak, done. Live partial transcript. No mode selection, no template picker, no mood-wheel-before-you-write. The composer opens in under 400ms from cold launch, from widget, from Control Center, and from Watch.
+~~Single primary action. Press, speak, done.~~ Live partial transcript. ~~No mode selection,~~ no template picker, no mood-wheel-before-you-write. The composer opens in under 400ms from cold launch, from widget, from Control Center, and from Watch.
+
+> **Amended 2026-09-16 (spec [046](../046-photo-capture-and-multimodal-recall.md)).**
+> The composer has **three** capture modes, not one: speak, take a photo, or pick
+> a photo from the library (`AddEntryView.swift:493-494`, `onTakePhoto` /
+> `onUploadPhoto`), each with its own permission and failure surface. So "single
+> primary action" and "no mode selection" are both false of the shipped surface.
+>
+> The *spirit* of the requirement survives and should be defended: capture is
+> still one press from the timeline, there is still no template picker and no
+> mood wheel before you write, and a photo alone is a complete entry
+> (`AddEntryView.swift:875-880`, *"An attached photo is content in its own
+> right"*) — so the fast path stays fast. What changed is that the product
+> acquired a second first-class input, and this section never recorded it.
+>
+> The 400ms budget is unaffected: the library picker is deliberately deferred
+> (`AddEntryView.swift:1233-1246`) precisely so PhotoKit is not initialized on
+> every editor open.
 
 **Exit criterion:** a two-minute spoken entry survives a phone call, an app switch, and a lock, and appears fully transcribed with title, summary, mood, topics, and index donation complete, in airplane mode.
 
@@ -857,7 +1193,8 @@ The 90-hour / 4-week estimate from the 1.3 checklist is approximately preserved.
 
 | ID | Decision | Blocks | Priority |
 |---|---|---|---|
-| **DEC-002** | Can Spotlight donation be hidden from system-wide search? | Entire retrieval architecture | **P0** |
+| **DEC-002** | Can Spotlight donation be hidden from system-wide search? | Entire retrieval architecture | ✅ resolved 2026-08-19 — Plan B |
+| **DEC-013** | Ship with PCC routing enabled, or on-device only with the seam dark? | §1.3 positioning claim, §7.2 routing, §7.3 quota, §7.4 degradation, §4.1 Full tier | ✅ resolved 2026-09-16 — on-device only |
 | DEC-001 | Ship on non-Apple-Intelligence devices? | Monetization, App Store listing | P1 |
 | DEC-004 | Final pricing and trial length | Paywall spec | P1 |
 | DEC-003 | Remote prompt manifest in 2.0 or 2.1? | Privacy explainer copy | P2 |

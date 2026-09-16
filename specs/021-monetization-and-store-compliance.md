@@ -2,10 +2,10 @@
 id: 021
 title: Monetization and Store Compliance
 tier: P1
-status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-004 = $9.99/mo and $79/yr; Support URL / privacy policy P0s closed in docs/app-store
+status: in-progress (2026-09-16) — **no purchase machinery exists**: RevenueCat is not integrated (target-state allowlist entry only), `import StoreKit` appears once and not for purchasing, no products, no paywall. DEC-001 = Reduced-tier capture-only no paywall; DEC-004 = $9.99/mo and $79/yr — both decided, neither implemented. `REQ-MON-004` "Data Not Collected" is cleanly achievable while RevenueCat is absent; re-open it **before** adding the dependency. Support URL / privacy policy P0s closed in docs/app-store
 effort: 2 sessions
 depends_on: [017]
-findings: [dec-004-pricing-open, dec-001-reduced-tier-open, revenuecat-z2-data-diet, privacy-label-verify-first, dependency-allowlist-ci-lint, sbp-pcc-eligibility-ops]
+findings: [revenuecat-not-integrated, no-storekit-purchase-flow, dec-004-pricing-open, dec-001-reduced-tier-open, revenuecat-z2-data-diet, privacy-label-verify-first, dependency-allowlist-ci-lint, sbp-pcc-eligibility-ops]
 source_refs: [REQ-MON-001, REQ-MON-002, REQ-MON-003, REQ-MON-004, REQ-MON-005, DEC-001, DEC-004]
 tech_refs: [technology/10-monetization-and-privacy.md]
 ---
@@ -41,6 +41,32 @@ the pre-2.0 backend; `MeetMemento/PrivacyInfo.xcprivacy` currently declares
 collected data types (User Content, Email, Name, User ID) that describe the
 Supabase backend being deleted — flagged stale in `CONSTITUTION.md` §2 *Store
 compliance*, to be corrected by this spec.
+
+> **Amended 2026-09-16 — there is no purchase machinery in the app at all.**
+> This is the largest unbuilt surface in the corpus and the spec's prose does not
+> make that plain.
+>
+> | # | State | Evidence |
+> |---|---|---|
+> | 1 | **RevenueCat is not integrated.** It exists only as a *target-state* entry under `--- TARGET (2.0 end state) ---` in `specs/dependency-allowlist.txt`, and as a comment at `TrustZone.swift:22`. The same file records that the resolved third-party SPM set is **empty**. | `specs/dependency-allowlist.txt`; zero remote SPM packages; no `Package.resolved` |
+> | 2 | **StoreKit is imported exactly once, and not for purchasing.** `import StoreKit` appears only at `AboutSettingsView.swift:10`. No `Product`, no `Transaction.currentEntitlements`, no products configured, no paywall view reachable. | `grep -rn "import StoreKit" MeetMemento/` |
+> | 3 | R3's Z2 data boundary is therefore **unexercised**, and spec 014 R4's "sole allowed Z2 exception" currently has no call site to police. The only live egress is spec 042's feedback RPC. | spec 014 R4 as amended |
+> | 4 | R2's `CapabilityTier` paywall gate has nothing to gate — `DEC-001`'s acceptance test cannot be written against a paywall that does not exist. | — |
+>
+> **Consequence for `REQ-MON-004`.** The "Data Not Collected" label target was
+> made *contingent* on RevenueCat's SDK not triggering a collection disclosure.
+> With no RevenueCat and no StoreKit purchase flow, that contingency is currently
+> moot and the label is cleanly achievable — the only collection disclosure the
+> app needs is spec 042's volunteered feedback, which `PrivacyInfo.xcprivacy`
+> already declares correctly. **If RevenueCat is added later, re-open
+> `REQ-MON-004` before adding it, not after.** The label is worth more than the
+> dashboard (`technology/10` §5), and that trade is cheapest to honour while the
+> dependency is still absent.
+>
+> `DEC-004` (pricing) and `DEC-001` (Reduced-tier posture) are both recorded as
+> decided in `ROADMAP.md`, but neither has been implemented, so neither has been
+> tested against a real paywall. Treat them as decisions awaiting execution
+> rather than as shipped behaviour.
 
 ## Requirements
 

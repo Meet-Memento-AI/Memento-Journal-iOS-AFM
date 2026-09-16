@@ -129,6 +129,16 @@ in-session history the model can see, never resolves to `phatic` or
 `continuer`; bump to `companion` unless the text classifies as
 `.journalQuery` (then `notebook`) or `.meta` (then `meta`).
 
+> **Cross-reference added 2026-09-16.** The photo rule is the **only** trace of
+> chat photo attachments anywhere in the spec corpus, and it reads as routing
+> maintenance for a capability the reader is assumed to already know exists.
+> Nothing granted that capability: `PRES-041` described a composer with no
+> attachment affordance, and spec 019 R5 specified Ask as a text-over-text
+> surface. Spec [046](046-photo-capture-and-multimodal-recall.md) R6 is now the
+> authorizing requirement — it owns the 3-photo cap, the library-only source, the
+> session-scoped byte lifetime, and the Vision reading that makes `hasImages`
+> meaningful. This rule is unchanged; it simply now has something to cite.
+
 **Acceptance:** unit test walks every `TurnType` and the photo bump.
 No other file duplicates the mapping.
 

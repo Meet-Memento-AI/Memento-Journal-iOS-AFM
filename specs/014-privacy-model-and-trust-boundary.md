@@ -2,11 +2,11 @@
 id: 014
 title: Privacy Model and Trust Boundary
 tier: P0
-status: in-progress (2026-07-23) — Requirements written (R1-R5); Swift implementation deferred to specs 016/017/019, which are its first real consumers
+status: in-progress (2026-09-16) — R1 `TrustZone` + R3 positioning lint shipped. **R2 zone-at-point-of-use component does not exist** (zero `TrustZone` references in Views/Components), so P4 is aspirational; its quota branches are unreachable under `DEC-013`. **R4 `NetworkCallSiteAudit` does not exist**; egress verified by hand 2026-09-16 — one `URLSession` file, fail-closed, photo bytes device-local
 effort: 1 session
 depends_on: [013]
-findings: [trust-zone-contract, zone-at-point-of-use-ui, positioning-claim-lint, network-call-site-audit]
-source_refs: [REQ-PRIV-001, REQ-PRIV-002, REQ-POS-001]
+findings: [trust-zone-contract, zone-at-point-of-use-ui, positioning-claim-lint, network-call-site-audit, zone-ui-component-unbuilt, egress-is-one-call-site, revenuecat-not-integrated]
+source_refs: [REQ-PRIV-001, REQ-PRIV-002, REQ-POS-001, DEC-013]
 tech_refs: [technology/02-private-cloud-compute.md, technology/08-context-frameworks.md]
 ---
 
@@ -102,6 +102,32 @@ check) rejects any new `GenerationRequest`-conforming type that lacks a
 `Turn.wasDegraded` fields).
 
 ### R2. Zone-at-point-of-use UI component
+
+> **Amended 2026-09-16 (`DEC-013`, spec 017 R11) — unbuilt, and the state
+> machine below is now unreachable.**
+>
+> **The component does not exist.** `grep -rl TrustZone MeetMemento/Views
+> MeetMemento/Components` returns **zero files**, so **P4** ("the trust boundary
+> is a UI element, not a policy page") is currently aspirational rather than
+> shipped. That is the single largest gap between this spec and the app.
+>
+> **The quota lifecycle it renders cannot occur.** `DEC-013` makes every intent
+> Z0; `QuotaGovernor.capability(for:)` is never called; `wasDegraded` is
+> structurally `false`. So `.approachingLimit`, `.limitReached` and the
+> degradation copy below describe states no user can reach, and
+> `DeviceCopy.writtenOnDevice` — cited by the error-taxonomy table and consumed
+> by spec 017 R4 — **does not exist and should not be added**.
+>
+> **What P4 needs under `DEC-013` is smaller and more honest.** Not a quota
+> state machine, but a single legible statement that generation happened on this
+> device, available at the point of use. The `.unavailable` state (no Apple
+> Intelligence capability) is the one branch below that remains real and still
+> needs a component — it is the Reduced tier's honest explanation
+> (`REQ-PLAT-004`).
+>
+> Retained below as the contract PCC would re-enter under. Do not implement the
+> quota branches while `DEC-013` stands.
+
 One reusable SwiftUI component (not per-surface bespoke copy) rendering
 `TrustZone` at the point of use, per P4 ("legibility is the product") — every
 consuming spec (016–019) uses this component rather than writing its own
@@ -172,11 +198,48 @@ promises the user is actually true).
 contain (case-insensitive, substring match) any of: *"nothing leaves your
 phone," "no network calls," "airplane mode proves it,"* or equivalent
 absolute-privacy phrasing, **while any surface in the app has PCC routing
-enabled** — which, per the routing table (spec 017's `REQ-INT-003`), is
+enabled** — ~~which, per the routing table (spec 017's `REQ-INT-003`), is
 effectively always true for a shipping build with weekly/monthly/chat live,
 regardless of what a given user's current settings or connectivity happen to
-be. The claim is about the app's *capability*, not a snapshot of one user's
+be.~~ The claim is about the app's *capability*, not a snapshot of one user's
 session.
+
+> **Amended 2026-09-16 (`DEC-013`, spec 017 R11) — the premise inverted, and the
+> rule stays in force anyway.**
+>
+> The struck clause said PCC routing is "effectively always true for a shipping
+> build." Under `DEC-013` it is **never** true: no surface has PCC routing
+> enabled, and no `TrustZone` value carrying content off-device is ever
+> constructed at runtime. Read literally, the rule's trigger condition is now
+> unsatisfied and the forbidden phrases would be permitted.
+>
+> **Do not relax the lint on that reasoning.** Three arguments against, in order
+> of weight:
+>
+> 1. **The capability framing still binds.** The seam is one conformance away
+>    from live (`PCCSessionProviding`), and the rule exists precisely so that
+>    flipping a construction site cannot silently falsify shipped copy. A lint
+>    that has to be re-tightened whenever the architecture changes is not a
+>    guard.
+> 2. **CloudKit mirroring makes the strongest phrases false regardless of PCC.**
+>    `"nothing leaves your device"` and `"100% on-device"` are untrue of a build
+>    with `cloudKitDatabase: .private(...)` live (`JournalContainer.swift:59-63`),
+>    whatever the intelligence layer does. **P2** already says this: *"Do not
+>    claim the journal is 100% on-device while CloudKit mirroring is enabled."*
+> 3. **Precision beats absolutism commercially.** See `REQ-POS-001` as amended —
+>    the claim available on the facts ("one network call, off by default, no
+>    server, no account, photo bytes never leave the device") is *more*
+>    persuasive than the forbidden phrasings and survives audit, which the
+>    absolutist phrasings would not.
+>
+> **The lint's phrase list is unchanged and `lint_forbidden_phrases.py` is not to
+> be edited under `DEC-013`.** Its scope is `*.swift` string literals and `*.txt`
+> App Store metadata; it does not scan `.md`, so specs may quote forbidden
+> phrases freely — as this amendment does.
+>
+> One live violation exists in the **opposite** direction, which this lint
+> structurally cannot catch: `DataUsageInfoView.swift:123` claims PCC *may* be
+> used. Owned by spec 017 R11, Current State row 4.
 
 **Acceptance:**
 - A static-string lint (grep-based is sufficient — this doesn't need NLP)
@@ -205,6 +268,59 @@ session.
 > `TrustZone` type + zone UI component.)
 
 ### R4. `REQ-PRIV-001` acceptance criteria — verified in tests, not asserted in prose
+
+> **Amended 2026-09-16 — `NetworkCallSiteAudit` does not exist, and the boundary
+> it was written to police has three fewer surfaces than this R-block assumes.**
+>
+> **The audit is unbuilt.** No such test file exists in `MeetMementoTests/`. The
+> nearest real artifacts are `scripts/ci/check_tts_zero_egress.sh` (narrow — greps
+> `MeetMemento/Services/Voice` + `Packages/SupertonicTTS` for
+> `huggingface.co|hf.co/|download.*mlmodel`) and
+> `scripts/ci/check_dependency_allowlist.sh`. R4's Verification checkbox stays
+> open.
+>
+> **The verified egress inventory, 2026-09-16.** Exhaustive grep across
+> `MeetMemento/`, `MeetMementoWatch/`, `Packages/` and `Fixtures/`:
+>
+> | Surface | Sites |
+> |---|---|
+> | `URLSession` / `URLRequest` | **One file**: `Services/Feedback/SupabaseFeedbackClient.swift:5,65,75,100` |
+> | `Network` framework, `WebKit`, `WeatherKit`, `HealthKit` | **zero** |
+> | Third-party SPM | **zero remote packages.** Only the local `Packages/SupertonicTTS`, which declares no dependencies. No `Package.resolved` exists |
+> | PCC | **zero** — `DEC-013` / spec 017 R11 |
+> | CloudKit | `SyncStatusStore.swift:9` (account status), `FiveStoreDeletion.swift:10,121` (`CKModifyRecordsOperation`), plus implicit SwiftData mirroring at `JournalContainer.swift:59-63` |
+> | StoreKit | `import StoreKit` once, at `AboutSettingsView.swift:10`. No products, no paywall, no `Transaction.currentEntitlements` |
+>
+> So the boundary has **two** destinations, not five: Apple CloudKit private DB,
+> and the operator's Supabase RPC endpoint.
+>
+> **Three of the five categories this R-block enumerates have no call sites at
+> all.** WeatherKit is never called, so `.z1AppleContentFree` is constructed only
+> in tests and matched in exhaustive switches — location is used, but purely
+> on-device (`EntryLocationService.swift:10,76,148` reverse-geocodes at
+> `kCLLocationAccuracyReduced` and discards the `CLLocation`, returning a place
+> string). **RevenueCat is not integrated** — it appears only as a TARGET entry in
+> `specs/dependency-allowlist.txt` and as a comment at `TrustZone.swift:22`, so
+> spec 021's Z2 exception is currently unexercised. PCC is `DEC-013`.
+>
+> **The Supabase leg is fail-closed.** `FeedbackSupabaseConfig.fromBundle()`
+> returns `nil` when `SUPABASE_URL`/`SUPABASE_ANON_KEY` are absent, and both
+> `Config/Debug.xcconfig` and `Config/Release.xcconfig` ship them **empty** with
+> an optional `#include?`. **A fresh clone makes zero network calls of any kind.**
+> Combined with ratings being off by default (`FeedbackConsent.swift:22`), this is
+> the strongest factual basis for `REQ-POS-001` as amended.
+>
+> **Photo bytes never leave the device.** `MementoDataStore.swift:56-62` mirrors
+> only a `StoredAttachment` with `kind = "photo"` and `fileAssetID`; the JPEG
+> lives in `Documents/EncryptedPhotos` under the device DEK, which is never
+> mirrored. Spec [046](046-photo-capture-and-multimodal-recall.md) owns this.
+>
+> **What R4 should actually assert, if built.** The five-way classification is
+> over-specified for a two-destination boundary. A simpler and stronger guard:
+> assert that `URLSession`/`URLRequest` appears in exactly one file, and that the
+> file is `SupabaseFeedbackClient.swift`. That is a one-line CI grep, it is
+> currently true, and it fails loudly the moment a second egress point is added.
+
 **Given/When/Then:**
 - Given any `GenerationRequest` constructed anywhere in the codebase, when
   its `zone` is inspected, then it is never a value that could route content

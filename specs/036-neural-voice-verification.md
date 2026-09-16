@@ -2,7 +2,7 @@
 id: 036
 title: Neural Voice Verification and Release Gates
 tier: P1
-status: in-progress (2026-08-19) — Harnesses + zero-egress CI landed; physical-device Gate V numbers still to archive
+status: in-progress (2026-09-16) — Harnesses landed; physical-device Gate V numbers still to archive. **The zero-egress *artifact* (`REQ-TTS-010`) is not archived**: CI substitutes a source grep (`check_tts_zero_egress.sh`) for the proxy capture the requirement specifies, which is a materially weaker proof — a grep cannot observe runtime behaviour
 effort: 1 session
 depends_on: [030, 031, 032, 033, 035]
 findings: [zero-egress-artifact-substantiates-the-claim, no-device-ci-exists, masked-and-unmasked-both-gated, xctest-only-no-swift-testing, gate-v-definition]

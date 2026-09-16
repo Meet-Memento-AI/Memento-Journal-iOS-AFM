@@ -65,10 +65,26 @@ failure, not a judgment call.
 
 ### Branch structure — read this before any R-block below
 
-`DEC-002` (can Spotlight donation be hidden from system-wide search?) is
+> **Corrected 2026-09-16 — this section contradicted this spec's own header.**
+> The paragraph below says `DEC-002` "stays unresolved in this spec"; the
+> Branch declaration at the top of the file, the front-matter `status:` line, and
+> `ROADMAP.md`'s decision table all say it resolved to **Plan B on 2026-08-19**.
+> The header is correct. `DEC-002` is closed: `SpotlightSearchTool` has no
+> named-index source, donation is opt-in and default off, and `EntryRetriever` is
+> the retrieval path.
+>
+> **Branch A is dead, not pending.** It cannot be revived by installing Xcode 27,
+> because the blocker is a missing API rather than a missing toolchain — and
+> because guided decode cannot host tool-calling sessions at all (architecture
+> spec §6.1), so no `SpotlightSearchTool` path is reachable from Ask on any SDK.
+> Read the A-blocks below as withdrawn design, retained per house convention.
+>
+> **Branch B is shipped, not contingent.** See R4's own amendment.
+
+~~`DEC-002` (can Spotlight donation be hidden from system-wide search?) is
 **unresolved** and stays unresolved in this spec — the verdict is produced by
 spec 013 R1's real-device spike (Spike C, V1), currently blocked on Xcode 27
-beta not being installed. This spec therefore specifies **both** outcomes:
+beta not being installed.~~ This spec therefore specifies **both** outcomes:
 
 - **Branch A — `DEC-002` positive.** Verdict "hidden" (named index /
   exclusion attribute works, cited API), or "partially hidden" with an explicit
@@ -198,8 +214,30 @@ picked up by the rebuild path.
 
 ### R4. [Branch B] `REQ-IDX-007` fallback retrieval tool + `REQ-IDX-006` opt-in posture
 **Trigger condition (explicit, per `REQ-IDX-007`):** spec 013 R1's verdict is
-"not hidden." Until that verdict, this R-block is a designed contingency —
-specified here, unbuilt.
+"not hidden." ~~Until that verdict, this R-block is a designed contingency —
+specified here, unbuilt.~~
+
+> **Amended 2026-09-16 — the trigger fired on 2026-08-19. This R-block is the
+> shipped retrieval path, and it took a different shape than specified below.**
+>
+> - **It is not a `Tool`.** It could not be: guided decode cannot host
+>   tool-calling sessions (architecture spec §6.1), so the Ask pipeline calls
+>   `EntryRetriever` directly and the model never authors a query.
+>   `SearchJournalPolicy.swift` — call caps and safety admission, written for the
+>   `Tool` shape — is live code with **no caller**.
+> - **It is not the keyword-and-predicate ranker described below.**
+>   `EntryRetriever.swift` is a hybrid ranker: on-device `NLEmbedding` semantic
+>   similarity over passages chunked by `PassageChunker.swift`, plus keyword
+>   overlap and recency. Tuning lives at `EntryRetriever.swift:56-100`
+>   (`semanticFloorAbs = 0.30`, `sigmaK`, `semanticWeight`, `recencyWeight`,
+>   `passageMeanWeight`); the vector cache is `Application Support/MementoEmbeddings/`.
+> - The argument shape this block specifies (`dateRange` / `keywords` / `moods` /
+>   `topics`) was never built. Passage-level retrieval is owned by spec
+>   [044](044-agentic-harness-depth.md) R1–R3.
+>
+> The consequence worth stating plainly: `REQ-IDX-007` called this "materially
+> weaker than semantic retrieval." It *is* semantic retrieval. The quality loss
+> this branch conceded was never incurred.
 
 A hand-rolled `Tool` (Foundation Models tool protocol) querying SwiftData
 directly — no system index involvement, journal text never leaves the app's
