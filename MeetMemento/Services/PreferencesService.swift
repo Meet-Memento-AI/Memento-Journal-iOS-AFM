@@ -22,6 +22,10 @@ class PreferencesService: ObservableObject {
         static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
         static let speechRate = "speechRate"
         static let shareFeedbackWithDeveloper = PreferencesService.shareFeedbackKey
+        static let dailyReminderEnabled = "dailyReminderEnabled"
+        static let dailyReminderHour = "dailyReminderHour"
+        static let dailyReminderMinute = "dailyReminderMinute"
+        static let weeklyReadyEnabled = "weeklyReadyEnabled"
     }
 
     /// UserDefaults key for the spec 042 verification toggle. Read by the
@@ -90,6 +94,56 @@ class PreferencesService: ObservableObject {
         }
     }
 
+    /// Opt-in daily journal reminder (019 R8). Off by default.
+    @Published var dailyReminderEnabled: Bool {
+        didSet {
+            defaults.set(dailyReminderEnabled, forKey: Keys.dailyReminderEnabled)
+            Task { @MainActor in
+                await NotificationService.shared.syncDailyReminder()
+            }
+        }
+    }
+
+    /// Hour of the daily reminder, 0...23. Default 20 (8:00 PM).
+    @Published var dailyReminderHour: Int {
+        didSet {
+            defaults.set(dailyReminderHour, forKey: Keys.dailyReminderHour)
+            Task { @MainActor in
+                await NotificationService.shared.syncDailyReminder()
+            }
+        }
+    }
+
+    /// Minute of the daily reminder, 0...59. Default 0.
+    @Published var dailyReminderMinute: Int {
+        didSet {
+            defaults.set(dailyReminderMinute, forKey: Keys.dailyReminderMinute)
+            Task { @MainActor in
+                await NotificationService.shared.syncDailyReminder()
+            }
+        }
+    }
+
+    /// Opt-in one-shot when a weekly reflection is saved. Off by default.
+    @Published var weeklyReadyEnabled: Bool {
+        didSet {
+            defaults.set(weeklyReadyEnabled, forKey: Keys.weeklyReadyEnabled)
+            if !weeklyReadyEnabled {
+                Task { @MainActor in
+                    NotificationService.shared.cancelWeeklyReady()
+                }
+            }
+        }
+    }
+
+    var formattedDailyReminderTime: String {
+        var components = DateComponents()
+        components.hour = dailyReminderHour
+        components.minute = dailyReminderMinute
+        let date = Calendar.current.date(from: components) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
     // MARK: - Theme Preference
     var themePreference: AppThemePreference {
         get {
@@ -112,6 +166,12 @@ class PreferencesService: ObservableObject {
             ?? SpeechRatePreset.brisk.rawValue
         self.shareFeedbackWithDeveloper =
             defaults.object(forKey: Keys.shareFeedbackWithDeveloper) as? Bool ?? false
+        self.dailyReminderEnabled =
+            defaults.object(forKey: Keys.dailyReminderEnabled) as? Bool ?? false
+        self.dailyReminderHour = defaults.object(forKey: Keys.dailyReminderHour) as? Int ?? 20
+        self.dailyReminderMinute = defaults.object(forKey: Keys.dailyReminderMinute) as? Int ?? 0
+        self.weeklyReadyEnabled =
+            defaults.object(forKey: Keys.weeklyReadyEnabled) as? Bool ?? false
     }
 
     /// Resets preferences to defaults. Used by "Delete everything" (spec 023 R4).
@@ -126,10 +186,21 @@ class PreferencesService: ObservableObject {
         // here as well so "delete everything" does not leave an orphan behind —
         // resetToDefaults() never cleared this key even when it was live.
         defaults.removeObject(forKey: "compactVoiceNudgeDismissed")
+        defaults.removeObject(forKey: Keys.dailyReminderEnabled)
+        defaults.removeObject(forKey: Keys.dailyReminderHour)
+        defaults.removeObject(forKey: Keys.dailyReminderMinute)
+        defaults.removeObject(forKey: Keys.weeklyReadyEnabled)
         aiEnabled = true
         processOnDeviceOnly = false
         selectedVoiceIdentifier = nil
         speechRate = SpeechRatePreset.brisk.rawValue
         shareFeedbackWithDeveloper = false
+        dailyReminderEnabled = false
+        dailyReminderHour = 20
+        dailyReminderMinute = 0
+        weeklyReadyEnabled = false
+        Task { @MainActor in
+            NotificationService.shared.cancelAll()
+        }
     }
 }

@@ -398,6 +398,10 @@ public struct JournalView: View {
             AppearanceSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
+        case .notifications:
+            NotificationsSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
         #if MEMENTO_AI
         case .voice:
             VoiceSettingsView()

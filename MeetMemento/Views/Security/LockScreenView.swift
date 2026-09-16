@@ -201,7 +201,7 @@ struct LockScreenView: View {
                     .padding(.horizontal, 28)
                     .background(
                         Capsule()
-                            .fill(theme.primary)
+                            .fill(theme.primaryButtonFill)
                     )
             }
         }

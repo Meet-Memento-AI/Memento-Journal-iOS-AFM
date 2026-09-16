@@ -58,7 +58,7 @@ public struct ProfileSettingsView: View {
                             HStack {
                                 if isSaving {
                                     ProgressView()
-                                        .tint(.white)
+                                        .tint(theme.primaryForeground)
                                 } else {
                                     Text("Save Changes")
                                         .font(type.body1Bold)
@@ -66,9 +66,13 @@ public struct ProfileSettingsView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.md)
-                            .background(canSave ? theme.primary : theme.mutedForeground.opacity(0.3))
-                            .foregroundStyle(.white)
-                            .cornerRadius(theme.radius.md)
+                            .background(
+                                canSave
+                                    ? AnyShapeStyle(theme.primaryButtonFill)
+                                    : AnyShapeStyle(theme.mutedForeground.opacity(0.3))
+                            )
+                            .foregroundStyle(theme.primaryForeground)
+                            .clipShape(RoundedRectangle(cornerRadius: theme.radius.md, style: .continuous))
                         }
                         .disabled(!canSave || isSaving)
                         .padding(.top, Spacing.xs)

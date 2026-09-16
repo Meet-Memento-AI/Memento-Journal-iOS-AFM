@@ -462,7 +462,7 @@ public struct AIChatView: View {
                     .font(type.body1Bold)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(theme.primary)
+                    .background(theme.primaryButtonFill)
                     .foregroundStyle(theme.primaryForeground)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }

@@ -32,8 +32,9 @@ final class MeetMementoSmokeUITests: XCTestCase {
         XCTAssertTrue(positioning.exists)
     }
 
-    /// Tapping Get Started must move straight into onboarding (YourNameView)
-    /// with no sign-in step in between (spec 023 R1/R2).
+    /// Tapping Get Started reveals the privacy explainer; Open my journal
+    /// then moves into onboarding (YourNameView) with no sign-in step
+    /// (spec 023 R1/R2).
     func test_getStarted_entersOnboardingDirectly() {
         let app = XCUIApplication()
         app.launchArguments = ["-UITesting"]
@@ -44,6 +45,10 @@ final class MeetMementoSmokeUITests: XCTestCase {
         XCTAssertTrue(getStarted.waitForExistence(timeout: 30))
         XCTAssertTrue(getStarted.isHittable, "Get Started must remain a tappable control under Liquid Glass")
         getStarted.tap()
+
+        let openJournal = app.buttons["welcome.openJournal"]
+        XCTAssertTrue(openJournal.waitForExistence(timeout: 10))
+        openJournal.tap()
 
         let firstNameField = app.textFields["First name"]
         XCTAssertTrue(firstNameField.waitForExistence(timeout: 10))

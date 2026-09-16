@@ -80,6 +80,7 @@ enum WeeklyReflectionCoordinator {
             promptVersion: result.promptVersion,
             entries: entries
         )
+        Task { await NotificationService.shared.notifyWeeklyReadyIfEnabled() }
     }
 
     static func persistQuiet(

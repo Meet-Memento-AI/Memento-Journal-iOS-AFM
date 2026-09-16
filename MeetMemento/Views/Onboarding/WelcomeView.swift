@@ -2,8 +2,9 @@
 //  WelcomeView.swift
 //  MeetMemento
 //
-//  Welcome screen with video background. No account, no sign-in — a single
-//  "Get Started" CTA moves straight into onboarding (spec 023
+//  Welcome screen with video background. No account, no sign-in — Get
+//  Started reveals a privacy explainer (Figma 1009:9894), then "Open my
+//  journal" hands off to onboarding (spec 023).
 //
 
 import SwiftUI
@@ -12,6 +13,7 @@ public struct WelcomeView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var appState: AppStateStore
 
     // Video loading and blur states
@@ -31,6 +33,10 @@ public struct WelcomeView: View {
     @State private var showLogo = false
     @State private var showHeadline = false
     @State private var showButtons = false
+    /// Intro wordmark → privacy explainer. Video and blur stay put.
+    @State private var step: WelcomeStep = .intro
+    /// How many privacy cards have faded in (0...3).
+    @State private var visiblePrivacyCards = 0
 
     // Track if we should skip intro animations (when returning from onboarding)
     @State private var skipIntroAnimations = false
@@ -84,6 +90,7 @@ public struct WelcomeView: View {
                 // Layer 4: Content (appears after video dissolve)
                 if contentCanAppear {
                     contentOverlay
+                        .opacity(isExiting ? 0 : 1)
                 }
 
                 // Layer 5: Launch screen replica while loading (skip when returning from onboarding)
@@ -94,6 +101,7 @@ public struct WelcomeView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .animation(.easeInOut(duration: 1.0), value: isVideoReady)
+            .animation(.easeInOut(duration: 0.45), value: step)
             .onAppear {
                 // Check if returning from onboarding - skip intro animations
                 if appState.isReturningFromOnboarding {
@@ -242,32 +250,175 @@ public struct WelcomeView: View {
     // MARK: - Content Overlay
 
     /// Figma 905:2054 — bottom stack, 24pt sides, 32pt between copy and CTA.
+    /// Figma 1009:9894 — privacy explainer after Get Started.
+    @ViewBuilder
     private var contentOverlay: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: Spacing.xxl) {
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    wordmarkRow
-                        .opacity(showLogo ? 1 : 0)
-
-                    Text("Journal with your voice, reflect privately on your device.")
-                        .font(.custom("Figtree-SemiBold", size: Typography.baseSize2XL, relativeTo: .title))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.leading)
-                        .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityIdentifier("welcome.positioning")
-                        .opacity(showHeadline ? 1 : 0)
+        VStack(spacing: Spacing.xxl) {
+            ZStack {
+                switch step {
+                case .intro:
+                    introOverlay
+                        .transition(.opacity)
+                case .privacy:
+                    privacyOverlay
+                        .transition(.opacity)
                 }
-
-                getStartedSection
-                    .opacity(showButtons ? 1 : 0)
             }
+
+            welcomeCTA(
+                title: step == .intro ? "Get Started" : "Open my journal",
+                identifier: step == .intro ? "welcome.getStarted" : "welcome.openJournal",
+                hint: step == .intro
+                    ? "Double-tap to learn how Memento stays private"
+                    : "Double-tap to start setting up Memento",
+                labelColor: step == .intro ? WarmNeutral.w600 : Color(hex: "#4F321D")
+            ) {
+                if step == .intro {
+                    revealPrivacy()
+                } else {
+                    beginOnboarding()
+                }
+            }
+            .opacity(step == .privacy || showButtons ? 1 : 0)
+            .allowsHitTesting((step == .privacy || showButtons) && !isExiting)
             .padding(.horizontal, Spacing.xl)
             .padding(.bottom, Spacing.md)
         }
+    }
+
+    private var introOverlay: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                wordmarkRow
+                    .opacity(showLogo ? 1 : 0)
+
+                Text("Journal with your voice, reflect privately on your device.")
+                    .font(.custom("Figtree-SemiBold", size: Typography.baseSize2XL, relativeTo: .title))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("welcome.positioning")
+                    .opacity(showHeadline ? 1 : 0)
+            }
+            .padding(.horizontal, Spacing.xl)
+        }
+    }
+
+    /// Figma 1009:9894 — same loop and blur; intro copy is gone.
+    private var privacyOverlay: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            IconButtonNav(
+                icon: "chevron.left",
+                foregroundColor: .white,
+                enableHaptic: true,
+                accessibilityLabel: "Back",
+                onTap: returnToIntro
+            )
+            .padding(.horizontal, Spacing.md)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.md)
+            .disabled(isExiting)
+            .accessibilityHint("Double-tap to return to the welcome screen")
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Memento is a fully private app")
+                    .font(type.h3)
+                    .foregroundStyle(.white)
+                    .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("welcome.privacyTitle")
+
+                Text("This means we cannot read your journal entries or your chats.")
+                    .font(.custom("Figtree-SemiBold", size: 18, relativeTo: .title))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 27))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+                    .accessibilityIdentifier("welcome.privacySubtitle")
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.bottom, Spacing.md)
+
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                privacyFeatureCard(
+                    asset: "WelcomePrivacyAuth",
+                    title: "No authentication required",
+                    body: "Simply download the app to get started."
+                )
+                .opacity(visiblePrivacyCards >= 1 ? 1 : 0)
+                .offset(y: visiblePrivacyCards >= 1 ? 0 : 16)
+
+                privacyFeatureCard(
+                    asset: "WelcomePrivacyData",
+                    title: "None of your data is collected",
+                    body: "All your information is stored directly on your device."
+                )
+                .opacity(visiblePrivacyCards >= 2 ? 1 : 0)
+                .offset(y: visiblePrivacyCards >= 2 ? 0 : 16)
+
+                privacyFeatureCard(
+                    asset: "WelcomePrivacyDevice",
+                    title: "AI runs on your own device",
+                    body: "Chat, retrieval, and speech stay on device at all times.",
+                    leafSize: CGSize(width: 18.67, height: 26.67)
+                )
+                .opacity(visiblePrivacyCards >= 3 ? 1 : 0)
+                .offset(y: visiblePrivacyCards >= 3 ? 0 : 16)
+            }
+            .padding(.horizontal, Spacing.md)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func privacyFeatureCard(
+        asset: String,
+        title: String,
+        body: String,
+        leafSize: CGSize? = nil
+    ) -> some View {
+        HStack(alignment: .center, spacing: Spacing.md) {
+            Group {
+                if let leafSize {
+                    Image(asset)
+                        .resizable()
+                        .renderingMode(.template)
+                        .frame(width: leafSize.width, height: leafSize.height)
+                } else {
+                    Image(asset)
+                        .resizable()
+                        .renderingMode(.template)
+                        .frame(width: 32, height: 32)
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(.custom("Figtree-Bold", size: 18, relativeTo: .headline))
+                    .foregroundStyle(.white)
+                    .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 24))
+                Text(body)
+                    .font(.custom("Figtree-Bold", size: 18, relativeTo: .headline))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 24))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Spacing.xl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
+                .fill(Color(red: 175 / 255, green: 175 / 255, blue: 175 / 255).opacity(0.24))
+        )
+        .accessibilityElement(children: .combine)
     }
 
     /// Figma 905:2056 — 56pt mark, 8pt gap, Lora Bold 40 "Memento".
@@ -285,46 +436,92 @@ public struct WelcomeView: View {
         .accessibilityLabel("Memento")
     }
 
-    // MARK: - Get Started
+    // MARK: - Shared CTA
 
-    /// Figma 905:2060 — white 64% frost, 16pt corners, warm-neutral/600 label.
-    private static let getStartedGlassTintOpacity: Double = 0.64
+    /// White wash — 32% at the top, 48% at the bottom. Used by Get Started and
+    /// Open my journal so the two steps share one chip.
+    private static let ctaFillTopOpacity: Double = 0.32
+    private static let ctaFillBottomOpacity: Double = 0.48
 
-    @ViewBuilder
-    private var getStartedSection: some View {
+    private func welcomeCTA(
+        title: String,
+        identifier: String,
+        hint: String,
+        labelColor: Color = WarmNeutral.w600,
+        action: @escaping () -> Void
+    ) -> some View {
         let shape = RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
 
-        Button(action: { getStarted() }) {
-            Text("Get Started")
+        return Button(action: action) {
+            Text(title)
                 .font(.custom("Figtree-Bold", size: 18, relativeTo: .body))
                 .kerning(-0.28)
-                .foregroundStyle(WarmNeutral.w600)
+                .foregroundStyle(labelColor)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
                 .padding(.horizontal, Spacing.xl)
                 .frame(minHeight: AppHeaderMetrics.minimumTapTarget)
-                .glassEffect(
-                    .regular.tint(Color.white.opacity(Self.getStartedGlassTintOpacity)),
-                    in: shape
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(Self.ctaFillTopOpacity),
+                            Color.white.opacity(Self.ctaFillBottomOpacity)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
+                .clipShape(shape)
+                .glassEffect(.regular, in: shape)
                 .contentShape(shape)
         }
         .buttonStyle(PrimaryButtonPressStyle())
         .disabled(isExiting)
-        .allowsHitTesting(showButtons && !isExiting)
-        // Promote the Button itself so XCTest/`VoiceOver` see one control
-        // named Get Started, not the inner `Text` after glass wrapping.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Get Started")
+        .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Double-tap to start setting up Memento")
+        .accessibilityHint(hint)
         .environment(\.colorScheme, .light)
-        .accessibilityIdentifier("welcome.getStarted")
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - Actions
 
     private static let exitDissolveDuration: TimeInterval = 0.5
+    private static let stepCrossfadeDuration: TimeInterval = 0.45
+
+    private func revealPrivacy() {
+        guard !isExiting, step == .intro else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        visiblePrivacyCards = 0
+        withAnimation(.easeInOut(duration: Self.stepCrossfadeDuration)) {
+            step = .privacy
+        }
+        if reduceMotion {
+            visiblePrivacyCards = 3
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.5)) {
+            visiblePrivacyCards = 1
+        }
+        withAnimation(.easeInOut(duration: 0.5).delay(0.22)) {
+            visiblePrivacyCards = 2
+        }
+        withAnimation(.easeInOut(duration: 0.5).delay(0.44)) {
+            visiblePrivacyCards = 3
+        }
+    }
+
+    private func returnToIntro() {
+        guard !isExiting, step == .privacy else { return }
+        withAnimation(.easeInOut(duration: Self.stepCrossfadeDuration)) {
+            step = .intro
+            showLogo = true
+            showHeadline = true
+            showButtons = true
+            visiblePrivacyCards = 0
+        }
+    }
 
     /// Phase 4: Exit animation — dissolve video and content to white.
     private func handleExit() {
@@ -341,7 +538,7 @@ public struct WelcomeView: View {
 
     /// Dissolve Welcome to white, then hand off to onboarding so YourName can
     /// fade in on the white bridge (no mid-fade root swap / LoadingView flash).
-    private func getStarted() {
+    private func beginOnboarding() {
         guard !isExiting else { return }
         handleExit()
 
@@ -351,6 +548,11 @@ public struct WelcomeView: View {
             appState.hasStartedOnboarding = true
         }
     }
+}
+
+private enum WelcomeStep {
+    case intro
+    case privacy
 }
 
 // MARK: - Previews

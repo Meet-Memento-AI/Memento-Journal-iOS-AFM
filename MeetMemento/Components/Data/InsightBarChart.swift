@@ -15,6 +15,7 @@ struct InsightBarChart: View {
     var chartHeight: CGFloat = 160
 
     @Environment(\.theme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let occupied = facts.filter { $0.n > 0 }
@@ -26,13 +27,15 @@ struct InsightBarChart: View {
         } else {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Chart {
-                    ForEach(Array(occupied.enumerated()), id: \.offset) { _, fact in
+                    ForEach(Array(occupied.enumerated()), id: \.offset) { index, fact in
                         BarMark(
                             x: .value("Label", fact.label),
                             y: .value(yTitle, fact.n)
                         )
-                        .foregroundStyle(theme.chart1.opacity(fact.isLowConfidence ? 0.35 : 1))
-                        .cornerRadius(6)
+                        .foregroundStyle(barFill(index: index, lowConfidence: fact.isLowConfidence))
+                        .clipShape(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        )
                         .annotation(position: .top, spacing: 4) {
                             Text("\(fact.n)")
                                 .font(.caption2.weight(.medium))
@@ -62,5 +65,31 @@ struct InsightBarChart: View {
                 }
             }
         }
+    }
+
+    /// Light cream → copper sheen. Mid-ramp highlights, not cordovan ink.
+    private func barFill(index: Int, lowConfidence: Bool) -> LinearGradient {
+        let pairs: [(Color, Color)] = colorScheme == .dark
+            ? [
+                (PrimaryScale.primary200, BrandColors.brandDark),
+                (PrimaryScale.primary100, PrimaryScale.primary400),
+                (PrimaryScale.primary200, PrimaryScale.primary400),
+                (PrimaryScale.primary100, PrimaryScale.primary300),
+                (PrimaryScale.primary300, BrandColors.brandDark)
+            ]
+            : [
+                (PrimaryScale.primary100, PrimaryScale.primary300),
+                (PrimaryScale.primary200, PrimaryScale.primary400),
+                (PrimaryScale.primary200, BrandColors.brand),
+                (PrimaryScale.primary100, PrimaryScale.primary400),
+                (PrimaryScale.primary300, BrandColors.brand)
+            ]
+        let pair = pairs[index % pairs.count]
+        let opacity = lowConfidence ? 0.55 : 1.0
+        return LinearGradient(
+            colors: [pair.0.opacity(opacity), pair.1.opacity(opacity)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 }

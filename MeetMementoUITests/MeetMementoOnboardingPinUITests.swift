@@ -38,6 +38,10 @@ final class MeetMementoOnboardingPinUITests: XCTestCase {
         XCTAssertTrue(getStarted.waitForExistence(timeout: 15))
         getStarted.tap()
 
+        let openJournal = app.buttons["welcome.openJournal"]
+        XCTAssertTrue(openJournal.waitForExistence(timeout: 10))
+        openJournal.tap()
+
         // YourNameView — Next step is disabled until both fields are filled.
         let firstNameField = app.textFields["First name"]
         XCTAssertTrue(firstNameField.waitForExistence(timeout: 10))

@@ -124,6 +124,7 @@ public struct ContentView: View {
     /// to 0 the instant the path is empty hides the reverse morph.
     @State private var holdOverlayForZoomOut = false
     @State private var overlayHoldTask: Task<Void, Never>?
+    @State private var showWeeklyFromNotification = false
 
     /// Overlay is on while a destination is pushed, and for a beat after pop
     /// so `.navigationTransition(.zoom)` can shrink back to its source.
@@ -252,6 +253,22 @@ public struct ContentView: View {
         .environment(\.tabBarHidden, $isTabBarHidden)
         .useTheme()
         .useTypography()
+        #if MEMENTO_AI
+        .sheet(isPresented: $showWeeklyFromNotification) {
+            NavigationStack {
+                VStack(spacing: 0) {
+                    MementoSheetHandle()
+                    WeeklyReflectionView()
+                        .environmentObject(entryViewModel)
+                }
+                .background(theme.background.ignoresSafeArea())
+            }
+            .useTheme()
+            .useTypography()
+            .presentationDetents([.fraction(0.95)])
+            .mementoSheetPresentation()
+        }
+        #endif
         .onAppear {
             if let tab = previewInitialTab, !didSetPreviewTab {
                 RootPage.select(tab, in: $selectedPage)
@@ -259,6 +276,10 @@ public struct ContentView: View {
             }
             // Update activity timestamp when ContentView appears
             SecurityService.shared.updateActivityTimestamp()
+            consumePendingNotification()
+        }
+        .onChange(of: navigationState.pendingNotification) { _, _ in
+            consumePendingNotification()
         }
         .task {
             // Pick up the encryption PIN from Keychain for every security
@@ -315,6 +336,21 @@ public struct ContentView: View {
         // `entryViewModel.createEntry`.
     }
 
+    private func consumePendingNotification() {
+        guard let pending = navigationState.pendingNotification else { return }
+        navigationState.pendingNotification = nil
+        switch pending {
+        case .daily:
+            RootPage.select(.journal, in: $selectedPage)
+            navigationPath.append(EntryRoute.create)
+        case .weekly:
+            RootPage.select(.journal, in: $selectedPage)
+            #if MEMENTO_AI
+            showWeeklyFromNotification = true
+            #endif
+        }
+    }
+
     // MARK: - Navigation Destinations
 
     @ViewBuilder
@@ -332,6 +368,10 @@ public struct ContentView: View {
                 .environment(\.fabVisible, false)
         case .appearance:
             AppearanceSettingsView()
+                .toolbar(.hidden, for: .tabBar)
+                .environment(\.fabVisible, false)
+        case .notifications:
+            NotificationsSettingsView()
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
         #if MEMENTO_AI

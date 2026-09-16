@@ -60,9 +60,9 @@ extension Color {
 /// These ratios were never machine-verified (see specs/012 §4); the numbers
 /// above were computed directly from the hex values in this file.
 
-/// Neutral scale — cool greys for canvas, wells, and hairlines. `gray800` /
-/// `gray900` stay warm ink so leftover fill call sites match the darkest
-/// brown used for filled buttons. Kept under the name `GrayScale` because
+/// Neutral scale — cool greys for canvas, wells, hairlines, and ink fills.
+/// Darker steps (`gray800` / `gray900`) are equal-channel so filled CTAs
+/// read as gray, not warm brown. Kept under the name `GrayScale` because
 /// ~40 call sites depend on it.
 struct GrayScale {
     /// Figma `neutral/50`. First gray step under white — wells and chrome,
@@ -78,9 +78,9 @@ struct GrayScale {
     static let gray500 = Color(hex: "#737373") // text-tertiary (light)
     static let gray600 = Color(hex: "#525252") // text-secondary
     static let gray700 = Color(hex: "#3D3D3D")
-    static let gray800 = Color(hex: "#29241C") // ink-fill
-    static let gray900 = Color(hex: "#191510") // ink text
-    /// Dark-mode canvas — true black, not warm brown-black.
+    static let gray800 = Color(hex: "#262626") // ink-fill
+    static let gray900 = Color(hex: "#171717") // ink text
+    /// Dark-mode canvas — true black.
     static let gray950 = Color(hex: "#000000") // canvas (dark)
 }
 
@@ -185,6 +185,19 @@ struct Theme {
     let popoverForeground: Color
     let primary: Color
     let primaryForeground: Color
+    /// Top of the filled-CTA wash (`gray800` in light; `#D9D9D9` in dark —
+    /// the equal-channel inverse of `gray800`).
+    let primaryButtonGradientStart: Color
+    /// Bottom of the filled-CTA wash (neutral black in light; white in dark).
+    let primaryButtonGradientEnd: Color
+    /// Vertical shine used by `PrimaryButton` and matching ink chips.
+    var primaryButtonFill: LinearGradient {
+        LinearGradient(
+            colors: [primaryButtonGradientStart, primaryButtonGradientEnd],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
     let secondary: Color
     let secondaryForeground: Color
     let muted: Color
@@ -289,9 +302,12 @@ struct Theme {
         cardBackground: GrayScale.gray100,
         popover: BaseColors.white,
         popoverForeground: BaseColors.black,
-        // Darkest brown — filled buttons and block CTAs. Highlights use `accent`.
+        // Darkest brown — leftover fills, tags, and tints. Filled CTAs use
+        // `primaryButtonFill` (black → gray800), not this cordovan step.
         primary: PrimaryScale.primary900,
         primaryForeground: BaseColors.white,
+        primaryButtonGradientStart: GrayScale.gray800,
+        primaryButtonGradientEnd: BaseColors.black,
         secondary: GrayScale.gray100,
         secondaryForeground: BaseColors.black,
         muted: BaseColors.offWhite,
@@ -367,6 +383,8 @@ struct Theme {
         popoverForeground: BaseColors.white,
         primary: BaseColors.white,
         primaryForeground: BaseColors.black,
+        primaryButtonGradientStart: Color(hex: "#D9D9D9"),
+        primaryButtonGradientEnd: BaseColors.white,
         secondary: Color(hex: "#1A1A1A"),
         secondaryForeground: BaseColors.white,
         muted: Color(hex: "#1A1A1A"),

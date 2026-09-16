@@ -35,6 +35,7 @@ struct SettingsView: View {
                 #if MEMENTO_AI
                 voiceSection
                 #endif
+                notificationsSection
                 securitySection
                 aboutSection
                 syncStatusSection
@@ -167,6 +168,29 @@ struct SettingsView: View {
         VoiceCatalog.resolve(persistedID: PreferencesService.shared.selectedVoiceIdentifier).displayName
     }
     #endif
+
+    private var notificationsSection: some View {
+        SettingsSection(title: "Notifications") {
+            NavigationLink(value: SettingsRoute.notifications) {
+                SettingsRow(
+                    icon: "bell.fill",
+                    title: "Notifications",
+                    subtitle: notificationsSubtitle,
+                    showChevron: true,
+                    accessibilityIdentifier: "settings.notifications",
+                    action: nil
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var notificationsSubtitle: String {
+        if preferences.dailyReminderEnabled {
+            return "Daily reminder at \(preferences.formattedDailyReminderTime)"
+        }
+        return "Off"
+    }
 
     /// The app lock, controllable after onboarding. `SecuritySettingsView`
     /// explains why this was structurally impossible until the encryption key

@@ -178,6 +178,8 @@ struct ProfileSheet: View {
             ProfileSettingsView()
         case .appearance:
             AppearanceSettingsView()
+        case .notifications:
+            NotificationsSettingsView()
         #if MEMENTO_AI
         case .voice:
             VoiceSettingsView()

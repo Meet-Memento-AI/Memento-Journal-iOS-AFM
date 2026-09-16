@@ -29,26 +29,6 @@ enum OnboardingLayout {
     static let footerTop: CGFloat = Spacing.sm
     static let footerBottom: CGFloat = Spacing.md
     static let footerStackSpacing: CGFloat = Spacing.sm
-
-    /// Filled CTA fill — Figma-adjacent neutral 900, near-black ink rather
-    /// than cordovan `theme.primary`.
-    static let buttonFill = GrayScale.gray900
-    /// Label on `buttonFill`. White, not `theme.primaryForeground`, so dark
-    /// mode does not flip the chip to black-on-black.
-    static let buttonForeground = BaseColors.white
-}
-
-/// When true, `PrimaryButton` uses `OnboardingLayout.buttonFill` (gray900)
-/// instead of `theme.primary`. Set by `OnboardingPageScaffold`.
-private struct UsesOnboardingInkButtonsKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    var usesOnboardingInkButtons: Bool {
-        get { self[UsesOnboardingInkButtonsKey.self] }
-        set { self[UsesOnboardingInkButtonsKey.self] = newValue }
-    }
 }
 
 /// Back-chevron header used across onboarding steps.
@@ -163,7 +143,6 @@ struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View
                 }
             }
         }
-        .environment(\.usesOnboardingInkButtons, true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .dismissKeyboardOnOutsideTap()

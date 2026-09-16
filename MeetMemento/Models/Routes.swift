@@ -50,6 +50,7 @@ public enum SettingsRoute: Hashable {
     case main
     case profile
     case appearance
+    case notifications
     case voice
     case security
     case about

@@ -9,8 +9,16 @@
 import Foundation
 import SwiftUI
 
+enum NotificationDeepLink: Equatable {
+    case daily
+    case weekly
+}
+
 @MainActor
 final class AppNavigationState: ObservableObject {
     @Published var primarySection: RootPage = .journal
     @Published var settingsPath = NavigationPath()
+    /// Set by `NotificationService` when a reminder is tapped. ContentView
+    /// consumes it after unlock so the PIN is never skipped.
+    @Published var pendingNotification: NotificationDeepLink?
 }

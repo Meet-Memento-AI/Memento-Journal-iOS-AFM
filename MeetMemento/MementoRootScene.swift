@@ -36,6 +36,9 @@ struct MementoRootScene: Scene {
                 ? UIColor(red: 0, green: 0, blue: 0, alpha: 1)
                 : UIColor(red: 1, green: 1, blue: 1, alpha: 1)
         }
+        Task { @MainActor in
+            NotificationService.shared.installAsDelegate()
+        }
     }
 
     var body: some Scene {
@@ -92,6 +95,9 @@ struct MementoRootScene: Scene {
             .task {
                 appState.initializeAppState()
                 lockScreenViewModel.consumeSkipNextLockScreen()
+                NotificationService.shared.attach(navigation: navigationState)
+                NotificationService.shared.installAsDelegate()
+                await NotificationService.shared.refreshAuthorizationStatus()
                 #if MEMENTO_AI
                 FeedbackSyncService.shared.resumePendingWork()
                 #endif
@@ -120,6 +126,7 @@ struct MementoRootScene: Scene {
                 if newPhase == .active && appState.hasCompletedOnboarding {
                     // Update activity timestamp when app becomes active
                     SecurityService.shared.updateActivityTimestamp()
+                    Task { await NotificationService.shared.refreshAuthorizationStatus() }
                     #if MEMENTO_AI
                     FeedbackSyncService.shared.resumePendingWork()
                     #endif

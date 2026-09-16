@@ -535,14 +535,11 @@ struct ChatInputField: View {
         } label: {
             Image(systemName: "waveform")
                 .font(glyphFont)
-                // theme.foreground is gray900 (#1C2329, Figma's exact fill) in
-                // light and gray50 in dark, so the button inverts correctly
-                // instead of staying a near-black disc on a dark background.
-                .foregroundStyle(theme.background)
+                .foregroundStyle(theme.primaryForeground)
                 .modifier(ProminentComposerCircle(
                     size: prominentButtonSize,
                     slot: iconButtonSize,
-                    fill: theme.foreground
+                    fill: theme.primaryButtonFill
                 ))
         }
         .buttonStyle(.plain)
@@ -556,11 +553,12 @@ struct ChatInputField: View {
         Button(action: sendMessage) {
             Image(systemName: "arrow.up")
                 .font(glyphFont.weight(.bold))
-                .foregroundStyle(theme.background)
+                .foregroundStyle(theme.primaryForeground)
                 .modifier(ProminentComposerCircle(
                     size: prominentButtonSize,
                     slot: iconButtonSize,
-                    fill: canSend ? theme.foreground : theme.foreground.opacity(0.5)
+                    fill: theme.primaryButtonFill,
+                    fillOpacity: canSend ? 1 : 0.5
                 ))
         }
         .buttonStyle(.plain)
@@ -583,17 +581,17 @@ struct ChatInputField: View {
                     // this fills the same 40pt disc, so nothing moves.
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(.white)
+                        .tint(theme.primaryForeground)
                 } else {
                     Image(systemName: "arrow.up")
                         .font(glyphFont.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(theme.primaryForeground)
                 }
             }
             .modifier(ProminentComposerCircle(
                 size: prominentButtonSize,
                 slot: iconButtonSize,
-                fill: theme.primary
+                fill: theme.primaryButtonFill
             ))
         }
         .buttonStyle(.plain)
@@ -855,12 +853,13 @@ private struct AttachedChatPhoto: Identifiable, Equatable {
 private struct ProminentComposerCircle: ViewModifier {
     let size: CGFloat
     let slot: CGFloat
-    let fill: Color
+    let fill: LinearGradient
+    var fillOpacity: Double = 1
 
     func body(content: Content) -> some View {
         content
             .frame(width: size, height: size)
-            .background(Circle().fill(fill))
+            .background(Circle().fill(fill).opacity(fillOpacity))
             .frame(width: slot, height: slot)
             .contentShape(Circle())
     }
