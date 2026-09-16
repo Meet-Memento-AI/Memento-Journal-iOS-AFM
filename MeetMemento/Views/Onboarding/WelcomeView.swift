@@ -65,10 +65,14 @@ public struct WelcomeView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                // White only while dissolving (intro in / Get Started out).
+                // Plate only while dissolving (intro in / Get Started out).
                 // A standing plate flashes through when the player wraps.
+                // Intro dissolves up from the white LaunchScreen, so that leg
+                // stays white; the exit hands off to onboarding, which paints
+                // `theme.background` — black in dark mode — so it must
+                // dissolve to the same colour or the bridge flashes white.
                 if isExiting || videoOpacity < 1 {
-                    Color.white
+                    (isExiting ? theme.background : Color.white)
                         .ignoresSafeArea()
                 }
 
