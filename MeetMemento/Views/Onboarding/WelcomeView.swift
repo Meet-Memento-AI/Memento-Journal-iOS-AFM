@@ -324,7 +324,7 @@ public struct WelcomeView: View {
             )
             .padding(.horizontal, Spacing.md)
             .padding(.top, Spacing.md)
-            .padding(.bottom, Spacing.md)
+            .padding(.bottom, Spacing.xxl)
             .disabled(isExiting)
             .accessibilityHint("Double-tap to return to the welcome screen")
 
@@ -341,11 +341,11 @@ public struct WelcomeView: View {
                     .foregroundStyle(.white.opacity(0.8))
                     .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 27))
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
+                    .padding(.top, Spacing.xs)
                     .accessibilityIdentifier("welcome.privacySubtitle")
             }
             .padding(.horizontal, Spacing.md)
-            .padding(.bottom, Spacing.md)
+            .padding(.bottom, Spacing.xl)
 
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 privacyFeatureCard(
@@ -403,7 +403,7 @@ public struct WelcomeView: View {
             .frame(width: 32, height: 32)
             .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(.custom("Figtree-Bold", size: 18, relativeTo: .headline))
                     .foregroundStyle(.white)
