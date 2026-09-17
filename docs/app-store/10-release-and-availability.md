@@ -133,7 +133,7 @@ unavailable for download without removing the app.
 | Duty | Cadence | Owner |
 |---|---|---|
 | **Respond to App Store reviews** | Weekly. Requires Customer Support role or higher | ☐ user |
-| **Support inbox** — `contact@sebastianmendo.design` | The support page promises a response; Guideline 1.5 requires the contact method to work | ☐ user |
+| **Support inbox** — `hello@withmemento.ai` | The support page promises a response; Guideline 1.5 requires the contact method to work | ☐ user |
 | **Monitor first-time downloads against 2,000,000** and Small Business Program status | Every release. Crossing either starts a **6-month window** before Private Cloud Compute access is cut off. Exit paths in `06` §3 | `specs/021` R7 |
 | **Re-read the App Review Guidelines changelog** before each submission | Per release. Last revision 2025-11-13 | agent |
 | **Check `developer.apple.com/news/upcoming-requirements/`** | Per release. This is where the SDK minimum, the age-rating deadline, and the September 2026 social-media declaration were all announced | agent |

@@ -1,86 +1,92 @@
 REVIEW NOTES — Memento 1.0
 
-1. NO ACCOUNT. NO DEMO CREDENTIALS.
+1. NO ACCOUNT, NO DEMO CREDENTIALS
 
-No sign-in, no account, no login screen. Every feature is reachable after
-install. Sign-In Information fields are blank for this reason, not by
-oversight.
+No sign-in, account or login screen; every feature is reachable after
+install, so the Sign-In fields are blank deliberately. Not applicable: no
+registration, login or account-deletion flow, as no account exists
+(Settings > Delete Everything erases all app data); no shared user
+content; no purchases.
 
-Onboarding offers an OPTIONAL app lock (Face ID or 4-digit PIN), skippable
-via "Skip for now". If enabled, the lock screen offers a device-passcode
-fallback. Do not look for a PIN in these notes; that fallback is the recovery
-path.
+2. PURPOSE AND AUDIENCE
 
-2. HOW TO REACH THE CORE EXPERIENCE
+Memento is a private journal that answers questions about what you wrote.
+Speak or type an entry; it is transcribed, filed and indexed on the device.
+Later you ask your archive a question and get an answer from your own
+entries, citing the ones used. The problem it solves: journals go unread,
+and search finds only the words you happened to use.
 
-The AI companion draws on what has been written; a fresh install has none.
+For adults who journal and want it private. An archivist, not an advisor:
+it reports what you wrote, never advising, diagnosing or using clinical
+language. Not a health or medical product.
 
-  a. Complete onboarding (~20 seconds; skip the app lock).
-  b. Journal → initials button top-left (VoiceOver: "Menu") → Profile →
-     Settings → "Load Sample Entries". Adds a fictional journal. Reversible
-     from the same row; never touches real entries.
-  c. Return to Journal. Swipe left, or tap the chat icon top-right, and ask
-     e.g. "what have I been writing about?". Replies cite sources; tap a
-     citation to open the entry.
+3. SETUP AND ACCESS
 
-Capture: new-entry button, grant microphone and speech recognition, speak.
-Photos: in a new entry, camera or picker (optional).
-Location: a new entry may prompt for Location When In Use to attach a place
-name. Coordinates are not stored. Denying location still saves the entry.
-Export: Settings → "Export Your Journal" (Markdown + JSON; samples excluded).
+No credentials needed. Onboarding offers an optional app lock; "Skip for
+now" bypasses it, and if enabled the lock screen has a device-passcode
+fallback, so no PIN is needed from us.
 
-NOTE: The companion uses Apple's on-device Foundation Models and needs Apple
-Intelligence. On other devices, capture, timeline, search, and export still
-work.
+The companion answers from entries; a fresh install has none:
 
-3. HOW DATA IS PROCESSED (Guidelines 5.1.1, 5.1.2)
+  Journal > initials button top left (VoiceOver: "Menu") > Profile >
+  Settings > "Load Sample Entries"
 
-No account. No analytics SDK. No third-party AI.
+Clearly fictional, reversible from the same row. Then:
 
-Entries are encrypted at rest with a Keychain key. The device is the system
-of record. If the user is signed into iCloud, a private CloudKit replica can
-appear on their other Apple devices. We cannot read that database. There is
-no Memento server copy of the journal.
+- Ask: message icon top right, or swipe left. Ask "what have I been
+  writing about?" and tap a citation to open that entry.
+- Capture: compose button, allow Microphone and Speech Recognition, speak.
+- Export: Settings > "Export Your Journal".
 
-Text generation runs on device via Apple's Foundation Models. Speech uses
-Apple's SpeechAnalyzer / on-device recognition; audio is not sent off-device
-for transcription.
+Every permission is optional, and the app does not track you.
 
-Settings includes an off-by-default toggle, "Share Quality Feedback". When
-on, volunteered ratings and optional report text can be sent to our
-verification database (hosted on Supabase). The question and answer leave
-the device only when the user files a Report and chooses to include them.
-Journal entries and chat history are not part of that path.
+4. EXTERNAL SERVICES
 
-Privacy policy: Settings → About, and on the product page.
+On device, Apple frameworks only: Foundation Models for all companion text,
+Speech, NaturalLanguage, Vision, LocalAuthentication, Core Spotlight (off
+by default), and a bundled Core ML read-aloud voice, never downloaded.
+Reaching Apple: MapKit reverse geocoding to name a place when asked; your
+own private CloudKit database, which syncs the journal to your other
+devices if you use iCloud and which we cannot access; and Apple's speech
+models on first use.
 
-4. PERMISSIONS
+One non-Apple service: Supabase, hosting a write-only database for
+volunteered answer-quality feedback. A Report sends that question and
+answer; thumbs ratings need the off-by-default Settings switch "Share
+Quality Feedback". Journal entries and chat history are not sent.
 
-  Microphone            voice entries, only while recording
-  Speech Recognition    journal text (on-device)
-  Camera                optional photo on an entry
-  Location When In Use  optional place name; coordinates not stored
-  Face ID               optional app lock; LocalAuthentication only,
-                        never used for identification
+No authentication provider, payment processor, analytics or crash SDK,
+advertising, third-party AI, or third-party Swift package.
 
-No contacts, calendar, or tracking permission. No tracking.
+5. REGIONAL DIFFERENCES
 
-5. AGE RATING AND CONTENT
+The binary is identical everywhere. Nothing in it reads the device's
+country or gates a feature by territory; the interface is English only.
+Two things vary by device, not region: the companion needs Apple
+Intelligence, and dictation needs Apple's on-device speech model for the
+device language. Without either, the app says so and the rest still works.
 
-Private single-user journal. No sharing, messaging, social features, in-app
-browsing, or ads.
+The crisis-support card is identical in every region: the US 988 line and
+a link to the International Association for Suicide Prevention's worldwide
+directory.
 
-The companion talks about what the user wrote. It does not diagnose, offer
-treatment, or present as a medical product. If an entry suggests possible
-crisis, it shows a static support-resource card rather than advice.
+6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
 
-6. WHAT IS IN THIS VERSION
+Memento is a journaling and personal-productivity app, not a health or
+medical one, and provides no regulated service, so no professional
+credential applies. The non-advisory design is enforced in code, by an
+on-device safety layer and CI evaluation gates.
 
-Voice and text capture; photos; optional place name; searchable timeline; AI
-companion with citations; Markdown/JSON export; optional Face ID or PIN;
-optional iCloud private replica; opt-in quality-feedback sharing.
+A crisis message shows a static bundled resource card: a pointer to help,
+never generated, naming organisations in plain text with no logos or
+claimed affiliation, beside a line saying this is not a crisis service.
+
+Bundled third-party material, full licence text at Settings > About >
+Acknowledgments: Supertonic 3 voice weights (BigScience Open RAIL-M); its
+runtime, soniqo/speech-swift (Apache-2.0); the typefaces Figtree, Lora,
+Manrope and Sora (SIL Open Font License 1.1); and SF Symbols. All other
+content and artwork is original.
 
 7. CONTACT
 
-Sebastian Mendo — contact@sebastianmendo.design
-We reply within one business day. Thank you for your time.
+Sebastian Mendo, hello@withmemento.ai

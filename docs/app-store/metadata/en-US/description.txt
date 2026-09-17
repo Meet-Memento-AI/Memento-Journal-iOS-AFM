@@ -21,7 +21,7 @@ Export — Everything you have written, in Markdown and JSON, whenever you want,
 HOW IT HANDLES YOUR WRITING
 
 No account. No analytics. No third-party AI. Companion replies are generated
-on your iPhone with Apple's on-device models.
+on your iPhone or iPad with Apple's on-device models.
 
 Your journal is encrypted at rest on this device. If you are signed into
 iCloud, a private replica can appear on your other Apple devices — that
@@ -43,6 +43,6 @@ Memento does not give advice, make recommendations, or comment on how you seem t
 
 REQUIREMENTS
 
-The companion uses Apple Intelligence and requires a compatible iPhone. Capture, transcription, timeline, search, and export work on every supported device.
+The companion uses Apple Intelligence and requires a compatible iPhone or iPad. Capture, transcription, timeline, search, and export work on every supported device.
 
 Privacy Policy and Terms of Service are linked below and inside the app.

@@ -51,7 +51,7 @@ Apple's definition of "collect", verbatim:
 | Data | Where it goes | Collected? |
 |---|---|---|
 | Journal entries, transcripts, reflections | SwiftData on device; mirrored to the **user's own CloudKit private database** | **No** — CloudKit private database is the user's iCloud account, not our infrastructure. We have no access to it |
-| Audio | Live buffers only. `SpeechService.swift` uses `AVAudioEngine` + `SFSpeechAudioBufferRecognitionRequest` with `requiresOnDeviceRecognition = true`; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — on-device recognition is required, see below |
+| Audio | Live buffers only. `SpeechAnalyzerEngine.swift` uses `AVAudioEngine` + `SpeechAnalyzer`/`SpeechTranscriber` against locally installed assets; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — transcription is local-asset-backed with no server fallback, see below |
 | Display name / experience profile | `StoredProfile` in SwiftData; mirrored to the user's CloudKit private DB (spec 040). Not a Memento account. | **No** — we cannot read the user's private DB |
 | Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
@@ -65,14 +65,27 @@ is the first third-party `URLSession` call site. Legal links remain
 
 ### The two things that can break "Data Not Collected"
 
-**1. `SFSpeechRecognizer` without `requiresOnDeviceRecognition = true`.**
-**RESOLVED (2026-08-11, previously stale).** `MeetMemento/Services/SpeechService.swift`
-**does** set `request.requiresOnDeviceRecognition = true` (see the comment block
-at the call site: "Keep audio on the device"), so recognition cannot be routed
-to Apple's servers; unavailable locales surface an error rather than a silent
-off-device path. Spec 018 R1's `SpeechAnalyzer` migration remains the 2.0 plan,
-but the 1.x label is safe on this point. (This paragraph previously claimed the
-flag was unset — that was out of date, not a code change.)
+**1. An undisclosed off-device speech path.**
+**RESOLVED — but not the way this section said. Corrected 2026-09-17.**
+
+Spec 018 R1's migration already shipped. Capture runs through
+`MeetMemento/Services/SpeechAnalyzerEngine.swift` on `SpeechAnalyzer` +
+`SpeechTranscriber`, and there is **no `SFSpeechAudioBufferRecognitionRequest`
+and no `recognitionTask` anywhere in the target** — verified by grep on
+2026-09-17. `requiresOnDeviceRecognition` is consequently **not set, and cannot
+be**: it is a property of a request object the app never constructs.
+`SFSpeechRecognizer` remains only as the authorization API
+(`SpeechService.swift:167,178,226`), which is why the symbol still appears.
+
+The 2026-08-11 revision of this paragraph claimed the flag *was* set and cited a
+call site that does not exist. That claim propagated into `00` C4, `02` §4, and
+`12`, and was the weakest sentence in the library: a reviewer who grepped the
+binary would have found the opposite of what we wrote.
+
+The accurate — and stronger — statement is that `SpeechTranscriber` runs against
+assets installed on the device via `AssetInventory`, and when they are
+unavailable dictation **reports unavailable rather than falling back to a
+server**. There is no server path to disclose because there is no server path.
 
 **2. RevenueCat, if spec 021 ships it.** `REQ-MON-004` / **V8** is an open
 verification item: does RevenueCat's SDK itself trigger a collection disclosure

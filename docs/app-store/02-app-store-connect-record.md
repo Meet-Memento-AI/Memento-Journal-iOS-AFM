@@ -82,12 +82,14 @@ winner is unpredictable).
 | Key | Current | Recommended |
 |---|---|---|
 | `NSFaceIDUsageDescription` | "Memento uses Face ID to protect your private journal entries." | **Keep as is.** Specific, accurate, states what and why |
-| `NSMicrophoneUsageDescription` | "Memento needs microphone access to transcribe your voice into journal entries." | Keep — `requiresOnDeviceRecognition = true` (`00` C4) |
+| `NSMicrophoneUsageDescription` | "Memento needs microphone access to transcribe your voice into journal entries." | Keep — transcription is `SpeechTranscriber` against local assets, no server fallback (`00` C4) |
 | `NSSpeechRecognitionUsageDescription` | "Memento uses speech recognition to convert your voice to text for journaling." | Keep |
 | `NSCameraUsageDescription` | "Memento needs camera access to add a photo to your journal entries." | **Keep.** PhotosPicker does not need a library string; camera does |
 
 > ⚠️ Camera, microphone, speech, and Face ID strings are already in `Info.plist`
-> and match the 1.x binary. `requiresOnDeviceRecognition = true` is set (`00` C4).
+> and match the 1.x binary. Speech runs on `SpeechAnalyzer`/`SpeechTranscriber`
+> against locally installed assets — `requiresOnDeviceRecognition` is not set
+> because the request type it belongs to is never constructed (`00` C4).
 > Do not add `NSPhotoLibraryUsageDescription` unless we leave PhotosPicker for a
 > full-library grant. Never add `NSUserTrackingUsageDescription`.
 

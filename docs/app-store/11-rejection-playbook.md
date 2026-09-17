@@ -9,6 +9,54 @@
 
 ## 1. Our rejection history
 
+### September 2026 — v1.0, Guideline 2.1 Information Needed
+
+**Not a bug rejection and not a metadata rejection.** Apple asked for six pieces
+of information plus *"a screen recording captured on a physical device, running
+the latest operating system, demonstrating the app's functionality."* Nothing in
+the binary was cited.
+
+The notes **were** pasted into App Store Connect this time — the November 2025
+failure mode did not repeat. The notes simply did not answer the questions Apple
+asks, and nothing was attached:
+
+| Apple's item | `review_notes.txt` as submitted |
+|---|---|
+| 1. Screen recording on a physical device | ❌ **No attachment.** No video existed in the repo or anywhere else |
+| 2. Purpose, target audience, problem solved | ❌ Absent — §2 opened on navigation, never on what the app is *for* |
+| 3. Setup / access instructions | ✅ §1–2 were strong, and the "Load Sample Entries" path was correct |
+| 4. External services list | 🟠 Covered in §3 prose, never as the explicit list Apple asked for |
+| 5. Regional differences | ❌ Absent entirely |
+| 6. Regulated industry / protected third-party material | 🟠 §5 denied health positioning; said nothing about the bundled OpenRAIL-M TTS weights or OFL fonts |
+
+**Root cause: the notes were written to pre-empt the rejections we feared rather
+than to answer the questions Apple asks.** `08` §2's table ("What each section is
+defending against") is the tell — every section is indexed to a guideline we were
+worried about, and none to an item on Apple's standard information request. A
+document optimized against imagined objections will miss the actual form.
+
+**Resolution:** `review_notes.txt` restructured 1:1 onto Apple's six items, and
+the same canonical text reused as the Resolution Center reply so the two cannot
+drift. Demo video recorded on a physical Apple Intelligence iPhone per `08` §4.
+
+**This one did not stay metadata-only.** A 2.1 information request needs no
+binary, and the temptation is to reply and move on. But the support-email
+re-point to `hello@withmemento.ai` sits in `Constants.swift`, and `strings` on
+the submitted archive confirmed build 3 still carries
+`contact@sebastianmendo.design`. Publishing the new address to the website while
+the reviewer's copy of the app shows the old one would have re-created the very
+defect D3 exists to prevent — several support addresses live at once. So build 4
+ships the re-point, and A1 (Program License Agreement) and C3 (export →
+`altool --validate-app`, which has never once completed) return to the critical
+path. **Check what a metadata fix drags into the binary before calling it
+metadata-only.**
+
+**Lesson, encoded in `08`:** the notes have a required *shape*, not just required
+content. Apple's six-item request is the shape. Answer it in its own order, and
+answer the conditional items explicitly with "not applicable, because X" — a
+blank is read as an omission, which is what happened to the sign-in fields in
+November 2025 and to items 2, 5 and 6 here.
+
 ### November 2025 — v1.0, submission `c96f3d15-5c5c-4acc-9182-b2faf3aacff4`
 
 Two citations, both **metadata rejections** — the binary was never the problem.
@@ -205,8 +253,37 @@ skippable, and if it is enabled the device passcode works as a fallback on the
 lock screen.
 
 To see the reflection features, which need entries to work from:
-[exact tap path to the sample-entries affordance]
+Journal -> initials button, top-left (VoiceOver: "Menu") -> Profile ->
+Settings -> "Load Sample Entries". That adds a fictional journal and is
+reversible from the same row; it never touches real entries.
 ```
+
+### 5.4 If asked for information under 2.1 (the September 2026 pattern)
+
+Apple's standard information request has **six numbered items**. Answer them in
+Apple's order, under Apple's numbers, and answer the conditional ones explicitly
+rather than omitting them:
+
+- **1 — recording.** Attach it. Name the device model and iOS version in the
+  reply. Then state what the app does *not* have, so the reviewer stops looking:
+  no registration/login/account-deletion flow (no accounts), no user-generated
+  content shared between users (so no reporting/blocking mechanism applies), no
+  paid content or in-app purchases.
+- **2 — purpose and audience.** What it is for, who for, what problem, what value.
+  Include the "archivist, not advisor; not a health product" line — it does
+  double duty against 1.4.1 / 5.1.1(ix).
+- **3 — setup and access.** No credentials; why the sign-in fields are blank; the
+  app-lock skip and the device-passcode fallback; the sample-entries tap path.
+- **4 — external services.** An explicit list, not prose. End with the negatives:
+  no auth provider, no payment processor, no analytics or crash SDK, no
+  third-party AI, no third-party packages.
+- **5 — regional differences.** "Functions consistently across all regions" is an
+  acceptable answer and Apple names it as one. Say so plainly, note the language,
+  and separate *hardware* gating (Apple Intelligence) from *regional* gating.
+- **6 — regulated industry / protected material.** Not regulated, does not present
+  as such. Then list bundled assets we do not own and their licences.
+
+**Never leave an item unanswered because it seems obviously inapplicable.**
 
 ---
 
@@ -218,10 +295,10 @@ Completeness."*
 | Apple's reason | Our exposure |
 |---|---|
 | 1. Crashes and bugs | 🟠 Long recording + backgrounded capture + inference under memory pressure is the surface. Test a 60-minute session on low storage (`01` §2.4.2) |
-| 2. Placeholder content | 🟠 `Configuration.storekit` carries product IDs `12345678`/`123456789` (`00` C5) |
-| 3. **Broken links** | 🔴 **Live — the Support URL is 404** (§1) |
-| 4. Incomplete information | 🟠 The demo-account absence must be *explained*, not just left blank (`08`) |
-| 5. **Privacy policy issues** | 🔴 **Live — the published policy names AI vendors the app does not use** (§1) |
+| 2. Placeholder content | 🟢 **Closed 2026-08-11** — `Configuration.storekit` and its placeholder IDs deleted (`00` C5); `check_archive_hygiene.sh` guards it |
+| 3. **Broken links** | 🟢 **Closed 2026-08-17** — all four legal URLs return 200 on the canonical host; `check_live_legal_urls.sh` guards it and is wired into CI |
+| 4. **Incomplete information** | 🔴 **This is what we were cited for in September 2026** (§1). The demo-account absence *was* explained; items 2, 5 and 6 of Apple's request were not answered at all, and no recording was attached. See §5.4 |
+| 5. **Privacy policy issues** | 🟢 **Closed 2026-09-12** — the live policy is byte-identical to `docs/privacy.html`, names no third-party AI processor, and discloses the spec-042 opt-in egress |
 | 6. Unclear data access requests | 🟠 Purpose strings are adequate; `02` §4 strengthens them |
 | 7. Inaccurate screenshots | ☐ Must match the shipping UI and use fictional entries (`04` §5) |
 | 8. Substandard user interface | 🟢 Liquid Glass adoption, design system, HIG-aligned |
@@ -235,10 +312,15 @@ Completeness."*
 
 ## Verification
 
-- [ ] Both November 2025 root causes are closed **in production**, verified by
+- [x] Both November 2025 root causes are closed **in production**, verified by
       `curl` against the published URLs — not by inspecting the repository.
-- [ ] `APP_REVIEW_RESPONSE_TEMPLATE.txt` at the repo root is removed or
+      `bash scripts/ci/check_live_legal_urls.sh` → all four 200, privacy page
+      byte-identical to `docs/privacy.html` (2026-09-17).
+- [x] `APP_REVIEW_RESPONSE_TEMPLATE.txt` at the repo root is removed or
       redirected here; the stale version claiming email/name/journal collection
-      is not sendable.
-- [ ] Every rejection this project receives is recorded in §1 with its guideline,
-      its root cause, and how it was verified fixed.
+      is not sendable. **Confirmed gone 2026-09-17** — §5 is now the only source.
+- [x] Every rejection this project receives is recorded in §1 with its guideline,
+      its root cause, and how it was verified fixed. September 2026 added.
+- [ ] `review_notes.txt` answers Apple's six-item request in Apple's order
+      (§5.4), and a demo video recorded on a physical device is attached to the
+      App Review Information screen.

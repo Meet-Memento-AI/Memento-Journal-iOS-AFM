@@ -43,7 +43,7 @@ Verbatim, because two of these are directly about us:
 | 1 | **2.1** | Reviewer opens an empty journal with nothing to reflect on and rejects for incompleteness. >40% of unresolved issues are 2.1. | This doc §2.1 + `08` |
 | 2 | **1.5 / 2.1** | Support URL is **404 in production today**. Already rejected on this once. | `00` B1 |
 | 3 | **5.1.1(i) / 5.1.2(i)** | Published privacy policy names **OpenAI, Google, Supabase** — third-party AI the app does not use. | `00` B2 |
-| 4 | **5.1.2(i)** | `SFSpeechRecognizer` without `requiresOnDeviceRecognition` is an undisclosed off-device path. | `specs/018` R1 |
+| 4 | ~~**5.1.2(i)**~~ | ~~`SFSpeechRecognizer` without `requiresOnDeviceRecognition` is an undisclosed off-device path.~~ **Closed 2026-09-17** — spec 018 R1 shipped; `SpeechAnalyzer`/`SpeechTranscriber` against local assets, no server-capable request object exists. | `specs/018` R1 |
 | 5 | **2.5.14** | Recording without a clear, persistent visual indication. | `specs/018` / `020` |
 | 6 | **1.4.1 / 5.1.1(ix)** | Mental-health framing by an **individual** developer account. | This doc §1.4.1 |
 | 7 | **4.10** | Paywall copy that reads as selling access to Apple Intelligence. | `specs/021` R4 |
@@ -76,7 +76,7 @@ contact quartet arrives together.
 requiring a reporting path, even when there is only one user. This is cheap
 insurance and worth shipping regardless: a **"Report a problem with this
 response"** affordance on every generative surface (weekly, monthly/Patterns,
-Ask), routing to `contact@sebastianmendo.design`. It also strengthens the 1.4.1
+Ask), routing to `hello@withmemento.ai`. It also strengthens the 1.4.1
 posture below by demonstrating that objectionable output has a defined escalation
 path.
 
@@ -561,21 +561,27 @@ reflections" with no architecture statement will ask. Therefore:
    forbidden while any PCC routing exists — see `04`, which holds App Store copy
    to the same CI linter the app is held to.
 
-### The one place we genuinely do send audio off-device today
+### ~~The one place we genuinely do send audio off-device today~~ — closed 2026-09-17
 
-`SpeechService.swift` uses `SFSpeechRecognizer` **without setting
-`requiresOnDeviceRecognition = true`**, so for some locales recognition may be
-performed on Apple's servers. That is an undisclosed off-device path for the most
-sensitive data the app touches. Three acceptable resolutions, in order:
+This section described `SpeechService.swift` using `SFSpeechRecognizer`
+**without** `requiresOnDeviceRecognition = true`, leaving an undisclosed
+off-device path for the most sensitive data the app touches. It offered three
+resolutions, the first being migration to `SpeechAnalyzer`/`SpeechTranscriber`
+per spec 018 R1.
 
-1. Migrate to `SpeechAnalyzer`/`SpeechTranscriber` per spec 018 R1 (the planned
-   path, and the one that makes the claim mechanically true).
-2. Set `requiresOnDeviceRecognition = true` as an interim, accepting reduced
-   locale coverage.
-3. Disclose it — in the privacy policy, the purpose string, and the review notes.
+**Resolution 1 shipped.** `MeetMemento/Services/SpeechAnalyzerEngine.swift` runs
+`SpeechAnalyzer` + `SpeechTranscriber` against assets installed locally via
+`AssetInventory`; there is no `SFSpeechAudioBufferRecognitionRequest` and no
+`recognitionTask` in the target. `SFSpeechRecognizer` remains only as the
+authorization API. Because the server-capable request object is never
+constructed, `requiresOnDeviceRecognition` is absent — and that absence is the
+*evidence of* the fix, not a gap in it.
 
-Doing none of the three while shipping on-device positioning is the actual
-5.1.2(i) violation.
+Between 2026-08-11 and 2026-09-17 several documents in this library asserted
+instead that the flag was set, citing a call site that does not exist. Neither
+the fear nor the reassurance was accurate. The claim to make to Apple is the
+mechanical one: transcription is local-asset-backed and **reports unavailable
+rather than falling back to a server**.
 
 ### Other 5.1.2 sub-clauses
 
@@ -647,8 +653,10 @@ enabling it, never at launch.
 - [ ] Grep of App Store metadata, paywall copy, and
       `docs/prompts/MEMENTO_SYSTEM_PROMPT.md` finds no clinical vocabulary
       (§1.4.1) and no monetized-Apple-technology framing (§4.10).
-- [ ] One of the three `requiresOnDeviceRecognition` resolutions has shipped
-      (§5.1.2).
+- [x] One of the three off-device-speech resolutions has shipped (§5.1.2) —
+      resolution 1, the `SpeechAnalyzer`/`SpeechTranscriber` migration. Verify by
+      grep: `SFSpeechAudioBufferRecognitionRequest` and `recognitionTask` must
+      return **zero** hits in `MeetMemento/`.
 - [ ] `NSUserTrackingUsageDescription` is absent from every plist (§5.1.2).
 - [ ] A "Report a problem with this response" affordance exists on each
       generative surface (§1.2).

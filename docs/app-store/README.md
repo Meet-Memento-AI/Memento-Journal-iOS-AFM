@@ -101,7 +101,7 @@ Plus two data files:
 | Pricing (`DEC-004`), Reduced-tier posture (`DEC-001`), StoreKit/RevenueCat integration, the **decision** on the privacy label (`REQ-MON-004` / V8) | `specs/021-monetization-and-store-compliance.md` |
 | The positioning claim `REQ-POS-001` and the `TrustZone` disclosure UI | `specs/014-privacy-model-and-trust-boundary.md` |
 | Small Business Program and Private Cloud Compute filings | `specs/013-phase-0-derisking-and-migration-prep.md` R5 |
-| On-device transcription (`requiresOnDeviceRecognition`), Personal Voice posture | `specs/018-capture-and-voice-output.md` |
+| On-device transcription (`SpeechAnalyzer`/`SpeechTranscriber`), Personal Voice posture | `specs/018-capture-and-voice-output.md` |
 | Accessibility conformance that Accessibility Nutrition Labels would claim | `specs/020-system-integration-and-accessibility.md` R8 |
 | Export and deletion (what a reviewer asks about instead of account deletion) | `specs/015-data-layer-swiftdata-cloudkit.md` `REQ-DATA-013` |
 | **Everything Apple requires in App Store Connect, and whether we have it** | **this library** |

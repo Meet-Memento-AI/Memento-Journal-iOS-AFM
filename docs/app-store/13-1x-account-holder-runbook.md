@@ -109,11 +109,11 @@ Display name **Memento**. Version **1.0**, build must be **≥ 3**.
 |---|---|
 | D1 Privacy Policy URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` |
 | D2 Support URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` |
-| D3 Support email | `contact@sebastianmendo.design` |
+| D3 Support email | `hello@withmemento.ai` |
 | D4 Primary category | **Lifestyle**. Secondary: Productivity. Never Health & Fitness or Medical |
 | D5 Copyright | `2026 Sebastian Mendoza` (no ©). Content Rights: No third-party content. License: Apple's standard EULA |
 | D6 App Privacy | Tracking = **No**. Declare **Other User Content**, **Other Data Types**, **User ID** (linked, not tracking; App Functionality + Analytics) for opt-in quality feedback (spec 042). Journal is not collected. CloudKit private DB is the user’s iCloud, not our collection. Match `PrivacyInfo.xcprivacy` and live `privacy.html`. **Not** Data Not Collected |
-| D7 Review contact | Name + phone (you). Email: `contact@sebastianmendo.design`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
+| D7 Review contact | Name + phone (you). Email: `hello@withmemento.ai`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
 | D8 Metadata | Paste `metadata/en-US/{name,subtitle,keywords,promotional_text,description,release_notes}.txt` |
 | D9 Screenshots | **iPhone 6.9″ 1320×2868** and **iPad 13″ 2064×2752** (iPad is mandatory; `TARGETED_DEVICE_FAMILY = 1,2`) |
 | D10 Price | From A2. Tax category required if paid |

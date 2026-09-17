@@ -41,15 +41,53 @@ if ! curl -sS "${HOST}/privacy.html" -o "$PRIVACY_TMP"; then
 fi
 
 # --- Forbidden: backends the app does not use (docs/app-store/00 B2) ---------
-forbidden=0
-for name in openai gemini 'google ai' 'vertex ai' anthropic; do
-  if grep -qi "$name" "$PRIVACY_TMP"; then
-    echo "FAIL: privacy.html names '${name}', a backend this app does not use"
-    forbidden=1
-  fi
-done
-[ "$forbidden" -eq 0 ] && echo "OK   privacy.html names no third-party AI backend"
-[ "$forbidden" -eq 0 ] || fail=1
+# Contextual, not substring. The defect this guards is a page CLAIMING to send
+# content to a third-party AI backend. A page DENYING it names the same vendors
+# and is the correct page — "not sent to us, and not to OpenAI, Anthropic,
+# Google, or any other AI provider" is the sentence we want to ship, and a bare
+# grep failed it (2026-09-17), which is the same cry-wolf regression the Supabase
+# rule hit five days earlier. See docs/app-store/00 Section F.
+#
+# Rule: a vendor name is a violation unless a negation appears BEFORE it in the
+# same sentence. Negation-after does not count, so "we send entries to OpenAI;
+# we do not keep them" still fails.
+if python3 - "$PRIVACY_TMP" <<'PY'; then
+import html, re, sys
+
+VENDORS = ["openai", "gemini", "google ai", "vertex ai", "anthropic"]
+NEGATIONS = [
+    "not sent", "never sent", "not shared", "never shared", "not to",
+    "does not", "do not", "never", "no third-party", "no third party",
+    "without sending", "rather than",
+]
+
+raw = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+text = html.unescape(re.sub(r"<[^>]+>", " ", raw))
+text = re.sub(r"\s+", " ", text)
+sentences = re.split(r"(?<=[.!?])\s+", text)
+
+violations = []
+for sentence in sentences:
+    low = sentence.lower()
+    for vendor in VENDORS:
+        start = low.find(vendor)
+        if start < 0:
+            continue
+        before = low[:start]
+        if any(n in before for n in NEGATIONS):
+            continue
+        violations.append((vendor, sentence.strip()))
+
+for vendor, sentence in violations:
+    print(f"FAIL: privacy.html names '{vendor}' outside a disclaimer:")
+    print(f"      {sentence[:160]}")
+sys.exit(1 if violations else 0)
+PY
+  echo "OK   privacy.html names no third-party AI backend as a processor"
+else
+  echo "      A vendor may only be named in a sentence that denies using it."
+  fail=1
+fi
 
 # --- Required: the spec 042 opt-in verification disclosure -------------------
 # Present only while the verification client ships. Mirrors the conditional in

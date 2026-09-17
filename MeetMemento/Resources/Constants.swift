@@ -11,10 +11,14 @@
 import Foundation
 
 enum Constants {
-    /// Legal/contact endpoints. The email is the developer-account address
-    /// verified with Apple; App Store Connect fields must match it.
+    /// Legal/contact endpoints. App Store Connect fields must match this
+    /// email — the support field, and the App Review / TestFlight contact.
     enum Legal {
-        static let supportEmail = "contact@sebastianmendo.design"
+        /// Re-pointed 2026-09-17 from `contact@sebastianmendo.design` (the
+        /// Apple developer-account address) to the product's own domain.
+        /// Guideline 1.5 requires this mailbox to actually receive, so it
+        /// must be live before submission — see checklist D3.
+        static let supportEmail = "hello@withmemento.ai"
 
         /// GitHub Pages for this repo (`main` → `/docs`). Checklist A6.
         static let siteBase = URL(string: "https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM")!
