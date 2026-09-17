@@ -183,7 +183,6 @@ public struct WelcomeView: View {
             VideoBackground(
                 videoName: "welcome-bg",
                 videoExtension: "mp4",
-                loopMode: .pingPong,
                 isVideoReady: $isVideoReady
             )
             .transaction { $0.animation = nil }
