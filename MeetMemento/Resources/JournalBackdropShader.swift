@@ -48,19 +48,23 @@ struct JournalChromeTint: Equatable, Sendable {
 }
 
 extension Glass {
-    /// Hair of white on `.clear`. Enough to read as frost, not a plate.
-    static let nativeFrostOpacity: Double = JournalBackdropShader.glassFrostOpacity
-
-    /// Native Liquid Glass for floating chrome: `.clear` so it does not
-    /// paint a white disc, plus `nativeFrostOpacity` so it still frosts.
+    /// Native Liquid Glass for floating chrome.
+    ///
+    /// `.regular`, not `.clear`. `.clear` is the over-media variant: it drops
+    /// most of the material — including the edge treatment along horizontal
+    /// runs — so every circle and capsule lost its top and bottom rim and
+    /// read as cut off. `.clear` also expects a dimming layer behind it and
+    /// bold, bright content on top; the flat white and black pages this
+    /// chrome floats over provide neither. `.regular` adapts to both and
+    /// keeps the shape closed. Chrome over a cover photo still passes its
+    /// own cover-derived wash via `chrome(tint:)`.
     static func native(interactive: Bool = true) -> Glass {
-        let glass = Glass.clear.tint(Color.white.opacity(nativeFrostOpacity))
-        return interactive ? glass.interactive() : glass
+        interactive ? Glass.regular.interactive() : .regular
     }
 
     /// `.regular` glass, optionally washed with a backdrop-derived tint.
     ///
-    /// Nil tint uses `native` (clear + a hair of frost). A tint is a
+    /// Nil tint uses `native` (plain `.regular`). A tint is a
     /// prominence signal (Welcome Get Started, labeled FAB).
     static func chrome(tint: Color?, interactive: Bool = true) -> Glass {
         if let tint {
@@ -91,7 +95,8 @@ extension Glass {
 }
 
 enum JournalBackdropShader {
-    /// Hair of white on `.clear` glass. Matches `Glass.nativeFrostOpacity`.
+    /// Hair of white modelled on tinted chrome glass, used by the cover-photo
+    /// contrast solve in `JournalBackdropContrast`.
     static let glassFrostOpacity: Double = 0.08
     /// Full treatment for journal covers. Cards and the editor both use
     /// 100pt so the photo is fully dissolved.
