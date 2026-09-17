@@ -26,12 +26,28 @@ which is the A6 root cause. Verified passing 2026-09-12.
 
 ## A — Apple's clock
 
-### A0 — Accept the Xcode licence on the build Mac (1 minute, blocks everything)
+### A0 — Make the build Mac able to build (blocks everything)
 
 ```sh
 sudo xcodebuild -license accept
 xcodebuild -version   # expect 26.x
+xcodebuild -project MeetMemento.xcodeproj -scheme MeetMemento -showdestinations
 ```
+
+**Found 2026-09-17: the third command returns ZERO available destinations.**
+Xcode is 26.6 (17F113) with the iOS **26.5** SDK, but the **iOS 26.5 platform
+component is not downloaded**, so `Any iOS Device` and the physical iPhone both
+report *"iOS 26.5 is not installed"*, and the installed simulator runtimes
+(26.0, 27.0) are not offered to this Xcode. Nothing archives, nothing tests,
+nothing runs.
+
+**Fix:** Xcode → Settings → **Components** → download **iOS 26.5**. Re-run
+`-showdestinations` and confirm real destinations come back *before* archiving.
+
+Do **not** work around this with `~/Downloads/Xcode-beta.app` — that is **Xcode
+27.0 beta (27A5228h)**, and Apple does not accept App Store builds made with
+beta software. It is fine for local iteration and useless for the submission.
+See checklist C2/C3/C3a.
 
 **Found 2026-09-12.** `/Applications/Xcode.app` (26.6, 17F113) had an unaccepted
 licence, and that blocks far more than archiving: `git`, `xcodebuild`, and
