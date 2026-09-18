@@ -223,10 +223,21 @@ from the last block boundary), eliminating the 71 Hz whole-prefix reparse.
 
 ### R7. Generation watchdog (`REQ-PERF-007`)
 
-A 30 s no-snapshot deadline (reset on every snapshot) cancels a stalled
+A no-snapshot deadline (reset on every snapshot) cancels a stalled
 generation with a designed `generationTimedOut` error: typed chat surfaces
 the existing retry affordance; narration settles the turn and silently
 returns to listening (028's no-modal rule).
+
+> **Amended 2026-09-16 — the deadline is per-channel.** Typed keeps 30 s.
+> **Spoken turns fail at 8 s.** Thirty seconds is a fair stall budget on the
+> chat page, where the user still has a keyboard and a visible cancel.
+> Narration Mode is half-duplex: the mic is torn down for the whole of
+> "Thinking…", so a stalled spoken turn leaves the user with no hands-free
+> way out and nothing to listen to. Failing fast is the kinder outcome — the
+> recovery path already exists, so an 8 s deadline turns a dead session into
+> a re-ask. The poll cadence is derived from the deadline (one eighth,
+> clamped to 250 ms–5 s) rather than fixed: a flat 5 s tick against an 8 s
+> deadline would fire anywhere in 10–15 s and give back most of the win.
 
 ### R8. Voice quality (`REQ-PERF-008`)
 

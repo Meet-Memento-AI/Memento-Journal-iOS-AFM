@@ -25,6 +25,21 @@ enum ChatEvalCorpus {
         let seedTopics: [String]?
     }
 
+    /// Mirrors `Fixtures/cold-start/entries.json`.
+    ///
+    /// `daysAgo` rather than an absolute `createdAt`: a cold-start corpus has to
+    /// be recent *relative to now*, because `recencyScore`, the ambient ordering
+    /// and `QueryDateWindowParser` all read `Date()`. A fixed date would drift
+    /// out of every rolling window the moment it was committed.
+    struct ColdStartFixtureEntry: Decodable {
+        let id: String
+        let daysAgo: Double
+        let source: String
+        let transcript: String
+        let seedMoods: [String]?
+        let seedTopics: [String]?
+    }
+
     struct GoldQuestion: Decodable {
         let id: String
         let category: String
@@ -140,6 +155,52 @@ enum ChatEvalCorpus {
         for shift in stride(from: 56, through: 0, by: -8) { bytes.append(UInt8((second >> UInt64(shift)) & 0xff)) }
         return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+    }
+
+    // MARK: - Cold start (spec 044 / cold-start grounding)
+
+    /// The 8-entry cold-start corpus, newest first in `createdAt` terms once
+    /// sorted, materialised relative to `Date()`.
+    ///
+    /// `limit` keeps the most *recent* n, which is what a real cold start looks
+    /// like: the archive grows forward, so a three-entry journal is the three
+    /// newest entries, never an arbitrary slice.
+    static func coldStartCorpus(limit: Int? = nil) throws -> (entries: [Entry], idByUUID: [UUID: String]) {
+        let url = try fixturesURL()
+            .appendingPathComponent("cold-start")
+            .appendingPathComponent("entries.json")
+        let decoded = try JSONDecoder().decode([ColdStartFixtureEntry].self, from: Data(contentsOf: url))
+
+        var entries: [Entry] = []
+        var map: [UUID: String] = [:]
+        for fixture in decoded {
+            let uuid = deterministicUUID(for: fixture.id)
+            let firstLine = fixture.transcript
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .first.map(String.init) ?? fixture.id
+            entries.append(Entry(
+                id: uuid,
+                title: String(firstLine.prefix(80)),
+                text: fixture.transcript,
+                createdAt: Date().addingTimeInterval(-fixture.daysAgo * 86_400)
+            ))
+            map[uuid] = fixture.id
+        }
+        entries.sort { $0.createdAt < $1.createdAt }
+        if let limit, limit < entries.count {
+            entries = Array(entries.suffix(limit))
+            let kept = Set(entries.map(\.id))
+            map = map.filter { kept.contains($0.key) }
+        }
+        return (entries, map)
+    }
+
+    /// The cold-start gold set. Same `GoldQuestion` shape as the persona gold,
+    /// so every scorer already understands it.
+    static func coldStartGold() throws -> [GoldQuestion] {
+        let url = try fixturesURL()
+            .appendingPathComponent("gold/cold-start-questions.json")
+        return try JSONDecoder().decode(GoldFile.self, from: Data(contentsOf: url)).questions
     }
 
     // MARK: - Conversational corpus

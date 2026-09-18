@@ -45,6 +45,7 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     case sharing
     case followupThread
     case journalGrounded
+    case nearbyOnly
     case noMatch
 
     var promptLine: String {
@@ -74,6 +75,14 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
                 + "then one question; "
                 + "list only the refs you used in citedRefs; "
                 + "do not reopen an entry already used in this thread]"
+        case .nearbyOnly:
+            return "[Turn: journal question, nothing direct — "
+                + "Meet them, then say plainly that nothing in the notebook answers that directly; "
+                + "you may name at most one recent entry as the closest thing you have, "
+                + "saying outright that it is not an answer to what they asked; "
+                + "never say you see nothing at all; "
+                + "no heading, no list, no quote, no invented detail; "
+                + "then one question back toward them]"
         case .noMatch:
             return "[Turn: journal question, no matches — "
                 + "Meet them, then say you don't see anything from that stretch; "
@@ -202,8 +211,17 @@ enum RetrievalPolicy {
             // journalGrounded just because retrieval found a weak topical hit.
             return .sharing
         case .journalQuery:
-            // An explicit journal ask with no real match gets the honest answer.
-            return (!retrieval.isEmpty && !retrieval.isAmbient) ? .journalGrounded : .noMatch
+            // Three outcomes, not two. `.noMatch` used to cover both "retrieval
+            // returned nothing" and "retrieval returned recent life as ambient
+            // background" — but the prompt ships the ambient text either way, so
+            // the second case told the model to deny what it was holding, and the
+            // model resolved that by doing both (spec 044, evidence row 4).
+            //
+            // `.empty` is the only state where the prompt genuinely carries no
+            // evidence: the empty archive, a named window nothing touches, and
+            // the diversify guard. That is what `.noMatch` now means.
+            if retrieval.isEmpty { return .noMatch }
+            return retrieval.isAmbient ? .nearbyOnly : .journalGrounded
         case .quantitative:
             // Counts are Swift facts; light/casual narration is optional.
             return .casual

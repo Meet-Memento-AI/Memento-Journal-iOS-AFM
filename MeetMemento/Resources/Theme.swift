@@ -34,6 +34,8 @@ extension Color {
 /// Measured 2026-08-17 against the B&W canvas + ink buttons, not carried over.
 /// - foreground (#000000) on background (#FFFFFF): 21.00:1 ✓
 /// - mutedForeground (gray600 #525252) on background: 7.78:1 ✓
+/// - iconForeground (gray600 #525252) on background: 7.78:1 ✓ (icons; same as
+///   mutedForeground in light — this token only diverges in dark)
 /// - white on primary / primary900 (#2C1E19): 16.08:1 ✓ (filled buttons)
 /// - accent (brand #A87549) on background, as UI/icon: 3.96:1 ✓ (3:1 floor)
 /// - brandOnText (#895C37) on background, as text: 5.75:1 ✓
@@ -41,6 +43,8 @@ extension Color {
 /// ## Verified Contrast Ratios (Dark Mode)
 /// - foreground (#FFFFFF) on background (#000000): 21.00:1 ✓
 /// - mutedForeground (gray400 #A3A3A3) on background: 8.36:1 ✓
+/// - iconForeground (#FFFFFF) on background: 21.00:1 ✓ (icons run full-contrast
+///   in dark; their labels stay on mutedForeground)
 /// - black on primary (#FFFFFF): 21.00:1 ✓ (filled buttons)
 /// - accent (brandDark #C89A6E) on background: 8.28:1 ✓
 ///
@@ -202,6 +206,14 @@ struct Theme {
     let secondaryForeground: Color
     let muted: Color
     let mutedForeground: Color
+    /// Glyph colour for secondary-rank icons — the ones that sit beside
+    /// `mutedForeground` text but are not text themselves.
+    ///
+    /// Exists because an icon and its label do not want the same weight in dark
+    /// mode. `mutedForeground` is `#A3A3A3` there, which reads as dimmed on a
+    /// glyph; text at that value is correct. Light mode keeps the old value, so
+    /// this token changes dark mode only.
+    let iconForeground: Color
     let accent: Color
     let accentForeground: Color
     let destructive: Color
@@ -312,6 +324,7 @@ struct Theme {
         secondaryForeground: BaseColors.black,
         muted: BaseColors.offWhite,
         mutedForeground: GrayScale.gray600,
+        iconForeground: GrayScale.gray600,
         accent: BrandColors.brand,
         accentForeground: BaseColors.white,
         destructive: Color(hex: "#D4183D"),
@@ -389,6 +402,7 @@ struct Theme {
         secondaryForeground: BaseColors.white,
         muted: Color(hex: "#1A1A1A"),
         mutedForeground: GrayScale.gray400,
+        iconForeground: BaseColors.white,
         accent: BrandColors.brandDark,
         accentForeground: BaseColors.black,
         destructive: Color(hex: "#FF4D6A"),

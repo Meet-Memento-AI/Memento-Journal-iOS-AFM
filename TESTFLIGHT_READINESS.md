@@ -35,7 +35,7 @@
 
 #### Contact Email Addresses Updated
 - **Status:** ✅ Complete
-- **Changed:** sebastian.mendo@example.com → support@sebastianmendo.com
+- **Changed:** sebastian.mendo@example.com → hello@withmemento.ai
 - **Files:**
   - `PRIVACY_POLICY.md`
   - `TERMS_OF_SERVICE.md`

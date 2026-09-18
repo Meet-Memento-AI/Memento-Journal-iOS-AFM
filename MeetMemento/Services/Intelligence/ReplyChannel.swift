@@ -84,14 +84,26 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     var usesShortAssembler: Bool { usesLightPrompt || usesCompanionPrompt }
 
     /// Body-only Generable (`LightAskAnswer`) — no `citedRefs`. Companion and
-    /// meta never emit citations, so they share the light schema. Typed **and
-    /// spoken** notebook/thread keep `AskAnswer` so the journal recipe and
-    /// decode schema match. TTS does not speak `citedRefs`; reconcile still
-    /// backfills from retrieval.
-    func usesBodyOnlySchema(spoken _: Bool = false) -> Bool {
+    /// meta never emit citations, so they share the light schema.
+    ///
+    /// Typed notebook/thread keep `AskAnswer`: the journal recipe asks for
+    /// citations and the chat page renders them.
+    ///
+    /// **Spoken** notebook/thread drop to the light schema. `citedRefs` is the
+    /// last field in `AskAnswer`'s decode order, so every step it costs lands
+    /// *after* the final audible word — pure dead air at the end of a
+    /// half-duplex turn, spent on an array TTS never speaks. Narration is the
+    /// one path where that tail is all cost and no benefit.
+    ///
+    /// Citations do not disappear from the persisted turn: `reconcileCitations`
+    /// treats an empty ref list by matching verbatim quoted spans in the body
+    /// first, then falling back to the top retrieved entries. Spoken journal
+    /// turns therefore cite from retrieval rather than from the model's own
+    /// declaration — less precisely attributed, not absent.
+    func usesBodyOnlySchema(spoken: Bool = false) -> Bool {
         switch self {
         case .phatic, .continuer, .redirect, .companion, .meta, .statistic: return true
-        case .thread, .notebook: return false
+        case .thread, .notebook: return spoken
         }
     }
 

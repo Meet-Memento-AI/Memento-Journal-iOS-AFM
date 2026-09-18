@@ -20,6 +20,7 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
     case reflectAndAsk
     case answerThenAsk
     case patternThenAsk
+    case nearestThenAsk
     case emptyThenAsk
     case redirectThenAsk
 
@@ -64,6 +65,8 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
         case .patternThenAsk:
             return "[Move: One connection from the evidence, then one question. "
                 + "No counts, no emotion labels. Do not use their name.]"
+        case .nearestThenAsk:
+            return "[Move: Name the nearest thing you have, say it isn't a direct answer, then one question.]"
         case .emptyThenAsk:
             return "[Move: Honest that you don't see it, then one question back toward them.]"
         case .redirectThenAsk:
@@ -73,11 +76,16 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
 
     /// Pick the kind of turn. Journal lexicon / stance already won upstream;
     /// this only chooses the cue.
+    ///
+    /// `hasEvidence` is a real topical hit; `hasNearbyEvidence` is ambient
+    /// retrieval — entries are in the prompt, but none of them is on the
+    /// question's topic. They are different turns and take different cues.
     static func resolve(
         turn: TurnType,
         message: String,
         history: [ChatTurn],
-        hasEvidence: Bool
+        hasEvidence: Bool,
+        hasNearbyEvidence: Bool = false
     ) -> ConversationalMove {
         switch turn {
         case .social:
@@ -89,7 +97,11 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
         case .share, .reflectiveQuestion:
             return hasEvidence ? .patternThenAsk : .reflectAndAsk
         case .journalQuery:
-            return hasEvidence ? .patternThenAsk : .emptyThenAsk
+            if hasEvidence { return .patternThenAsk }
+            // Nearby-but-not-on-topic is not the same as nothing: `emptyThenAsk`
+            // here is the cue half of the deny-while-recalling contradiction the
+            // `.nearbyOnly` stance exists to remove.
+            return hasNearbyEvidence ? .nearestThenAsk : .emptyThenAsk
         case .quantitative:
             return .answerThenAsk
         case .offdomain:

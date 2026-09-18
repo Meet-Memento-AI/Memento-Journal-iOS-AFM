@@ -77,13 +77,16 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertTrue(ReplyChannel.statistic.usesBodyOnlySchema())
     }
 
-    func test_bodyOnlySchema_spokenDoesNotOverrideJournal() {
+    /// Spoken is the only thing that moves the journal channels onto the light
+    /// schema: `citedRefs` decodes after the last audible word and TTS never
+    /// speaks it. Typed notebook/thread are unchanged.
+    func test_bodyOnlySchema_spokenDropsJournalCitations() {
         XCTAssertTrue(ReplyChannel.companion.usesBodyOnlySchema(spoken: true))
         XCTAssertTrue(ReplyChannel.meta.usesBodyOnlySchema(spoken: true))
         XCTAssertTrue(ReplyChannel.phatic.usesBodyOnlySchema(spoken: true))
         XCTAssertTrue(ReplyChannel.redirect.usesBodyOnlySchema(spoken: true))
-        XCTAssertFalse(ReplyChannel.notebook.usesBodyOnlySchema(spoken: true))
-        XCTAssertFalse(ReplyChannel.thread.usesBodyOnlySchema(spoken: true))
+        XCTAssertTrue(ReplyChannel.notebook.usesBodyOnlySchema(spoken: true))
+        XCTAssertTrue(ReplyChannel.thread.usesBodyOnlySchema(spoken: true))
         XCTAssertFalse(ReplyChannel.notebook.usesBodyOnlySchema(spoken: false))
         XCTAssertFalse(ReplyChannel.thread.usesBodyOnlySchema(spoken: false))
     }
@@ -254,7 +257,7 @@ final class ReplyChannelTests: XCTestCase {
         }
     }
 
-    /// Thread is its own recipe (ask-core@16 + follow-up suffix), so the
+    /// Thread is its own recipe (ask-core@17 + follow-up suffix), so the
     /// follow-up turn needs its own slot — notebook alone never matched it.
     func test_threadRecipe_isDistinctFromNotebook() {
         let budget = ContextBudget(window: .unavailable)

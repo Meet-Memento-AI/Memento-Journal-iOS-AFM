@@ -443,7 +443,7 @@ public struct AIChatView: View {
 
             Image(systemName: "brain.head.profile")
                 .font(.system(size: 56))
-                .foregroundStyle(theme.mutedForeground.opacity(0.5))
+                .foregroundStyle(theme.iconForeground.opacity(0.5))
 
             Text("AI Features Disabled")
                 .font(type.h3)

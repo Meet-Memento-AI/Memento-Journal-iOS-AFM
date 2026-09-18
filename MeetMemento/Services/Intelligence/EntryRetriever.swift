@@ -72,6 +72,32 @@ struct RetrieverTuning: Sendable {
     var historyWeight = 0.25
     /// Below this corpus size the σ statistics are meaningless — absolute floors only.
     var minCorpusForSigma = 5
+    /// At or below this many entries, a query term also matches an entry word
+    /// the English word embedding places within `neighborDistance` of it — so
+    /// "how have I been sleeping?" reaches an entry that says *slept badly*.
+    ///
+    /// Size-gated rather than always-on for two reasons. It is only at this size
+    /// that the lexical test is load-bearing — measured on the cold-start
+    /// fixture, every entry clears the cosine floor at n ≤ 4, so a question that
+    /// shares no literal word with any entry is the *only* way to reach ambient.
+    /// And neighbour matching does loosen the honesty guard that stops a warm
+    /// embedding grounding a subject the journal never mentions; keeping it off
+    /// above this size leaves the fitted mature-corpus behaviour bit-identical.
+    var smallCorpusMax = 12
+    /// How close a word has to be to a query term to count as the same word.
+    ///
+    /// Every distance below is measured against the cold-start fixture, and the
+    /// bar sits in a narrow gap. The inflection this exists for — *sleeping* /
+    /// *slept* — is 0.73. The nearest false pair is *everyone* / *everything* at
+    /// 0.78, which put a pottery entry behind a question about a work deadline,
+    /// and *hold* / *held* is 0.83 (a real inflection, given up: the questions
+    /// that need it also carry a literal term). Unrelated words are further out
+    /// still — *bicycle* / *wheel* 1.09, *scuba* / *water* 1.09.
+    ///
+    /// So this is a precision-first setting: widen only where the evidence says
+    /// the words are the same word, and let the near-miss stance handle the
+    /// rest honestly. `ColdStartRetrievalGate` is the arbiter if it moves.
+    var neighborDistance = 0.75
     /// A signal must exceed the corpus mean by at least this margin even when
     /// σ ≈ 0 — otherwise a uniformly "hot" corpus (NLEmbedding scoring an
     /// unrelated query ~0.5 against everything) would let every entry through.
@@ -351,8 +377,10 @@ enum EntryRetriever {
         // weight depends on how many entries contain it, which cannot be known
         // one entry at a time. Same single scan over (entries × terms) as
         // before, with the document frequencies accumulated on the way through.
+        let smallCorpus = entries.count <= tuning.smallCorpusMax
         let (keywordByEntry, documentFrequency) = Self.keywordScores(
-            entries: entries, terms: terms, hashes: hashes
+            entries: entries, terms: terms, hashes: hashes,
+            neighborDistance: smallCorpus ? tuning.neighborDistance : nil
         )
         // Does *this entry* contain any of the words the question is about?
         //
@@ -762,10 +790,33 @@ enum EntryRetriever {
     /// Same single scan over (entries × terms) as the per-entry version it
     /// replaces; document frequency is accumulated on the way through.
     static func keywordScores(
-        entries: [Entry], terms: [String], hashes: [UInt64]
+        entries: [Entry], terms: [String], hashes: [UInt64],
+        neighborDistance: Double? = nil
     ) -> (scores: [Double], documentFrequency: [Int]) {
         guard !terms.isEmpty, entries.count == hashes.count else {
             return (Array(repeating: 0, count: entries.count), Array(repeating: 0, count: terms.count))
+        }
+        // Small corpora only (`RetrieverTuning.smallCorpusMax`): each term also
+        // carries the handful of words the embedding places right next to it, so
+        // *sleeping* matches an entry that says *slept*. Widening only — every
+        // term the literal test already matched still matches, and the set always
+        // contains the term itself.
+        var neighbors: [Set<String>] = []
+        if let distance = neighborDistance {
+            let service = EmbeddingService.shared
+            var vocabulary: Set<String> = []
+            for (index, entry) in entries.enumerated() {
+                let sets = service.wordSets(
+                    id: entry.id, contentHash: hashes[index], title: entry.title, text: entry.text
+                )
+                vocabulary.formUnion(sets.title)
+                vocabulary.formUnion(sets.text)
+            }
+            // A word that carries no signal as a query term must not create one
+            // as a match target either. Without this, *everyone* reached *going*
+            // and put a pottery entry behind a question about a work deadline.
+            vocabulary.subtract(stopwords)
+            neighbors = terms.map { service.wordsNear($0, in: vocabulary, maxDistance: distance) }
         }
         // The lowercased copies are cached per entry (hash-invalidated), so
         // this does not re-lowercase the corpus on every turn.
@@ -778,9 +829,22 @@ enum EntryRetriever {
             let (title, text) = EmbeddingService.shared.lowercasedEntryText(
                 id: entry.id, contentHash: hashes[index], title: entry.title, text: entry.text
             )
+            var bodyWords: Set<String> = []
+            var titleWords: Set<String> = []
+            if !neighbors.isEmpty {
+                let sets = EmbeddingService.shared.wordSets(
+                    id: entry.id, contentHash: hashes[index], title: entry.title, text: entry.text
+                )
+                titleWords = sets.title
+                bodyWords = sets.text
+            }
             for (t, term) in terms.enumerated() {
-                let inBody = containsWord(text, term)
-                let inTitle = containsWord(title, term)
+                var inBody = containsWord(text, term)
+                var inTitle = containsWord(title, term)
+                if !neighbors.isEmpty, !inBody || !inTitle {
+                    inBody = inBody || !neighbors[t].isDisjoint(with: bodyWords)
+                    inTitle = inTitle || !neighbors[t].isDisjoint(with: titleWords)
+                }
                 bodyHits[index][t] = inBody
                 titleHits[index][t] = inTitle
                 if inBody || inTitle { documentFrequency[t] += 1 }
@@ -911,7 +975,11 @@ enum EntryRetriever {
         return max(0.0, 1.0 - ageDays / 180.0)   // 1.0 today → 0.0 at 180d+
     }
 
-    private static func tokenize(_ text: String) -> [String] {
+    /// The question's content words: lowercased, de-duplicated, stopwords and
+    /// ≤2-character tokens dropped. Internal rather than private so the
+    /// retrieval diagnostics can report the terms a query actually scored on —
+    /// the same reason `keywordScores` and `semanticThreshold` are internal.
+    static func tokenize(_ text: String) -> [String] {
         let words = text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
         var seen = Set<String>()
         var result: [String] = []

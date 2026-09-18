@@ -49,6 +49,9 @@ struct TurnShapeCadence: Sendable, Equatable {
         if stance == .aboutApp {
             return "[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]"
         }
+        if stance == .nearbyOnly {
+            return "[Shape: say nothing here answers that directly, offer the nearest entry only as not-an-answer, then one question back toward them. Never a second question.]"
+        }
         if stance == .noMatch {
             return "[Shape: be honest you don't see it, then one question back toward them. Never a second question.]"
         }

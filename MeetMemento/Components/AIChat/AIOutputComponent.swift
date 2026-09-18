@@ -405,7 +405,7 @@ public struct AIOutputComponent: View {
                     } label: {
                         Image(systemName: speakIcon)
                             .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                            .foregroundStyle(isSpeaking || isPaused ? theme.accent : theme.mutedForeground)
+                            .foregroundStyle(isSpeaking || isPaused ? theme.accent : theme.iconForeground)
                             .animation(.easeOut(duration: 0.2), value: isSpeaking)
                             .animation(.easeOut(duration: 0.2), value: isPaused)
                     }
@@ -420,7 +420,7 @@ public struct AIOutputComponent: View {
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(theme.mutedForeground)
+                        .foregroundStyle(theme.iconForeground)
                 }
                 .accessibilityLabel("Copy")
 
@@ -430,7 +430,7 @@ public struct AIOutputComponent: View {
                 } label: {
                     Image(systemName: feedbackType == .positive ? "hand.thumbsup.fill" : "hand.thumbsup")
                         .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(feedbackType == .positive ? theme.accent : theme.mutedForeground)
+                        .foregroundStyle(feedbackType == .positive ? theme.accent : theme.iconForeground)
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
                 .accessibilityLabel(feedbackType == .positive ? "Remove thumbs up" : "Thumbs up")
@@ -442,7 +442,7 @@ public struct AIOutputComponent: View {
                 } label: {
                     Image(systemName: feedbackType == .negative ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                         .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                        .foregroundStyle(feedbackType == .negative ? theme.destructive : theme.mutedForeground)
+                        .foregroundStyle(feedbackType == .negative ? theme.destructive : theme.iconForeground)
                         .animation(.easeOut(duration: 0.2), value: feedbackType)
                 }
                 .accessibilityLabel(feedbackType == .negative ? "Remove thumbs down" : "Thumbs down")
@@ -458,7 +458,7 @@ public struct AIOutputComponent: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 14, weight: .bold)) // icon-size: not user text
-                            .foregroundStyle(theme.mutedForeground)
+                            .foregroundStyle(theme.iconForeground)
                     }
                     .accessibilityLabel("Regenerate")
                 }

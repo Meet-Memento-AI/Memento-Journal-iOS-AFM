@@ -26,7 +26,7 @@
 
 **Resolution**:
 - ✅ Created comprehensive support.html page
-- ✅ Added contact email: support@meetmemento.app
+- ✅ Added contact email: hello@withmemento.ai
 - ✅ Added 10+ FAQ questions
 - ✅ Added troubleshooting guides
 - ✅ Professional responsive design
@@ -179,7 +179,7 @@ grep -r "Analytics|Tracking|Firebase|Mixpanel" . --type swift
 ## 🚨 Important Notes
 
 ### About the Support Email
-The support page uses: `support@meetmemento.app`
+The support page uses: `hello@withmemento.ai`
 
 **You need to either**:
 1. Set up this email (purchase domain + email hosting), OR

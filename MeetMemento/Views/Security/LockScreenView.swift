@@ -257,12 +257,15 @@ struct LockScreenView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
+                        // Glyph and label part company here: the icon runs at
+                        // full contrast, the label stays secondary-rank.
                         Image(systemName: biometricIconName)
                             .font(.system(size: 16)) // icon-size: not user text
+                            .foregroundStyle(theme.iconForeground)
                         Text("Use \(viewModel.biometricTypeName)")
                             .font(type.body2)
+                            .foregroundStyle(theme.mutedForeground)
                     }
-                    .foregroundStyle(theme.mutedForeground)
                 }
                 .padding(.top, 8)
             }

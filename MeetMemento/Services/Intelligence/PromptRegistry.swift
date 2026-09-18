@@ -12,7 +12,7 @@
 //  person as a dated list above the reply (AIOutputComponent), not as inline
 //  markers — inline citations return in a later release.
 //
-//  ask-core@16 (044 R5 / Session 6): voice + recipe + bans in the core;
+//  ask-core@17 (044 R5 / Session 6): voice + recipe + bans in the core;
 //  per-channel stance list moved to ≤6-line suffixes. ask@15 is the frozen
 //  8214-character baseline for the shrink gate.
 //
@@ -246,7 +246,7 @@ enum PromptRegistry {
     /// the "About this person" section when the user gave refinement data.
     /// `channel` selects `chat-light@4` on phatic/continuer and
     /// `chat-companion@1` on companion/meta/redirect (spec 039); nil
-    /// keeps the heavy `ask-core@16` + notebook suffix so existing call
+    /// keeps the heavy `ask-core@17` + notebook suffix so existing call
     /// sites stay pinned to the journal recipe.
     static func instructions(
         for intent: GenerationIntent,
@@ -270,11 +270,11 @@ enum PromptRegistry {
                 let section = personalizationSection(personalization)
                 return ResolvedPrompt(text: text + "\n\n" + section, version: version + "+p4")
             }
-            // ask-core@16: stance list moved to the channel suffix (044 R5).
+            // ask-core@17: stance list moved to the channel suffix (044 R5).
             let suffixChannel = channel ?? .notebook
             let base = (degraded ? askCoreDegraded : askCore)
                 + "\n\n" + channelSuffix(suffixChannel, degraded: degraded)
-            let version = degraded ? "ask-degraded@16" : "ask-core@16"
+            let version = degraded ? "ask-degraded@17" : "ask-core@17"
             guard personalization.hasAskPersonalization else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -388,7 +388,7 @@ enum PromptRegistry {
     [Safety: no advice] line is present, obey it strictly.
     """
 
-    // MARK: - Ask (journal chat) — ask-core@16 (044 R5)
+    // MARK: - Ask (journal chat) — ask-core@17 (044 R5)
 
     /// Frozen ask@15 character count for the Session 6 shrink gate (≤ 55%).
     static let ask15BaselineCharacterCount = 8_214
@@ -524,7 +524,7 @@ enum PromptRegistry {
     /// Stances that channel's suffix must mention (`tagPrefix`).
     static func suffixStances(for channel: ReplyChannel) -> [TurnStance] {
         switch channel {
-        case .notebook: return [.journalGrounded, .noMatch]
+        case .notebook: return [.journalGrounded, .nearbyOnly, .noMatch]
         case .thread: return [.followupThread]
         case .companion: return [.sharing]
         case .meta: return [.aboutApp]
@@ -533,23 +533,31 @@ enum PromptRegistry {
         }
     }
 
+    /// Every per-stance rule here is also on the `[Turn:]` line the pipeline
+    /// emits each turn (`TurnStance.promptLine`), so this suffix says the
+    /// minimum that keeps the instructions aware of every stance the channel can
+    /// produce — which is what `PromptStanceSyncTests` checks. It is kept terse
+    /// because it is re-prefilled on every speculative miss and `ask-core@17` is
+    /// held to 55% of ask@15 by `AskPromptSizeTests`.
     private static let notebookSuffix = """
-    Notebook channel. [Turn: journal question] — Meet them, one ### moment, \
-    italic exact quote, Sit that names a pattern from the evidence; lists \
-    only if they asked what they have written about a topic; reproduce any \
-    quoted field exactly; then one question; list used [ref] numbers in \
-    citedRefs; do not reopen an entry already used in this thread.
-    [Turn: journal question, no matches] — Meet them, say you don't see \
-    anything from that stretch; then one question back toward them; no \
-    heading, no list; do not invent any; do not change the subject.
+    Notebook channel. [Turn: journal question] — Meet, one ### moment, \
+    italic quote, Sit naming a pattern; lists only if they asked what they \
+    wrote; reproduce any quoted field exactly; then one question; used [ref] \
+    numbers in citedRefs; do not reopen an entry already used in the thread.
+    [Turn: journal question, nothing direct] — nothing answers that \
+    directly; at most one nearest entry, as not-an-answer; one question.
+    [Turn: journal question, no matches] — say you don't see anything \
+    from that stretch; one question back; no heading, no list.
     """
 
     private static let notebookSuffixDegraded = """
     [Turn: journal question] — Meet, one ###, italic quote, Sit that names \
     a pattern; lists only if they asked what they wrote; then one \
-    question; list used [ref] numbers. [Turn: journal question, no matches] \
-    — say you don't see anything from that stretch; then one question; \
-    no heading, no list; do not invent.
+    question; list used [ref] numbers. [Turn: journal question, nothing \
+    direct] — nothing answers that directly; at most one nearest entry, \
+    said to be not an answer; never "I see nothing"; no ###; one question. \
+    [Turn: journal question, no matches] — say you don't see anything from \
+    that stretch; then one question; no heading, no list; do not invent.
     """
 
     private static let threadSuffix = """

@@ -83,8 +83,12 @@ final class RetrievalPolicyTests: XCTestCase {
 
     func test_stance_journalQueryHonestOnNoMatch() {
         XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: grounded()), .journalGrounded)
-        XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: ambient()), .noMatch)
+        // Ambient is not nothing: the entries are in the prompt, so the honest
+        // stance offers the nearest one rather than denying it exists.
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: ambient()), .nearbyOnly)
         XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: .empty), .noMatch)
+        XCTAssertFalse(TurnStance.nearbyOnly.isGrounded)
+        XCTAssertFalse(TurnStance.nearbyOnly.isGrounded(retrieval: ambient()))
     }
 
     func test_stance_reflectiveStaysSharing() {

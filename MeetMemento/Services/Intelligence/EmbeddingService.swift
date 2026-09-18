@@ -99,6 +99,7 @@ final class EmbeddingService: @unchecked Sendable {
     /// touches disk encrypted (via JournalService), so it is rebuilt lazily
     /// each launch instead of being persisted alongside the vector files.
     private var lowercasedCache: [UUID: (hash: UInt64, title: String, text: String)] = [:]
+    private var wordSetCache: [UUID: (hash: UInt64, title: Set<String>, text: Set<String>)] = [:]
 
     /// Small LRU of query vectors so repeated/follow-up questions skip
     /// NLEmbedding entirely. Keyed by the stable hash of the query text.
@@ -421,6 +422,79 @@ final class EmbeddingService: @unchecked Sendable {
         return (loweredTitle, loweredText)
     }
 
+    // MARK: - Word neighbours (small-corpus keyword matching)
+
+    /// The entry's distinct words, lowercased, cached under the same content
+    /// hash as its vector and its lowercased text.
+    func wordSets(id: UUID, contentHash: UInt64, title: String, text: String) -> (title: Set<String>, text: Set<String>) {
+        lock.lock()
+        if let cached = wordSetCache[id], cached.hash == contentHash {
+            lock.unlock()
+            return (cached.title, cached.text)
+        }
+        lock.unlock()
+
+        let titleWords = Self.words(in: title)
+        let textWords = Self.words(in: text)
+        lock.lock()
+        wordSetCache[id] = (contentHash, titleWords, textWords)
+        lock.unlock()
+        return (titleWords, textWords)
+    }
+
+    static func words(in text: String) -> Set<String> {
+        Set(text.lowercased().split { !$0.isLetter && !$0.isNumber }
+            .map(String.init).filter { $0.count > 2 })
+    }
+
+    /// Loaded once. `wordEmbedding(for:)` maps a sizeable asset, and the
+    /// vocabulary scan below runs per query term on every small-corpus turn.
+    private lazy var wordEmbedding: NLEmbedding? = NLEmbedding.wordEmbedding(for: .english)
+
+    /// Which of `candidates` the English word embedding places within
+    /// `maxDistance` of `term`, plus `term` itself when the candidates contain it.
+    ///
+    /// This is how a small corpus widens keyword matching past the trailing-
+    /// inflection rule in `EntryRetriever.containsWord`, which reaches
+    /// *class*/*classes* but no stem change: *sleeping* does not match *slept*.
+    ///
+    /// Two approaches were tried first and did not work.
+    /// `NLTagger`'s `.lemma` scheme is the obvious tool and returns nil for
+    /// every token on-device without a downloaded asset — measured, including
+    /// with an explicit `setLanguage`. `NLEmbedding.neighbors(for:)` does know
+    /// the relationship (*sleeping*/*slept* is 0.73 apart) but ranks *slept*
+    /// outside the top handful of neighbours, so a bounded neighbour list
+    /// silently dropped exactly the case this exists for.
+    ///
+    /// Scoring the corpus's own vocabulary is exact and has no ranking to
+    /// truncate. It is affordable only because it is size-gated: a journal of
+    /// `RetrieverTuning.smallCorpusMax` entries has a vocabulary of a few
+    /// hundred words, and the result is computed once per term per retrieval.
+    ///
+    /// The caller's bar is doing the honesty work, and the gap it has to fit in
+    /// is narrow — see `RetrieverTuning.neighborDistance` for the measured
+    /// pairs. This is deliberately *not* the sentence-level similarity the
+    /// per-entry lexical test exists to overrule: that runs 0.6+ against any
+    /// well-formed English and would ground anything.
+    func wordsNear(_ term: String, in candidates: Set<String>, maxDistance: Double) -> Set<String> {
+        guard let embedding = wordEmbedding else {
+            return candidates.contains(term) ? [term] : []
+        }
+        var result: Set<String> = candidates.contains(term) ? [term] : []
+        for candidate in candidates where candidate != term {
+            if embedding.distance(between: term, and: candidate, distanceType: .cosine) <= maxDistance {
+                result.insert(candidate)
+            }
+        }
+        return result
+    }
+
+    /// Distance between two words, for tuning reports. Nil when the embedding
+    /// is unavailable.
+    func wordDistance(_ a: String, _ b: String) -> Double? {
+        wordEmbedding.map { $0.distance(between: a, and: b, distanceType: .cosine) }
+    }
+
     // MARK: - Purge (spec 029 R8: derived journal data follows its source)
 
     /// Drop every cached derivative of the given entries — memory and disk.
@@ -431,6 +505,7 @@ final class EmbeddingService: @unchecked Sendable {
         for id in entryIds {
             entryCache.removeValue(forKey: id)
             lowercasedCache.removeValue(forKey: id)
+            wordSetCache.removeValue(forKey: id)
             passageCache.removeValue(forKey: id)
         }
         lock.unlock()
@@ -448,6 +523,7 @@ final class EmbeddingService: @unchecked Sendable {
         purgeEpoch &+= 1   // an in-flight disk load must not resurrect the dropped set
         entryCache = entryCache.filter { ids.contains($0.key) }
         lowercasedCache = lowercasedCache.filter { ids.contains($0.key) }
+        wordSetCache = wordSetCache.filter { ids.contains($0.key) }
         passageCache = passageCache.filter { ids.contains($0.key) }
         lock.unlock()
 
@@ -465,6 +541,7 @@ final class EmbeddingService: @unchecked Sendable {
         purgeEpoch &+= 1   // an in-flight disk load must not merge after this wipe
         entryCache.removeAll()
         lowercasedCache.removeAll()
+        wordSetCache.removeAll()
         passageCache.removeAll()
         lastEmbeddedPassageIndexes = []
         queryCache.removeAll()

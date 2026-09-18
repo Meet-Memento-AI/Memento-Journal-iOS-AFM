@@ -31,6 +31,9 @@ final class RetrievalGate: XCTestCase {
         let (corpus, fixtureByUUID) = try ChatEvalCorpus.personaCorpus()
         let gold = try ChatEvalCorpus.goldQuestions()
         XCTAssertGreaterThanOrEqual(corpus.count, 250, "persona corpus must be present")
+        // The small-corpus branch must not be reachable here, or the fitted
+        // weights below would no longer describe production behaviour at scale.
+        XCTAssertGreaterThan(corpus.count, RetrieverTuning.default.smallCorpusMax)
         EntryRetriever.warmEmbeddings(corpus, generation: 1)
 
         let scored = Self.run(
@@ -45,6 +48,43 @@ final class RetrievalGate: XCTestCase {
             let grid = Self.gridSearch(gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID)
             print(grid)
             Self.write(report: report, items: scored, extra: ("grid.md", grid))
+        }
+    }
+
+    /// The small-corpus branch must be provably inert at the size the gold set
+    /// was fitted on.
+    ///
+    /// The structural argument is that `entries.count <= smallCorpusMax` is
+    /// false for all 262 entries, so the branch cannot execute. This checks it
+    /// rather than asserting it: the same gold set is scored with the shipped
+    /// tuning and with the branch disabled outright, and every per-question
+    /// result must match. A discrepancy means the predicate leaked.
+    func test_smallCorpusBranch_doesNotReachTheGoldSet() throws {
+        let env = ProcessInfo.processInfo.environment
+        try XCTSkipUnless(
+            env["TEST_RUNNER_RETRIEVAL_GATE"] == "1" || env["RETRIEVAL_GATE"] == "1",
+            "set TEST_RUNNER_RETRIEVAL_GATE=1"
+        )
+
+        let (corpus, fixtureByUUID) = try ChatEvalCorpus.personaCorpus()
+        let gold = try ChatEvalCorpus.goldQuestions()
+        EntryRetriever.warmEmbeddings(corpus, generation: 1)
+
+        var disabled = RetrieverTuning.default
+        disabled.smallCorpusMax = 0
+
+        let shipped = Self.run(gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID, tuning: .default)
+        let without = Self.run(gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID, tuning: disabled)
+
+        XCTAssertEqual(shipped.recallAt5, without.recallAt5, accuracy: 0)
+        XCTAssertEqual(shipped.precisionAt5, without.precisionAt5, accuracy: 0)
+        XCTAssertEqual(shipped.mrr, without.mrr, accuracy: 0)
+        XCTAssertEqual(shipped.abstentionAccuracy, without.abstentionAccuracy, accuracy: 0)
+        XCTAssertEqual(shipped.items.count, without.items.count)
+        for (a, b) in zip(shipped.items, without.items) {
+            XCTAssertEqual(a.top, b.top, "\(a.id): different entries reached the prompt")
+            XCTAssertEqual(a.ambient, b.ambient, "\(a.id): different ambient verdict")
+            XCTAssertEqual(a.empty, b.empty, "\(a.id): different empty verdict")
         }
     }
 

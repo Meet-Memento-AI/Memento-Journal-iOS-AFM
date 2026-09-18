@@ -120,7 +120,7 @@ We have addressed both issues:
    https://sebmendo1.github.io/MeetMemento/support.html
 
    This page includes:
-   • Email support contact (support@meetmemento.app)
+   • Email support contact (hello@withmemento.ai)
    • Comprehensive FAQ section
    • Troubleshooting guides
    • Getting started documentation
@@ -161,7 +161,7 @@ Before completing, verify:
 
 ## 📧 Support Email Setup
 
-**Important**: The support page references `support@meetmemento.app`
+**Important**: The support page references `hello@withmemento.ai`
 
 You have two options:
 

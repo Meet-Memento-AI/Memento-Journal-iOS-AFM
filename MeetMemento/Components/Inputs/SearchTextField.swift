@@ -22,7 +22,7 @@ struct SearchTextField: View {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: "magnifyingglass")
                     .font(type.body1)
-                    .foregroundStyle(isFocused ? theme.accent : theme.mutedForeground)
+                    .foregroundStyle(isFocused ? theme.accent : theme.iconForeground)
 
                 TextField(placeholder, text: $text)
                     .font(type.input)
@@ -40,7 +40,7 @@ struct SearchTextField: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(type.body2)
-                            .foregroundStyle(theme.mutedForeground)
+                            .foregroundStyle(theme.iconForeground)
                     }
                     .accessibilityLabel("Clear search")
                 }

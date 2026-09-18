@@ -28,6 +28,15 @@ final class MockNotificationScheduling: NotificationScheduling {
         added.removeAll { identifiers.contains($0.identifier) }
     }
 
+    /// Clears what this mock has recorded. A method rather than letting the
+    /// setters out: `added` and `removedIdentifiers` are `private(set)` so only
+    /// the scheduling calls can append to them, and `setUp` mutating them
+    /// directly does not compile.
+    func resetRecordings() {
+        added.removeAll()
+        removedIdentifiers.removeAll()
+    }
+
     func pendingNotificationRequests() async -> [UNNotificationRequest] {
         added
     }
@@ -44,8 +53,7 @@ final class NotificationServiceTests: XCTestCase {
         PreferencesService.shared.weeklyReadyEnabled = false
         PreferencesService.shared.dailyReminderHour = 20
         PreferencesService.shared.dailyReminderMinute = 0
-        mock.added.removeAll()
-        mock.removedIdentifiers.removeAll()
+        mock.resetRecordings()
     }
 
     override func tearDown() async throws {

@@ -26,7 +26,7 @@ final class ConversationalRecallContractTests: XCTestCase {
     func test_interpretation_isForbidden() {
         let text = askText()
         XCTAssertTrue(text.contains("do not name the meaning") || text.contains("Put evidence in front of them"))
-        // ask-core@16 rephrased this ban from "Never name their emotions" to
+        // ask-core@17 rephrased this ban from "Never name their emotions" to
         // "Do not name their emotions or diagnose how they felt". Match the
         // phrasing-agnostic substring, as test_emotionLabel_isForbidden already
         // does — the contract is that the ban is stated, not how it is worded.
@@ -111,8 +111,8 @@ final class ConversationalRecallContractTests: XCTestCase {
     // MARK: R5 / R1 — version and notebook voice
 
     func test_ask9_versions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@16")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@16")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@17")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@17")
     }
 
     func test_notebookVoice_andShapeContract() {

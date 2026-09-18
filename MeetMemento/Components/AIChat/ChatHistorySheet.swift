@@ -80,7 +80,7 @@ public struct ChatHistorySheet: View {
 
                     Image(systemName: "bubble.left.and.bubble.right")
                         .font(.system(size: 48)) // icon-size: not user text
-                        .foregroundStyle(theme.mutedForeground)
+                        .foregroundStyle(theme.iconForeground)
 
                     Text("No conversations yet")
                         .font(type.h5)

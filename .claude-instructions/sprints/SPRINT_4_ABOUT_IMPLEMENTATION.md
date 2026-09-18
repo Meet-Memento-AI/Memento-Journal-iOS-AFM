@@ -32,7 +32,7 @@ Successfully implemented AboutSettingsView - **REQUIRED for App Store submission
 #### **Support Section**
 - **Contact Support**
   - Opens Mail.app with pre-filled email
-  - Email: support@meetmemento.app
+  - Email: hello@withmemento.ai
   - Includes app version in email body
   - Includes device info for troubleshooting
   - Fallback for devices without Mail.app
@@ -280,7 +280,7 @@ Settings
 - Required legal document
 
 ✅ **6. Contact Support Option**
-- mailto: link to support@meetmemento.app
+- mailto: link to hello@withmemento.ai
 - Pre-filled with app/device info
 - Easy user support
 
@@ -303,7 +303,7 @@ Settings
    - Status: Placeholder
    - Action Required: Host actual Privacy Policy document
 
-3. **Support Email:** `support@meetmemento.app`
+3. **Support Email:** `hello@withmemento.ai`
    - Status: Placeholder
    - Action Required: Set up email address or update to real email
 
@@ -341,7 +341,7 @@ let email = "your-actual-support@email.com"
 1. User taps "Contact Support"
 2. Mail.app opens (if available)
 3. Email pre-filled with:
-   - To: support@meetmemento.app
+   - To: hello@withmemento.ai
    - Subject: "MeetMemento Support Request"
    - Body: App version, device info
 4. User writes issue and sends
@@ -458,7 +458,7 @@ let email = "your-actual-support@email.com"
    - Update URLs in AboutSettingsView
 
 2. **Set Up Support Email** (CRITICAL)
-   - Create support@meetmemento.app (or similar)
+   - Create hello@withmemento.ai (or similar)
    - Set up email forwarding/handling
    - Update email in AboutSettingsView
    - Test mailto: functionality

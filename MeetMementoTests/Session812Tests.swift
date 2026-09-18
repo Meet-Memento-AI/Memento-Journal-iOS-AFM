@@ -184,7 +184,7 @@ final class Session812Tests: XCTestCase {
         let result = AskResult(
             heading1: nil, heading2: nil, body: "hi", citations: [],
             zoneUsed: .z0Device, wasDegraded: false,
-            promptVersion: "ask-core@16", modelIdentifier: "mock"
+            promptVersion: "ask-core@17", modelIdentifier: "mock"
         )
         XCTAssertEqual(result.toolsCalled, 0)
     }

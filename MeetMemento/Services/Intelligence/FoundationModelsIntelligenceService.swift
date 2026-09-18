@@ -330,7 +330,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@16` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@17` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -1066,7 +1066,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let stance = RetrievalPolicy.stance(turn: core.turn, retrieval: retrieval)
         let hasEvidence = !retrieval.isEmpty && !retrieval.isAmbient
         let move = ConversationalMove.resolve(
-            turn: core.turn, message: core.question, history: core.history, hasEvidence: hasEvidence
+            turn: core.turn, message: core.question, history: core.history,
+            hasEvidence: hasEvidence,
+            hasNearbyEvidence: !retrieval.isEmpty && retrieval.isAmbient
         )
         let shape = resolveTurnShape(for: stance, isNewConversation: isNewConversation)
         let computedSlice = ComputedFactsBlock.entriesForFacts(
@@ -1469,6 +1471,33 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// A stream with no new snapshot for this long is stalled (spec 029 R7).
     static let generationWatchdogTimeout: Duration = .seconds(30)
+
+    /// The same deadline for a narrated turn. Thirty seconds is a fair stall
+    /// budget on the chat page, where the user still has a keyboard and a
+    /// visible cancel. Narration Mode is half-duplex: the mic is torn down for
+    /// the whole of "Thinking…", so a stalled spoken turn leaves the user with
+    /// no hands-free way out and nothing to listen to. Failing fast is the
+    /// kinder outcome — the coordinator already recovers by releasing the
+    /// pre-activated TTS session and re-arming the mic, so an 8s deadline
+    /// turns a dead session into a re-ask.
+    static let spokenGenerationWatchdogTimeout: Duration = .seconds(8)
+
+    /// Pure selector (unit-tested) so the deadline is one decision rather than
+    /// a ternary buried in a child task.
+    static func generationWatchdogTimeout(spoken: Bool) -> Duration {
+        spoken ? spokenGenerationWatchdogTimeout : generationWatchdogTimeout
+    }
+
+    /// Poll cadence for the stall watchdog. A fixed 5s tick against an 8s
+    /// deadline fires anywhere in 10–15s, which would give back most of what
+    /// the shorter spoken deadline buys — so the tick is derived from the
+    /// deadline instead, keeping worst-case overshoot proportional (one
+    /// eighth) rather than absolute. Clamped at both ends so a short deadline
+    /// cannot spin and a long one cannot drift.
+    static func watchdogPollInterval(for timeout: Duration) -> Duration {
+        let eighth = timeout / 8
+        return max(.milliseconds(250), min(eighth, .seconds(5)))
+    }
     /// How far the incremental output-safety scan re-reads behind its
     /// watermark. An unsafe phrase either lies in already-scanned text, in the
     /// new suffix, or spans the boundary — and no scanner pattern matches more
@@ -1652,11 +1681,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         // Watchdog (spec 029 R7): a stream that stops producing
                         // snapshots for the timeout window is stalled — fail the
                         // turn with a designed error instead of hanging forever.
-                        group.addTask {
+                        group.addTask { [spoken = prep.spoken] in
+                            let timeout = Self.generationWatchdogTimeout(spoken: spoken)
+                            let tick = Self.watchdogPollInterval(for: timeout)
                             while !Task.isCancelled {
-                                do { try await Task.sleep(for: .seconds(5)) } catch { return nil }
+                                do { try await Task.sleep(for: tick) } catch { return nil }
                                 let idle = lastProgress.withLock { clock.now - $0 }
-                                if idle >= Self.generationWatchdogTimeout {
+                                if idle >= timeout {
                                     throw IntelligenceError.generationTimedOut
                                 }
                             }
@@ -1883,6 +1914,25 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return condensed.isEmpty ? nil : condensed
     }
 
+    /// Reconciles the stance with what the prompt is actually going to carry.
+    ///
+    /// The two are decided in different places — `RetrievalPolicy.stance` from
+    /// the retrieval result, the evidence block from the channel and the pool
+    /// slice — and when they disagree the model is handed a contradiction and
+    /// resolves it by ignoring one half. That is the cold-start defect: a denial
+    /// stance shipped alongside the entries it denied, and replies that said
+    /// "I don't see anything about that" and then described the entries.
+    ///
+    /// So the prompt never asks for a denial while holding evidence, and never
+    /// promises nearby entries it does not have, whatever the caller passed.
+    static func stanceMatchingEvidence(_ stance: TurnStance, hasEvidenceBlock: Bool) -> TurnStance {
+        switch stance {
+        case .nearbyOnly where !hasEvidenceBlock: return .noMatch
+        case .noMatch where hasEvidenceBlock: return .nearbyOnly
+        default: return stance
+        }
+    }
+
     static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
                                        stance: TurnStance, shape: RecallTurnShape,
                                        archiveEmpty: Bool, budget _: ContextBudget,
@@ -1932,9 +1982,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // the deterministic instruction that stops it from grounding casual
         // conversation in journal entries. Spec 037 / 039: [Shape:] says how
         // to Open; Open is required. Light channels skip this stack.
-        var parts: [String] = [stance.promptLine]
-        let grounded = stance.isGrounded(retrieval: retrieval)
-        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: stance,
+        //
+        // `.nearbyOnly` promises the model that nearby entries are in front of
+        // it. If the block is not actually going to be rendered — a journal
+        // question on a channel that does not retrieve, or a pool slice that
+        // emptied (`sliceRetrieval`) — that promise is the contradiction in the
+        // other direction, so the stance falls back to the honest-empty copy.
+        // Every line below reads `effectiveStance`, never `stance`.
+        let hasEvidenceBlock = channel.allowsRetrieval && !retrieval.contextBlock.isEmpty
+        let effectiveStance = Self.stanceMatchingEvidence(stance, hasEvidenceBlock: hasEvidenceBlock)
+        var parts: [String] = [effectiveStance.promptLine]
+        let grounded = effectiveStance.isGrounded(retrieval: retrieval)
+        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
                                                       isGrounded: grounded) {
             parts.append(overlay)
         }
@@ -1961,19 +2020,24 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         if channel == .notebook, let computed = ComputedFactsBlock.render(computedFacts) {
             parts.append(computed)
         }
-        if channel.allowsRetrieval, !retrieval.contextBlock.isEmpty {
+        if hasEvidenceBlock {
             // Frame as optional evidence so the model does not treat the block
             // as a script to paraphrase ("you wrote this, this, and this").
             //
-            // The `.noMatch` case needs the extra line. Ambient retrieval still
-            // ships the full text of recent entries, so on a journal question
-            // with no topical hit the model was told "say you don't see
-            // anything from that stretch" and handed five quotable entries in
-            // the same prompt. It resolved that contradiction the obvious way:
-            // "What color is my bicycle?" came back with fog on Mount
-            // Tamalpais and a friend's remark about feeling calm, never once
-            // saying it had nothing. Name the entries as unrelated instead of
-            // hoping the stance line outweighs the evidence.
+            // Ambient retrieval is the hard case: it ships the full text of
+            // recent entries, so a journal question with no topical hit used to
+            // be told "say you don't see anything from that stretch" while
+            // holding five quotable entries. The model resolved that
+            // contradiction by doing both — denying the topic and then
+            // paraphrasing the entries anyway. Reported most often at cold
+            // start, where a three-entry journal almost always lands here.
+            //
+            // The fix is to stop giving a contradictory instruction. Ambient is
+            // now its own stance (`.nearbyOnly`), and its framing says the true
+            // thing: nothing here is on topic, and you may name the nearest
+            // entry *as* a near-miss. `.noMatch` keeps the flat denial and is
+            // now reachable only where the prompt genuinely carries no evidence
+            // (the `else if` below).
             //
             // NOTE (2026-08-23): withholding the text entirely was tried here
             // and reverted. It fixed the bait cases outright — 8/8 no-match
@@ -1981,17 +2045,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // recall in the same run: "How have I been sleeping?", "What did I
             // write about the hike?" and "What happened with Priya?" all came
             // back "I don't see anything from that stretch" against a journal
-            // that answers all three. Those turns are `.noMatch` only because
-            // retrieval under-scores them, and the ambient text was the one
-            // thing making them answerable. Fix the scoring first; see the
-            // retrieval-recall issue.
-            let framing = stance == .noMatch
-                ? "Journal evidence — NOTHING HERE MATCHES WHAT THEY ASKED ABOUT. "
-                + "These are recent entries for background only. Say plainly you don't see "
-                + "anything on that topic; do not offer these as an answer to it:\n"
+            // that answers all three. That revert still stands: every character
+            // of the ambient text stays in the prompt. Only the instruction
+            // that contradicted it changed.
+            let framing = effectiveStance == .nearbyOnly
+                ? "Journal evidence — these are the person's most recent entries, NOT an answer "
+                + "to what they asked. Nothing here is on their topic. Do not treat this as the "
+                + "answer and do not summarize it. You may mention at most one of these, and only "
+                + "while saying clearly it is not what they asked about. Never claim the notebook "
+                + "is empty or that you see nothing:\n"
                 : "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
             parts.append(framing + retrieval.contextBlock)
-        } else if stance == .noMatch || grounded {
+        } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {

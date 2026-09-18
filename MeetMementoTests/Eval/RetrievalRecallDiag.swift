@@ -46,6 +46,7 @@ final class RetrievalRecallDiag: XCTestCase {
         let (corpus, fixtureByUUID) = try ChatEvalCorpus.personaCorpus()
         let gold = try ChatEvalCorpus.goldQuestions()
         XCTAssertGreaterThanOrEqual(corpus.count, 250)
+        XCTAssertGreaterThan(corpus.count, RetrieverTuning.default.smallCorpusMax)
 
         // Warm the vector cache once, exactly as the app does before a turn.
         EntryRetriever.warmEmbeddings(corpus, generation: 1)

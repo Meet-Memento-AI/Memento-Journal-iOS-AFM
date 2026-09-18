@@ -201,7 +201,7 @@ struct ReplyOverflowMenu: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(isReported ? theme.accent : theme.mutedForeground)
+                .foregroundStyle(isReported ? theme.accent : theme.iconForeground)
                 .frame(minWidth: 28, minHeight: 28)
                 .contentShape(Rectangle())
         }
