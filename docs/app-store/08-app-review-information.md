@@ -183,10 +183,15 @@ public.
    be caught overstating.
 5. **The notes and the privacy policy must agree.** Section 4 of the notes is a
    compressed restatement of the policy; if the policy changes, this changes.
-6. **The notes and the Resolution Center reply are one text.** Both cap at 4000
-   (bytes and characters respectively). Write once, paste twice — a reply that
-   says something the Notes field does not is a contradiction in the reviewer's
-   own tab.
+6. **The notes and the Resolution Center reply must not contradict each other.**
+   They are two files —
+   `metadata/en-US/review_notes.txt` and `metadata/en-US/resolution_center_reply.txt` —
+   because the limits are not the same: the Notes field caps at **4000 bytes**,
+   the reply at **4000 characters**, and the reply additionally carries a
+   greeting, the attachment reference and a sign-off. Identical text does not
+   fit. Both are length-gated by `check_asc_metadata.sh`. Change one, change the
+   other: a reply that says something the Notes field does not is a
+   contradiction sitting in the reviewer's own tab.
 
 ---
 

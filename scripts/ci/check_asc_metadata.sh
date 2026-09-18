@@ -34,6 +34,11 @@ LIMITS=(
   "description|4000|chars"
   "release_notes|4000|chars"
   "review_notes|4000|bytes"
+  # Resolution Center reply. Apple caps it at 4000 CHARACTERS, a separate
+  # limit from the Notes field's 4000 bytes, so it is measured separately
+  # and the two files are allowed to differ. They must not CONTRADICT each
+  # other - see docs/app-store/08 section 5 rule 6.
+  "resolution_center_reply|4000|chars"
 )
 
 echo "App Store Connect metadata: $META_DIR"
