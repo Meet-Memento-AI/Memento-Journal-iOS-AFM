@@ -73,8 +73,8 @@ reject us on.
 |---|---|---|---|
 | C1 | Bump the build number past the last consumed build. | agent | ✅ **Done 2026-09-17** — `CURRENT_PROJECT_VERSION` 3 → **4**. `1.0(3)` was uploaded for the September 2026 submission and is now permanently consumed, so the floor moved; recorded in `last-uploaded-build.txt` and enforced by `check_store_metadata.sh`. (Previously 2 → 3 on 2026-08-07 after the November 2025 rejection consumed `1.0(2)`.) **Decision 2026-09-17: build 4 ships.** The Guideline 2.1 citation alone needed no binary, but the support-email re-point to `hello@withmemento.ai` lives in `MeetMemento/Resources/Constants.swift`, and build 3 has the old address compiled in (verified with `strings` on the archive). Rather than leave the in-app address disagreeing with the website and the ASC support field, the re-point ships in build 4. That converts this cycle into a **binary** submission, so A1 and C3 are now on the critical path |
 | C2 | **Deployment target is `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on the current archive Xcode (SDK max 26).** Spec 015 R7's 27.0 bump lands when the build Mac runs Xcode 27. SpeechAnalyzer is available on iOS 26. | agent | 🟠 **Held at 26.0, correctly** — re-verified 2026-09-12: the build Mac's `/Applications/Xcode.app` is now **26.6 (17F113)**, so supported targets run 12.0–26.6.99. Still no iOS 27 SDK in a GA Xcode, so 26.0 stays right |
-| C3 | Built with **Xcode 26 or later** using an iOS 26+ SDK — mandatory for uploads since **2026-04-28**. **Archive with the release Xcode (26.0.1), not the Xcode 27 beta.** | agent | 🟠 **Archive proven, export never has been.** `archive` succeeded 2026-08-17 on Xcode 26.0.1 (17A400). The build Mac now runs **26.6 (17F113)**, so re-archive on it. **Export remains blocked** on an Apple Distribution cert vs the store profile (`13`), so `-exportArchive` → `altool --validate-app` has **never once completed** — the zero-ITMS-errors line in "Do not press Submit until" is therefore still unevidenced. Also note 2026-09-12: `/Applications/Xcode.app`'s **licence was unaccepted**, which blocked `git`, `xcodebuild` and `simctl` outright; run `sudo xcodebuild -license accept`. |
-| C3a | **The build Mac cannot build the app: no usable iOS runtime.** Root cause pinned 2026-09-17 by building the target directly (bypassing scheme/destination resolution): `error: No simulator runtime version from ["23A8464", "24A434", "24A5390f"] available to use with iphonesimulator SDK version 23F81a`. Xcode 26.6 (17F113) ships the **iOS 26.5** SDK (build `23F81a`); the installed runtimes are **iOS 26.0.1 (`23A8464`)** — *older* than the SDK, so Xcode refuses it — and **two iOS 27.0 builds (`24A434`, `24A5390f`)**, a different major. Device destinations fail the same way (*"iOS 26.5 is not installed"*), so `Any iOS Device` is unavailable and **nothing can be archived**. `SUPPORTED_PLATFORMS` and both SDKs are correct — this is a missing *runtime/device-support component*, not a project defect. The Xcode 27.0 beta can build, but Apple rejects App Store builds made with beta software. | ☐ user | 🔴 **Open.** Fix: `xcodebuild -downloadPlatform iOS` (several GB), or Xcode → Settings → Components → **iOS 26.5**. Confirm with `xcodebuild -showdestinations` returning a non-empty *Available destinations* list — the GUI showing a tick is not evidence; the destination list is. **Blocks C1's build 4 and the whole submission** |
+| C3 | Built with a **GA** Xcode using a current iOS SDK — mandatory for uploads since 2026-04-28. Archive with **Xcode 27.0 GA (`27A266a`) at `~/Downloads/Xcode.app`**, never the `Xcode-beta.app` seed (`27A5228h`). | agent + ☐ user | 🟡 **Archive proven 2026-09-17, export blocked on a login.** `archive` succeeds and produces a correct build 4 (`CFBundleVersion 4`, `DTXcodeBuild 27A266a`, `MinimumOSVersion 26.0`, `hello@withmemento.ai` in the binary). `-exportArchive` then fails — and the long-standing "Apple Distribution cert vs store profile" theory is **wrong**. The actual error is: *"Unable to log in with account 'sebasmendo1@gmail.com' … Your session has expired. Please log in."* Automatic signing cannot fetch the distribution profile with a dead session. **Fix: Xcode → Settings → Accounts → sign in again**, then re-run export and `altool --validate-app` |
+| C3a | **Use the right Xcode: `~/Downloads/Xcode.app` (27.0 GA, `27A266a`).** There are three Xcodes on the build Mac and only one can build this project. `/Applications/Xcode.app` is **26.6 (17F113)**, iOS 26.5 SDK — it **cannot compile the app**, because `FoundationModelsIntelligenceService.swift` uses iOS 27 APIs (`LanguageModelError`, `Attachment`, `GeneratedContent.ParsingError`, `SystemLanguageModel.Error`). `~/Downloads/Xcode-beta.app` is **27.0 beta (`27A5228h`)** and must never archive a submission. `~/Downloads/Xcode.app` is **27.0 GA (`27A266a`)** and is what produced every accepted archive. | agent | ✅ **Resolved 2026-09-17** — `DEVELOPER_DIR=~/Downloads/Xcode.app/Contents/Developer` archives cleanly (build 4, 22 warnings, 0 errors). **Correction:** this row previously diagnosed a *missing iOS 26.5 platform* on Xcode 26.6 and prescribed an 8.5 GB `-downloadPlatform iOS`. That download was unnecessary — the real problem was the wrong Xcode. Check `mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'"` for every install **before** concluding a component is missing |
 | C4 | `requiresOnDeviceRecognition` — `SFSpeechRecognizer` is used without it, so audio may leave the device, contradicting the positioning claim CI lints for. Either set it, migrate to `SpeechAnalyzer` per spec 018 R1, **or disclose the off-device path** per 5.1.2(i). | agent | ✅ **Closed by migration, not by the flag. Corrected 2026-09-17** — spec 018 R1 shipped: capture is `SpeechAnalyzer` + `SpeechTranscriber` (`MeetMemento/Services/SpeechAnalyzerEngine.swift`), and **no `SFSpeechAudioBufferRecognitionRequest` or `recognitionTask` exists anywhere in the target**. `requiresOnDeviceRecognition` is therefore **not set and cannot be** — it is a property of the request object the app never constructs. `SFSpeechRecognizer` survives only as the authorization API (`SpeechService.swift:167,178,226`). The defensible claim to Apple is the stronger one: `SpeechTranscriber` runs against locally installed assets (`AssetInventory`), and when they are unavailable dictation **reports unavailable rather than falling back to a server**. The 2026-08-11 note claiming the flag was set was wrong in every doc that repeated it |
 | C5 | Submission noise removed: `Configuration.storekit` with placeholder product IDs `12345678`/`123456789`; dead `SubscriptionPlan.swift` with Supabase-era `CodingKeys`; linked-but-unused `AuthenticationServices.framework`; unhandled `memento://` URL scheme; orphan `GoogleIcon.imageset`. | agent | ✅ **Closed 2026-08-11** — all five deleted (storekit + navigator refs + `membershipExceptions` entries cleaned from pbxproj; `CFBundleURLTypes` removed from Info.plist); `check_archive_hygiene.sh` now reports "no .storekit configuration in the project" |
 | C6 | Release bundle contains only shipping resources — no xcconfigs, no `.storekit`, no internal docs. | agent | ✅ **Re-verified on the 2026-08-17 archive product** — no `.xcconfig`, `.storekit`, or `.md` under `MeetMemento.app`. Still guarded by `check_archive_hygiene.sh`. |
@@ -84,41 +84,69 @@ reject us on.
 | C10 | **App bundle size against the 200 MB cellular-download threshold.** Not Apple's 4 GB limit — the threshold above which iOS prompts before downloading over cellular, a conversion tax paid on every install. No row or gate measured this before 2026-09-12. | agent | 🟠 **188 MB measured 2026-09-12** (Release, simulator arm64, unthinned) — **12 MB of headroom**. `147 MB` of it is the four Core ML voice models bundled per `DEC-012` (VectorEstimator 61.7, Vocoder 48.4, TextEncoder 34.5, DurationPredictor 1.8); the binary is 35 MB. One more voice pack crosses the line. Ceiling recorded in `app-size-budget.txt`, enforced by `scripts/ci/check_app_size.sh` in `ios-build-online.yml` |
 | C11 | **The verification endpoint must actually resolve.** | agent | ✅ **Fixed 2026-09-12** — `Config/Supabase.xcconfig.example` wrote `SUPABASE_URL = https://host` literally, but **xcconfig treats `//` as a comment**, so the value reaching `Info.plist` was `https:`. `URL(string:)` accepts that, so the client reported itself *configured* and failed every spec-042 upload silently while the outbox retried. The URL is now composed through `$(SUPABASE_SLASH)`, and `FeedbackSupabaseConfig.resolve` requires a host (fails closed). Regression-tested in `FeedbackVerificationTests`. **Bearing on D6:** had this shipped, the privacy label would have declared collection that never occurred |
 
-### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
+### ⚠️ Superseded 2026-09-17 — Xcode 27 and iOS 27 shipped
 
-**Corrected 2026-08-08.** Rows C2 and C3 previously instructed a bump to iOS
-27.0 and named the Xcode 27 beta as the archive toolchain. **Both were wrong and
-would have made the app unsubmittable.**
+**The warning below is out of date and its conclusion is now wrong.** It was
+written on 2026-08-08, when iOS 27 and Xcode 27 existed only as betas. Both have
+since gone GA, and the build Mac has **Xcode 27.0 GA, build `27A266a`**, at
+`~/Downloads/Xcode.app`. Every archive Apple has accepted was produced by it,
+against the **iOS 27.0 SDK**.
 
-- **iOS 27 has not shipped GA.** Every reference in this repository is to *Xcode
-  27 beta 4 (27A5228h)* and the iOS 27.0 SDK. **Apple does not accept App Store
-  builds made with beta software**, so a build targeting iOS 27 cannot be
-  submitted, and one archived with the beta Xcode will be rejected at upload
-  regardless of its deployment target.
-- **The release toolchain already satisfies Apple's floor.** `xcodebuild
-  -version` → **Xcode 26.0.1 (17A400)**, GA, shipping the iOS 26.0 SDK — which
-  meets the "Xcode 26 / iOS 26 SDK or later" requirement in force since
-  2026-04-28.
-- **`REQ-PLAT-001` (iOS 27.0 deployment target) is a Memento 2.0 requirement,
-  not a 1.x one.** It becomes actionable only after Apple ships iOS 27 publicly
-  *and* Xcode 27 reaches GA. Until then the 2.0 architecture — Core Spotlight
-  retrieval, PCC/Z1 routing, SwiftData + CloudKit — is unshippable by
-  construction.
+What is still true, and what changed:
 
-The project targets **26.0 in all four build configurations**, which is correct
-and should stay that way. `scripts/ci/check_store_metadata.sh` does **not**
-currently assert this; if a future session bumps it speculatively, nothing will
-catch it — treat this note as the guard.
+- ✅ **Still true: never archive with a beta.** `~/Downloads/Xcode-beta.app` is
+  `27A5228h`, a seed. Apple rejects App Store builds made with beta software.
+  The distinction is GA-vs-beta, **not** 26-vs-27.
+- ❌ **No longer true: "archive with Xcode 26."** `/Applications/Xcode.app`
+  (26.6, iOS 26.5 SDK) **cannot compile this app at all** — the intelligence
+  layer uses iOS 27 FoundationModels APIs that do not exist in the 26.5 SDK.
+- ✅ **Unchanged: `IPHONEOS_DEPLOYMENT_TARGET` stays 26.0.** Building against the
+  iOS 27 SDK while deploying to 26.0 is normal and correct; it is what the
+  shipping archive does (`MinimumOSVersion 26.0`). Do not confuse the SDK with
+  the deployment target — the old warning did.
 
-**Addressable-market consequence, recorded deliberately:** iOS 26.0 plus the
-Apple Intelligence hardware requirement (A17 Pro / M-series) for the generative
-surfaces is a narrow install base. The code handles it correctly —
-`SystemLanguageModel.default.availability` returning `.unavailable(.deviceNotEligible)`
-yields a designed empty state, while capture, voice, timeline, search, and
-export keep working. **That is `DEC-001` Option A, already implemented**; see
-`05` and record it in `specs/021` R2 rather than leaving the decision open.
+The addressable-market note at the end of the original text still stands and is
+retained below.
 
 ---
+
+> **Historical — the 2026-08-08 text, kept for the reasoning:**
+>
+> ### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
+>
+> **Corrected 2026-08-08.** Rows C2 and C3 previously instructed a bump to iOS
+> 27.0 and named the Xcode 27 beta as the archive toolchain. **Both were wrong and
+> would have made the app unsubmittable.**
+>
+> - **iOS 27 has not shipped GA.** Every reference in this repository is to *Xcode
+>   27 beta 4 (27A5228h)* and the iOS 27.0 SDK. **Apple does not accept App Store
+>   builds made with beta software**, so a build targeting iOS 27 cannot be
+>   submitted, and one archived with the beta Xcode will be rejected at upload
+>   regardless of its deployment target.
+> - **The release toolchain already satisfies Apple's floor.** `xcodebuild
+>   -version` → **Xcode 26.0.1 (17A400)**, GA, shipping the iOS 26.0 SDK — which
+>   meets the "Xcode 26 / iOS 26 SDK or later" requirement in force since
+>   2026-04-28.
+> - **`REQ-PLAT-001` (iOS 27.0 deployment target) is a Memento 2.0 requirement,
+>   not a 1.x one.** It becomes actionable only after Apple ships iOS 27 publicly
+>   *and* Xcode 27 reaches GA. Until then the 2.0 architecture — Core Spotlight
+>   retrieval, PCC/Z1 routing, SwiftData + CloudKit — is unshippable by
+>   construction.
+>
+> The project targets **26.0 in all four build configurations**, which is correct
+> and should stay that way. `scripts/ci/check_store_metadata.sh` does **not**
+> currently assert this; if a future session bumps it speculatively, nothing will
+> catch it — treat this note as the guard.
+>
+> **Addressable-market consequence, recorded deliberately:** iOS 26.0 plus the
+> Apple Intelligence hardware requirement (A17 Pro / M-series) for the generative
+> surfaces is a narrow install base. The code handles it correctly —
+> `SystemLanguageModel.default.availability` returning `.unavailable(.deviceNotEligible)`
+> yields a designed empty state, while capture, voice, timeline, search, and
+> export keep working. **That is `DEC-001` Option A, already implemented**; see
+> `05` and record it in `specs/021` R2 rather than leaving the decision open.
+>
+>---
 
 > **Legal host decision, recorded 2026-09-17.** The product now has its own
 > domain (`withmemento.ai`, live, Google Workspace MX). The legal pages
