@@ -136,6 +136,7 @@ final class ConversationSimulation: XCTestCase {
             // --- the person's turn
             let userText: String
             var move: String?
+            var userErrors: [String] = []
             if exchange == 0 {
                 userText = intent.opener
             } else {
@@ -143,23 +144,35 @@ final class ConversationSimulation: XCTestCase {
                     ? ConvoSimCast.closingMove
                     : ConvoSimCast.moves[Int(rng.next() % UInt64(ConvoSimCast.moves.count))]
                 move = drawn
-                do {
-                    userText = try await Self.withTimeout(Self.turnTimeout) {
-                        try await service.evalRawGenerate(
-                            instructions: Self.userInstructions(persona: persona,
-                                                                lifeContext: lifeContext),
-                            prompt: Self.userPrompt(history: history, move: drawn),
-                            temperature: 1.0,
-                            maximumResponseTokens: 90
-                        )
+                // The *simulator's* own guardrail refuses some moves outright
+                // ("ask it to do something it should not"), and an unanswered
+                // user turn ends the conversation. That truncation is an
+                // artefact of the harness, not a fact about the app, so retry
+                // on a safer move and then fall back to a scripted line.
+                var produced: String?
+                for attempt in 0..<2 where produced == nil {
+                    let attemptMove = attempt == 0 ? drawn : ConvoSimCast.safeMove
+                    do {
+                        produced = try await Self.withTimeout(Self.turnTimeout) {
+                            try await service.evalRawGenerate(
+                                instructions: Self.userInstructions(persona: persona,
+                                                                    lifeContext: lifeContext),
+                                prompt: Self.userPrompt(history: history, move: attemptMove),
+                                temperature: 1.0,
+                                maximumResponseTokens: 90
+                            )
+                        }
+                        if attempt == 1 { move = ConvoSimCast.safeMove }
+                    } catch {
+                        userErrors.append("\(error)")
                     }
-                } catch {
-                    Self.flush(Self.row(runID: runID, arm: arm, persona: persona, intent: intent,
-                                        plannedMessages: plannedMessages, index: messageIndex,
-                                        role: "user", text: "", error: "\(error)"))
-                    // No user turn means no assistant turn either — the
-                    // conversation cannot continue, so end it and keep what we have.
-                    return messageIndex
+                }
+                if let produced, !Self.cleanUserTurn(produced).isEmpty {
+                    userText = produced
+                } else {
+                    let pool = ConvoSimCast.fallbackLines
+                    userText = pool[Int(rng.next() % UInt64(pool.count))]
+                    move = "fallback"
                 }
             }
             let cleanedUser = Self.cleanUserTurn(userText)
@@ -169,6 +182,7 @@ final class ConversationSimulation: XCTestCase {
                                    plannedMessages: plannedMessages, index: messageIndex,
                                    role: "user", text: cleanedUser)
             if let move { userRow["move"] = move }
+            if !userErrors.isEmpty { userRow["generation_errors"] = userErrors }
             Self.flush(userRow)
             messageIndex += 1
 
@@ -180,6 +194,7 @@ final class ConversationSimulation: XCTestCase {
             var result: AskResult?
             var failure: String?
             var failureFallback: String?
+            var isDesignedRefusal = false
             let clock = ContinuousClock()
             let begun = clock.now
             do {
@@ -201,6 +216,7 @@ final class ConversationSimulation: XCTestCase {
                 // touch the safety stack, which is the opposite of what this
                 // study wants to capture.
                 failureFallback = (error as? IntelligenceError)?.errorDescription
+                isDesignedRefusal = Self.isDesigned(error)
             }
             let elapsed = clock.now - begun
             let seconds = Double(elapsed.components.seconds)
@@ -211,6 +227,7 @@ final class ConversationSimulation: XCTestCase {
                                role: "assistant",
                                text: result?.body ?? failureFallback ?? "", error: failure)
             if failureFallback != nil { row["text_is_fallback"] = true }
+            if failure != nil { row["designed_refusal"] = isDesignedRefusal }
             row["seconds"] = seconds
             row["turn_type"] = turnType.rawValue
             row["channel"] = channel.rawValue
@@ -251,15 +268,26 @@ final class ConversationSimulation: XCTestCase {
             if let result, failure == nil {
                 history.append(ChatTurn(role: .assistant, text: result.body))
             } else {
-                failedTurns += 1
-                // Four dead turns in one conversation is a wedged model, not a
-                // refusal the person would type through.
+                // A designed refusal is the app working as specified, and a
+                // conversation that draws four of them is a finding worth
+                // having in full — only *undesigned* failures (an unavailable
+                // model, a timeout) suggest a wedged runtime worth bailing on.
+                if !isDesignedRefusal { failedTurns += 1 }
                 guard failedTurns < 4, let fallback = failureFallback else { return messageIndex }
                 history.append(ChatTurn(role: .assistant, text: fallback))
             }
         }
 
         return messageIndex
+    }
+
+    /// `guardrailRefusal`, `crisisResource` and `safetyRefusal` are states the
+    /// app is specified to reach (spec 026); everything else is a runtime fault.
+    private static func isDesigned(_ error: Error) -> Bool {
+        switch error as? IntelligenceError {
+        case .guardrailRefusal, .crisisResource, .safetyRefusal: return true
+        default: return false
+        }
     }
 
     // MARK: - The person's side

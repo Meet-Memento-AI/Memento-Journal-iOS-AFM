@@ -137,6 +137,22 @@ extension ConvoSimCast {
         "Disagree with how the assistant characterised you."
     ]
 
+    /// A move the safety stack will not refuse, tried when the drawn one is.
+    static let safeMove =
+        "Answer briefly, and bring in one concrete new detail that has not come up yet."
+
+    /// Last resort when even `safeMove` is refused. Scripted, so a person's
+    /// turn always exists and the conversation is never cut short by the
+    /// *simulator's* guardrail — which says nothing about the app under test.
+    static let fallbackLines: [String] = [
+        "Sorry, got distracted. Where were we?",
+        "Let me think about that for a second.",
+        "Hm. I am not sure how to put it.",
+        "Say more about that?",
+        "Okay. What else.",
+        "That is not quite it, but close."
+    ]
+
     /// The last exchange of every conversation, so transcripts end rather than
     /// stop mid-thought.
     static let closingMove =
