@@ -1,6 +1,6 @@
 //
 //  FoundationModelsIntelligenceService.swift
-//  MeetMemento
+//  withMemento
 //
 //  THE single Apple Foundation Models importer (architecture principle P3 /
 //  REQ-INT-001, spec 017 R1). Nothing else in the app imports FoundationModels;
@@ -2688,3 +2688,37 @@ extension FoundationModelsIntelligenceService {
         """
     }
 }
+
+// MARK: - Eval-only raw generation
+
+#if DEBUG
+extension FoundationModelsIntelligenceService {
+
+    /// Unstructured, persona-free generation for evaluation harnesses only.
+    ///
+    /// Deliberately **not** on `IntelligenceService`: every protocol method
+    /// speaks in Memento's voice, which is exactly wrong when a harness needs
+    /// to drive the *other* side of a conversation — the person typing. It
+    /// lives here because `REQ-INT-001` / spec 017 R1 allows exactly one file
+    /// to `import FoundationModels`, and this is that file
+    /// (`scripts/ci/check_single_intelligence_importer.sh`). Compiled out of
+    /// Release, so it cannot reach a shipped build.
+    ///
+    /// Runs under `ModelRuntimeGate` like every other generation in this file,
+    /// so a harness turn cannot race the Ask stream it alternates with.
+    func evalRawGenerate(instructions: String,
+                         prompt: String,
+                         temperature: Double = 1.0,
+                         maximumResponseTokens: Int = 120) async throws -> String {
+        let session = LanguageModelSession(instructions: instructions)
+        let response = try await ModelRuntimeGate.shared.withLock {
+            try await session.respond(
+                to: prompt,
+                options: GenerationOptions(temperature: temperature,
+                                           maximumResponseTokens: maximumResponseTokens)
+            )
+        }
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+#endif
