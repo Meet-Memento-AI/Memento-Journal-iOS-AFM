@@ -1,12 +1,17 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe: the empty-archive runaway (19s, `<ctrl…>` tokens, ~10
 /// concatenated replies, invented journal quotes) appeared on `askStream` but
 /// did NOT reproduce on the one-shot `ask`. This isolates the streaming path.
 final class LiveStreamRunawayProbe: XCTestCase {
 
-    static let outPath = "/private/tmp/claude-501/-Users-sebastianmendo-Swift-projects-Memento-AI-MeetMemento/094f3be1-69b0-4026-bb20-1aad71a89c42/scratchpad/runaway.md"
+    /// Was an absolute path into one agent session's scratchpad on one
+    /// machine; that directory does not exist here, so the final `try`
+    /// write threw and failed this probe. Routed through `Diag.outDir`,
+    /// which creates the directory and reports a failure instead of
+    /// throwing (046 R1: no more silent or spurious output paths).
+    static let outFile = "runaway.md"
 
     private static let reps = 4
 
@@ -49,11 +54,9 @@ final class LiveStreamRunawayProbe: XCTestCase {
             out += "| \(ctrlCount) | \(refLeak) | \(invented) |\n"
             bodies.append("### rep \(rep) (\(String(format: "%.1fs", s)), \(body.count) ch)"
                           + (err.map { "\nERROR: \($0)" } ?? "\n```\n\(body.prefix(1400))\n```"))
-            try? (out + "\n" + bodies.joined(separator: "\n\n")).write(toFile: Self.outPath,
-                                                                       atomically: true, encoding: .utf8)
+            Diag.write((out + "\n" + bodies.joined(separator: "\n\n")), Self.outFile)
         }
-        try (out + "\n" + bodies.joined(separator: "\n\n")).write(toFile: Self.outPath,
-                                                                  atomically: true, encoding: .utf8)
+        Diag.write((out + "\n" + bodies.joined(separator: "\n\n")), Self.outFile)
         print(out)
     }
 }
