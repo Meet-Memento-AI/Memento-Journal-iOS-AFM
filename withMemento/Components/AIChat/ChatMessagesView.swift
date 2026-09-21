@@ -1,6 +1,6 @@
 //
 //  ChatMessagesView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared thread for Chat's typing and narration modes: empty state, bubbles,
 //  loading row, header clearance, and footer reserve.
@@ -21,7 +21,7 @@ struct ChatMessagesView: View {
     var suggestions: [ChatSuggestion] = []
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
-    var onSuggestionTap: (String) -> Void = { _ in }
+    var onSuggestionTap: (ChatSuggestion) -> Void = { _ in }
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -700,7 +700,7 @@ struct ChatMessagesView: View {
                     VStack(spacing: ChatEmptyHeroMetrics.cardGap) {
                         ForEach(displayedSuggestions) { suggestion in
                             AISuggestionCard(suggestion) {
-                                onSuggestionTap(suggestion.prompt)
+                                onSuggestionTap(suggestion)
                             }
                         }
                     }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 @MainActor
 final class ExperienceProfileBuilderTests: XCTestCase {
@@ -123,7 +123,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
 
         let starters = ThemeAwareChatStarters.starters(limit: 3)
         XCTAssertEqual(starters.count, 3)
-        let joined = starters.map(\.prompt).joined(separator: " ").lowercased()
+        let joined = starters.map(\.label).joined(separator: " ").lowercased()
         XCTAssertTrue(joined.contains("stress") || joined.contains("goals"))
         let allowedPills = Set(ThemeCatalog.displayNames(for: ["stress", "goals"]))
         XCTAssertTrue(starters.allSatisfy { allowedPills.contains($0.themeName ?? "") })
@@ -136,7 +136,7 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             limit: 3
         )
         XCTAssertEqual(rotated.count, 3)
-        XCTAssertTrue(rotated.allSatisfy { $0.prompt.hasPrefix("Generic") })
+        XCTAssertTrue(rotated.allSatisfy { $0.label.hasPrefix("Generic") })
         let defaultPills = Set(["Mindfulness", "Goals", "Sleep"])
         XCTAssertTrue(rotated.allSatisfy { defaultPills.contains($0.themeName ?? "") })
     }
@@ -156,9 +156,9 @@ final class ExperienceProfileBuilderTests: XCTestCase {
             limit: 3
         )
         XCTAssertEqual(rotated.count, 3)
-        let themedCount = rotated.filter { !$0.prompt.hasPrefix("Generic") }.count
+        let themedCount = rotated.filter { !$0.label.hasPrefix("Generic") }.count
         XCTAssertEqual(themedCount, 1)
-        XCTAssertEqual(rotated.filter { $0.prompt.hasPrefix("Generic") }.count, 2)
+        XCTAssertEqual(rotated.filter { $0.label.hasPrefix("Generic") }.count, 2)
         let allowedPills = Set(ThemeCatalog.displayNames(for: ["stress", "goals"]))
         XCTAssertTrue(rotated.allSatisfy { allowedPills.contains($0.themeName ?? "") })
         XCTAssertEqual(Set(rotated.compactMap(\.themeName)).count, 2)
@@ -256,8 +256,8 @@ final class ExperienceProfileBuilderTests: XCTestCase {
         XCTAssertTrue(askA.text.contains("not a search engine and not a therapist"))
         XCTAssertTrue(askB.text.contains("not a search engine and not a therapist"))
 
-        let aJoined = startersA.map(\.prompt).joined().lowercased()
-        let bJoined = startersB.map(\.prompt).joined().lowercased()
+        let aJoined = startersA.map(\.label).joined().lowercased()
+        let bJoined = startersB.map(\.label).joined().lowercased()
         XCTAssertTrue(aJoined.contains("stress") || aJoined.contains("anxiety"))
         XCTAssertTrue(bJoined.contains("creative") || bJoined.contains("inspiration"))
     }

@@ -359,6 +359,16 @@ class ChatViewModel: ObservableObject {
         performSend(text: modelText, images: images, userMessageId: userMessage.id, origin: origin)
     }
 
+    /// A starter card: the assistant opens, the person has said nothing yet.
+    ///
+    /// `suggestion.seed` is an instruction to the model and is never shown or
+    /// stored as a turn by the person — only the reply it produces enters the
+    /// transcript.
+    func startConversation(about suggestion: ChatSuggestion) {
+        guard !isLoading, messages.isEmpty else { return }
+        performSend(text: suggestion.seed, userMessageId: nil, origin: .composer)
+    }
+
     /// Copy the model reads when the person sends photos without typing.
     static func attachedPhotosPrompt(count: Int) -> String {
         if count <= 1 {
@@ -422,18 +432,25 @@ class ChatViewModel: ObservableObject {
     /// one. On failure, the user's message stays in the transcript marked
     /// `sendFailed` — never rolled back — so retrying doesn't require
     /// retyping.
-    private func performSend(text: String, images: [Data] = [], userMessageId: UUID, origin: SendOrigin) {
+    /// `userMessageId` is nil when the assistant opens the conversation — a
+    /// starter card. Nothing is appended or stored as the person's turn, because
+    /// `ChatService.summarizeChat` maps on-screen messages to `ChatTurn`s by
+    /// `isFromUser` and writes them into a journal entry. A seeded user bubble
+    /// would be summarised back to them as their own words.
+    private func performSend(text: String, images: [Data] = [], userMessageId: UUID?, origin: SendOrigin) {
         isLoading = true
         let generation = sendGeneration
-        // Prior turns only — the current user message is already appended.
-        let priorHistory: [ChatTurn] = messages.dropLast().map {
+        // Prior turns only — the current user message is already appended,
+        // except on an assistant-opened turn where there is no user message.
+        let prior = userMessageId == nil ? Array(messages) : Array(messages.dropLast())
+        let priorHistory: [ChatTurn] = prior.map {
             ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content)
         }
         let answeringLastQuestion = origin == .narration
             && ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
         let turn = TurnClassifier.classify(
             text,
-            hasHistory: messages.count > 1,
+            hasHistory: !priorHistory.isEmpty,
             lastAssistantAskedQuestion: answeringLastQuestion
         )
         loadingPhrase = LoadingStatus.phrase(for: turn, history: priorHistory)
@@ -457,7 +474,8 @@ class ChatViewModel: ObservableObject {
         // which fires twice per send and whose second firing points at the
         // empty assistant placeholder rather than the user's message.
         sendSeq += 1
-        lastSend = SendTicket(userMessageID: userMessageId, origin: origin, seq: sendSeq)
+        // No user bubble means no send choreography to drive off one.
+        lastSend = userMessageId.map { SendTicket(userMessageID: $0, origin: origin, seq: sendSeq) }
 
         track(Task { [weak self] in
             guard let self else { return }
@@ -514,9 +532,13 @@ class ChatViewModel: ObservableObject {
             }
 
             do {
-                for try await event in chatService.sendMessageStream(
-                    text, sessionId: currentSessionId, images: images, spoken: origin == .narration
-                ) {
+                let events = userMessageId == nil
+                    ? chatService.openConversationStream(seed: text, sessionId: currentSessionId)
+                    : chatService.sendMessageStream(
+                        text, sessionId: currentSessionId, images: images,
+                        spoken: origin == .narration
+                    )
+                for try await event in events {
                     // Cancelled or superseded mid-flight (user left / switched
                     // conversations): stop writing into whatever is on screen now.
                     guard generation == sendGeneration, !Task.isCancelled else { return }
@@ -622,7 +644,7 @@ class ChatViewModel: ObservableObject {
                     // left a red retry row on a message that was never rejected.
                     if generation == sendGeneration, !Task.isCancelled,
                        !(error is CancellationError) {
-                        setSendFailed(true, forMessageId: userMessageId)
+                        if let userMessageId { setSendFailed(true, forMessageId: userMessageId) }
                         errorMessage = chatErrorMessage(for: error)
                         showingError = true
                     }

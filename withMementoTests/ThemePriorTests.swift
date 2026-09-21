@@ -125,7 +125,7 @@ final class ThemePriorTests: XCTestCase {
         let themed = ThemeAwareChatStarters.starters(
             themeIds: ["stress", "goals", "sleep"], limit: 12
         )
-        return (bundled + themed).map(\.prompt) + ThemeAwareChatStarters.genericPool
+        return (bundled + themed).map(\.label) + ThemeAwareChatStarters.genericPool
     }
 
     /// Mirrors `ProfileRefreshCoordinator.containsForbiddenPhrase`, whose own

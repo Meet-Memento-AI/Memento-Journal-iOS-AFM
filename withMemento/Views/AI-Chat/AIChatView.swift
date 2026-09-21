@@ -319,7 +319,7 @@ public struct AIChatView: View {
                         onDismissKeyboard: dismissKeyboard,
                         onSuggestionTap: { suggestion in
                             dismissKeyboard()
-                            viewModel.sendMessage(prompt: suggestion)
+                            viewModel.startConversation(about: suggestion)
                         }
                     )
                     .narrationDissolve(
