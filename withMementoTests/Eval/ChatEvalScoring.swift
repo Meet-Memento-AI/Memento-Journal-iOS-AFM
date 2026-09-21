@@ -46,7 +46,12 @@ enum ChatEvalScoring {
         private let grams: Set<Int>
         private static let gram = 30
 
+        /// True when the index was built from no entries. An italic span or
+        /// `###` heading against this index is fabricated journal form.
+        let isEmpty: Bool
+
         init(_ entries: [Entry]) {
+            isEmpty = entries.isEmpty
             haystack = entries.map { ChatEvalScoring.fold($0.title + " " + $0.text) }
                 .joined(separator: " \u{1} ")
             var set = Set<Int>()
@@ -149,7 +154,12 @@ enum ChatEvalScoring {
     /// ask@14 rules that can be decided from the text alone.
     /// `index` lets the banned-phrase check tell the assistant's own register
     /// from the person's. Pass it wherever a corpus is in play.
-    static func ruleBreaks(_ body: String, isCasual: Bool, index: QuoteIndex? = nil) -> [Violation] {
+    static func ruleBreaks(
+        _ body: String,
+        isCasual: Bool,
+        index: QuoteIndex? = nil,
+        openRequired: Bool = true
+    ) -> [Violation] {
         var v: [Violation] = []
         let lower = body.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -160,9 +170,10 @@ enum ChatEvalScoring {
             }
         }
 
-        // Open is required, and there is never more than one question.
+        // Open is required on reflect. Task policies and empty statistic
+        // bodies do not owe a question. More than one question still counts.
         let questionCount = body.filter { $0 == "?" }.count
-        if questionCount == 0 {
+        if openRequired && questionCount == 0 {
             v.append(.init(code: "rule.noOpen", detail: "no closing question"))
         } else if questionCount > 1 {
             v.append(.init(code: "rule.multipleQuestions", detail: "\(questionCount) questions"))
@@ -227,16 +238,94 @@ enum ChatEvalScoring {
         }
     }
 
-    /// ask@14 reserves *italics* for an exact journal quote. An italic span that
-    /// is not in the corpus is an invented entry — the single most damaging
-    /// failure mode for a journal app.
+    /// Italics reserved for an exact journal quote. `\x{201C}` / `\x{201D}` are
+    /// the ICU forms; a Swift raw string does not process `\u{…}`, and ICU
+    /// rejects that escape, which is why this check never compiled.
     ///
     /// `(?<!\*)\*(?!\*)` keeps **bold** spans out of this check.
+    static let italicQuotePattern = #"(?<!\*)\*(?!\*)[\x{201C}"]?([^*\n]{12,200}?)[\x{201D}"]?(?<!\*)\*(?!\*)"#
+
+    /// First person plus a perception verb. "I hear you" and "I'm here" stay legal.
+    static let perceptionPattern = #"(?i)\bi (saw|heard|felt|noticed|smelled|remembered)\b"#
+
+    /// Every regular expression this file compiles. `ChatEvalScoringTests`
+    /// fails if any of them does not.
+    static let compiledPatterns: [String] = [
+        #"\[[A-Za-z][A-Za-z ]{1,20}\]"#,
+        #"\[\s*[^\]\d]{0,6}\s*\]"#,
+        #"\[Turn:|\[Shape:|\[Name:|\[Safety:"#,
+        #"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+entries\b"#,
+        #"(^|\n)#{1,2}[^#]"#,
+        #"###\s*($|\n)"#,
+        #"\|.+\|.+\|"#,
+        #"[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]"#,
+        #"\bthe user\b"#,
+        #"(^|\n)- "#,
+        italicQuotePattern,
+        #"\*\*([^*\n]{8,200}?)\*\*"#,
+        perceptionPattern,
+        #"\b(\d+)\b"#
+    ]
+
+    static let narrativeJoinPhrases = [
+        "you keep tracing",
+        "the pattern",
+        "you're holding"
+    ]
+
     static func fabricatedQuotes(_ body: String, index: QuoteIndex) -> [Violation] {
-        let pattern = #"(?<!\*)\*(?!\*)[\u{201C}"]?([^*\n]{12,200}?)[\u{201D}"]?(?<!\*)\*(?!\*)"#
-        return spans(body, pattern: pattern)
+        if index.isEmpty {
+            return emptyCorpusFabrications(body)
+        }
+        return spans(body, pattern: italicQuotePattern)
             .filter { $0.count >= 12 && !index.contains($0) }
             .map { .init(code: "hall.fabricatedQuote", detail: "\"\($0.prefix(60))\"") }
+    }
+
+    /// Empty archive: an italic span or a `###` heading is fabricated.
+    /// Support is `quotedRefs`, the same matcher generation uses, not a second one.
+    private static func emptyCorpusFabrications(_ body: String) -> [Violation] {
+        let supported = FoundationModelsIntelligenceService.quotedRefs(
+            in: body, retrieval: .empty
+        )
+        guard supported.isEmpty else { return [] }
+        var violations: [Violation] = []
+        for span in spans(body, pattern: italicQuotePattern) where span.count >= 12 {
+            violations.append(.init(code: "hall.fabricatedQuote", detail: "\"\(span.prefix(60))\""))
+        }
+        if body.contains("###") {
+            violations.append(.init(
+                code: "hall.fabricatedQuote",
+                detail: "### heading on an empty archive"
+            ))
+        }
+        return violations
+    }
+
+    /// The model claims it perceived the person's scene. Report-only.
+    static func firstPersonPerception(_ body: String) -> [Violation] {
+        guard let re = try? NSRegularExpression(pattern: perceptionPattern, options: []) else {
+            return []
+        }
+        let ns = body as NSString
+        return re.matches(in: body, range: NSRange(location: 0, length: ns.length)).map { match in
+            let verb = match.numberOfRanges > 1
+                ? ns.substring(with: match.range(at: 1))
+                : "perception"
+            return .init(code: "hall.firstPersonPerception", detail: verb)
+        }
+    }
+
+    /// Joins fragments the user did not supply. Silent when the phrase is already
+    /// in the user turn. Report-only.
+    static func narrativeJoin(_ body: String, userTurn: String) -> [Violation] {
+        let foldedBody = fold(body)
+        let foldedUser = fold(userTurn)
+        return narrativeJoinPhrases.compactMap { phrase in
+            let folded = fold(phrase)
+            guard foldedBody.contains(folded), !foldedUser.contains(folded) else { return nil }
+            return .init(code: "hall.narrativeJoin", detail: phrase)
+        }
     }
 
     /// A reply that reproduces the journal verbatim must be citable. Zero
@@ -392,9 +481,17 @@ enum ChatEvalScoring {
     ///
     /// `gen.*` stays reported. `gen.hitTokenCap` is a proximity warning about
     /// the budget, not a defect in the reply — a reply can legitimately run long.
+    /// Repaired and new hallucination checks stay report-only until two
+    /// warehoused runs exist. Cold-arm hits are detection, not a regression.
+    static let reportOnlyCodes: Set<String> = [
+        "hall.fabricatedQuote",
+        "hall.firstPersonPerception",
+        "hall.narrativeJoin"
+    ]
+
     static func gating(_ violations: [Violation]) -> [Violation] {
         violations.filter { v in
-            if v.code.hasPrefix("gen.") { return false }
+            if v.code.hasPrefix("gen.") || reportOnlyCodes.contains(v.code) { return false }
             return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.")
                 || v.code.hasPrefix("hall.") || v.code.hasPrefix("gold.")
                 || v.code.hasPrefix("insight.")

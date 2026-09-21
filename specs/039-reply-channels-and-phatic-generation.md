@@ -256,6 +256,13 @@ a **new** ask — no recap.
 Overlay is nil for casual; non-nil overlays contain a question and never
 “Do not end with a question.”
 
+**Amendment (2026-09-21, spec 049).** The always-Open rule applies to
+`reflect` only. Task policies — `list`, `answer`, `acknowledge`,
+`retract` — and empty statistic bodies do not require a closing question.
+`rule.noOpen` does not fire on those policies. Farewell still skips the
+question via `ConversationalMove.skipsQuestion`. Venting reflection keeps
+one question. This amendment does not flatten the voice.
+
 ### R7. Eval goldens
 
 Add (or pin in unit contracts until the 022 harness exists) at least:

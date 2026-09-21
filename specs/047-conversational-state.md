@@ -140,6 +140,16 @@ measuring.
   retracted claim anywhere in the same body.
 - Given a message that disagrees with an interpretation of the person's own life
   rather than with an assistant claim, then it does **not** classify as a correction.
+
+**Amendment (2026-09-21, spec 049) — interpretation-cut.** Beside factual
+correction ("that's not what happened", "you got that wrong"), an
+interpretation-cut ("you're reading too much into this", "too vague",
+"too soft", "you keep calling it heavy") also selects `retract`. It sets
+a thread flag so later `reflect` turns stay on the user's words. The
+retracted claim is stored on the conversation and the next turn must not
+repeat it. A correction is never mapped to `guardrailRefusal`. Ordinary
+disagreement about the person's own life ("I don't think that's why I was
+tired") stays reflection, not a correction.
 - Given `PromptStanceSyncTests`, then its "every stance the channel can emit appears
   in that channel's suffix" assertion still holds with the new stance.
 

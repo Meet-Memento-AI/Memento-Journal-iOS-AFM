@@ -56,6 +56,7 @@ enum QueryDateWindowParser {
         // is one window rather than a month window fighting a year window.
         return monthYear(lower, cal: cal)
             ?? rolling(lower, now: now, cal: cal)
+            ?? lastWeekday(lower, now: now, cal: cal)
             ?? relativeYear(lower, now: now, cal: cal)
             ?? month(lower, now: now, cal: cal)
             ?? season(lower, now: now, cal: cal)
@@ -90,6 +91,38 @@ enum QueryDateWindowParser {
     private static let monthRE = compile(#"\b(\#(determiner))\s+(\#(monthNamePattern))\b"#)
     private static let seasonRE = compile(#"\b(\#(determiner))\s+(?:the\s+)?(\#(seasonNamePattern))\b"#)
     private static let absoluteYearRE = compile(#"\b((?:19|20)\d\d)\b"#)
+    private static let weekdays = [
+        "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+    ]
+    private static let weekdayRE = compile(
+        #"\blast\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b"#
+    )
+    private static let beforeAnchorRE = compile(
+        #"\bbefore the ([a-z0-9][a-z0-9' ]{1,40}?)(?:\?|$)"#
+    )
+
+    /// "before the pottery class" — the phrase the retriever uses as a cutoff,
+    /// not as a keyword. Cosine must not win because the query contains it.
+    static func beforeAnchor(_ query: String) -> String? {
+        let lower = query.lowercased()
+        guard let (_, groups) = firstMatch(lower, beforeAnchorRE) else { return nil }
+        let phrase = groups[0].trimmingCharacters(in: .whitespacesAndNewlines)
+        return phrase.isEmpty ? nil : phrase
+    }
+
+    /// "last Tuesday" is the most recent Tuesday before today, one day long.
+    private static func lastWeekday(_ s: String, now: Date, cal: Calendar) -> QueryDateWindow? {
+        guard let (text, groups) = firstMatch(s, weekdayRE),
+              let index = weekdays.firstIndex(of: groups[0]) else { return nil }
+        let target = index + 1
+        let today = cal.startOfDay(for: now)
+        let weekday = cal.component(.weekday, from: today)
+        var delta = (weekday - target + 7) % 7
+        if delta == 0 { delta = 7 }
+        guard let start = cal.date(byAdding: .day, value: -delta, to: today),
+              let end = cal.date(byAdding: .day, value: 1, to: start) else { return nil }
+        return QueryDateWindow(start: start, end: end, matchedText: text)
+    }
 
     private static func compile(_ pattern: String) -> NSRegularExpression? {
         try? NSRegularExpression(pattern: pattern)

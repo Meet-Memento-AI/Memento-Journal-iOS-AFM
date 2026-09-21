@@ -31,11 +31,18 @@
 set -euo pipefail
 
 MODULE="${INTELLIGENCE_MODULE_DIR:-MeetMemento/Services/Intelligence}"
+if [ ! -d "$MODULE" ] && [ -d "withMemento/Services/Intelligence" ]; then
+  MODULE="withMemento/Services/Intelligence"
+fi
 
 if [ ! -d "$MODULE" ]; then
   echo "FAIL: intelligence module not found at $MODULE"
   exit 1
 fi
+
+swift_files() {
+  find "$MODULE" -name '*.swift' -type f | sort
+}
 
 status=0
 
@@ -46,14 +53,14 @@ strip_comments() { sed -e 's://.*::' "$1"; }
 # ---- 1. Window literals and obfuscations ---------------------------------
 echo "== Checking for hardcoded window literals =="
 window_hits=""
-for f in "$MODULE"/*.swift; do
+while IFS= read -r f; do
   hits=$(strip_comments "$f" \
     | grep -nE '(\b(4096|8192|32768)\b|[0-9]+[[:space:]]*<<[[:space:]]*1[0-9]|\b[0-9]+[[:space:]]*\*[[:space:]]*1024\b)' \
     || true)
   if [ -n "$hits" ]; then
     window_hits="${window_hits}${f}:\n${hits}\n"
   fi
-done
+done < <(swift_files)
 
 if [ -n "$window_hits" ]; then
   echo ""
@@ -72,7 +79,7 @@ fi
 echo ""
 echo "== Checking prefix/suffix literals carry a budget-exempt rationale =="
 cap_hits=""
-for f in "$MODULE"/*.swift; do
+while IFS= read -r f; do
   # A numeric literal passed directly to prefix()/suffix(), on a line that does
   # not declare why it is exempt.
   hits=$(strip_comments "$f" \
@@ -92,7 +99,7 @@ for f in "$MODULE"/*.swift; do
       *) cap_hits="${cap_hits}${f}:${hit}\n" ;;
     esac
   done <<< "$hits"
-done
+done < <(swift_files)
 
 if [ -n "$cap_hits" ]; then
   echo ""

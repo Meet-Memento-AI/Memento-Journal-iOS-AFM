@@ -68,6 +68,11 @@ final class DiagTurnRouting: XCTestCase {
         Case("what do you mean?", .followup, history: true),
         Case("say more", .followup, history: true),
 
+        // correction — factual and interpretation-cut, never a share
+        Case("you got that wrong", .correction),
+        Case("that's not what happened", .correction),
+        Case("you're reading too much into this", .correction),
+
         // offdomain
         Case("what is the capital of France?", .offdomain),
         Case("how do I fix a flat tyre?", .offdomain),
@@ -78,25 +83,28 @@ final class DiagTurnRouting: XCTestCase {
     func test_routing() throws {
         var out = "# Turn routing diagnostic (pure, no model)\n\n"
         out += "TurnClassifier.classify → ReplyChannel.resolve → recipe\n\n"
-        out += "| utterance | hist | expected | actual | match | channel | prompt | RAG | max tok | temp |\n"
-        out += "|---|---|---|---|---|---|---|---|---|---|\n"
+        out += "| utterance | hist | expected | actual | match | evidence | channel | prompt | RAG | max tok | temp |\n"
+        out += "|---|---|---|---|---|---|---|---|---|---|---|\n"
 
         var mismatches: [(Case, TurnType, ReplyChannel)] = []
         var byChannel: [ReplyChannel: Int] = [:]
+        var byTurn: [TurnType: Int] = [:]
 
         for c in Self.cases {
             let actual = TurnClassifier.classify(c.text, hasHistory: c.hasHistory)
-            let channel = ReplyChannel.resolve(turn: actual, hasImages: false)
+            let evidence: EvidenceState = .matched
+            let channel = ReplyChannel.resolve(turn: actual, hasImages: false, evidence: evidence)
             let ok = actual == c.expect
             if !ok { mismatches.append((c, actual, channel)) }
             byChannel[channel, default: 0] += 1
+            byTurn[actual, default: 0] += 1
 
             let rag = channel.allowsRetrieval
             let tok = channel.maximumResponseTokens(retrievalRan: rag)
             let temp = channel.temperature(retrievalRan: rag)
             let q = c.text.count > 42 ? String(c.text.prefix(42)) + "…" : c.text
             out += "| \(q) | \(c.hasHistory ? "y" : "n") | \(c.expect.rawValue) | \(actual.rawValue) "
-            out += "| \(ok ? "ok" : "**MISS**") | \(channel.rawValue) "
+            out += "| \(ok ? "ok" : "**MISS**") | \(evidence.rawValue) | \(channel.rawValue) "
             out += "| \(channel.usesLightPrompt ? "light@4" : "ask@14") | \(rag ? "yes" : "no") "
             out += "| \(tok) | \(String(format: "%.1f", temp)) |\n"
         }
@@ -117,6 +125,11 @@ final class DiagTurnRouting: XCTestCase {
             }
         }
 
+        let emptyJournal = ReplyChannel.resolve(turn: .journalQuery, hasImages: false, evidence: .none)
+        out += "\n## Empty archive\n\n"
+        out += "evidence=`none` journalQuery → `\(emptyJournal.rawValue)` "
+        out += "(notebook=\(emptyJournal == .notebook), thread=\(emptyJournal == .thread))\n"
+
         out += "\n## Recipe table (all channels)\n\n"
         out += "| channel | prompt | lens | retrieval | max tok (RAG) | max tok (no RAG) | temp |\n|---|---|---|---|---|---|---|\n"
         for ch in ReplyChannel.allCases {
@@ -129,6 +142,14 @@ final class DiagTurnRouting: XCTestCase {
         out += "\n## Channel distribution over the sweep\n\n"
         for (ch, n) in byChannel.sorted(by: { $0.value > $1.value }) {
             out += "- `\(ch.rawValue)` × \(n)\n"
+        }
+
+        out += "\n## Turn types\n\n"
+        for turn in TurnType.allCases {
+            let n = byTurn[turn, default: 0]
+            out += "- `\(turn.rawValue)` × \(n)"
+            if n == 0 { out += " — zero, reported" }
+            out += "\n"
         }
 
         Diag.write(out, "01-routing.md")

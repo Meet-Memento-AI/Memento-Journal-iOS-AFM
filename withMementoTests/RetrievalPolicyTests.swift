@@ -83,12 +83,22 @@ final class RetrievalPolicyTests: XCTestCase {
 
     func test_stance_journalQueryHonestOnNoMatch() {
         XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: grounded()), .journalGrounded)
-        // Ambient is not nothing: the entries are in the prompt, so the honest
-        // stance offers the nearest one rather than denying it exists.
-        XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: ambient()), .nearbyOnly)
+        // A miss does not quote the nearest entry. An inventory may name the hits.
+        XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: ambient()), .noMatch)
+        XCTAssertEqual(
+            RetrievalPolicy.stance(
+                turn: .journalQuery, retrieval: ambient(), question: "what have I written about lately?"
+            ),
+            .journalGrounded
+        )
         XCTAssertEqual(RetrievalPolicy.stance(turn: .journalQuery, retrieval: .empty), .noMatch)
         XCTAssertFalse(TurnStance.nearbyOnly.isGrounded)
         XCTAssertFalse(TurnStance.nearbyOnly.isGrounded(retrieval: ambient()))
+        print("evidence empty=\(EvidenceState.none.rawValue) ambient=\(EvidenceState.ambient.rawValue) matched=\(EvidenceState.matched.rawValue)")
+        XCTAssertEqual(
+            ReplyChannel.resolve(turn: .journalQuery, hasImages: false, evidence: .none),
+            .companion
+        )
     }
 
     func test_stance_reflectiveStaysSharing() {

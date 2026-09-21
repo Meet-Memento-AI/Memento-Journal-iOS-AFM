@@ -354,11 +354,24 @@ enum EntryRetriever {
         // subtracted from the keyword terms so "December" is scored as a date
         // and not also as a topic word.
         let window = QueryDateWindowParser.parse(trimmed, now: now)
+        let anchorPhrase = QueryDateWindowParser.beforeAnchor(trimmed)
         var terms = tokenize(trimmed)
         if let window {
             let dateWords = Set(tokenize(window.matchedText))
             terms.removeAll { dateWords.contains($0) }
         }
+        if let anchorPhrase {
+            let anchorWords = Set(tokenize(anchorPhrase))
+            terms.removeAll { anchorWords.contains($0) }
+        }
+        let beforeCutoff: Date? = {
+            guard let anchorPhrase else { return nil }
+            let needle = anchorPhrase.lowercased()
+            let hits = entries.filter {
+                ($0.title + " " + $0.text).lowercased().contains(needle)
+            }
+            return hits.map(\.createdAt).max()
+        }()
         // Query vectors come from the LRU (`embedQuery`), so a repeated or
         // follow-up question skips NLEmbedding entirely.
         let currentVector = embeddingService.embedQuery(trimmed)
@@ -469,10 +482,13 @@ enum EntryRetriever {
             let semantic = m.cosine ?? 0.0
             let recency = origin ? 0.0 : recencyScore(entry: m.entry, now: now)
             var score = semantic * tuning.semanticWeight + m.keyword + recency * tuning.recencyWeight
+            score -= PassageDownrankStore.penalty(entryID: m.entry.id)
             // A named date range is a hard constraint, not a preference: an
             // entry outside the window cannot be the answer to "what did I
             // write in December", however well it scores on the words.
-            let inWindow = window.map { $0.contains(m.entry.createdAt) } ?? true
+            // "before the pottery class" drops that entry and anything later.
+            let inWindow = (window.map { $0.contains(m.entry.createdAt) } ?? true)
+                && (beforeCutoff.map { m.entry.createdAt < $0 } ?? true)
             // An entry that carries essentially the whole question is a match
             // however modest its absolute score. `keywordSignalMin` is an
             // absolute bar — roughly "a title hit and a body hit" — and a
@@ -548,7 +564,13 @@ enum EntryRetriever {
             cap = limits.maxEntries
         } else if strong.isEmpty {
             // General / open message — hand the model recent life as background.
-            ordered = entries.sorted { $0.createdAt > $1.createdAt }
+            // A "before the …" cutoff still applies: the anchor entry and
+            // anything written at the same time or later are not the answer.
+            let pool = beforeCutoff.map { cutoff in
+                entries.filter { $0.createdAt < cutoff }
+            } ?? entries
+            if pool.isEmpty { return .empty }
+            ordered = pool.sorted { $0.createdAt > $1.createdAt }
             ambient = true
             cap = query.highBar ? min(tuning.ambientCapHighBar, limits.maxEntries) : limits.maxEntries
         } else {

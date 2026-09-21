@@ -19,10 +19,12 @@ final class PromptSweepRouting: XCTestCase {
         XCTAssertEqual(prompts.count, PromptSweepCorpus.targetCount)
 
         var rows: [[String: Any]] = []
+        var byTurn: [TurnType: Int] = [:]
         for prompt in prompts {
             let turn = TurnClassifier.classify(prompt.text, hasHistory: !prompt.history.isEmpty)
             let channel = ReplyChannel.resolve(turn: turn, hasImages: false)
             let mode = RetrievalPolicy.mode(for: turn, history: prompt.history)
+            byTurn[turn, default: 0] += 1
             rows.append([
                 "index": prompt.index,
                 "category": prompt.category,
@@ -33,6 +35,16 @@ final class PromptSweepRouting: XCTestCase {
                 "allowsRetrieval": channel.allowsRetrieval,
                 "cap": channel.maximumResponseTokens(retrievalRan: channel.allowsRetrieval)
             ])
+        }
+
+        var zeros: [String] = []
+        for turn in TurnType.allCases {
+            let n = byTurn[turn, default: 0]
+            if n == 0 { zeros.append(turn.rawValue) }
+            print("[routing] turn \(turn.rawValue) × \(n)\(n == 0 ? " — zero, reported" : "")")
+        }
+        if !zeros.isEmpty {
+            print("[routing] turn types at zero: \(zeros.joined(separator: ", "))")
         }
 
         let dir = MementoPromptSweep.outputDirectory()

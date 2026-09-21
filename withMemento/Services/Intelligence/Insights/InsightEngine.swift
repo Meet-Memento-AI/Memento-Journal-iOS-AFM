@@ -20,7 +20,9 @@ enum InsightEngine {
         "many", "times", "time", "often", "last", "write", "writes", "wrote", "written",
         "mention", "mentions", "mentioned", "say", "said", "feel", "felt", "changed",
         "shifted", "change", "shift", "past", "year", "month", "week", "day", "days",
-        "entries", "entry", "journal", "lately", "recently"
+        "entries", "entry", "journal", "lately", "recently",
+        "from", "didn", "didnt", "dont", "wasn", "isn", "app", "keep", "reply",
+        "nights", "fog", "make", "into", "their", "them", "not"
     ]
 
     /// Cadence + people + places + clusters for the Patterns tab.
@@ -120,6 +122,10 @@ enum InsightEngine {
         )
     }
 
+    /// Authored when a quantitative question is not an entry count, a streak,
+    /// a gap, or a last mention of a real subject.
+    static let unsupportedCopy = "I don't keep that."
+
     /// Answer a count / how-often / last-mention question. Empty when no
     /// subject can be extracted.
     static func answer(
@@ -135,6 +141,17 @@ enum InsightEngine {
         let pool = entries.filter { interval.contains($0.createdAt) }
         let subject = extractSubject(query, window: window)
         let wantsLast = isLastMentionQuery(query)
+
+        if subject.isEmpty, !wantsLast, !isAggregateEntryQuery(query) {
+            return [InsightFact(
+                kind: .count,
+                label: "Journal",
+                value: unsupportedCopy,
+                n: 0,
+                window: interval,
+                supportingEntryIDs: []
+            )]
+        }
 
         if subject.isEmpty {
             let hits = pool
@@ -181,7 +198,9 @@ enum InsightEngine {
     static func extractSubject(_ query: String, window: QueryDateWindow?) -> String {
         let lower = query.lowercased()
         let about = compile(#"(?:about|mention(?:ed|s)?|wrote about|written about|write about)\s+(?:my\s+)?([a-z][a-z'-]+)"#)
-        if let match = firstGroup(lower, about) { return match }
+        if let match = firstGroup(lower, about), !stopwords.contains(match), match.count > 3 {
+            return match
+        }
         var terms = tokens(lower)
         if let window {
             let dateWords = Set(tokens(window.matchedText))
@@ -219,6 +238,14 @@ enum InsightEngine {
             .split { !$0.isLetter }
             .map(String.init)
             .filter { $0.count > 2 && !stopwords.contains($0) }
+    }
+
+    private static func isAggregateEntryQuery(_ query: String) -> Bool {
+        let lower = query.lowercased()
+        return lower.contains("written") || lower.contains("write")
+            || lower.contains("entries") || lower.contains("entry")
+            || lower.contains("journal") || lower.contains("logged")
+            || lower.contains("streak") || lower.contains("gap")
     }
 
     private static func isLastMentionQuery(_ query: String) -> Bool {

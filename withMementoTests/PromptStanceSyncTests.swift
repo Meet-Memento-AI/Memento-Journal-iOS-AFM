@@ -41,8 +41,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@17")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@17")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@18")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@18")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@2")
     }
 
@@ -115,7 +115,7 @@ final class PromptStanceSyncTests: XCTestCase {
 
     func test_noMatchStance_isDirectEmptyRecall() {
         let line = TurnStance.noMatch.promptLine
-        XCTAssertTrue(line.contains("don't see anything from that stretch"))
+        XCTAssertTrue(line.contains("can't find an entry that supports that"))
         XCTAssertTrue(line.contains("do not invent"))
         XCTAssertTrue(line.contains("do not change the subject"))
         XCTAssertTrue(line.contains("no heading, no list"))

@@ -24,7 +24,15 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// Exhaustive map. Photo bump: any in-session image never resolves to
     /// phatic or continuer — bump to companion unless the text is a journal
     /// ask (notebook) or meta (meta).
-    static func resolve(turn: TurnType, hasImages: Bool) -> ReplyChannel {
+    ///
+    /// Evidence gates the recipe. A journal question against an empty archive
+    /// is never notebook or thread (spec 046 R3). Default `.matched` keeps
+    /// callers that have not loaded the archive on today's map.
+    static func resolve(
+        turn: TurnType,
+        hasImages: Bool,
+        evidence: EvidenceState = .matched
+    ) -> ReplyChannel {
         let base: ReplyChannel
         switch turn {
         case .social: base = .phatic
@@ -35,13 +43,24 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         case .journalQuery: base = .notebook
         case .quantitative: base = .statistic
         case .offdomain: base = .redirect
+        case .correction: base = .thread
         }
-        guard hasImages else { return base }
-        switch base {
-        case .phatic, .continuer:
-            return .companion
-        default:
-            return base
+        let bumped: ReplyChannel
+        if hasImages, base == .phatic || base == .continuer {
+            bumped = .companion
+        } else {
+            bumped = base
+        }
+        return bumped.gated(by: evidence)
+    }
+
+    /// Empty archive may only leave notebook and thread. It never upgrades
+    /// a lighter channel into them.
+    func gated(by evidence: EvidenceState) -> ReplyChannel {
+        guard evidence == .none else { return self }
+        switch self {
+        case .notebook, .thread: return .companion
+        default: return self
         }
     }
 
@@ -100,7 +119,8 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// first, then falling back to the top retrieved entries. Spoken journal
     /// turns therefore cite from retrieval rather than from the model's own
     /// declaration — less precisely attributed, not absent.
-    func usesBodyOnlySchema(spoken: Bool = false) -> Bool {
+    func usesBodyOnlySchema(spoken: Bool = false, evidence: EvidenceState = .matched) -> Bool {
+        if evidence == .none { return true }
         switch self {
         case .phatic, .continuer, .redirect, .companion, .meta, .statistic: return true
         case .thread, .notebook: return spoken
