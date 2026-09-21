@@ -88,7 +88,10 @@ final class ConversationFlowTests: XCTestCase {
             entries: [RetrievedEntry(ref: 1, id: UUID(), date: Date(), text: "x")],
             contextBlock: "[Recent…]", isAmbient: true
         )
-        XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: ambient), .nearbyOnly)
+        XCTAssertEqual(RetrievalPolicy.stance(turn: turn, retrieval: ambient), .noMatch)
+        let emptyChannel = ReplyChannel.resolve(turn: turn, hasImages: false, evidence: .none)
+        print("evidence=\(EvidenceState.none.rawValue) channel=\(emptyChannel.rawValue) ambient=\(EvidenceState.ambient.rawValue)")
+        XCTAssertNotEqual(emptyChannel, .notebook)
     }
 
     /// Venting stays conversational — never promoted to journalGrounded.

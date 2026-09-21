@@ -2,7 +2,7 @@
 id: 044
 title: Agentic Harness Depth — Retrieval, Tools, Living Profile, Lean Prompt
 tier: P2
-status: draft (2026-09-06; amended same day after corpus review)
+status: in-progress (2026-09-21 — R1 passage index, R2 RetrievalGate, and R5 ask-core@17 landed; R3 theme priors, R4 tool loop, and R6 living profile remain open)
 effort: 6–8 sessions across four phases; each phase ships independently
 depends_on: [017, 022, 037, 038, 039, 041, 043]
 findings:
@@ -396,13 +396,13 @@ attributable to one phase.
 
 ## Tasks
 
-- [ ] 1. `PassageChunker` (NLTokenizer, merge to 120–400 chars) + `MEV1`
+- [x] 1. `PassageChunker` (NLTokenizer, merge to 120–400 chars) + `MEV1`
       passage cache keyed `(entryID, passageIndex, contentHash)`; language
-      detection + word-embedding fallback (R1)
-- [ ] 2. `EntryRetriever`: max+mean passage scoring, best-passage excerpt
+      detection + word-embedding fallback (R1) — `PassageChunker.swift`
+- [x] 2. `EntryRetriever`: max+mean passage scoring, best-passage excerpt
       with neighbour sentences, `quotedSpan` from the passage (R1)
-- [ ] 3. `RetrievalGate` test + `.eval-runs/retrieval/` report +
-      `import_run.sh kind=retrieval_gate` (R2)
+- [x] 3. `RetrievalGate` test + `.eval-runs/retrieval/` report +
+      `import_run.sh kind=retrieval_gate` (R2) — `withMementoTests/Eval/RetrievalGate.swift`
 - [ ] 4. `RetrieverTuning` grid fit; commit winning weights with grid output
       (R2)
 - [ ] 5. `themeBoost` in `EntryRetriever` from `ThemeCatalog.synonyms`;

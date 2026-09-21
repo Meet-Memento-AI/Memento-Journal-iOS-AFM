@@ -234,4 +234,35 @@ struct ContextBudget: Equatable, Sendable {
     var totalAllocatedChars: Int {
         maxRetrievedEntries * maxEntryChars + maxHistoryTurns * maxHistoryCharsPerTurn
     }
+
+    /// A cap cut ends on a sentence boundary when one exists inside the limit.
+    /// `tokenLimit` is used when the caller could read `tokenCount(for:)`.
+    static func clipToSentence(
+        _ text: String,
+        limit: Int,
+        tokenCount: ((String) -> Int)? = nil,
+        tokenLimit: Int? = nil
+    ) -> String {
+        guard limit > 0 else { return "" }
+        var clipped = text
+        if clipped.count > limit {
+            let head = String(clipped.prefix(limit))
+            if let end = head.range(of: #"[.!?]"#, options: .regularExpression, range: nil) {
+                var last = end
+                var search = head.index(after: end.lowerBound)..<head.endIndex
+                while let next = head.range(of: #"[.!?]"#, options: .regularExpression, range: search) {
+                    last = next
+                    search = head.index(after: next.lowerBound)..<head.endIndex
+                    if search.isEmpty { break }
+                }
+                clipped = String(head[..<last.upperBound])
+            } else {
+                clipped = head
+            }
+        }
+        if let tokenCount, let tokenLimit, tokenCount(clipped) > tokenLimit, clipped.count > 40 {
+            return clipToSentence(String(clipped.prefix(clipped.count * 3 / 4)), limit: limit, tokenCount: tokenCount, tokenLimit: tokenLimit)
+        }
+        return clipped
+    }
 }

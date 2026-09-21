@@ -19,7 +19,8 @@ final class ReplyChannelTests: XCTestCase {
             .followup: .thread,
             .journalQuery: .notebook,
             .quantitative: .statistic,
-            .offdomain: .redirect
+            .offdomain: .redirect,
+            .correction: .thread
         ]
         for turn in TurnType.allCases {
             let channel = ReplyChannel.resolve(turn: turn, hasImages: false)
@@ -75,6 +76,18 @@ final class ReplyChannelTests: XCTestCase {
         XCTAssertFalse(ReplyChannel.notebook.usesBodyOnlySchema())
         XCTAssertFalse(ReplyChannel.thread.usesBodyOnlySchema())
         XCTAssertTrue(ReplyChannel.statistic.usesBodyOnlySchema())
+    }
+
+    func test_emptyArchive_journalQuery_isNeverNotebookOrThread() {
+        let channel = ReplyChannel.resolve(turn: .journalQuery, hasImages: false, evidence: .none)
+        print("evidence=\(EvidenceState.none.rawValue) channel=\(channel.rawValue)")
+        XCTAssertNotEqual(channel, .notebook)
+        XCTAssertNotEqual(channel, .thread)
+        XCTAssertEqual(channel, .companion)
+        XCTAssertTrue(channel.usesBodyOnlySchema(evidence: .none))
+        let follow = ReplyChannel.resolve(turn: .followup, hasImages: false, evidence: .none)
+        XCTAssertNotEqual(follow, .thread)
+        XCTAssertNotEqual(follow, .notebook)
     }
 
     /// Spoken is the only thing that moves the journal channels onto the light
@@ -257,7 +270,7 @@ final class ReplyChannelTests: XCTestCase {
         }
     }
 
-    /// Thread is its own recipe (ask-core@17 + follow-up suffix), so the
+    /// Thread is its own recipe (ask-core@18 + follow-up suffix), so the
     /// follow-up turn needs its own slot — notebook alone never matched it.
     func test_threadRecipe_isDistinctFromNotebook() {
         let budget = ContextBudget(window: .unavailable)

@@ -153,7 +153,7 @@ final class PromptRegistryResolutionTests: XCTestCase {
         )
         XCTAssertEqual(
             PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .notebook).version,
-            "ask-core@17"
+            "ask-core@18"
         )
     }
 

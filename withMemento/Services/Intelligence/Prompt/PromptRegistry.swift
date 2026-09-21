@@ -12,7 +12,7 @@
 //  person as a dated list above the reply (AIOutputComponent), not as inline
 //  markers — inline citations return in a later release.
 //
-//  ask-core@17 (044 R5 / Session 6): voice + recipe + bans in the core;
+//  ask-core@18 (044 R5 / Session 6): voice + recipe + bans in the core;
 //  per-channel stance list moved to ≤6-line suffixes. ask@15 is the frozen
 //  8214-character baseline for the shrink gate.
 //
@@ -246,7 +246,7 @@ enum PromptRegistry {
     /// the "About this person" section when the user gave refinement data.
     /// `channel` selects `chat-light@4` on phatic/continuer and
     /// `chat-companion@1` on companion/meta/redirect (spec 039); nil
-    /// keeps the heavy `ask-core@17` + notebook suffix so existing call
+    /// keeps the heavy `ask-core@18` + notebook suffix so existing call
     /// sites stay pinned to the journal recipe.
     static func instructions(
         for intent: GenerationIntent,
@@ -270,11 +270,11 @@ enum PromptRegistry {
                 let section = personalizationSection(personalization)
                 return ResolvedPrompt(text: text + "\n\n" + section, version: version + "+p4")
             }
-            // ask-core@17: stance list moved to the channel suffix (044 R5).
+            // ask-core@18: stance list moved to the channel suffix (044 R5).
             let suffixChannel = channel ?? .notebook
             let base = (degraded ? askCoreDegraded : askCore)
                 + "\n\n" + channelSuffix(suffixChannel, degraded: degraded)
-            let version = degraded ? "ask-degraded@17" : "ask-core@17"
+            let version = degraded ? "ask-degraded@18" : "ask-core@18"
             guard personalization.hasAskPersonalization else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -388,7 +388,7 @@ enum PromptRegistry {
     [Safety: no advice] line is present, obey it strictly.
     """
 
-    // MARK: - Ask (journal chat) — ask-core@17 (044 R5)
+    // MARK: - Ask (journal chat) — ask-core@18 (044 R5)
 
     /// Frozen ask@15 character count for the Session 6 shrink gate (≤ 55%).
     static let ask15BaselineCharacterCount = 8_214
@@ -504,6 +504,26 @@ enum PromptRegistry {
     "ref 2", or bare "[2]". Name an entry by its date or subject instead.
     """
 
+    /// One suffix per response policy. Appended to the user prompt, not the
+    /// prefilled core, so the size budget stays on the channel suffix.
+    static func policySuffix(_ policy: ResponsePolicy, interpretationCut: Bool = false) -> String {
+        switch policy {
+        case .reflect:
+            let cut = interpretationCut ? " Stay on their words." : ""
+            return "Reflect: at most one concrete detail from their latest message, then one question.\(cut)"
+        case .list:
+            return "List: two or three options from what they said. No required question. Never \"you should\"."
+        case .answer:
+            return "Answer from what they said and from the evidence line."
+        case .acknowledge:
+            return "Acknowledge: close warmly. No question."
+        case .retract:
+            return "Retract: acknowledge the miss, name the inference, continue from their words. Do not repeat the retracted claim."
+        case .abstain:
+            return "Abstain: the fragments do not have to mean anything together."
+        }
+    }
+
     /// One suffix per ReplyChannel. Each ≤ 6 lines. Stance tags live here
     /// so the core stays lean (044 R5 / PromptStanceSyncTests).
     static func channelSuffix(_ channel: ReplyChannel, degraded: Bool = false) -> String {
@@ -524,7 +544,7 @@ enum PromptRegistry {
     /// Stances that channel's suffix must mention (`tagPrefix`).
     static func suffixStances(for channel: ReplyChannel) -> [TurnStance] {
         switch channel {
-        case .notebook: return [.journalGrounded, .nearbyOnly, .noMatch]
+        case .notebook: return [.journalGrounded, .noMatch]
         case .thread: return [.followupThread]
         case .companion: return [.sharing]
         case .meta: return [.aboutApp]
@@ -537,27 +557,27 @@ enum PromptRegistry {
     /// emits each turn (`TurnStance.promptLine`), so this suffix says the
     /// minimum that keeps the instructions aware of every stance the channel can
     /// produce — which is what `PromptStanceSyncTests` checks. It is kept terse
-    /// because it is re-prefilled on every speculative miss and `ask-core@17` is
+    /// because it is re-prefilled on every speculative miss and `ask-core@18` is
     /// held to 55% of ask@15 by `AskPromptSizeTests`.
     private static let notebookSuffix = """
     Notebook channel. [Turn: journal question] — Meet, one ### moment, \
     italic quote, Sit naming a pattern; lists only if they asked what they \
     wrote; reproduce any quoted field exactly; then one question; used [ref] \
     numbers in citedRefs; do not reopen an entry already used in the thread.
-    [Turn: journal question, nothing direct] — nothing answers that \
-    directly; at most one nearest entry, as not-an-answer; one question.
-    [Turn: journal question, no matches] — say you don't see anything \
-    from that stretch; one question back; no heading, no list.
+    [Turn: journal question, no matches] — say you can't find an entry \
+    that supports that; one question back; no heading, no list; do not \
+    quote a nearer entry.
+    Never say you saw, heard, felt, noticed, smelled, or remembered their \
+    scene. Do not join fragments they did not write.
     """
 
     private static let notebookSuffixDegraded = """
     [Turn: journal question] — Meet, one ###, italic quote, Sit that names \
     a pattern; lists only if they asked what they wrote; then one \
-    question; list used [ref] numbers. [Turn: journal question, nothing \
-    direct] — nothing answers that directly; at most one nearest entry, \
-    said to be not an answer; never "I see nothing"; no ###; one question. \
-    [Turn: journal question, no matches] — say you don't see anything from \
-    that stretch; then one question; no heading, no list; do not invent.
+    question; list used [ref] numbers.
+    [Turn: journal question, no matches] — say you can't find an entry that \
+    supports that; then one question; no heading, no list; do not invent; \
+    do not quote a nearer entry.
     """
 
     private static let threadSuffix = """

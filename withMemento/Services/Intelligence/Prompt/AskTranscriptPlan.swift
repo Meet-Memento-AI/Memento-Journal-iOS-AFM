@@ -79,8 +79,9 @@ struct AskTranscriptPlan: Equatable, Sendable {
             entries.append(.userPrompt(exemplarUser))
             entries.append(.assistantResponse(exemplarAssistant))
         }
-        for turn in history.suffix(budget.maxHistoryTurns) {
-            let text = String(turn.text.prefix(budget.maxHistoryCharsPerTurn))
+        let windowed = HistoryWindow.promptHistory(Array(history))
+        for turn in windowed.suffix(budget.maxHistoryTurns) {
+            let text = ContextBudget.clipToSentence(turn.text, limit: budget.maxHistoryCharsPerTurn)
             entries.append(turn.role == .user ? .userPrompt(text) : .assistantResponse(text))
         }
         return AskTranscriptPlan(

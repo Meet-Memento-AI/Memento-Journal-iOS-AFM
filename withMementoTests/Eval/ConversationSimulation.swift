@@ -188,8 +188,14 @@ final class ConversationSimulation: XCTestCase {
 
             // --- the assistant's turn, through the path AIChatView uses
             let capped = Array(history.suffix(ChatService.historyMessageLimit))
-            let turnType = TurnClassifier.classify(cleanedUser, hasHistory: !capped.isEmpty)
-            let channel = ReplyChannel.resolve(turn: turnType, hasImages: false)
+            let answeringLastQuestion = ConversationalMove.lastAssistantQuestion(in: capped) != nil
+            let turnType = TurnClassifier.classify(
+                cleanedUser,
+                hasHistory: !capped.isEmpty,
+                lastAssistantAskedQuestion: answeringLastQuestion
+            )
+            let evidence: EvidenceState = arm.entries.isEmpty ? .none : .matched
+            let channel = ReplyChannel.resolve(turn: turnType, hasImages: false, evidence: evidence)
 
             var result: AskResult?
             var failure: String?
@@ -249,9 +255,17 @@ final class ConversationSimulation: XCTestCase {
                 row["facts"] = Self.encodeFacts(result.facts)
                 let isCasual = turnType == .social || turnType == .acknowledgement
                 let cap = channel.maximumResponseTokens(retrievalRan: !result.citations.isEmpty)
+                let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
+                let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
+                let bodyEmpty = result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let openRequired = ResponsePolicyResolver.openRequired(
+                    policy: policy, bodyIsEmpty: bodyEmpty || result.promptVersion == "insight-fact@1"
+                )
                 let violations =
                     ChatEvalScoring.leaks(result.body)
-                    + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: arm.quoteIndex)
+                    + ChatEvalScoring.ruleBreaks(
+                        result.body, isCasual: isCasual, index: arm.quoteIndex, openRequired: openRequired
+                    )
                     + ChatEvalScoring.fabricatedQuotes(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations,
                                                    index: arm.quoteIndex)

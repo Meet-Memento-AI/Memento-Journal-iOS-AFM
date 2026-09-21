@@ -32,13 +32,13 @@ final class TurnShapeCadenceTests: XCTestCase {
         XCTAssertEqual(cadence.resolve(for: .outsideScope), .answerOpen)
     }
 
-    /// The nearby overlay offers the closest entry; it must not also carry the
-    /// no-match overlay's denial.
-    func test_nearbyOnlyOverlay_offersRatherThanDenies() {
+    /// A miss does not offer the nearest entry as a not-an-answer.
+    func test_nearbyOnlyOverlay_doesNotOfferNearestEntry() {
         let overlay = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .nearbyOnly)
         XCTAssertNotNil(overlay)
-        XCTAssertTrue(overlay?.contains("not-an-answer") ?? false)
-        XCTAssertFalse(overlay?.contains("you don't see it") ?? true)
+        XCTAssertFalse(overlay?.contains("not-an-answer") ?? true)
+        XCTAssertTrue(overlay?.contains("can't find an entry") ?? false)
+        XCTAssertTrue(overlay?.contains("Do not quote a nearer entry") ?? false)
     }
 
     func test_reset_staysOpen() {

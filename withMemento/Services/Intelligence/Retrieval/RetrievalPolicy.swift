@@ -77,15 +77,12 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
                 + "do not reopen an entry already used in this thread]"
         case .nearbyOnly:
             return "[Turn: journal question, nothing direct — "
-                + "Meet them, then say plainly that nothing in the notebook answers that directly; "
-                + "you may name at most one recent entry as the closest thing you have, "
-                + "saying outright that it is not an answer to what they asked; "
-                + "never say you see nothing at all; "
-                + "no heading, no list, no quote, no invented detail; "
+                + "do not quote a nearer entry and then deny it; "
+                + "the evidence line already says this is not a match; "
                 + "then one question back toward them]"
         case .noMatch:
             return "[Turn: journal question, no matches — "
-                + "Meet them, then say you don't see anything from that stretch; "
+                + "Meet them, then say you can't find an entry that supports that; "
                 + "then one question back toward them; "
                 + "no heading, no list; do not invent any; do not change the subject; "
                 + "invite them once to write only if they asked what they have written "
@@ -129,7 +126,7 @@ enum RetrievalPolicy {
     /// journal ask — "tell me more" after a share must not retrieve.
     static func mode(for turn: TurnType, history: [ChatTurn] = []) -> RetrievalMode {
         switch turn {
-        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion, .quantitative:
+        case .social, .acknowledgement, .meta, .offdomain, .share, .reflectiveQuestion, .quantitative, .correction:
             return .none
         case .followup:
             return followupMode(history: history)
@@ -157,7 +154,7 @@ enum RetrievalPolicy {
             if checked > maxWalkback { return nil }
             let type = classifyHistoryTurn(turn.text)
             switch type {
-            case .followup, .acknowledgement, .social, .meta:
+            case .followup, .acknowledgement, .social, .meta, .correction:
                 continue
             default:
                 return turn.text
@@ -196,7 +193,9 @@ enum RetrievalPolicy {
     /// actually produced. Explicit journal asks stay grounded/noMatch;
     /// shares and reflective musings stay conversational so chat does not
     /// become an entry report.
-    static func stance(turn: TurnType, retrieval: RetrievalResult) -> TurnStance {
+    static func stance(
+        turn: TurnType, retrieval: RetrievalResult, question: String = ""
+    ) -> TurnStance {
         switch turn {
         case .social, .acknowledgement:
             return .casual
@@ -221,7 +220,12 @@ enum RetrievalPolicy {
             // evidence: the empty archive, a named window nothing touches, and
             // the diversify guard. That is what `.noMatch` now means.
             if retrieval.isEmpty { return .noMatch }
-            return retrieval.isAmbient ? .nearbyOnly : .journalGrounded
+            if retrieval.isAmbient {
+                // A list of what they wrote may name the hits. A miss does not
+                // quote the nearest entry and then deny it.
+                return EvidenceLadder.isInventory(question) ? .journalGrounded : .noMatch
+            }
+            return .journalGrounded
         case .quantitative:
             // Counts are Swift facts; light/casual narration is optional.
             return .casual
@@ -229,6 +233,8 @@ enum RetrievalPolicy {
             // Reflective musings stay warm conversation; grounded reports are
             // reserved for explicit journal asks.
             return .sharing
+        case .correction:
+            return .followupThread
         }
     }
 }
