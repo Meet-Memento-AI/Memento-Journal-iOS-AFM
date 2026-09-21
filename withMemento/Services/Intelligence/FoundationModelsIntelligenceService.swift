@@ -2081,6 +2081,27 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ///
     /// So the prompt never asks for a denial while holding evidence, and never
     /// promises nearby entries it does not have, whatever the caller passed.
+    /// The model has no clock. Without this it cannot resolve "last Tuesday",
+    /// "yesterday" or "this week" against the dated entries in the context
+    /// block, so it guesses — and a guessed date in a journal reads as fact.
+    ///
+    /// Measured on the 2026-09-20 study: 90 of 3,119 generated replies asserted
+    /// a specific date, 14 of them on the arm with **no journal at all**,
+    /// including "I don't see anything from that stretch — the entry from
+    /// March 12 shows a spike in missed classes". It invented a dated entry in
+    /// the same sentence that admitted it had none.
+    ///
+    /// Same format as `EntryRetriever.formattedDate` plus the weekday, so the
+    /// model can compare this line against `[ref N | March 12, 2026]` directly
+    /// and resolve a weekday name without arithmetic it cannot do.
+    static func todayLine(now: Date = Date(), calendar: Calendar = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        return "[Today: \(formatter.string(from: now))]"
+    }
+
     static func stanceMatchingEvidence(
         _ stance: TurnStance, hasEvidenceBlock: Bool, archiveEmpty: Bool = false
     ) -> TurnStance {
@@ -2114,7 +2135,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let fallbackMove: ConversationalMove = channel.usesLightPrompt
                 ? .greetAndAsk : .reflectAndAsk
             let cue = move?.cueLine ?? fallbackMove.cueLine
-            var light: [String] = [cue]
+            var light: [String] = [cue, Self.todayLine()]
             if safetyConstrained {
                 light.insert(SafetyRouter.constrainedStanceLine, at: 0)
             }
@@ -2165,7 +2186,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let effectiveStance = Self.stanceMatchingEvidence(
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
-        var parts: [String] = [effectiveStance.promptLine]
+        var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
         if channel == .notebook || channel == .thread {
             let rung = EvidenceLadder.rung(
                 stance: effectiveStance, retrieval: hasEvidenceBlock ? retrieval : .empty, question: question
