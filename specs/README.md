@@ -31,10 +31,17 @@ specs/
 │                        lean ask-core@16, living profile) — draft
 ├── 045-*.md           ← computed insights and period reflection (InsightEngine, entry
 │                        tagging, weekly PeriodReflection, quantitative Ask) — draft
+├── 046-*.md           ← grounding and evidence discipline (evidence state gates the
+│                        channel, form withheld by code, typed claims); REQ-EVD- — draft
+├── 047-*.md           ← conversational state (reachable follow-ups, correction
+│                        handling); REQ-CST- — draft
+├── 048-*.md           ← harness depth II (self-testing scorers, route coverage,
+│                        counterfactual worlds, failure corpus); REQ-HAR- — draft
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
     ├── 044-045-implementation-sessions.md    ← session-by-session build order for 044+045
+    ├── 046-048-implementation-sessions.md    ← session-by-session build order for 046+047+048
     └── technology/                           ← Apple-framework API reference library
         └── 00…13-*.md                        ← cited by tech_refs in specs 013–036
 ```
