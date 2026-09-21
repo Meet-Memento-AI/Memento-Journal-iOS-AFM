@@ -13,10 +13,17 @@ import Foundation
 /// theme shown on the card's pill. `themeName` is nil when the profile has
 /// no confirmed themes.
 ///
-/// **A starter is something the person says, not something asked of them.**
-/// Tapping a card sends this text as the user's turn
-/// (`ChatViewModel.sendMessage(prompt:)`), so it has to read as an opening
-/// line. Two hard rules follow, both learned the expensive way:
+/// **A starter is a topic, never words put in the person's mouth.**
+///
+/// `label` is the card face and `seed` is what the assistant is asked to open
+/// on. Nothing here is ever appended as the person's turn. That distinction is
+/// load-bearing rather than stylistic: `ChatService.summarizeChat` maps the
+/// on-screen messages to `ChatTurn`s by `isFromUser` and hands them to
+/// `summarizeConversation`, which writes a journal entry. A starter posted as a
+/// user bubble would be summarised back into the person's own journal as
+/// something they said. They did not say it.
+///
+/// Two more rules, both learned the expensive way:
 ///
 /// 1. **Never a counting question.** The previous starters — "How many times
 ///    have I written about sleep this year?", "How often…", "When did I last…"
@@ -35,12 +42,17 @@ import Foundation
 /// the old recall starters answered "0 times".
 struct ChatSuggestion: Hashable, Identifiable {
     let id: UUID
-    let prompt: String
+    /// The card face. A topic, in the app's voice — never first person.
+    let label: String
+    /// What the assistant is asked to open on. Never shown, never stored as a
+    /// turn by the person.
+    let seed: String
     let themeName: String?
 
-    init(prompt: String, themeName: String?, id: UUID = UUID()) {
+    init(label: String, seed: String, themeName: String?, id: UUID = UUID()) {
         self.id = id
-        self.prompt = prompt
+        self.label = label
+        self.seed = seed
         self.themeName = themeName
     }
 
@@ -53,19 +65,23 @@ struct ChatSuggestion: Hashable, Identifiable {
     static let fallbackStarters: [ChatSuggestion] = openers
 
     /// Three registers, deliberately distinct: something heavy, something
-    /// ordinary, something unresolved. Each classifies `.share` → `.companion`
-    /// and touches no retrieval, so it works on an empty journal.
+    /// ordinary, something unresolved. None leans on the archive, because the
+    /// person looking at the empty state has most likely written nothing — which
+    /// is where the old recall starters answered "0 times".
     private static let openers: [ChatSuggestion] = [
         ChatSuggestion(
-            prompt: "I want to talk about the week I've had",
+            label: "The week you've had",
+            seed: "Open the conversation by asking how their week has actually been.",
             themeName: "Wellness"
         ),
         ChatSuggestion(
-            prompt: "Something small went right today",
+            label: "Something small that went right",
+            seed: "Open the conversation by asking about one small thing that went right today.",
             themeName: "Gratitude"
         ),
         ChatSuggestion(
-            prompt: "There's something I keep coming back to",
+            label: "A thing you keep coming back to",
+            seed: "Open the conversation by asking what keeps returning to them lately.",
             themeName: "Mindfulness"
         )
     ]
@@ -85,8 +101,12 @@ enum ThemeAwareChatStarters {
         var pool: [ChatSuggestion] = []
         for name in names {
             let lower = name.lowercased()
-            for template in templates(for: lower, display: name) {
-                pool.append(ChatSuggestion(prompt: template, themeName: name))
+            for topic in templates(for: lower, display: name) {
+                pool.append(ChatSuggestion(
+                    label: topic,
+                    seed: Self.seed(forTopic: topic),
+                    themeName: name
+                ))
             }
         }
 
@@ -117,7 +137,7 @@ enum ThemeAwareChatStarters {
         let pillNames = themeNames.isEmpty ? Self.defaultPillNames : themeNames
         var themeCursor = 0
         let needed = max(limit - result.count, 0)
-        for prompt in genericPool.shuffled().prefix(needed) {
+        for topic in genericPool.shuffled().prefix(needed) {
             let theme: String
             if leftoverThemes.isEmpty {
                 theme = pillNames[themeCursor % pillNames.count]
@@ -127,7 +147,11 @@ enum ThemeAwareChatStarters {
                 theme = pillNames[themeCursor % pillNames.count]
             }
             themeCursor += 1
-            result.append(ChatSuggestion(prompt: prompt, themeName: theme))
+            result.append(ChatSuggestion(
+                label: topic,
+                seed: Self.seed(forTopic: topic),
+                themeName: theme
+            ))
         }
         return Array(result.prefix(limit))
     }
@@ -159,19 +183,27 @@ enum ThemeAwareChatStarters {
     /// queries, so a missing resource silently restored the behaviour the file
     /// was re-authored to remove.
     private static let bundledOpeners: [String] = [
-        "I want to talk about the week I've had",
-        "Something small went right today",
-        "There's something I keep coming back to",
-        "Today was harder than it needed to be",
-        "I haven't been sleeping well",
-        "I just want to think out loud for a minute"
+        "The week you've had",
+        "Something small that went right",
+        "A thing you keep coming back to",
+        "How today actually went",
+        "How you've been sleeping",
+        "Thinking out loud"
     ]
 
     private struct PromptsFile: Decodable {
         let prompts: [String]
     }
 
-    /// Themed openers, in the person's own voice.
+    /// Turns a card's topic into the instruction the assistant opens on.
+    ///
+    /// The person never sees this and it is never stored as their turn — it
+    /// exists only so the model has something to speak first about.
+    static func seed(forTopic topic: String) -> String {
+        "Open the conversation by asking them about this, in one question: \(topic)."
+    }
+
+    /// Themed topics, in the app's voice.
     ///
     /// These used to be archive queries ("What patterns around \(lower) show up
     /// in my recent entries?"). That asks the notebook a question, which is a
@@ -181,10 +213,10 @@ enum ThemeAwareChatStarters {
     /// once there is something to consult.
     private static func templates(for lower: String, display: String) -> [String] {
         [
-            "I've been thinking about \(lower) lately",
-            "\(display) has been on my mind this week",
-            "I want to talk about how \(lower) is going",
-            "\(display) is sitting differently with me right now"
+            "\(display) lately",
+            "How \(lower) has been going",
+            "Where \(lower) is sitting right now",
+            "\(display) this week"
         ]
     }
 }

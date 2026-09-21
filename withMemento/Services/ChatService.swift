@@ -122,10 +122,20 @@ protocol ChatServiceProtocol: AnyObject {
     /// `images` are JPEG bytes attached to this turn (empty for text-only).
     /// `spoken` is the narration fork (shorter caps + spoken shape).
     func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error>
+
+    /// Assistant-opened turn (a starter card). `seed` instructs the model and is
+    /// never stored as the person's turn.
+    func openConversationStream(seed: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
     func prewarm() {}
+
+    /// Mocks fall back to an ordinary send; only the live `ChatService`
+    /// suppresses the stored user turn.
+    func openConversationStream(seed: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        sendMessageStream(seed, sessionId: sessionId, images: [], spoken: false)
+    }
 
     func prewarmConversation(sessionId: UUID?) {}
 
@@ -356,7 +366,15 @@ class ChatService {
     /// events (so the bubble fills as it generates), then persists the turn and
     /// emits `.final`. Persistence and citation mapping run *after* the stream
     /// so nothing blocks first-token.
+    func openConversationStream(seed: String, sessionId: UUID? = nil) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        stream(seed, sessionId: sessionId, images: [], spoken: false, persistUserTurn: false)
+    }
+
     func sendMessageStream(_ text: String, sessionId: UUID? = nil, images: [Data] = [], spoken: Bool = false) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        stream(text, sessionId: sessionId, images: images, spoken: spoken, persistUserTurn: true)
+    }
+
+    private func stream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool, persistUserTurn: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let conversationId = sessionId ?? UUID()
@@ -399,7 +417,7 @@ class ChatService {
                     Self.persistTurnPair(
                         conversationId: conversationId,
                         title: String(text.prefix(100)),
-                        userText: text,
+                        userText: persistUserTurn ? text : "",
                         assistantJSON: Self.assistantContentJSON(
                             body: result.body, heading1: result.heading1, heading2: result.heading2,
                             sources: sources, promptVersion: result.promptVersion,
@@ -496,7 +514,12 @@ class ChatService {
         promptVersion: String = ""
     ) {
         MementoDataStore.upsertConversation(id: conversationId, title: title)
-        MementoDataStore.appendTurn(conversationId: conversationId, role: "user", text: userText)
+        // An assistant-opened turn has no user message. Storing an empty one
+        // would resurrect it as a blank user bubble on reload, and feed it to
+        // `summarizeChat` as something the person said.
+        if !userText.isEmpty {
+            MementoDataStore.appendTurn(conversationId: conversationId, role: "user", text: userText)
+        }
         MementoDataStore.appendTurn(
             conversationId: conversationId,
             role: "assistant",
@@ -507,7 +530,9 @@ class ChatService {
         )
         if !MementoDataStore.hasCompletedLegacyImport {
             LocalChatStore.shared.upsertSession(id: conversationId, title: title)
-            LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
+            if !userText.isEmpty {
+                LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
+            }
             LocalChatStore.shared.appendMessage(role: "assistant", content: assistantJSON, to: conversationId)
         }
     }
