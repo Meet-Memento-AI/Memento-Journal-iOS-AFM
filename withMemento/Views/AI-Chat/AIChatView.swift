@@ -1,6 +1,6 @@
 //
 //  AIChatView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Chat page: typing and hands-free narration are modes of the same surface.
 //  Header stays; the thread dissolves for a listening canvas; footer and glow swap.
@@ -63,39 +63,12 @@ public struct AIChatView: View {
     /// reads confirmed themes from the local profile instead.
     private let seededSuggestions: [ChatSuggestion]?
 
-    private static var allPrompts: [String] = {
-        if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
-           let data = try? Data(contentsOf: url),
-           let json = try? JSONDecoder().decode(PromptsFile.self, from: data) {
-            return json.prompts
-        }
-        return [
-            "Analyze my current mindset from my journal activity in the past week",
-            "Explore the themes from my journals about my friendships",
-            "Summarize my journal entries in the last month",
-            "What emotions have I been experiencing most frequently?",
-            "Help me identify patterns in my daily routines",
-            "What are the recurring themes in my recent reflections?",
-            "What have I written about sleep lately?",
-            "What am I most grateful for based on my entries?",
-            "Find moments of joy I've captured in my journals",
-            "What challenges have I overcome recently?",
-            "What goals have I been working toward?",
-            "How do my weekday entries differ from weekend ones?",
-            "What relationships seem most important to me right now?",
-            "Identify any sources of stress I've mentioned recently",
-            "What have I learned about myself this month?",
-            "What brings me peace according to my entries?",
-            "How do I handle difficult situations?",
-            "What creative ideas have I been exploring?",
-            "Suggest one intention for the week ahead based on my entries",
-            "What does happiness mean to me based on my reflections?"
-        ]
-    }()
+    /// Starter copy lives with the other starter content, in
+    /// `ThemeAwareChatStarters` — this view only rotates it. It used to be a
+    /// private array here, which put a fourth copy of the pool out of reach of
+    /// any test while `rotate` fed two of the three visible cards from it.
+    private static var allPrompts: [String] { ThemeAwareChatStarters.genericPool }
 
-    private struct PromptsFile: Decodable {
-        let prompts: [String]
-    }
 
     init(
         viewModel: ChatViewModel,
@@ -252,7 +225,7 @@ public struct AIChatView: View {
             Button("Cancel", role: .cancel) { stopNarration() }
         } message: {
             Text(
-                "MeetMemento needs microphone access to transcribe your voice. "
+                "withMemento needs microphone access to transcribe your voice. "
                 + "Enable it in Settings > Privacy > Microphone."
             )
         }
