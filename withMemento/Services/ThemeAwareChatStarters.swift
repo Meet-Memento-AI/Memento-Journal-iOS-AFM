@@ -1,6 +1,6 @@
 //
 //  ThemeAwareChatStarters.swift
-//  MeetMemento
+//  withMemento
 //
 //  Templated chat empty-state starters derived from confirmed ThemeCatalog
 //  themes. No model generation — pure local templates so uniqueness is visible
@@ -12,6 +12,27 @@ import Foundation
 /// One empty-state starter: the prompt to send, plus the confirmed catalog
 /// theme shown on the card's pill. `themeName` is nil when the profile has
 /// no confirmed themes.
+///
+/// **A starter is something the person says, not something asked of them.**
+/// Tapping a card sends this text as the user's turn
+/// (`ChatViewModel.sendMessage(prompt:)`), so it has to read as an opening
+/// line. Two hard rules follow, both learned the expensive way:
+///
+/// 1. **Never a counting question.** The previous starters — "How many times
+///    have I written about sleep this year?", "How often…", "When did I last…"
+///    — all matched `TurnClassifier.quantitativePatterns`, so every one routed
+///    to `.quantitative` → `ReplyChannel.statistic`, where
+///    `requiresOnDeviceModel` is false and the reply is a Swift-computed fact
+///    with an empty body. No model ran. Three cards inviting a conversation,
+///    none of which could hold one. `StarterRoutingTests` now fails if that
+///    ever comes back.
+/// 2. **Never advice-shaped.** The archivist persona refuses advice
+///    (`REQ-SUR-002`, spec 019 R6), so a starter that asks for a plan buys a
+///    refusal.
+///
+/// These open in the present tense and lean on nothing in the archive, because
+/// the person most likely to be looking at them has written nothing yet — where
+/// the old recall starters answered "0 times".
 struct ChatSuggestion: Hashable, Identifiable {
     let id: UUID
     let prompt: String
@@ -25,35 +46,27 @@ struct ChatSuggestion: Hashable, Identifiable {
 
     /// Canvas-only starters so AIChatView previews show pills without writing
     /// a profile into UserDefaults.
-    static let previewSamples: [ChatSuggestion] = [
-        ChatSuggestion(
-            prompt: "How many times have I written about sleep this year?",
-            themeName: "Sleep"
-        ),
-        ChatSuggestion(
-            prompt: "When did I last mention my brother?",
-            themeName: "Relationships"
-        ),
-        ChatSuggestion(
-            prompt: "How often have I written about work this month?",
-            themeName: "Goals"
-        )
-    ]
+    static let previewSamples: [ChatSuggestion] = openers
 
     /// Shown under the empty-state headline when rotation has not produced
     /// chips yet, so the three tiles never vanish. Pills always render.
-    static let fallbackStarters: [ChatSuggestion] = [
+    static let fallbackStarters: [ChatSuggestion] = openers
+
+    /// Three registers, deliberately distinct: something heavy, something
+    /// ordinary, something unresolved. Each classifies `.share` → `.companion`
+    /// and touches no retrieval, so it works on an empty journal.
+    private static let openers: [ChatSuggestion] = [
         ChatSuggestion(
-            prompt: "How many times have I written about sleep this year?",
-            themeName: "Sleep"
+            prompt: "I want to talk about the week I've had",
+            themeName: "Wellness"
         ),
         ChatSuggestion(
-            prompt: "When did I last mention my brother?",
-            themeName: "Relationships"
+            prompt: "Something small went right today",
+            themeName: "Gratitude"
         ),
         ChatSuggestion(
-            prompt: "How often have I written about work this month?",
-            themeName: "Goals"
+            prompt: "There's something I keep coming back to",
+            themeName: "Mindfulness"
         )
     ]
 }
@@ -122,12 +135,56 @@ enum ThemeAwareChatStarters {
     /// Pills on the empty-state tiles when the profile has no confirmed themes.
     private static let defaultPillNames = ["Mindfulness", "Goals", "Sleep"]
 
+    /// The untemplated pool `rotate` draws from — which is **two of the three
+    /// cards a person actually sees**.
+    ///
+    /// It previously lived as a private array inside `AIChatView`, out of reach
+    /// of every test, while the starter tests pinned only the two constants that
+    /// are the *fallback* path. That is how "How has my mood shifted over the
+    /// past two weeks?" shipped in the pool while a green test forbade the
+    /// phrase. It lives here now so `ThemePriorTests.allStarterPrompts` and the
+    /// routing guard in `TurnClassifierTests` can both reach it.
+    static var genericPool: [String] {
+        if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
+           let data = try? Data(contentsOf: url),
+           let json = try? JSONDecoder().decode(PromptsFile.self, from: data),
+           !json.prompts.isEmpty {
+            return json.prompts
+        }
+        return bundledOpeners
+    }
+
+    /// Used only when the resource is missing. Kept short and in the same voice
+    /// as the file — the old inline fallback was a second copy of the archive
+    /// queries, so a missing resource silently restored the behaviour the file
+    /// was re-authored to remove.
+    private static let bundledOpeners: [String] = [
+        "I want to talk about the week I've had",
+        "Something small went right today",
+        "There's something I keep coming back to",
+        "Today was harder than it needed to be",
+        "I haven't been sleeping well",
+        "I just want to think out loud for a minute"
+    ]
+
+    private struct PromptsFile: Decodable {
+        let prompts: [String]
+    }
+
+    /// Themed openers, in the person's own voice.
+    ///
+    /// These used to be archive queries ("What patterns around \(lower) show up
+    /// in my recent entries?"). That asks the notebook a question, which is a
+    /// fine thing to be able to do but a poor way to *begin* — and on an empty
+    /// or thin journal it answers with nothing. A starter's job is to get the
+    /// first honest sentence out of the person; the notebook can be consulted
+    /// once there is something to consult.
     private static func templates(for lower: String, display: String) -> [String] {
         [
-            "What patterns around \(lower) show up in my recent entries?",
-            "How has \(lower) shown up for me this month?",
-            "What am I learning about \(lower) from my journal?",
-            "Where do my entries mention \(display), and what stands out?"
+            "I've been thinking about \(lower) lately",
+            "\(display) has been on my mind this week",
+            "I want to talk about how \(lower) is going",
+            "\(display) is sitting differently with me right now"
         ]
     }
 }

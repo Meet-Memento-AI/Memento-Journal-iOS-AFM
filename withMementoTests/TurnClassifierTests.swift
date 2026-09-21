@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Table-driven coverage of the deterministic turn classifier. The classifier
 /// is precision-biased: ambiguous messages must land in a retrieving bucket
@@ -142,9 +142,33 @@ final class TurnClassifierTests: XCTestCase {
         XCTAssertEqual(classify("How tall is Everest?"), .offdomain)
     }
 
-    func test_archivistFallbackStarters_areQuantitative() {
-        for prompt in ChatSuggestion.fallbackStarters.map(\.prompt) {
-            XCTAssertEqual(classify(prompt, hasHistory: false), .quantitative, prompt)
+    /// No starter may route to the counting path.
+    ///
+    /// This previously asserted the opposite — that the starters *are*
+    /// `.quantitative` — which is the defect itself. `.quantitative` resolves to
+    /// `ReplyChannel.statistic`, where `requiresOnDeviceModel` is false and the
+    /// reply is a Swift-computed fact with an empty body. No model runs. All
+    /// three cards invited a conversation and none could hold one; on an empty
+    /// journal the answer was "0 times".
+    ///
+    /// Covers every source, not just `fallbackStarters` — `rotate` fills two of
+    /// the three cards from the generic pool.
+    func test_noStarter_routesToTheCountingPath() {
+        for prompt in ThemePriorTests.allStarterPrompts {
+            XCTAssertNotEqual(classify(prompt, hasHistory: false), .quantitative,
+                              "starter routes to .statistic, so no model replies: \(prompt)")
+        }
+    }
+
+    /// And they reach a channel that can actually converse.
+    func test_everyStarter_reachesAConversationalChannel() {
+        for prompt in ThemePriorTests.allStarterPrompts {
+            let turn = classify(prompt, hasHistory: false)
+            let channel = ReplyChannel.resolve(turn: turn, hasImages: false)
+            XCTAssertNotEqual(channel, .statistic,
+                              "starter reaches the no-model channel: \(prompt)")
+            XCTAssertTrue(channel.requiresOnDeviceModel,
+                          "starter reaches a channel that never calls the model: \(prompt)")
         }
     }
 

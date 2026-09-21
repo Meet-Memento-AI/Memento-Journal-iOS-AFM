@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 044 R3: `themeBoost` reorders signal-clearing hits only.
 final class ThemePriorTests: XCTestCase {
@@ -83,15 +83,61 @@ final class ThemePriorTests: XCTestCase {
         XCTAssertTrue(result.isAmbient, "a theme synonym must not create a topical hit")
     }
 
-    func test_fallbackStarters_areArchivistRecall() {
-        let prompts = (ChatSuggestion.previewSamples + ChatSuggestion.fallbackStarters).map(\.prompt)
-        for prompt in prompts {
-            XCTAssertFalse(prompt.lowercased().contains("actionable plan"))
-            XCTAssertFalse(prompt.lowercased().contains("mood shifted"))
+    /// Every starter the app can show, from every source — not just the two
+    /// constants.
+    ///
+    /// The previous version of this test checked only `previewSamples +
+    /// fallbackStarters`. But `rotate` takes **at most one** themed starter and
+    /// fills the other two from `AISuggestionPrompts.json`, so most of what a
+    /// person actually sees was never covered. That pool still contained
+    /// "How has my mood shifted over the past two weeks?" — the exact string
+    /// this test forbade — plus "Suggest ways to improve my morning routine"
+    /// and "Identify any negative thought patterns I should address", which
+    /// spec 019 R6 obliged this surface to remove. The test stayed green and the
+    /// copy shipped.
+    func test_everyStarterSource_isAdviceFree() {
+        for prompt in Self.allStarterPrompts {
+            let lower = prompt.lowercased()
+            for stem in Self.adviceStems {
+                XCTAssertFalse(lower.contains(stem),
+                               "\(stem.debugDescription) in starter: \(prompt)")
+            }
         }
-        XCTAssertTrue(prompts.contains(where: { $0.contains("sleep this year") }))
-        XCTAssertTrue(prompts.contains(where: { $0.lowercased().contains("how many") }))
     }
+
+    /// Starters open a conversation, so they read as something the person says.
+    /// An archive command ("Identify any unresolved conflicts I've mentioned")
+    /// answers with nothing on an empty journal — which is exactly who is
+    /// looking at the empty state.
+    func test_starters_readAsSomethingThePersonSays() {
+        for prompt in Self.allStarterPrompts {
+            let lower = prompt.lowercased()
+            for command in ["find ", "identify ", "summarize ", "analyze ", "explore "] {
+                XCTAssertFalse(lower.hasPrefix(command),
+                               "starter is an archive command, not an opening line: \(prompt)")
+            }
+        }
+    }
+
+    /// The union of every path that can put text on a card.
+    static var allStarterPrompts: [String] {
+        let bundled = ChatSuggestion.previewSamples + ChatSuggestion.fallbackStarters
+        let themed = ThemeAwareChatStarters.starters(
+            themeIds: ["stress", "goals", "sleep"], limit: 12
+        )
+        return (bundled + themed).map(\.prompt) + ThemeAwareChatStarters.genericPool
+    }
+
+    /// Mirrors `ProfileRefreshCoordinator.containsForbiddenPhrase`, whose own
+    /// comment says these stems are "used on starters" — they were not, until
+    /// now. `scripts/ci/lint_forbidden_phrases.py`, which spec 044 R3 names as
+    /// the enforcement for exactly this, checks only absolute-privacy claims
+    /// and carries no advice stems at all.
+    static let adviceStems = [
+        "you should", "i should", "actionable plan", "suggest ways",
+        "help me identify", "as your therapist", "coping protocol",
+        "mood shifted", "you always", "you never"
+    ]
 
     // MARK: - Helpers
 
