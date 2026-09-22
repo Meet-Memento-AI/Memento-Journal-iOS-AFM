@@ -97,156 +97,14 @@ enum ReplyRenderer {
         var text = OutputSafetyScanner.strippingHarnessMarkup(raw)
         text = pass.placeMarkers(in: text)
         text = CitationReconciliation.strippingReferenceMarkers(text)
-        text = pass.handleEmphasis(in: text)
+        text = pass.resolveQuoteShapedSpans(in: text)
+        text = pass.verifyBold(in: text)
+        text = pass.banUnbackedDates(in: text)
         text = pass.dropHeadings(in: text)
+        text = RenderText.dropFlaggedSentences(text)
+        text = RenderText.recapitalizeAfterRemovals(text)
         text = RenderText.tidy(text)
         return pass.finish(text, isFinal: isFinal, rawHadWords: RenderText.hasContent(raw))
-    }
-}
-
-// MARK: - Streaming (spec 050 R5)
-
-extension ReplyRenderer {
-
-    /// How much of a still-growing reply may be rendered now.
-    enum StreamGranularity: Sendable {
-        /// Whole sentences — the journal channels, where an unverifiable
-        /// quotation takes its whole sentence with it.
-        case sentence
-        /// Whole words — the light channels, which carry no evidence.
-        case word
-    }
-
-    /// Notebook and thread carry evidence; everything else streams per word.
-    static func granularity(for channel: ReplyChannel) -> StreamGranularity {
-        channel.allowsRetrieval ? .sentence : .word
-    }
-
-    /// The longest prefix of `raw` that can be rendered without later text
-    /// changing it: never inside an open marker, italic, bold, or quotation,
-    /// and never mid-sentence (`.sentence`) or mid-word (`.word`).
-    static func stablePrefix(of raw: String, granularity: StreamGranularity) -> String {
-        let characters = Array(raw)
-        let limit = StreamCut.openConstructStart(characters) ?? characters.count
-        let cut: Int
-        switch granularity {
-        case .sentence: cut = StreamCut.lastSentenceBoundary(characters, upTo: limit)
-        case .word: cut = StreamCut.lastSettledWord(characters, upTo: limit)
-        }
-        return String(characters[0..<cut])
-    }
-
-    /// What a streaming delta may show: the rendered stable prefix. Raw
-    /// model text never reaches the bubble or TTS.
-    static func streamingBody(
-        _ raw: String,
-        pack: EvidencePack,
-        context: RenderContext,
-        granularity: StreamGranularity
-    ) -> String {
-        render(stablePrefix(of: raw, granularity: granularity), pack: pack, context: context, isFinal: false).body
-    }
-}
-
-enum StreamCut {
-    private static let terminators: Set<Character> = [".", "!", "?", "…"]
-    private static let closers: Set<Character> = ["\"", "”", "’", "'", ")", "]", "*", "_"]
-    static let months: Set<String> = [
-        "January", "February", "March", "April", "May", "June", "July", "August",
-        "September", "October", "November", "December",
-        "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Sept", "Oct", "Nov", "Dec"
-    ]
-
-    /// Where the earliest construct still waiting for its closer begins.
-    /// Emphasis and quotations never span lines, so only the last line can
-    /// hold an open one; a marker may be open anywhere.
-    static func openConstructStart(_ characters: [Character]) -> Int? {
-        var brace: Int?
-        for (index, character) in characters.enumerated() {
-            if character == "{", brace == nil { brace = index }
-            if character == "}" { brace = nil }
-        }
-        let lineStart = (characters.lastIndex(of: "\n") ?? -1) + 1
-        var italic: Int?, bold: Int?, underscore: Int?, curly: Int?, straight: Int?
-        var index = lineStart
-        while index < characters.count {
-            let character = characters[index]
-            if character == "*" {
-                var run = 1
-                while index + run < characters.count, characters[index + run] == "*" { run += 1 }
-                if run >= 2 { bold = bold == nil ? index : nil }
-                if run % 2 == 1 { italic = italic == nil ? index : nil }
-                index += run
-                continue
-            }
-            let previousIsWord = index > lineStart && isWord(characters[index - 1])
-            switch character {
-            case "_":
-                if underscore == nil, !previousIsWord {
-                    underscore = index
-                } else if underscore != nil, previousIsWord {
-                    underscore = nil
-                }
-            case "“": curly = curly ?? index
-            case "”": curly = nil
-            case "\"": straight = straight == nil ? index : nil
-            default: break
-            }
-            index += 1
-        }
-        return [brace, italic, bold, underscore, curly, straight].compactMap { $0 }.min()
-    }
-
-    /// Just past the last sentence end (a terminator run and its closing
-    /// marks, followed by whitespace) or line break before `limit`.
-    static func lastSentenceBoundary(_ characters: [Character], upTo limit: Int) -> Int {
-        var best = 0
-        var index = 0
-        while index < limit {
-            let character = characters[index]
-            if character == "\n" {
-                best = index + 1
-            } else if terminators.contains(character) {
-                var end = index + 1
-                while end < limit, terminators.contains(characters[end]) { end += 1 }
-                while end < limit, closers.contains(characters[end]) { end += 1 }
-                if end < limit, characters[end].isWhitespace { best = end }
-                index = end
-                continue
-            }
-            index += 1
-        }
-        return best
-    }
-
-    /// Up to the last whole word before `limit`, holding back a trailing
-    /// month or number that may be the start of a date still arriving.
-    static func lastSettledWord(_ characters: [Character], upTo limit: Int) -> Int {
-        var cut = limit
-        if cut == characters.count, let last = characters.last, !last.isWhitespace {
-            cut = (characters[..<cut].lastIndex(where: \.isWhitespace) ?? 0)
-        } else if cut < characters.count {
-            cut = (characters[..<cut].lastIndex(where: \.isWhitespace) ?? 0)
-        }
-        var words: [(start: Int, text: String)] = []
-        var index = cut - 1
-        while index >= 0, words.count < 3 {
-            while index >= 0, characters[index].isWhitespace { index -= 1 }
-            guard index >= 0 else { break }
-            let end = index + 1
-            while index >= 0, !characters[index].isWhitespace { index -= 1 }
-            words.append((start: index + 1, text: String(characters[(index + 1)..<end])))
-        }
-        let dateLike = words.filter { word in
-            let bare = word.text.trimmingCharacters(in: CharacterSet(charactersIn: ",.;:"))
-            return months.contains(bare) || bare.range(of: #"^\d{1,4}(st|nd|rd|th)?$"#, options: .regularExpression) != nil
-        }
-        if let earliest = dateLike.map(\.start).min() { cut = earliest }
-        return cut
-    }
-
-    private static func isWord(_ character: Character) -> Bool {
-        character.isLetter || character.isNumber
     }
 }
 
@@ -284,7 +142,7 @@ enum RenderToken {
 
 // MARK: - One render
 
-private struct Expansion {
+struct RenderExpansion {
     enum Kind { case quote, date, stat }
     let kind: Kind
     let slotIndex: Int?
@@ -292,16 +150,23 @@ private struct Expansion {
     let text: String
 }
 
-private struct RenderPass {
+/// The state of one `ReplyRenderer.render` call. The strict span, bold,
+/// date and heading passes live in `ReplyRenderer+Strict.swift`.
+struct RenderPass {
+    typealias Expansion = RenderExpansion
+
     let pack: EvidencePack
     let context: RenderContext
     var stats: ReplyRenderStats
     var expansions: [Expansion] = []
+    /// What the person said, folded the way spans are folded.
+    let foldedConversation: String
 
     init(pack: EvidencePack, context: RenderContext) {
         self.pack = pack
         self.context = context
         stats = ReplyRenderStats(packState: pack.state, slotCount: pack.slots.count)
+        foldedConversation = context.userTexts.map(RenderText.foldedString).joined(separator: "\u{1}")
     }
 
     // MARK: Markers
@@ -377,40 +242,6 @@ private struct RenderPass {
 
     func showsQuote(for slotIndex: Int) -> Bool {
         expansions.contains { $0.kind == .quote && $0.slotIndex == slotIndex }
-    }
-
-    // MARK: Emphasis
-
-    private static let italicStar = RenderText.regex(#"(?<![*\w])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?![*\w])"#)
-    private static let italicUnderscore = RenderText.regex(
-        #"(?<![_\p{L}\p{N}])_(?![\s_])([^_\n]+?)(?<![\s_])_(?![_\p{L}\p{N}])"#
-    )
-
-    /// Italics are journal typography, and journal words arrive only as
-    /// expansions — so the model's own italics are unwrapped.
-    mutating func handleEmphasis(in text: String) -> String {
-        var out = RenderText.replacing(RenderText.regex(#"\*{3,}"#), in: text) { _ in "**" }
-        for regex in [Self.italicStar, Self.italicUnderscore] {
-            out = RenderText.replacing(regex, in: out) { groups in
-                self.stats.strippedItalicCount += 1
-                return groups[1]
-            }
-        }
-        return out
-    }
-
-    // MARK: Headings
-
-    mutating func dropHeadings(in text: String) -> String {
-        let lines = text.components(separatedBy: "\n").filter { line in
-            guard RenderText.isHeading(line) else { return true }
-            guard RenderText.hasContent(line.drop { $0 == "#" || $0.isWhitespace }) else {
-                stats.droppedHeadingCount += 1
-                return false
-            }
-            return true
-        }
-        return lines.joined(separator: "\n")
     }
 
     // MARK: Finish

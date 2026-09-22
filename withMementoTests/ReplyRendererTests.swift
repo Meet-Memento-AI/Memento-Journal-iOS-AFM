@@ -168,10 +168,11 @@ final class ReplyRendererTests: XCTestCase {
         XCTAssertEqual(rendered.strippedItalicCount, 2)
     }
 
-    func test_boldIsNotItalic_andSurvivesTheItalicPass() {
-        let rendered = render("It was **the house was quiet** that week. What now?", matchedPack())
+    func test_boldIsNotItalic_andSurvivesTheItalicPass_whenThePackBacksIt() {
+        let rendered = render("{{quote:1}} It was **the house was quiet** that week. What now?", matchedPack())
         XCTAssertTrue(rendered.body.contains("**the house was quiet**"))
         XCTAssertEqual(rendered.strippedItalicCount, 0)
+        XCTAssertEqual(rendered.stats.unwrappedBoldCount, 0)
     }
 
     func test_referenceMarkersAndBraceJunk_neverReachTheBody() {
@@ -200,6 +201,148 @@ final class ReplyRendererTests: XCTestCase {
         let rendered = render("Here is the moment.\n### {{date:9}}\n\nWhat now?", matchedPack())
         XCTAssertFalse(rendered.body.contains("###"))
         XCTAssertEqual(rendered.stats.droppedHeadingCount, 1)
+    }
+
+    // MARK: - Strict: spans the model wrote itself (R4 step 4)
+
+    func test_verbatimItalicSpan_isAdoptedAsTheSlotQuote() {
+        let rendered = render("*Slept through the night for the first time in weeks* What changed?", matchedPack())
+        XCTAssertEqual(italicSpans(rendered.body), [sleepQuote], "the pack's canonical text, not the model's copy")
+        XCTAssertEqual(rendered.chips.map(\.entryId), [sleepEntry.id])
+        XCTAssertEqual(rendered.stats.adoptedQuoteCount, 1)
+    }
+
+    func test_verbatimPassageSpan_isAdoptedWithThePassagesOwnCharacters() {
+        let rendered = render("You noticed “the HOUSE was quiet”. What changed?", matchedPack())
+        XCTAssertEqual(italicSpans(rendered.body), ["The house was quiet"])
+        XCTAssertEqual(rendered.chips.first?.quoteText, "The house was quiet")
+    }
+
+    /// A copied sentence keeps its own period, so it does not fuse with the next.
+    func test_adoptedSentence_keepsThePassagesSentenceEnd() {
+        let rendered = render("You noticed “The house was quiet.” That stayed. What now?", matchedPack())
+        XCTAssertEqual(rendered.body, "You noticed *The house was quiet.* That stayed. What now?")
+    }
+
+    func test_adoptedSpanForAQuoteAlreadyShown_isNotRepeated() {
+        let rendered = render("{{quote:1}} *Slept through the night for the first time in weeks.* What now?", matchedPack())
+        XCTAssertEqual(italicSpans(rendered.body), [sleepQuote])
+        XCTAssertEqual(rendered.stats.droppedDuplicateQuoteCount, 1)
+    }
+
+    func test_fabricatedFirstPersonItalic_takesItsSentenceWithIt() {
+        let raw = "You finally rested. On that night *I felt light for the first time in months.* What changed?"
+        let rendered = render(raw, matchedPack())
+        XCTAssertEqual(rendered.body, "You finally rested. What changed?")
+        XCTAssertEqual(rendered.stats.droppedQuotationCount, 1)
+        XCTAssertTrue(rendered.chips.isEmpty)
+    }
+
+    func test_fabricatedQuotedSentence_takesItsSentenceWithIt() {
+        let rendered = render("It rained. You wrote “the storm finally broke over the harbor”. What then?", matchedPack())
+        XCTAssertEqual(rendered.body, "It rained. What then?")
+    }
+
+    func test_theirOwnWordsFromThisChat_stayAsAPlainQuotation() {
+        let context = RenderContext(question: "I keep hearing we should take a break", history: [])
+        let rendered = render("You keep coming back to *we should take a break*. What does that stir?",
+                              matchedPack(), context: context)
+        XCTAssertEqual(rendered.body, "You keep coming back to “we should take a break”. What does that stir?")
+        XCTAssertTrue(italicSpans(rendered.body).isEmpty, "italics mean journal; chat words are never italic")
+        XCTAssertTrue(rendered.chips.isEmpty)
+    }
+
+    func test_shortEmphasisAndScareQuotes_loseTheirMarksNotTheirWords() {
+        let rendered = render("It felt like “a reset” and *so slow*. What now?", .empty)
+        XCTAssertEqual(rendered.body, "It felt like a reset and so slow. What now?")
+    }
+
+    func test_boldNotBackedByAShownSlot_isUnwrapped() {
+        let rendered = render("{{quote:2}} That was **your whole week**. What now?", matchedPack())
+        XCTAssertTrue(rendered.body.contains("That was your whole week."))
+        XCTAssertEqual(rendered.stats.unwrappedBoldCount, 1)
+    }
+
+    // MARK: - Strict: dates (R4 step 6)
+
+    func test_dateThePackCannotBack_isRemovedWithItsPreposition() {
+        let rendered = render("On April 12, 2026, you wrote about the move. It came up again on May 2. What now?",
+                              matchedPack())
+        XCTAssertEqual(rendered.body, "You wrote about the move. It came up again. What now?")
+        XCTAssertEqual(rendered.stats.strippedDateCount, 2)
+    }
+
+    func test_dateThePackBacks_survivesTypedRaw_atThePrecisionWritten() {
+        let pack = matchedPack()
+        for raw in ["That was \(march3).", "That was March 3.", "That was in March 2026.", "That was 2026-03-03."] {
+            XCTAssertEqual(render(raw + " What now?", pack).body, raw + " What now?", raw)
+        }
+        XCTAssertEqual(render("That was on March 4. What now?", pack).body, "That was. What now?")
+    }
+
+    func test_datesInsideAnExpandedQuote_areThePersonsOwnWords() {
+        let entry = RetrievedEntry(ref: 1, id: UUID(), date: day(3, 3),
+                                   text: "On June 5 I finally called my sister back.")
+        let pack = EvidencePackBuilder.build(retrieval: retrieval([entry]), stance: .journalGrounded, channel: .notebook)
+        let rendered = render("{{quote:1}} What did that call change?", pack)
+        XCTAssertTrue(rendered.body.contains("*On June 5 I finally called my sister back.*"))
+        XCTAssertEqual(rendered.stats.strippedDateCount, 0)
+    }
+
+    func test_aDateThePersonWroteInChat_survives() {
+        let context = RenderContext(question: "What happened on June 5?", history: [])
+        XCTAssertEqual(render("On June 5 you wrote nothing. What happened?", .empty, context: context).body,
+                       "On June 5 you wrote nothing. What happened?")
+    }
+
+    func test_headingEmptiedByARemovedDate_isDropped() {
+        let rendered = render("Here it is.\n\n### April 12, 2026\n{{quote:1}}\n\nWhat now?", matchedPack())
+        XCTAssertFalse(rendered.body.contains("###"))
+        XCTAssertTrue(rendered.body.contains("*\(sleepQuote)*"))
+    }
+
+    // MARK: - Strict: pack states (R4 step 7, I3)
+
+    func test_nonePack_keepsTheSoftMiss_butNoJournalForm() {
+        let raw = "I can't find an entry that supports that.\n\n### A quiet week\n*I slept better that Tuesday.*\n\n"
+            + "What's been on your mind about sleep?"
+        let rendered = render(raw, .empty)
+        XCTAssertEqual(rendered.body, "I can't find an entry that supports that.\n\nWhat's been on your mind about sleep?")
+        XCTAssertEqual(rendered.stats.droppedHeadingCount, 1)
+        XCTAssertTrue(rendered.chips.isEmpty)
+        XCTAssertTrue(rendered.citations.isEmpty)
+    }
+
+    func test_ambientPack_allowsTheShippedDates_butQuotesNothing() {
+        let rendered = render("Lately it's been work, since \(march3). *Slept through the night for the first time in weeks.* "
+                              + "What stands out?", ambientPack())
+        XCTAssertTrue(rendered.body.contains(march3), "a date the prompt carried is not invented")
+        XCTAssertTrue(rendered.chips.isEmpty)
+        XCTAssertTrue(italicSpans(rendered.body).isEmpty, "ambient rows are never quoted")
+    }
+
+    // MARK: - The scorer sees what the reader sees
+
+    func test_renderedBody_carriesNoFabricatedQuote_forTheEvalScorer() {
+        let corpus = [
+            Entry(title: "Sleep", text: sleep, createdAt: day(3, 3)),
+            Entry(title: "Work", text: work, createdAt: day(3, 9))
+        ]
+        let index = ChatEvalScoring.QuoteIndex(corpus)
+        let raw = "You finally rested.\n\n### {{date:1}}\n{{quote:1}}\n\n*I felt light for the first time in months.* "
+            + "Then *the rain kept falling all week long*. What changed?"
+        XCTAssertFalse(ChatEvalScoring.fabricatedQuotes(raw.replacingOccurrences(of: "{{quote:1}}", with: "*x*"),
+                                                        index: index).isEmpty, "fixture sanity: the raw reply fabricates")
+        let body = render(raw, matchedPack()).body
+        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(body, index: index).isEmpty, body)
+        XCTAssertTrue(body.contains("*\(sleepQuote)*"), "the real quote is still there")
+    }
+
+    func test_emptyArchiveReply_carriesNoJournalForm_forTheEvalScorer() {
+        let raw = "### March 3, 2026\n*I finally slept.* That sounds like a long week. What's been hardest?"
+        let body = render(raw, .empty).body
+        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(body, index: ChatEvalScoring.QuoteIndex([])).isEmpty, body)
+        XCTAssertEqual(body, "That sounds like a long week. What's been hardest?")
     }
 
     // MARK: - Streaming (R5)
