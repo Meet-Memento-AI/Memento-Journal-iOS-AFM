@@ -181,6 +181,56 @@
   ul.notes li { line-height: 1.55; }
   ul.notes li strong { font-weight: 600; }
 
+  /* Raw browser. Rows are dense and scanned, so the type drops to mono and the
+     row itself is the hit target; nothing here is a card. */
+  .rawbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+  .rawbar select, .rawbar input {
+    font: 400 12.5px/1.4 "IBM Plex Mono", monospace; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+    padding: 6px 8px; min-width: 0;
+  }
+  .rawbar input[type="search"] { flex: 1 1 200px; }
+  .rawbar select:focus-visible, .rawbar input:focus-visible,
+  .rawbtn:focus-visible, .rawrow:focus-visible {
+    outline: 2px solid var(--no-journal); outline-offset: 1px;
+  }
+  .rawbtn {
+    font: 500 12.5px/1.4 "IBM Plex Sans", sans-serif; color: var(--surface-raised);
+    background: var(--ink); border: 0; border-radius: 5px; padding: 7px 13px; cursor: pointer;
+  }
+  .rawbtn[disabled] { opacity: .4; cursor: default; }
+  .rawbtn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--rule); }
+  .rawcount { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-3); }
+  .rawlist { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .rawrow {
+    display: grid; grid-template-columns: 116px 74px 1fr; gap: 10px; align-items: start;
+    border-bottom: 1px solid var(--rule); padding: 9px 4px; cursor: pointer; background: none;
+    border-left: 0; border-right: 0; border-top: 0; text-align: left; width: 100%; font: inherit; color: inherit;
+  }
+  .rawrow:hover { background: var(--surface-sunk); }
+  .rawrow .who { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--ink-3); line-height: 1.45; }
+  .rawrow .role { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600; }
+  .rawrow .role.user { color: var(--ink-3); }
+  .rawrow .role.assistant { color: var(--no-journal); }
+  .rawrow[data-arm="persona"] .role.assistant, .rawrow[data-arm="cold"] .role.assistant { color: var(--has-journal); }
+  .rawrow .snippet { font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+  .rawrow .codes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .rawrow .codes b {
+    font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 500;
+    background: color-mix(in srgb, var(--critical) 15%, transparent); color: var(--critical);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .rawrow .codes b.quiet { background: var(--surface-sunk); color: var(--ink-3); }
+  .rawjson {
+    background: var(--surface-sunk); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 12px 14px; margin: 0 0 10px; overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.55;
+    white-space: pre; color: var(--ink-2);
+  }
+  @media (max-width: 620px) {
+    .rawrow { grid-template-columns: 1fr; gap: 4px; }
+  }
+
   .tooltip {
     position: fixed; pointer-events: none; z-index: 30; opacity: 0; transition: opacity .08s;
     background: var(--ink); color: var(--surface); padding: 7px 10px; border-radius: 5px;
@@ -344,6 +394,36 @@
       </div>
       <div id="chart-latency"></div>
       <details class="tableview"><summary>Table view</summary><div class="datatable-scroll" id="table-latency"></div></details>
+    </div>
+  </section>
+
+  <section id="raw">
+    <div class="sechead">
+      <div class="eyebrow">Every message, both runs</div>
+      <h2>The raw data</h2>
+    </div>
+    <p>14,032 messages as the harness wrote them — every user turn, every reply, with the routing
+      decision, the scorer output, the citations and the timings attached. Nothing here is
+      aggregated. The files load only when you ask for them, because they are 10&nbsp;MB.</p>
+    <div class="chartcard">
+      <div class="rawbar" id="rawload"></div>
+      <div id="rawui" hidden>
+        <div class="rawbar" style="margin-bottom:12px">
+          <select id="f-run" aria-label="Study"></select>
+          <select id="f-arm" aria-label="Arm"></select>
+          <select id="f-role" aria-label="Role"></select>
+          <select id="f-code" aria-label="Violation code"></select>
+          <select id="f-persona" aria-label="Persona"></select>
+          <input type="search" id="f-text" placeholder="search message text…" aria-label="Search message text">
+          <button class="rawbtn ghost" id="f-reset" type="button">Reset</button>
+        </div>
+        <div class="rawcount" id="rawcount"></div>
+        <div class="rawlist" id="rawlist"></div>
+        <div class="rawbar" style="margin-top:12px">
+          <button class="rawbtn ghost" id="rawmore" type="button">Show 100 more</button>
+          <span class="rawcount" id="rawshown"></span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1071,6 +1151,206 @@
       li.innerHTML = html;
       host.appendChild(li);
     });
+  })();
+
+  // ------------------------------------------------------------ raw browser
+  (function raw() {
+    const manifest = DATA.row_files || [];
+    const loadHost = document.getElementById("rawload");
+    const ui = document.getElementById("rawui");
+    if (!manifest.length) {
+      loadHost.innerHTML = '<span class="rawcount">Row files were not published with this version.</span>';
+      return;
+    }
+
+    const totalRows = manifest.reduce((sum, f) => sum + f.rows, 0);
+    const totalMB = manifest.reduce((sum, f) => sum + f.bytes, 0) / 1048576;
+    const button = document.createElement("button");
+    button.className = "rawbtn";
+    button.type = "button";
+    button.textContent = `Load ${totalRows.toLocaleString()} messages (${totalMB.toFixed(1)} MB)`;
+    const status = document.createElement("span");
+    status.className = "rawcount";
+    status.textContent = manifest.map((f) => `${f.label} ${f.rows.toLocaleString()}`).join(" · ");
+    loadHost.appendChild(button);
+    loadHost.appendChild(status);
+
+    // A same-origin <script> rather than fetch: the artifact CSP blocks XHR
+    // broadly, and a script tag beside the page is the load path that holds.
+    function loadOne(entry) {
+      return new Promise((resolve, reject) => {
+        const tag = document.createElement("script");
+        tag.src = entry.file;
+        tag.onload = () => resolve();
+        tag.onerror = () => reject(new Error(entry.file));
+        document.head.appendChild(tag);
+      });
+    }
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Loading…";
+      try {
+        await Promise.all(manifest.map(loadOne));
+      } catch (error) {
+        button.textContent = "Load failed";
+        status.textContent = `Could not load ${error.message}. The JSONL is in `
+          + `eval-archive/convo-sim/ in the repository.`;
+        return;
+      }
+      loadHost.hidden = true;
+      ui.hidden = false;
+      start();
+    });
+
+    function start() {
+      const store = window.__CONVO_RAW || {};
+      const labels = manifest.map((f) => f.label).filter((l) => store[l]);
+      const els = {
+        run: document.getElementById("f-run"), arm: document.getElementById("f-arm"),
+        role: document.getElementById("f-role"), code: document.getElementById("f-code"),
+        persona: document.getElementById("f-persona"), text: document.getElementById("f-text"),
+        reset: document.getElementById("f-reset"), list: document.getElementById("rawlist"),
+        count: document.getElementById("rawcount"), more: document.getElementById("rawmore"),
+        shown: document.getElementById("rawshown"),
+      };
+      let limit = 100;
+
+      function fill(select, values, allLabel) {
+        select.innerHTML = "";
+        const first = document.createElement("option");
+        first.value = "";
+        first.textContent = allLabel;
+        select.appendChild(first);
+        values.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+      }
+
+      function rowsFor(label) { return label ? (store[label] || []) : labels.flatMap((l) => store[l]); }
+
+      function refreshFacets() {
+        const rows = rowsFor(els.run.value);
+        const uniq = (key) => [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort();
+        const keepArm = els.arm.value, keepRole = els.role.value;
+        const keepCode = els.code.value, keepPersona = els.persona.value;
+        fill(els.arm, uniq("arm"), "all arms");
+        fill(els.role, ["user", "assistant"], "both roles");
+        fill(els.code, [...new Set(rows.flatMap((r) =>
+          (r.violations || []).map((v) => v.code)))].sort(), "any violation code");
+        fill(els.persona, uniq("persona_id"), "all personas");
+        els.arm.value = keepArm; els.role.value = keepRole;
+        els.code.value = keepCode; els.persona.value = keepPersona;
+      }
+
+      function filtered() {
+        const needle = els.text.value.trim().toLowerCase();
+        return rowsFor(els.run.value).filter((r) => {
+          if (els.arm.value && r.arm !== els.arm.value) return false;
+          if (els.role.value && r.role !== els.role.value) return false;
+          if (els.persona.value && r.persona_id !== els.persona.value) return false;
+          if (els.code.value && !(r.violations || []).some((v) => v.code === els.code.value)) return false;
+          if (needle && !(r.text || "").toLowerCase().includes(needle)) return false;
+          return true;
+        });
+      }
+
+      function render() {
+        const rows = filtered();
+        els.count.textContent = `${rows.length.toLocaleString()} of `
+          + `${rowsFor(els.run.value).length.toLocaleString()} messages match`;
+        els.list.innerHTML = "";
+        rows.slice(0, limit).forEach((r) => {
+          const row = document.createElement("button");
+          row.className = "rawrow";
+          row.type = "button";
+          row.setAttribute("data-arm", r.arm || "");
+
+          const who = document.createElement("div");
+          who.className = "who";
+          who.textContent = `${r.run_id || ""}\n#${r.turn_index}`;
+          who.style.whiteSpace = "pre-line";
+
+          const role = document.createElement("div");
+          role.className = "role " + (r.role || "");
+          role.textContent = r.role === "assistant"
+            ? (r.channel || "assistant") : (r.move ? "user" : "opener");
+
+          const main = document.createElement("div");
+          const snippet = document.createElement("div");
+          snippet.className = "snippet";
+          const text = (r.text || "").replace(/\s+/g, " ");
+          snippet.textContent = text.length > 260 ? text.slice(0, 260) + "…" : (text || "(empty)");
+          main.appendChild(snippet);
+
+          const codes = document.createElement("div");
+          codes.className = "codes";
+          (r.violations || []).forEach((v) => {
+            const chip = document.createElement("b");
+            // gen.* and the unarmed hall.* codes are measured but do not gate,
+            // so they read quiet — the same distinction every rate here uses.
+            if (v.code.startsWith("gen.") || DATA.report_only_codes.indexOf(v.code) >= 0) {
+              chip.className = "quiet";
+            }
+            chip.textContent = v.code;
+            codes.appendChild(chip);
+          });
+          if (r.citations && r.citations.length) {
+            const chip = document.createElement("b");
+            chip.className = "quiet";
+            chip.textContent = `${r.citations.length} citation${r.citations.length === 1 ? "" : "s"}`;
+            codes.appendChild(chip);
+          }
+          if (r.error) {
+            const chip = document.createElement("b");
+            chip.textContent = r.designed_refusal ? "designed refusal" : "error";
+            if (r.designed_refusal) chip.className = "quiet";
+            codes.appendChild(chip);
+          }
+          if (codes.children.length) main.appendChild(codes);
+
+          row.appendChild(who);
+          row.appendChild(role);
+          row.appendChild(main);
+          row.addEventListener("click", () => {
+            const open = row.nextElementSibling;
+            if (open && open.classList.contains("rawjson")) { open.remove(); return; }
+            const pre = document.createElement("pre");
+            pre.className = "rawjson";
+            pre.textContent = JSON.stringify(r, null, 1);
+            row.after(pre);
+          });
+          els.list.appendChild(row);
+        });
+        els.more.hidden = rows.length <= limit;
+        els.shown.textContent = rows.length
+          ? `showing ${Math.min(limit, rows.length).toLocaleString()} — click any row for its full JSON`
+          : "nothing matches these filters";
+      }
+
+      fill(els.run, labels, "both studies");
+      refreshFacets();
+      [els.arm, els.role, els.code, els.persona].forEach((select) =>
+        select.addEventListener("change", () => { limit = 100; render(); }));
+      els.run.addEventListener("change", () => { limit = 100; refreshFacets(); render(); });
+      let timer;
+      els.text.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { limit = 100; render(); }, 180);
+      });
+      els.reset.addEventListener("click", () => {
+        els.run.value = ""; els.text.value = "";
+        refreshFacets();
+        els.arm.value = els.role.value = els.code.value = els.persona.value = "";
+        limit = 100;
+        render();
+      });
+      els.more.addEventListener("click", () => { limit += 100; render(); });
+      render();
+    }
   })();
 
   window.addEventListener("scroll", hideTip, { passive: true });

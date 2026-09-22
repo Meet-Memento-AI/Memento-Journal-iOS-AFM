@@ -22,6 +22,9 @@ def main() -> None:
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--template", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--rows-index", type=Path,
+                        help="index.json from export_convo_sim_rows.py; its entries become "
+                             "DATA.row_files, which is what the page lazy-loads")
     args = parser.parse_args()
 
     template = args.template.read_text()
@@ -31,7 +34,10 @@ def main() -> None:
     # Compact, and with the two sequences that could close the enclosing
     # <script> escaped. A JSON island is parsed as text, so `</script>` inside
     # a string would end the element early and take the page with it.
-    payload = json.dumps(json.loads(args.data.read_text()), separators=(",", ":"))
+    data = json.loads(args.data.read_text())
+    if args.rows_index:
+        data["row_files"] = json.loads(args.rows_index.read_text())
+    payload = json.dumps(data, separators=(",", ":"))
     payload = payload.replace("</", "<\\/").replace("<!--", "<\\!--")
 
     args.out.write_text(template.replace(SENTINEL, payload))
