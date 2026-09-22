@@ -252,15 +252,30 @@ def report(path: Path) -> None:
         ))
     table("Conversation shape (and harness artefacts, which are not app findings)", shape)
 
-    # --- Persona and intent, where the model's behaviour varies by who is typing
+    # --- Persona and intent, split by arm rather than pooled.
+    #
+    # Pooling hides the thing worth knowing. On the 2026-09-20 archive
+    # p06-planner pools to 29.6% and looks like the worst persona in the cast;
+    # split, that is 39.5% with no journal against 18.5% with one — a persona
+    # the archive *helps* more than any other. And pooling cannot show sign at
+    # all: three personas come out worse with a journal than without, which is
+    # a different kind of finding from "this persona scores badly".
     for field, name in (("persona_id", "Persona"), ("intent_id", "Opening intent")):
-        rowset = [(field, "generated", "gating violation", "invented material")]
+        rowset = [(field, *[f"{arm} rate" for arm in arms], "delta", "worse with a journal?")]
+        baseline = "empty" if "empty" in arms else arms[0]
         for value in sorted({r.get(field) for r in gen if r.get(field)}):
-            cell = [r for r in gen if r.get(field) == value]
-            inv = sum(any(v["code"] in FABRICATION_CODES for v in r.get("violations", [])) for r in cell)
-            rowset.append((value, len(cell),
-                           f"{sum(violated(r) for r in cell)} ({pct(sum(violated(r) for r in cell), len(cell))})",
-                           f"{inv} ({pct(inv, len(cell))})"))
+            cells, rates = [], {}
+            for arm in arms:
+                cell = [r for r in generated(rows, arm) if r.get(field) == value]
+                hits = sum(violated(r) for r in cell)
+                rates[arm] = 100 * hits / len(cell) if cell else None
+                cells.append(f"{hits}/{len(cell)} ({pct(hits, len(cell))})")
+            seeded = [a for a in arms if a != baseline]
+            if len(arms) == 2 and rates[baseline] is not None and rates[seeded[0]] is not None:
+                delta = rates[seeded[0]] - rates[baseline]
+                rowset.append((value, *cells, f"{delta:+.1f}pp", "yes" if delta > 0 else ""))
+            else:
+                rowset.append((value, *cells, "—", ""))
         table(name, rowset)
 
 
