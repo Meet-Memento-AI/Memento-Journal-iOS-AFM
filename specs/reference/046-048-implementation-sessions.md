@@ -9,9 +9,34 @@ One session ≈ one PR. Do not skip Session 0.
 (6,984 messages; 100 conversations against the 8-entry cold-start journal and 100
 against a **zero-entry** journal) ran the Ask pipeline at 20–50 messages per
 conversation for the first time. Raw data:
-`.eval-runs/convo-sim/full-2026-09-20.jsonl`. Harness:
+`eval-archive/convo-sim/full-2026-09-20.jsonl` (committed; `.eval-runs/` is
+gitignored and the figures below could not be checked by anyone who was not on the
+machine that produced them). Harness:
 `withMementoTests/Eval/ConversationSimulation.swift` on branch `convo-sim-harness`
 (commits `e4d1621`, `ad59c95`).
+
+**Study II (2026-09-22) — the second warehoused run 048 R6 requires.** 7,048
+messages, `empty` against the 262-entry nine-month `Fixtures/corpus`, on `main`'s
+evidence-first pipeline. Write-up:
+[`docs/CONVERSATION_SIMULATION_STUDY_II.md`](../../docs/CONVERSATION_SIMULATION_STUDY_II.md).
+Three things it changes about the plan below:
+
+* **046's two findings are addressed.** With an empty archive, notebook voice is
+  now unreachable (36.8% → 0%) and `hall.fabricatedQuote` fires once in 1,760
+  turns. Against a journal the same scorer fires on **56%** of turns — but on the
+  person's own words italicised back at them, not on invented entries. **Do not arm
+  the threshold**: split the code or stop the model emphasising non-corpus spans
+  first. The two-run rule is satisfied; the second run is the one showing the
+  definition is wrong.
+* **047 finding 2 is addressed, and may have overshot.** `followup` went from 0.14%
+  to **77.1%** and `thread` from 5 turns to 1,261, while `correction`,
+  `reflectiveQuestion` and `acknowledgement` never fire at all — on a cast built to
+  produce corrections.
+* **Two of 046's own figures do not hold.** "212 zero-entry turns present invented
+  journal material" is a replay figure that cannot be recomputed from the archive
+  (`hall.fabricatedQuote` appears in it zero times). The 38.3%/6.8% pair mixes
+  gating and report-only codes on one side; gating-only it is 38.3% vs 5.6%, which
+  is wider. `scripts/eval/analyze_convo_sim.py --check-046` re-derives all of this.
 
 **The study measured a pipeline that already had most of 044.** `PassageChunker.swift`
 (044 R1), `RetrievalGate.swift` (044 R2) and `ask-core@17` (044 R5) are all in the
