@@ -76,6 +76,12 @@ Inventory with any hits uses `exact` or `strong`. A miss does not quote a
 nearest entry. The `nearbyOnly` "closest entry is not the answer"
 instruction is deleted (046 amendment).
 
+**Amendment (spec 050, 2026-09-22):** `exact` no longer carries the
+entry's words. It reads "One entry answers this: {{date:n}} {{quote:n}}.",
+pointing at the turn's evidence markers ("One entry is about this." when no
+pack is passed). "You wrote X on [date]." handed the model a banned opener,
+journal text, and a raw date to retype.
+
 ### R4. Response policy (`REQ-EPI-004`)
 
 `QuestionShape` and `ResponsePolicy` are chosen from the user text before

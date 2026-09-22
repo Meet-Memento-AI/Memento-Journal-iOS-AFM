@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -333,7 +333,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@18` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@19` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -831,6 +831,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
         let spoken: Bool
+        /// What the prompt carries and the renderer may insert (spec 050).
+        /// `buildAskPrompt` received this exact pack.
+        let pack: EvidencePack
+        /// What the person has said, for quoting and dating their own words.
+        let renderContext: RenderContext
 
         var zone: TrustZone { request.zone }
     }
@@ -1143,10 +1148,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let computed = computedSlice.isEmpty
             ? []
             : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
-        let shape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
-        let policy = ResponsePolicyResolver.policy(shape: shape, evidence: core.evidence)
+        let questionShape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
+        let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
         let retracted = RetractedClaims.claims(in: core.history)
         let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
+        let pack = EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: core.channel, archiveEmpty: core.entries.isEmpty
+        )
         let prompt = Self.buildAskPrompt(
             question: core.question,
             history: HistoryWindow.promptHistory(core.history),
@@ -1167,7 +1175,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             computedFacts: computed,
             policy: policy,
             retracted: retracted,
-            interpretationCut: interpretationCut
+            interpretationCut: interpretationCut,
+            evidencePack: pack
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
@@ -1179,7 +1188,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
             channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
-            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken
+            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken,
+            pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
         )
     }
 
@@ -1226,18 +1236,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
-    /// Builds the final `AskResult` (citations reconciled, reference markers
-    /// stripped, output safety scanned) from either the whole-answer `respond`
-    /// or the last streamed snapshot.
+    /// Builds the final `AskResult` from either the whole-answer `respond` or
+    /// the last streamed snapshot. The renderer runs first (spec 050): every
+    /// check below — the epistemic guard, output safety, citations — reads
+    /// exactly the body the person will see.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String, latency: Duration,
                             promptTokens: Int? = nil, cachedTokens: Int? = nil) throws -> AskResult {
         // The model produced output, so whatever else this turn does — including
         // an output-safety throw below — the pipeline is not in an outage.
         noteGenerationSucceeded()
-        let cleanedBody = Self.strippingReferenceMarkers(
-            OutputSafetyScanner.strippingHarnessMarkup(body)
-        )
+        let rendered = ReplyRenderer.render(body, pack: prep.pack, context: prep.renderContext)
+        AppLogger.log("[Intelligence] render \(rendered.stats.logLine)", type: .info)
+        let cleanedBody = rendered.body
         let rung = EvidenceLadder.rung(
             stance: prep.stance, retrieval: prep.retrieval, question: question
         )
@@ -1253,10 +1264,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 throw IntelligenceError.safetyRefusal(hit.category)
             }
         }
-        // `cleanedBody`, not `body`: markers are already stripped, and the quote
-        // match should see exactly the text the reader sees.
-        let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
+        // What the body shows leads; the model's citedRefs are the backstop.
+        let citations = CitationReconciliation.citations(
+            for: rendered, pack: prep.pack, citedRefs: citedRefs,
+            retrieval: prep.retrieval, question: question
         )
         let toolsCalled = askSearchState?.toolsCalled ?? 0
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
@@ -1275,7 +1286,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: prep.request.promptVersion,
             modelIdentifier: Self.modelIdentifier(for: prep.zone),
             latency: latency,
-            toolsCalled: toolsCalled
+            toolsCalled: toolsCalled,
+            chips: rendered.chips,
+            renderStats: rendered.stats
         )
     }
 
@@ -1398,12 +1411,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: Self.askOptions(for: .phatic, retrievalRan: false, spoken: core.spoken),
                 bodyOnly: true
             )
+            let rendered = ReplyRenderer.render(
+                body, pack: .empty, context: RenderContext(question: question, history: core.history)
+            )
             return AskResult(
-                heading1: nil, heading2: nil, body: body, citations: [],
+                heading1: nil, heading2: nil, body: rendered.body, citations: [],
                 zoneUsed: core.route.executionZone, wasDegraded: false,
                 promptVersion: resolved.version,
                 modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
-                latency: clock.now - started
+                latency: clock.now - started,
+                renderStats: rendered.stats
             )
         } catch {
             return nil
@@ -1729,9 +1746,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                     let session = prepared.adopted.session
                     let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken, evidence: prep.evidence)
-                    let reviewed = Self.reconcileCitations(
-                        [], retrieval: prep.retrieval, question: question
-                    )
+                    // Only a matched pack may cite; ambient and miss turns show
+                    // no "Reviewed your journals" link (spec 050 R6).
+                    let reviewed = prep.pack.state == .matched
+                        ? Self.reconcileCitations([], retrieval: prep.retrieval, question: question)
+                        : []
+                    let granularity = ReplyRenderer.granularity(for: prep.channel)
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
@@ -1740,8 +1760,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
                             var tail = StreamTail()
-                            var lastRawBody = ""
+                            var lastPrefix = ""
                             var lastCleaned = ""
+                            var lastYielded = ""
                             var scannedCount = 0
                             var sawFirstSnapshot = false
                             var streamState: OSSignpostIntervalState?
@@ -1769,12 +1790,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 tail.body = body
                                 if let refs = citedRefs { tail.citedRefs = refs }
 
+                                // Buffer-then-render per stable prefix (spec 050 R5):
+                                // whole sentences on journal channels, whole words on
+                                // light ones, never inside an open marker or quote. The
+                                // bubble and TTS only ever see rendered text.
+                                let prefix = ReplyRenderer.stablePrefix(of: tail.body, granularity: granularity)
                                 let cleaned: String
-                                if tail.body == lastRawBody {
+                                if prefix == lastPrefix {
                                     cleaned = lastCleaned
                                 } else {
-                                    cleaned = Self.strippingReferenceMarkers(tail.body)
-                                    lastRawBody = tail.body
+                                    cleaned = ReplyRenderer.render(
+                                        prefix, pack: prep.pack, context: prep.renderContext, isFinal: false
+                                    ).body
+                                    lastPrefix = prefix
                                     lastCleaned = cleaned
                                 }
 
@@ -1793,6 +1821,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 }
                                 scannedCount = cleaned.count
 
+                                // Nothing settled yet, or nothing new: keep the
+                                // thinking state rather than paint an empty bubble.
+                                guard cleaned != lastYielded else { return }
+                                lastYielded = cleaned
                                 continuation.yield(.delta(
                                     bodySoFar: cleaned,
                                     heading1: nil,
@@ -2106,7 +2138,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        computedFacts: [InsightFact] = [],
                                        policy: ResponsePolicy? = nil,
                                        retracted: [String] = [],
-                                       interpretationCut: Bool = false) -> String {
+                                       interpretationCut: Bool = false,
+                                       evidencePack: EvidencePack? = nil) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
         // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
@@ -2159,18 +2192,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // other direction, so the stance falls back to the honest-empty copy.
         // Every line below reads `effectiveStance`, never `stance`.
         // A miss does not carry the nearest entry. Quoting it and then denying
-        // it is the cite-then-deny hedge.
-        let miss = stance == .noMatch || stance == .nearbyOnly || archiveEmpty
-        let hasEvidenceBlock = channel.allowsRetrieval && !retrieval.contextBlock.isEmpty && !miss
+        // it is the cite-then-deny hedge. The pack makes that call (spec 050),
+        // so the prompt and the renderer agree on what evidence exists; the
+        // live path passes the same pack it renders with.
+        let pack = evidencePack ?? EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: channel, archiveEmpty: archiveEmpty
+        )
+        let hasEvidenceBlock = pack.carriesEvidence
         let effectiveStance = Self.stanceMatchingEvidence(
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
         var parts: [String] = [effectiveStance.promptLine]
         if channel == .notebook || channel == .thread {
-            let rung = EvidenceLadder.rung(
-                stance: effectiveStance, retrieval: hasEvidenceBlock ? retrieval : .empty, question: question
-            )
-            parts.append(EvidenceLadder.promptLine(rung, retrieval: hasEvidenceBlock ? retrieval : .empty))
+            let shipped = hasEvidenceBlock ? retrieval : .empty
+            let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
+            parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
         }
         let grounded = effectiveStance.isGrounded(retrieval: retrieval)
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
@@ -2229,13 +2265,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // of the ambient text stays in the prompt. Only the instruction
             // that contradicted it changed.
             let framing = "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
-            parts.append(framing + retrieval.contextBlock)
+            parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
         } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {
                 parts.append("[No journal entries matched this topic]")
             }
+        }
+        if let legend = pack.promptLegend(channel: channel) {
+            parts.append(legend)
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.

@@ -1,5 +1,5 @@
 import XCTest
-@testable import withMemento
+@testable import MeetMemento
 
 /// Long-form self-play conversation capture (the 200-conversation study).
 ///
@@ -253,6 +253,11 @@ final class ConversationSimulation: XCTestCase {
                     ]
                 }
                 row["facts"] = Self.encodeFacts(result.facts)
+                row["render_version"] = ReplyRenderer.version
+                row["chips"] = result.chips.count
+                if let stats = result.renderStats {
+                    row["evidence_pack"] = Self.encodeRenderStats(stats)
+                }
                 let isCasual = turnType == .social || turnType == .acknowledgement
                 let cap = channel.maximumResponseTokens(retrievalRan: !result.citations.isEmpty)
                 let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
@@ -481,6 +486,27 @@ final class ConversationSimulation: XCTestCase {
               let data = try? JSONEncoder().encode(facts),
               let decoded = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
         return decoded
+    }
+
+    /// Spec 050 R7: lets the analyzer split `hall.fabricatedQuote` by channel ×
+    /// citation × pack state, and read how often the model placed markers
+    /// versus wrote text the renderer had to adopt or drop.
+    private static func encodeRenderStats(_ stats: ReplyRenderStats) -> [String: Any] {
+        [
+            "state": stats.packState.rawValue,
+            "slots": stats.slotCount,
+            "expanded_quotes": stats.expandedQuoteSlots,
+            "expanded_dates": stats.expandedDateSlots,
+            "adopted_quotes": stats.adoptedQuoteCount,
+            "dropped_markers": stats.droppedMarkerCount,
+            "duplicate_quotes": stats.droppedDuplicateQuoteCount,
+            "stripped_italics": stats.strippedItalicCount,
+            "dropped_quotations": stats.droppedQuotationCount,
+            "unwrapped_bold": stats.unwrappedBoldCount,
+            "stripped_dates": stats.strippedDateCount,
+            "dropped_headings": stats.droppedHeadingCount,
+            "fallback": stats.usedFallback
+        ]
     }
 
     // MARK: - Sink

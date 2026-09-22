@@ -111,15 +111,16 @@ final class ConversationalRecallContractTests: XCTestCase {
     // MARK: R5 / R1 — version and notebook voice
 
     func test_ask9_versions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@18")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@18")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@19")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@19")
     }
 
     func test_notebookVoice_andShapeContract() {
         let text = askText()
         XCTAssertTrue(text.contains("notebook beside them"))
         XCTAssertTrue(text.contains("[Shape:]"))
-        XCTAssertTrue(text.contains("reproduce any quoted field exactly"))
+        XCTAssertFalse(text.contains("reproduce any quoted field exactly"), "050: markers replace the quoted field")
+        XCTAssertTrue(text.contains("{{quote:N}}"))
         XCTAssertTrue(
             text.range(of: "do not reopen an entry already used in", options: .caseInsensitive) != nil
         )
