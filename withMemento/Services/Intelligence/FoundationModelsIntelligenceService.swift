@@ -1286,7 +1286,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: prep.request.promptVersion,
             modelIdentifier: Self.modelIdentifier(for: prep.zone),
             latency: latency,
-            toolsCalled: toolsCalled
+            toolsCalled: toolsCalled,
+            chips: rendered.chips,
+            renderStats: rendered.stats
         )
     }
 
@@ -1417,7 +1419,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 zoneUsed: core.route.executionZone, wasDegraded: false,
                 promptVersion: resolved.version,
                 modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
-                latency: clock.now - started
+                latency: clock.now - started,
+                renderStats: rendered.stats
             )
         } catch {
             return nil

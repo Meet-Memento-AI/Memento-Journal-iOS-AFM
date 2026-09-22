@@ -411,6 +411,9 @@ final class ReplyRendererTests: XCTestCase {
             for: rendered, pack: pack, citedRefs: [1], retrieval: rows, question: "how was work"
         )
         XCTAssertEqual(citations.map(\.entryId), [workEntry.id, sleepEntry.id])
+        XCTAssertEqual(citations[1].excerpt, sleepQuote, "a quoted entry's chip shows the words the body shows")
+        XCTAssertEqual(citations[1].excerpt, rendered.chips.first?.quoteText)
+        XCTAssertNotEqual(citations[0].excerpt, "", "a dated-only entry keeps its preview excerpt")
 
         for other in [ambientPack(), EvidencePack.empty] {
             let shown = render("Lately work. What now?", other)

@@ -214,10 +214,11 @@ static func quotedRefs(in body: String, retrieval: RetrievalResult) -> [Int] {
 // MARK: - Rendered citations (spec 050 R5)
 
 /// What the citation sheet shows for a rendered reply. The entries the body
-/// quotes or dates lead, in the order it shows them; `reconcileCitations`
-/// (the model's citedRefs, verbatim matches, the reviewed top-N) is the
-/// backstop. Only a matched pack cites: an ambient or miss turn shows none,
-/// whatever the model put in citedRefs.
+/// quotes or dates lead, in the order it shows them — a quoted entry's
+/// excerpt is the exact quote the body shows, so the chip mirrors the reply
+/// (spec 050 R6). `reconcileCitations` (the model's citedRefs, verbatim
+/// matches, the reviewed top-N) is the backstop. Only a matched pack cites:
+/// an ambient or miss turn shows none, whatever the model put in citedRefs.
 static func citations(
     for rendered: RenderedReply,
     pack: EvidencePack,
@@ -227,6 +228,7 @@ static func citations(
 ) -> [AskCitation] {
     guard pack.state == .matched else { return [] }
     let byId = Dictionary(retrieval.entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let quoted = Dictionary(rendered.chips.map { ($0.entryId, $0.quoteText) }, uniquingKeysWith: { first, _ in first })
     var seen = Set<UUID>()
     var chosen: [AskCitation] = []
     for id in rendered.citations where seen.insert(id).inserted {
@@ -234,7 +236,7 @@ static func citations(
         chosen.append(AskCitation(
             entryId: id,
             entryDate: entry.date,
-            excerpt: previewExcerpt(entry.text, query: question)
+            excerpt: quoted[id] ?? previewExcerpt(entry.text, query: question)
         ))
     }
     let backstop = reconcileCitations(citedRefs, retrieval: retrieval, question: question, body: rendered.body)
