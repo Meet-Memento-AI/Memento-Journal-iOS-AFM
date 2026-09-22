@@ -253,6 +253,47 @@ def report(path: Path) -> None:
                     len(after), pct(sum(violated(r) for r in after), len(after))))
     table("Before vs after the history window closes", win)
 
+    # --- Spec 050: what the model emitted, as against what shipped
+    packed_any = [r for r in gen if r.get("evidence_pack")]
+    if packed_any:
+        rows_ = [("arm", "with a pack", "pack matched", "pointed (quote)", "pointed (date)",
+                  "needed cleanup", "chips")]
+        for arm in arms:
+            packed = [r for r in generated(rows, arm) if r.get("evidence_pack")]
+            if not packed:
+                continue
+            matched = [r for r in packed if r["evidence_pack"].get("state") == "matched"]
+            q = sum(1 for r in packed if r["evidence_pack"].get("expanded_quotes"))
+            d = sum(1 for r in packed if r["evidence_pack"].get("expanded_dates"))
+            dirty = sum(1 for r in packed
+                        if (r["evidence_pack"].get("adopted_quotes", 0)
+                            + r["evidence_pack"].get("stripped_italics", 0)
+                            + r["evidence_pack"].get("dropped_quotations", 0)) > 0)
+            rows_.append((arm, len(packed), f"{len(matched)} ({pct(len(matched), len(packed))})",
+                          f"{q} ({pct(q, len(matched))} of matched)",
+                          f"{d} ({pct(d, len(matched))} of matched)",
+                          f"{dirty} ({pct(dirty, len(packed))})",
+                          sum(r.get("chips", 0) for r in packed)))
+        table("Spec 050 — did the model point, or did the renderer clean up?", rows_)
+
+        counters = [("counter", *arms, "reads as")]
+        meaning = {
+            "adopted_quotes": "model wrote pack text verbatim but unmarked",
+            "stripped_italics": "model still reached for italics",
+            "dropped_quotations": "model quoted something nothing backs — sentence dropped",
+            "dropped_markers": "marker resolved to nothing",
+            "duplicate_quotes": "same quote twice",
+            "unwrapped_bold": "bold not backed by the pack",
+            "stripped_dates": "raw date in glue prose — 050 R3 bans these",
+            "dropped_headings": "heading the renderer could not back",
+            "slots": "evidence slots offered to the model",
+        }
+        for key, note in meaning.items():
+            per = [sum(r["evidence_pack"].get(key, 0)
+                       for r in generated(rows, arm) if r.get("evidence_pack")) for arm in arms]
+            counters.append((key, *per, note))
+        table("Renderer counters (occurrences)", counters)
+
     # --- Conversation shape, and the harness's own artefacts
     shape = [("arm", "conversations", "reached planned length", "median achieved",
               "fallback person turns", "person generation errors", "designed refusals")]

@@ -98,6 +98,36 @@ def arm_block(rows: list[dict], arm: str) -> dict:
             "after_n": len(after),
             "after_rate": 100 * sum(acs.violated(r) for r in after) / len(after) if after else None,
         },
+        # Spec 050 R7's counters. These are the only window onto what the MODEL
+        # emitted: `AskResult` carries the rendered body, so a clean product
+        # figure cannot by itself distinguish a model that improved from a
+        # renderer that cleaned up after one that did not.
+        "render": (lambda packed: {
+            "turns_with_pack": len(packed),
+            "matched": sum(1 for r in packed if r["evidence_pack"].get("state") == "matched"),
+            # Of the turns that HAD evidence to point at, how many pointed?
+            "expanded_quote_turns": sum(
+                1 for r in packed if r["evidence_pack"].get("expanded_quotes")),
+            "expanded_date_turns": sum(
+                1 for r in packed if r["evidence_pack"].get("expanded_dates")),
+            # Cleanup the renderer had to do — the model reaching for the old
+            # vehicles, or quoting something nothing backs.
+            "turns_needing_cleanup": sum(
+                1 for r in packed
+                if (r["evidence_pack"].get("adopted_quotes", 0)
+                    + r["evidence_pack"].get("stripped_italics", 0)
+                    + r["evidence_pack"].get("dropped_quotations", 0)) > 0),
+            "totals": {
+                key: sum(r["evidence_pack"].get(key, 0) for r in packed)
+                for key in ("slots", "adopted_quotes", "dropped_markers", "duplicate_quotes",
+                            "stripped_italics", "dropped_quotations", "unwrapped_bold",
+                            "stripped_dates", "dropped_headings")
+            },
+            "fallbacks": sum(1 for r in packed if r["evidence_pack"].get("fallback")),
+            "chips": sum(r.get("chips", 0) for r in gen),
+        })([r for r in gen if r.get("evidence_pack")]),
+        "render_versions": sorted({r["render_version"] for r in gen if r.get("render_version")}),
+        "prompt_versions": sorted({r["prompt_version"] for r in gen if r.get("prompt_version")}),
         "date_assertions": (lambda dated: {
             "n": len(dated),
             "rate": 100 * len(dated) / total if total else None,
