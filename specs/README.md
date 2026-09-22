@@ -40,6 +40,8 @@ specs/
 ├── 049-*.md           ← epistemic voice and response policy (perception ban,
 │                        narrative-join ban, evidence ladder, one-detail reflection,
 │                        history window); voice non-goal; REQ-EPI- — draft
+├── 050-*.md           ← dialogue diffusion (closed-form repair of spans that
+│                        miss the response policy; typed infill not wired)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
