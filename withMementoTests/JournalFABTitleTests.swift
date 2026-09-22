@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class JournalFABTitleTests: XCTestCase {
     func test_beforeLoad_neverUsesEmptyCopy() {

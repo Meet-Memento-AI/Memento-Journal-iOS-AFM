@@ -1,6 +1,6 @@
 //
 //  YourNameView.swift
-//  MeetMemento
+//  withMemento
 //
 //  First onboarding screen - collects user's first and last name
 //

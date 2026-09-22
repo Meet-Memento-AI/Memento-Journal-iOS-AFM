@@ -1,6 +1,6 @@
 //
 //  AvatarInitialButton.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI

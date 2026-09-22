@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Deep agentic evaluation — the half `ChatEvalGate` deliberately does not score.
 ///
@@ -27,10 +27,10 @@ import XCTest
 /// ```
 /// TEST_RUNNER_AGENTIC_EVAL=1 \
 /// DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-/// xcodebuild test -scheme MeetMemento \
+/// xcodebuild test -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
 ///   -parallel-testing-enabled NO \
-///   -only-testing:MeetMementoTests/AgenticEval
+///   -only-testing:withMementoTests/AgenticEval
 /// ```
 ///
 /// Skipped by default. Reports rather than gates: the point is a measurement,

@@ -1,6 +1,6 @@
 //
-//  MeetMementoWatchApp.swift
-//  MeetMementoWatch
+//  withMementoWatchApp.swift
+//  withMementoWatch
 //
 //  Spec 020 R5 / DEC-005: Watch companion in 2.0. The four App Intents in
 //  the iOS target are the on-wrist surface (Siri / Shortcuts on Apple Watch).
@@ -11,7 +11,7 @@
 import SwiftUI
 
 @main
-struct MeetMementoWatchApp: App {
+struct withMementoWatchApp: App {
     var body: some Scene {
         WindowGroup {
             Text("Memento on Watch uses the same four shortcuts as iPhone.")

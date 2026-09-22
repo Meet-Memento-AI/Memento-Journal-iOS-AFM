@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Keeps the stance contract from drifting: every TurnStance tag that
 /// RetrievalPolicy can emit must be explained in the ask prompt, and the
@@ -41,8 +41,8 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@17")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@17")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@19")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@19")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@2")
     }
 

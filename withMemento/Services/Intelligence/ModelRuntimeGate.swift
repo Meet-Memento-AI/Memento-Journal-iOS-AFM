@@ -1,6 +1,6 @@
 //
 //  ModelRuntimeGate.swift
-//  MeetMemento
+//  withMemento
 //
 //  One-at-a-time gate for `SystemLanguageModel` work, with the person first.
 //

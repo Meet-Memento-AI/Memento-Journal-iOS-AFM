@@ -1,6 +1,6 @@
 //
 //  PhotoThumbnailCache.swift
-//  MeetMemento
+//  withMemento
 //
 //  In-memory + on-disk cache of decrypted entry-photo thumbnails, so
 //  YourEntriesView only pays the full-file decrypt once per photo. NSCache

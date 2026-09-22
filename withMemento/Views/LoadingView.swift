@@ -1,6 +1,6 @@
 //
 //  LoadingView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Modern loading experience with fluid animations and mindful content
 //
@@ -75,7 +75,7 @@ struct LoadingView: View {
                 }
             }
         }
-        .accessibilityLabel("Loading MeetMemento. \(loadingPhase.message)")
+        .accessibilityLabel("Loading withMemento. \(loadingPhase.message)")
         .onAppear {
             startLoadingSequence()
             enforceMinimumDisplayTime()

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: TurnClassifier → ReplyChannel → generation recipe.
 /// Pure Swift, no model calls, so it can sweep a wide utterance set.

@@ -1,6 +1,6 @@
 //
 //  ChatSession.swift
-//  MeetMemento
+//  withMemento
 //
 //  Data model for chat session history
 //

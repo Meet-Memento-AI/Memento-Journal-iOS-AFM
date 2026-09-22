@@ -53,7 +53,7 @@
 
 ### Task 4.2: Set Up OpenAI Configuration (1 hour)
 
-**File**: `MeetMemento/Resources/Config.swift` or `OpenAIConfig.swift`
+**File**: `withMemento/Resources/Config.swift` or `OpenAIConfig.swift`
 
 - [ ] Add OpenAI API key storage
 - [ ] Add model configuration (model name, temperature)
@@ -80,7 +80,7 @@ struct OpenAIConfig {
 
 ### Task 4.3: Create OpenAI Service Wrapper (2-3 hours)
 
-**File**: `MeetMemento/Services/OpenAIService.swift`
+**File**: `withMemento/Services/OpenAIService.swift`
 
 - [ ] Create `OpenAIService` class
 - [ ] Implement chat completion method
@@ -142,7 +142,7 @@ Provide analysis in JSON format:
 
 ### Task 4.5: Integrate into InsightsViewModel (2 hours)
 
-**File**: `MeetMemento/ViewModels/InsightsViewModel.swift`
+**File**: `withMemento/ViewModels/InsightsViewModel.swift`
 
 - [ ] Import OpenAIService
 - [ ] Replace mock `generateInsights()` with real implementation
@@ -366,7 +366,7 @@ With cache (7-day TTL):
 ### Files Created/Modified:
 
 ```
-MeetMemento/
+withMemento/
 ├── Services/
 │   └── OpenAIService.swift (NEW)
 ├── ViewModels/

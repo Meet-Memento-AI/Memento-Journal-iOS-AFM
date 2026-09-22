@@ -1,6 +1,6 @@
 //
 //  SettingsRow.swift
-//  MeetMemento
+//  withMemento
 //
 //  Reusable settings row component with icon, title, subtitle, and optional chevron.
 //

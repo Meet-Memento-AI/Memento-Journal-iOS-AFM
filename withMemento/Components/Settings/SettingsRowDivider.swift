@@ -1,6 +1,6 @@
 //
 //  SettingsRowDivider.swift
-//  MeetMemento
+//  withMemento
 //
 //  Divider used between rows inside a Settings card.
 //

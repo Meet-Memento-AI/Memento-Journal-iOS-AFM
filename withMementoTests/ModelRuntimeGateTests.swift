@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Chat-speed: the one-at-a-time model gate serves the person first.
 /// Ask waits for at most the call in flight, never a queue of reflections;

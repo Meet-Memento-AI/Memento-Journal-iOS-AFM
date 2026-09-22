@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 039 R9: short warm cues, not scripts. Light path is one Move + message.
 final class ConversationalMoveTests: XCTestCase {

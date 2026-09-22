@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 @MainActor
 final class IPadBackendReadinessTests: XCTestCase {

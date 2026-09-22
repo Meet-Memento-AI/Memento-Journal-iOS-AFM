@@ -57,12 +57,12 @@ jobs:
             rm -rf TestResults
             rm -rf TestResults.xcresult
             xcodebuild \
-              -scheme MeetMemento \
+              -scheme withMemento \
               -destination "$IOS_SIM_DESTINATION" \
               -resultBundlePath TestResults \
               -enableCodeCoverage YES \
               -parallel-testing-enabled NO \
-              -skip-testing:MeetMementoUITests \
+              -skip-testing:withMementoUITests \
               test
           }
 
@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild \
-            -scheme MeetMemento \
+            -scheme withMemento \
             -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath .build-size \
@@ -103,7 +103,7 @@ jobs:
         # crosses it — which is exactly why this is a gate and not a note.
         run: |
           bash scripts/ci/check_app_size.sh \
-            .build-size/Build/Products/Release-iphonesimulator/MeetMemento.app
+            .build-size/Build/Products/Release-iphonesimulator/withMemento.app
 
       - name: Install Periphery
         run: brew install peripheryapp/periphery/periphery
@@ -112,8 +112,8 @@ jobs:
         continue-on-error: true
         run: |
           periphery scan \
-            --project MeetMemento.xcodeproj \
-            --schemes MeetMemento \
+            --project withMemento.xcodeproj \
+            --schemes withMemento \
             --format xcode \
             --retain-public \
             > periphery-report.txt

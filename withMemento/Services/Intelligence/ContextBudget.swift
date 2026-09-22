@@ -1,6 +1,6 @@
 //
 //  ContextBudget.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 017 R9 / CONSTITUTION §4 rule 5's corollary: "no hardcoded model context
 //  budgets — the window is 4096/8192/32768 depending on device and zone; read

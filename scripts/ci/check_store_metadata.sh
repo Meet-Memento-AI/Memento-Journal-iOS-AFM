@@ -20,8 +20,8 @@
 # Usage: scripts/ci/check_store_metadata.sh
 set -euo pipefail
 
-PLIST="${PLIST:-MeetMemento/Info.plist}"
-PBXPROJ="${PBXPROJ:-MeetMemento.xcodeproj/project.pbxproj}"
+PLIST="${PLIST:-withMemento/Info.plist}"
+PBXPROJ="${PBXPROJ:-withMemento.xcodeproj/project.pbxproj}"
 UPLOADED="${UPLOADED:-docs/app-store/last-uploaded-build.txt}"
 
 [ -f "$PLIST" ] || { echo "FAIL: Info.plist not found: $PLIST"; exit 1; }

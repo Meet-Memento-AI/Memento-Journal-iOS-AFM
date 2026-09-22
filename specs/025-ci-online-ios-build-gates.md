@@ -41,11 +41,11 @@ intent of spec 012 item 8 without waiting for a full GitHub-hosted migration.
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
 | 1 | Single macOS job owns lint, build, unit tests, coverage, Periphery; required check name is "iOS quality gates." Failure of the runner or of a device-gated suite blocks merges unrelated to build integrity. | `.github/workflows/ios-tests.yml`; `docs/BRANCH_PROTECTION_SETUP.md` | HIGH |
-| 2 | On-device generation tests run in the same `xcodebuild test` invocation as security/unit suites, then skip — noise in CI logs; coverage floor comments still advertise "on-device Intelligence suites" as if CI exercised generation. | `MeetMementoTests/IntelligenceServiceTests.swift:21-49`; `ios-tests.yml:78-87` | MEDIUM |
+| 2 | On-device generation tests run in the same `xcodebuild test` invocation as security/unit suites, then skip — noise in CI logs; coverage floor comments still advertise "on-device Intelligence suites" as if CI exercised generation. | `withMementoTests/IntelligenceServiceTests.swift:21-49`; `ios-tests.yml:78-87` | MEDIUM |
 | 3 | Env-gated Spotlight spikes (`TEST_RUNNER_SPIKE_A/C`) correctly skip in CI, but there is no documented "online vs device" test matrix for contributors or branch protection. | `SpikeA_*.swift`, `SpikeC_*.swift`; `docs/CI_RUNNERS.md` | MEDIUM |
 | 4 | Spec 022's five eval gates and FM instrument work are **local / device** by design; no workflow yet separates "merge CI" from "eval nightlies." | `specs/022-evaluation-and-quality-study.md` R1–R2 | MEDIUM |
 | 5 | Linux `spec-gates.yml` + `security.yml` already encode the online constitutional ladder, but docs still describe deployment-era secrets and list CodeQL as required while no CodeQL workflow exists in-tree. | `docs/BRANCHING_AND_CI_POLICY.md`; `docs/BRANCH_PROTECTION_SETUP.md`; `.github/workflows/` (3 files) | MEDIUM |
-| 6 | iOS **build** specs are implicit in comments (`Xcode 26+`, `iPhone 17`, `OS=latest`, scheme `MeetMemento`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`) with no single CI job that asserts them as a contract. | `project.pbxproj`; `ios-tests.yml:17-26`; `README.md` | MEDIUM |
+| 6 | iOS **build** specs are implicit in comments (`Xcode 26+`, `iPhone 17`, `OS=latest`, scheme `withMemento`, `IPHONEOS_DEPLOYMENT_TARGET = 26.0`) with no single CI job that asserts them as a contract. | `project.pbxproj`; `ios-tests.yml:17-26`; `README.md` | MEDIUM |
 
 ## Online vs on-device matrix (source of truth for this spec)
 
@@ -55,7 +55,7 @@ intent of spec 012 item 8 without waiting for a full GitHub-hosted migration.
 |------|--------|----------------|
 | **Constitutional / store** | Linux (`spec-gates.yml`) | Single FM importer; forbidden phrases; speakability selftest; dependency allowlist; privacy manifest; Info.plist / build-number hygiene; archive hygiene; ASC metadata; fixture corpus + gold sync |
 | **Security** | Linux (`security.yml`) | Sonar (when configured); gitleaks; dependency-review on PRs |
-| **iOS build contract** | macOS with Xcode 26+ SDK (self-hosted today; GitHub-hosted `macos-*` when available) | Scheme `MeetMemento` **builds** for `platform=iOS Simulator` with pinned `DEVELOPER_DIR` / destination vars; deployment target ≥ 26.0; Debug test build succeeds |
+| **iOS build contract** | macOS with Xcode 26+ SDK (self-hosted today; GitHub-hosted `macos-*` when available) | Scheme `withMemento` **builds** for `platform=iOS Simulator` with pinned `DEVELOPER_DIR` / destination vars; deployment target ≥ 26.0; Debug test build succeeds |
 | **iOS unit / seam tests** | Same macOS job | Suites that use mocks / pure logic / local storage seams — no live `LanguageModelSession` generation. Includes encryption, security, app-state, journal, retrieval policy, turn classifier, prompt stance/personalization, conversation flow, chat VM with `MockIntelligenceService`, corpus-adjacent unit tests, etc. |
 | **Static Swift quality** | Same macOS job (or split) | Changed-file SwiftLint (blocking on PR); Periphery regression on PR; coverage ratchet over the **online** suite only |
 
@@ -77,11 +77,11 @@ Pin and assert these in the online iOS workflow (fail the job if unmet):
 | Spec | Value | Enforcement |
 |------|-------|-------------|
 | Xcode major | **26+** (Foundation Models SDK present to *compile*) | `xcodebuild -version` gate step |
-| Scheme | `MeetMemento` | `xcodebuild -scheme MeetMemento …` |
+| Scheme | `withMemento` | `xcodebuild -scheme withMemento …` |
 | Destination | `platform=iOS Simulator,name=iPhone 17,OS=latest` (overridable via `IOS_SIM_DESTINATION`) | env + first step echo |
 | Deployment target | `IPHONEOS_DEPLOYMENT_TARGET >= 26.0` | script or `xcodebuild -showBuildSettings` assertion |
 | Test configuration | Debug | scheme TestAction |
-| UITests in merge CI | **skipped** | `-skip-testing:MeetMementoUITests` |
+| UITests in merge CI | **skipped** | `-skip-testing:withMementoUITests` |
 | Device-gated unit tests in merge CI | **skipped** | `-skip-testing` list or Swift test plan / env (`CI_ONLINE=1`) — see R2 |
 | Secrets / xcconfig | none required | document; fail if workflow reintroduces backend deploy keys |
 | Coverage floor | ratchet-only; measured on online suites | `MIN_COVERAGE` comment + `check_coverage.sh` |
@@ -151,7 +151,7 @@ not weaken privacy/store/corpus gates.
   lint, online tests, coverage, Periphery) with check name **iOS build (online)**.
 - Added `.github/workflows/ios-device-eval.yml` (dispatch/schedule, `continue-on-error`,
   never a required check).
-- `scripts/ci/assert_ios_build_specs.sh` enforces Xcode ≥ 26, scheme `MeetMemento`,
+- `scripts/ci/assert_ios_build_specs.sh` enforces Xcode ≥ 26, scheme `withMemento`,
   deployment target ≥ 26.0.
 - `IntelligenceServiceTests` generation cases early-skip on `CI_ONLINE=1`;
   retriever / chat-store suites still run in merge CI.

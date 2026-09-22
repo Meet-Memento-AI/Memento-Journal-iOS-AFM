@@ -1,6 +1,6 @@
 //
 //  UserBubbleSurface.swift
-//  MeetMemento
+//  withMemento
 //
 //  The user message bubble's visual, factored out so `ChatMessageBubble` and
 //  the send choreography's flying ghost render from one definition.

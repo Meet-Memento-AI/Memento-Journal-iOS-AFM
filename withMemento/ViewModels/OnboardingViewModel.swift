@@ -1,6 +1,6 @@
 //
 //  OnboardingViewModel.swift
-//  MeetMemento
+//  withMemento
 //
 //  Manages onboarding state and persists data locally (spec 023 — no accounts,
 //  nothing to sync to a server).

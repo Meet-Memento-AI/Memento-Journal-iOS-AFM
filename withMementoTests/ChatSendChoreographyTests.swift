@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import MeetMemento
+@testable import withMemento
 
 /// Covers the layout arithmetic behind Chat's pinned send choreography.
 ///

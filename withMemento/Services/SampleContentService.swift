@@ -1,6 +1,6 @@
 //
 //  SampleContentService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Loads (and removes) a bundled set of sample journal entries.
 //
@@ -15,7 +15,7 @@
 //  so re-loading cannot duplicate, and removal deletes exactly what was added
 //  and nothing the user wrote.
 //
-//  Source of the content is `MeetMemento/Resources/SampleEntries.json`, a
+//  Source of the content is `withMemento/Resources/SampleEntries.json`, a
 //  product asset generated from `Fixtures/corpus/`. It is deliberately a copy
 //  rather than a shared file: the corpus is a retrieval-evaluation fixture with
 //  a CI validator and gold set, and coupling the two would mean a change made

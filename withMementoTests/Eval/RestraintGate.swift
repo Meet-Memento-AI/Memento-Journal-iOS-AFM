@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 022 / 045 R6 — observation suppression on ordinary fixtures.
 /// Report-only until Session 8/9 produce two warehoused runs.

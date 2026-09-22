@@ -1,6 +1,6 @@
 //
 //  PerfSignposts.swift
-//  MeetMemento
+//  withMemento
 //
 //  App-stage latency instrumentation (spec 029 R1). OSSignposter intervals
 //  render in Instruments alongside the Foundation Models instrument, which
@@ -16,7 +16,7 @@ import Foundation
 import os
 
 enum PerfSignposts {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.sebastianmendo.MeetMemento"
+    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.sebmendo.withMementoAI"
 
     /// One turn of chat generation: prep → session → first token → stream.
     static let chatTurn = OSSignposter(subsystem: subsystem, category: "chat.turn")

@@ -1,6 +1,6 @@
 import UIKit
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class PhotoThumbnailCacheTests: XCTestCase {
     private var encryption: EncryptionService!

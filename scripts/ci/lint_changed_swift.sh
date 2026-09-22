@@ -36,12 +36,12 @@ fi
 swift_files=()
 for path in "${changed[@]}"; do
   [[ -f "$path" ]] || continue
-  [[ "$path" == MeetMemento/* ]] || continue
+  [[ "$path" == withMemento/* ]] || continue
   case "$path" in
-    MeetMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift|\
-    MeetMemento/ViewModels/ChatViewModel.swift|\
-    MeetMemento/Services/ChatService.swift|\
-    MeetMemento/Components/AIChat/ChatMessagesView.swift)
+    withMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift|\
+    withMemento/ViewModels/ChatViewModel.swift|\
+    withMemento/Services/ChatService.swift|\
+    withMemento/Components/AIChat/ChatMessagesView.swift)
       echo "Skipping excluded $path"
       continue
       ;;

@@ -92,7 +92,7 @@ fi
 # --- Required: the spec 042 opt-in verification disclosure -------------------
 # Present only while the verification client ships. Mirrors the conditional in
 # check_privacy_manifest.sh so the two gates cannot disagree.
-CLIENT="MeetMemento/Services/Feedback/SupabaseFeedbackClient.swift"
+CLIENT="withMemento/Services/Feedback/SupabaseFeedbackClient.swift"
 if [ -f "$CLIENT" ]; then
   if grep -qi 'supabase' "$PRIVACY_TMP" && grep -qi 'quality feedback' "$PRIVACY_TMP"; then
     echo "OK   privacy.html discloses the opt-in verification pipeline (spec 042)"

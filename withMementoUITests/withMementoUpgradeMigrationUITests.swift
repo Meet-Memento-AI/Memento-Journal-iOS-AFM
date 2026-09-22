@@ -6,7 +6,7 @@ import XCTest
 /// `-UITesting`) writes pre-023 local evidence — cached name + a configured
 /// PIN lock, no onboarding-complete flag — before the app's normal launch
 /// path runs, simulating a device upgrading from the account-based build.
-final class MeetMementoUpgradeMigrationUITests: XCTestCase {
+final class withMementoUpgradeMigrationUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -140,7 +140,7 @@ final class MeetMementoUpgradeMigrationUITests: XCTestCase {
         // Because this launch reads REAL UserDefaults, it is also sensitive to
         // anything written into the app's preference domain out of band. If it
         // ever fails, check that first:
-        //   xcrun simctl spawn <udid> defaults read com.sebastianmendo.MeetMemento
+        //   xcrun simctl spawn <udid> defaults read com.sebmendo.withMementoAI
         // A stray `defaults write memento_onboarding_completed -bool YES` (a
         // convenient way to skip onboarding while developing) makes this test
         // fail against perfectly correct deletion code, and clones inherit it.

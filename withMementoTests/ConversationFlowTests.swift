@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Scripted conversations through the deterministic half of the pipeline:
 /// classify → policy → (retrieval where deterministic) → stance. This is the

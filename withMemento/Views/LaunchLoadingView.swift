@@ -1,6 +1,6 @@
 //
 //  LaunchLoadingView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Minimal loading view displayed while local app state loads.
 //  Theme-aware background to avoid a light-to-dark flash after the OS launch screen.

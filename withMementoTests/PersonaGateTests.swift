@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 022 PersonaGate / spec 026 Safety routing over Fixtures/gold/adversarial.json.
 ///

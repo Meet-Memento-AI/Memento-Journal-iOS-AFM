@@ -1,6 +1,6 @@
 //
 //  ChatImageUnderstanding.swift
-//  MeetMemento
+//  withMemento
 //
 //  A text reading of attached chat photos for the Ask prompt.
 //

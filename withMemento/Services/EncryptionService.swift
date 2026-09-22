@@ -1,6 +1,6 @@
 //
 //  EncryptionService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Encrypts journal content with AES-GCM under a random, Keychain-resident
 //  data-encryption key (DEK).
@@ -40,8 +40,17 @@ class EncryptionService {
     static let shared = EncryptionService()
 
     private let keychain: KeychainStoring
-    private let saltKeychainKey = "com.sebastianmendo.MeetMemento.encryptionSalt"
-    private let dataKeyKeychainKey = "com.sebastianmendo.MeetMemento.dataEncryptionKey"
+    private let saltKeychainKey = "com.sebmendo.withMementoAI.encryptionSalt"
+    private let dataKeyKeychainKey = "com.sebmendo.withMementoAI.dataEncryptionKey"
+
+    /// Pre-rename key names. The bundle ID moved from
+    /// `com.sebastianmendo.MeetMemento` to `com.sebmendo.withMementoAI`, and
+    /// these keys embedded the old one. Migrating rather than regenerating is
+    /// mandatory here: a fresh DEK would leave every existing entry
+    /// permanently undecryptable. See `IdentifierMigration`.
+    private let legacySaltKeychainKey = "com.sebastianmendo.MeetMemento.encryptionSalt"
+    private let legacyDataKeyKeychainKey = "com.sebastianmendo.MeetMemento.dataEncryptionKey"
+
     private let saltLength = 32 // 256 bits
     private let dataKeyLength = 32 // 256 bits for AES-256
     private let pbkdf2Iterations: UInt32 = 100_000 // OWASP recommended minimum
@@ -52,6 +61,23 @@ class EncryptionService {
     /// entitlements for anyway).
     init(keychain: KeychainStoring = SystemKeychainStore()) {
         self.keychain = keychain
+        migrateLegacyKeysIfNeeded()
+    }
+
+    /// Moves a pre-rename DEK and salt onto the current key names. Runs once
+    /// per launch and is a no-op once nothing is left under the old names —
+    /// the common case on a fresh install.
+    private func migrateLegacyKeysIfNeeded() {
+        IdentifierMigration.migrateKeychainAccount(
+            from: legacyDataKeyKeychainKey,
+            to: dataKeyKeychainKey,
+            using: keychain
+        )
+        IdentifierMigration.migrateKeychainAccount(
+            from: legacySaltKeychainKey,
+            to: saltKeychainKey,
+            using: keychain
+        )
     }
 
     // MARK: - Data Encryption Key (current design)

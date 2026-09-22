@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# build_voice_pack.sh — reproduce MeetMemento/Resources/Voices/ from the base model.
+# build_voice_pack.sh — reproduce withMemento/Resources/Voices/ from the base model.
 # Spec 030 (bundled model assets) / 031 R5 / DEC-012.
 #
 # The voice pack ships INSIDE the app binary — there is no download path at
@@ -38,7 +38,7 @@
 set -euo pipefail
 
 BASE="${1:?usage: build_voice_pack.sh <path-to-base-model-dir>}"
-DEST="${DEST:-MeetMemento/Resources/Voices}"
+DEST="${DEST:-withMemento/Resources/Voices}"
 PYTHON="${PYTHON:-python3}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT

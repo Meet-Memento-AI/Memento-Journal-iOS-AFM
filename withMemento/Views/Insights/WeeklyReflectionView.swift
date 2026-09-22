@@ -1,6 +1,6 @@
 //
 //  WeeklyReflectionView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 019 R3 / 045 R4: weekly reflection surface. Sample-size counts are
 //  computed in Swift and shown in the UI — they are never sent to the model.

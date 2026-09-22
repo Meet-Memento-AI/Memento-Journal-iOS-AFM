@@ -1,6 +1,6 @@
 //
 //  ScrollOffsetPreferenceKey.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared preference key for scroll offset tracking across views
 //

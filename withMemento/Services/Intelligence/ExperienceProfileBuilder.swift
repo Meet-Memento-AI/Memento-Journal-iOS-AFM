@@ -1,6 +1,6 @@
 //
 //  ExperienceProfileBuilder.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared helper for building / rebuilding the local ExperienceProfile from
 //  reflection + ThemeCatalog via IntelligenceService (no FoundationModels import).

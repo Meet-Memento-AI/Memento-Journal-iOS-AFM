@@ -1,6 +1,6 @@
 //
 //  CitationLink.swift
-//  MeetMemento
+//  withMemento
 //
 //  Citation link button styled as a tag for AI chat responses.
 //

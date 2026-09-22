@@ -1,6 +1,6 @@
 //
 //  PercentageBarChart.swift
-//  MeetMemento
+//  withMemento
 //
 //  WCAG 2.2 AAA Accessible Emotions Chart
 //  All colors tested for contrast ratios against #2C1E19 background

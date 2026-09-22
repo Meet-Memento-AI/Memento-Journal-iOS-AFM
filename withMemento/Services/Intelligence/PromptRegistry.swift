@@ -1,6 +1,6 @@
 //
 //  PromptRegistry.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bundled, versioned prompts (spec 017 R8 / REQ-PRM-001). Authored inline as
 //  Swift constants so they always compile into the binary and are always the
@@ -26,6 +26,13 @@
 //      Direct lookups were returning stance instead of substance: "what is Maya
 //      thinking of doing?" named the nonprofit in 2 of 12 replies, with
 //      retrieval and decode both verifiably fine.
+//    - ask-core@19: the reply never quotes an entry. Their own words are shown
+//      by the "Reviewed your journals" citation link (`CitationLink`), which is
+//      built from `reconcileCitations` and therefore cannot contain anything the
+//      retrieval layer did not actually place in context. A quote the model
+//      types carries no such guarantee — it is prose, and the 2026-09-20 study
+//      found it inventing dated entries against an empty archive. Removing the
+//      quote removes the surface.
 //    - Bold must be words from the quoted entry, and an entry's sentences may
 //      never be pasted into the reply as prose. Follow-ups were echoing the
 //      entry back in its own first person ("I have not felt that light in a
@@ -274,7 +281,7 @@ enum PromptRegistry {
             let suffixChannel = channel ?? .notebook
             let base = (degraded ? askCoreDegraded : askCore)
                 + "\n\n" + channelSuffix(suffixChannel, degraded: degraded)
-            let version = degraded ? "ask-degraded@17" : "ask-core@17"
+            let version = degraded ? "ask-degraded@19" : "ask-core@19"
             guard personalization.hasAskPersonalization else {
                 return ResolvedPrompt(text: base, version: version)
             }
@@ -417,12 +424,12 @@ enum PromptRegistry {
     never by narrating that they wrote it. Answering first is not a licence \
     to use a banned opener.
     - Notebook — if this turn uses the journal, one dated moment as one \
-    ### heading plus a short exact quote in *italics*. At most one ###. \
-    Never # or ##.
+    ### heading, in your own words. At most one ###. Never # or ##. Never \
+    quote the entry.
     - Sit — one or two spoken sentences that stay with that moment. A \
     journal question must not skip Sit. Sit names a pattern from the \
     evidence — not a count, not an emotion label, not advice. Bold only \
-    words that appear in the quoted entry.
+    a short span of wording that appears in the evidence block.
     - Open — one specific question, required except goodbye. Exactly one \
     question mark, in the final sentence. Shape says how to Open, never \
     length. Never "how does that make you feel." Never name emotions. \
@@ -430,13 +437,12 @@ enum PromptRegistry {
 
     Markdown you may use — and only these: ### headings, paragraphs, \
     unordered lists starting with "- ", ordered lists starting with "1. ", \
-    italics for exact journal quotes only, bold for a short span of \
-    their wording in Sit. Never tables, images, code fences, links, nested \
-    lists, emoji, or a heading named Question.
+    bold for a short span of their wording in Sit. Never italics. Never \
+    quote an entry. Never tables, images, code fences, links, nested lists, \
+    emoji, or a heading named Question.
 
-    Never copy an entry's sentences into your own prose. A journal line is \
-    an italic quote or restated in second person — never pasted in their \
-    "I"/"my". The first line of the latest message is a [Turn: …] tag; \
+    Never copy an entry's sentences into your own prose. Always restate a \
+    journal line in second person — never their "I"/"my", never verbatim. The first line of the latest message is a [Turn: …] tag; \
     prefer that intent. A following [Shape:] line says how to Open.
 
     The body is the complete spoken reply. citedRefs holds only [ref] \
@@ -483,8 +489,8 @@ enum PromptRegistry {
     words, with no report opener; do not skip continuers. A journal \
     question must not skip Sit. Sit names a pattern \
     from the evidence without counts or emotion labels. Markdown you may \
-    use: one ###, paragraphs, "- " lists, "1. " lists, italic quotes, \
-    sparse bold. Never # or ##. Never tables, emoji, or a heading \
+    use: one ###, paragraphs, "- " lists, "1. " lists, sparse bold. Never \
+    italics. Never quote the entry. Never # or ##. Never tables, emoji, or a heading \
     named Question. The body is the complete spoken reply. Never invent \
     entries or dates. Never name their emotions. Never give advice. Never \
     state a number, count, or frequency of entries. Never praise journaling.
@@ -540,10 +546,10 @@ enum PromptRegistry {
     /// because it is re-prefilled on every speculative miss and `ask-core@17` is
     /// held to 55% of ask@15 by `AskPromptSizeTests`.
     private static let notebookSuffix = """
-    Notebook channel. [Turn: journal question] — Meet, one ### moment, \
-    italic quote, Sit naming a pattern; lists only if they asked what they \
-    wrote; reproduce any quoted field exactly; then one question; used [ref] \
-    numbers in citedRefs; do not reopen an entry already used in the thread.
+    Notebook channel. [Turn: journal question] — Meet, one ### moment in \
+    your own words, Sit naming a pattern; never quote the entry; lists only \
+    if they asked what they wrote; then one question; used [ref] numbers in \
+    citedRefs; do not reopen an entry already used in the thread.
     [Turn: journal question, nothing direct] — nothing answers that \
     directly; at most one nearest entry, as not-an-answer; one question.
     [Turn: journal question, no matches] — say you don't see anything \
@@ -551,8 +557,9 @@ enum PromptRegistry {
     """
 
     private static let notebookSuffixDegraded = """
-    [Turn: journal question] — Meet, one ###, italic quote, Sit that names \
-    a pattern; lists only if they asked what they wrote; then one \
+    [Turn: journal question] — Meet, one ###, Sit that names \
+    a pattern; never quote the entry; lists only if they asked what they \
+    wrote; then one \
     question; list used [ref] numbers. [Turn: journal question, nothing \
     direct] — nothing answers that directly; at most one nearest entry, \
     said to be not an answer; never "I see nothing"; no ###; one question. \

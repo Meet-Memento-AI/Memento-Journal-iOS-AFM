@@ -1,6 +1,6 @@
 //
 //  FeedbackOutbox.swift
-//  MeetMemento
+//  withMemento
 //
 //  Durable queue for spec 042 verification uploads. Application Support JSON,
 //  lock + write-behind, complete file protection. Retries keep clientEventID.

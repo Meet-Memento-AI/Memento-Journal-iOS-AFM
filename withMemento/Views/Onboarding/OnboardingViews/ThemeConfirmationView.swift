@@ -1,6 +1,6 @@
 //
 //  ThemeConfirmationView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Onboarding step: AFM (or keyword fallback) suggests ThemeCatalog themes
 //  from the LearnAboutYourself reflection; user confirms/edits before continue.

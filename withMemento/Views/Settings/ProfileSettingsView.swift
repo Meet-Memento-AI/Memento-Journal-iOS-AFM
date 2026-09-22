@@ -1,6 +1,6 @@
 //
 //  ProfileSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Edit user profile information (name)
 //

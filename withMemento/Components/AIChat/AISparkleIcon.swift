@@ -1,6 +1,6 @@
 //
 //  AISparkleIcon.swift
-//  MeetMemento
+//  withMemento
 //
 //  Purple gradient sparkle icon for AI chat input
 //

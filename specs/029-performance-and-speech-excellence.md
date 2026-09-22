@@ -268,7 +268,7 @@ uses vDSP.
 Pure-logic unit tests for every decision helper (regex-cache equivalence,
 incremental == full-pass property tests, signature counter, permission
 gate, chunker first-sentence, watchdog deadline, timings math); the full
-`MeetMementoTests` suite stays green; before/after Instruments traces on
+`withMementoTests` suite stays green; before/after Instruments traces on
 device fill the R2 table; manual device checklist (no clipping, cadence,
 10-turn session, corrupt-file send, nudge-once).
 

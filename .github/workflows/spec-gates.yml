@@ -105,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Check synchronized-group membership exceptions
-        # The MeetMemento/ group is a synchronized root group: every file is a
+        # The withMemento/ group is a synchronized root group: every file is a
         # target member unless listed INDIVIDUALLY (directory-level exceptions
         # do not work). Placeholder StoreKit product ids are report-only until
         # DEC-004 resolves; must be enforcing before Gate S.

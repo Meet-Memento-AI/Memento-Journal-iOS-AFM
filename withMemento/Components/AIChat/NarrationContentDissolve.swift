@@ -1,6 +1,6 @@
 //
 //  NarrationContentDissolve.swift
-//  MeetMemento
+//  withMemento
 //
 //  Photographic dissolve between Chat's typing plate and narration plate.
 //  Progress is animatable so blur peaks at the mix and is exactly 0 at rest.

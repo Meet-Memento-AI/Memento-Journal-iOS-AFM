@@ -1,6 +1,6 @@
 //
 //  CrisisResourceCard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Static crisis resource card (spec 026 / 019 R7 / REQ-SUR-004).
 //  Authored content only — never model-generated counseling.

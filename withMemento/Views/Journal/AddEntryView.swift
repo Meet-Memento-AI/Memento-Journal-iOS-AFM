@@ -1,6 +1,6 @@
 //
 //  AddEntryView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Notion-style full-page journal entry editor with title and body fields.
 //  A cover photo becomes a full-bleed max-blur backdrop (Figma 818:4006).

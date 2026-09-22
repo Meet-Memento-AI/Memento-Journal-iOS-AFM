@@ -1,6 +1,6 @@
 //
 //  ProfileRefreshCoordinator.swift
-//  MeetMemento
+//  withMemento
 //
 //  Session 11 / 044 R6: consent-gated lens proposal. Never runs during Ask.
 //

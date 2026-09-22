@@ -1,6 +1,6 @@
 //
 //  AppStateStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  Local, account-free app state. Replaces the old auth view model (spec 023 R1).
 //  No network calls, no auth, no accounts. Onboarding-complete is a local

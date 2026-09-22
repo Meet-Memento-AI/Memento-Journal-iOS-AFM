@@ -1,6 +1,6 @@
 //
 //  InsightBarChart.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 045 R2: Swift Charts over InsightFact cadence. n stays on-device.
 //

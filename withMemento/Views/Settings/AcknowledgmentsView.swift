@@ -1,6 +1,6 @@
 //
 //  AcknowledgmentsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 030 R6 / DEC-010: OFL fonts + neural TTS model attribution.
 //

@@ -1,4 +1,4 @@
-# Sprint Management - MeetMemento
+# Sprint Management - withMemento
 
 **Project**: Database Optimization & AI Insights Caching
 **Status**: Sprint 0 Complete ✅ | Ready for Sprint 1 🚀
@@ -92,8 +92,8 @@ Sprint 8: Search Feature        [Planned]   2-3 days
 
 3. **Create files**:
    ```
-   MeetMemento/Models/Insights.swift
-   MeetMemento/ViewModels/InsightsViewModel.swift
+   withMemento/Models/Insights.swift
+   withMemento/ViewModels/InsightsViewModel.swift
    ```
 
 4. **Build and test**:

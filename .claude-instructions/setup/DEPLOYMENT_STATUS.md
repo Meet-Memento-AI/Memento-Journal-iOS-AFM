@@ -71,7 +71,7 @@ The `follow_up_questions` table needs to be created. You have **two options**:
 #### Option B: CLI Migration (Requires Database Password)
 
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 supabase link --project-ref fhsgvlbedqwxwpubtlls
 # Enter database password when prompted
 supabase db push
@@ -109,7 +109,7 @@ po try? await SupabaseService.shared.supabase?.auth.session.accessToken
 #### Step 2.2: Run Test Script
 
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 
 # Set your JWT token
 export JWT_TOKEN="your_token_here"
@@ -152,23 +152,23 @@ The Swift files have been created but need to be added to your Xcode project:
 #### Files to Add:
 
 **Models:**
-- `MeetMemento/Models/GeneratedFollowUpQuestion.swift` ✅ Already created
+- `withMemento/Models/GeneratedFollowUpQuestion.swift` ✅ Already created
 
 **Services:**
-- `MeetMemento/Services/SupabaseService+FollowUpQuestions.swift` ✅ Already created
+- `withMemento/Services/SupabaseService+FollowUpQuestions.swift` ✅ Already created
 
 **ViewModels:**
-- `MeetMemento/ViewModels/GeneratedQuestionsViewModel.swift` ✅ Already created
+- `withMemento/ViewModels/GeneratedQuestionsViewModel.swift` ✅ Already created
 
 #### Add to Xcode:
 
-1. Open `MeetMemento.xcodeproj` in Xcode
+1. Open `withMemento.xcodeproj` in Xcode
 2. Right-click on project in navigator
-3. Select **Add Files to "MeetMemento"...**
+3. Select **Add Files to "withMemento"...**
 4. Navigate to each file and add with:
    - ✅ Copy items if needed
    - ✅ Create groups
-   - ✅ Add to target: MeetMemento
+   - ✅ Add to target: withMemento
 
 #### Update JournalView:
 

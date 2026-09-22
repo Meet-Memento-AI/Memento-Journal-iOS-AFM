@@ -1,6 +1,6 @@
 //
 //  CitationsBottomSheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bottom sheet showing journal citations referenced in AI responses
 //

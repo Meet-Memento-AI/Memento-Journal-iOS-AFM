@@ -357,7 +357,7 @@ cd supabase/functions/generate-follow-up
 deno run --allow-read test.ts
 
 # If tests pass, deploy
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 supabase functions deploy generate-follow-up
 
 # Test in production

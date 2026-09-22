@@ -1,6 +1,6 @@
 # CI Runners
 
-MeetMemento's GitHub Actions run on **self-hosted runners**. This document records
+withMemento's GitHub Actions run on **self-hosted runners**. This document records
 what they must provide so a runner can be rebuilt or replaced (spec-006 / spec-025).
 
 The app is **on-device only** — no accounts, no backend, no Supabase. CI therefore
@@ -19,7 +19,7 @@ Executable plan/acceptance: [`specs/025-ci-online-ios-build-gates.md`](../specs/
 | iOS build (online) | `ios-build-online.yml` | Yes | macOS + Xcode 26+ | Build specs + mockable unit tests; **not** live FM generation |
 | Device / eval | `ios-device-eval.yml` | **No** | macOS (optional) | On-device model, Spotlight spikes, Evaluations harness |
 
-**iOS build specifications (online job contract):** scheme `MeetMemento`;
+**iOS build specifications (online job contract):** scheme `withMemento`;
 destination `platform=iOS Simulator,name=iPhone 17,OS=latest` (overridable);
 `IPHONEOS_DEPLOYMENT_TARGET >= 26.0`; UITests skipped; device-gated generation
 suites skipped by `CI_ONLINE=1` (asserted by `scripts/ci/assert_ios_build_specs.sh`).

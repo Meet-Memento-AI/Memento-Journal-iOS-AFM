@@ -9,7 +9,7 @@ import XCTest
 /// the real onboarding flow end to end, deliberately entering a wrong PIN
 /// then immediately retyping the correct one with no artificial wait, to
 /// prove the retry is never swallowed.
-final class MeetMementoOnboardingPinUITests: XCTestCase {
+final class withMementoOnboardingPinUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

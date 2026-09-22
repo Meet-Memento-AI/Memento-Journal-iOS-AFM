@@ -1,6 +1,6 @@
 //
 //  VideoBackground.swift
-//  MeetMemento
+//  withMemento
 //
 //  Full-bleed looping video, gapless via `AVPlayerLooper`.
 //

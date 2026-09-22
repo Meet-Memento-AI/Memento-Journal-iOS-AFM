@@ -1,6 +1,6 @@
 //
 //  NarrationListeningCanvas.swift
-//  MeetMemento
+//  withMemento
 //
 //  The only page copy while Chat is narrating: a centered serif prompt
 //  over the dissolved thread. Header, glow, and NarrationFooter stay.

@@ -1,13 +1,13 @@
 //
-//  MeetMementoUITestsLaunchTests.swift
-//  MeetMementoUITests
+//  withMementoUITestsLaunchTests.swift
+//  withMementoUITests
 //
 //  Created by Sebastian Mendo on 9/30/25.
 //
 
 import XCTest
 
-final class MeetMementoUITestsLaunchTests: XCTestCase {
+final class withMementoUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

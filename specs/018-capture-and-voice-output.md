@@ -39,7 +39,7 @@ surface — the long-term differentiator versus Slate, and the reason reflection
 ## Current State (evidence)
 
 Speech-to-text is already fully native/on-device:
-`MeetMemento/Services/SpeechService.swift` uses Apple's `Speech` + `AVFoundation`
+`withMemento/Services/SpeechService.swift` uses Apple's `Speech` + `AVFoundation`
 frameworks directly, with no Gemini Audio fallback found anywhere (confirmed
 2026-07-23) — this piece may already satisfy `REQ-CAP-001`/`002`/`003`/`004`
 largely as-is; verify against the requirement list rather than rebuilding. No
@@ -159,7 +159,7 @@ owned by design):
 - Given volatile results streaming in, when rendered, then they are visually
   distinct (opacity/weight/color) from finalized text (`REQ-CAP-003`).
 - Given the completed migration, when
-  `grep -rn 'SFSpeechRecognizer' MeetMemento/` runs, then it returns no
+  `grep -rn 'SFSpeechRecognizer' withMemento/` runs, then it returns no
   app-target matches (`REQ-CAP-001` as a checkable criterion).
 - Given the migrated engine, when PRES-024 (editor dictation FAB) and PRES-063
   (onboarding dictation) flows run, then observable behavior is unchanged —
@@ -680,7 +680,7 @@ may run.
       both specs' halves exist (landed as a pair).
 - [ ] Task 1 audit recorded in this spec: R1's per-`REQ-CAP-` verdict table
       re-confirmed against current `SpeechService.swift` before any code
-      change; after migration, `grep -rn 'SFSpeechRecognizer' MeetMemento/`
+      change; after migration, `grep -rn 'SFSpeechRecognizer' withMemento/`
       returns no app-target matches, and PRES-024/PRES-063 dictation flows
       behave identically (R1).
 - [ ] Interruption tests pass: simulated `.began`/`.ended + .shouldResume`

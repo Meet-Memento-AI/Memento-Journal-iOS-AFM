@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: where the wait actually goes on the streaming path AIChatView
 /// uses — time-to-first-token vs total, per channel, with percentiles, plus

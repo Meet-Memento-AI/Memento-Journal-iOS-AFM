@@ -1,6 +1,6 @@
 //
 //  CrisisResourceProvider.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bundled, locale-keyed crisis resources — no network fetch (spec 026 / 019 R7).
 //

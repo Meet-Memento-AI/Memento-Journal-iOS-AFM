@@ -1,6 +1,6 @@
 //
 //  MementoLockWidgetView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 020 R4: lock-screen widget redaction contract. When the device is
 //  locked, journal text is not shown — only a generic prompt to capture.

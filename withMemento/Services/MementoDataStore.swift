@@ -1,6 +1,6 @@
 //
 //  MementoDataStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 040: SwiftData CRUD for mirrored journal, chat, reflections, profile.
 //  The device is the system of record; CloudKit only replicates.

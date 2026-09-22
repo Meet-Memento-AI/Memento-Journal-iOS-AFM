@@ -4,7 +4,7 @@
 across the Memento 2.0 rewrite
 **Companion to:** `memento-2.0-architecture-spec.md` (what gets built) — this
 document is what must *not* be lost while building it
-**Derived from:** full code audit of `MeetMemento/` on 2026-07-23 (branch
+**Derived from:** full code audit of `withMemento/` on 2026-07-23 (branch
 `sync/upstream-main`)
 **Cited by:** `PRES-nnn` IDs from specs 013–023 (`pres_refs` front-matter and
 Regression Guards sections)
@@ -44,7 +44,7 @@ before relying on a row.
 
 | ID | Behavior | Implementation |
 |---|---|---|
-| PRES-001 | Root state machine: launch → lock (if configured) → welcome (first run) → onboarding → main content; theme-aware launch background prevents light/dark flash | `MeetMementoApp.swift` (auth branching removed by spec 023 R1) |
+| PRES-001 | Root state machine: launch → lock (if configured) → welcome (first run) → onboarding → main content; theme-aware launch background prevents light/dark flash | `withMementoApp.swift` (auth branching removed by spec 023 R1) |
 | PRES-002 | ~~Slide-out drawer, 280pt: interactive left-edge swipe (40pt zone), tap-outside-to-close, spring animation, content slides right with corner radius + shadow~~ **(SANCTIONED REMOVAL, 2026-08-16, spec 027 R4):** the drawer's edge swipe was attached to the whole `NavigationStack`, so every horizontal drag in the app arbitrated against it — irreconcilable with root paging, which now owns the horizontal axis. Removed rather than hidden, because hiding leaves the gesture installed. Its destinations are preserved under PRES-003. Second sanctioned removal after account creation (spec 023). | removed; replaced by `Components/Settings/ProfileSheet.swift` |
 | PRES-003 | Drawer contents: "About yourself" and "Your journal goals/themes" + Settings — **(amended 2026-08-16, spec 027 R4)** now rows in the profile sheet, opened from the Journal header's avatar. Behavior intact; these remain the only entry point to `EditAboutYourselfView` / `EditJournalGoalsView`. | `Components/Settings/ProfileSheet.swift`; routes in `ContentView.swift` (`DrawerRoute`) |
 | PRES-004 | ~~Two-tab swipeable pill nav (Journal \| Insights/Chat) with `matchedGeometryEffect` sliding glass pill and swipe-progress haptics~~ **(amended 2026-08-16, spec 027 R1/R2):** swipeable two-page root navigation and its commit haptic are **preserved** via whole-page paging; the **pill affordance is removed** — it was a third navigation surface duplicating the swipe. A mirrored corner icon on each page is the one-tap equivalent. ATTACH-03's three-tab amendment predates this shell and needs re-evaluation. | `Components/Navigation/RootPager.swift` (`RootPage`) |
@@ -101,7 +101,7 @@ before relying on a row.
 | PRES-070 | Lock screen: launch-matching background + icon; biometric auto-trigger on appear; 4-box PIN entry (hidden field, tap-to-focus, auto-validate, shake + "Incorrect PIN", success haptic) | `Views/Security/LockScreenView.swift` |
 | PRES-071 | Method switching: "Use PIN"/"Use {biometric}" cross-switch; biometric retry button after failures | `LockScreenView.swift` |
 | PRES-072 | Escape hatch: emergency sign-out **replaced** by device-passcode fallback (`.deviceOwnerAuthentication`, spec 023 R6) | `LockScreenViewModel`, `SecurityService` |
-| PRES-073 | Auto-lock on background/inactive scene phase; activity timestamp on active | `MeetMementoApp.swift`, `SecurityService` |
+| PRES-073 | Auto-lock on background/inactive scene phase; activity timestamp on active | `withMementoApp.swift`, `SecurityService` |
 | PRES-074 | PIN stored in Keychain with constant-time comparison; entry encryption key derived from PIN + Keychain salt (account-independent — survives spec 023 untouched) | `SecurityService.swift`, `EncryptionService.swift` (CONSTITUTION §2 Security) |
 
 ### 2.6 Settings and drawer editors
@@ -127,7 +127,7 @@ before relying on a row.
 | PRES-093 | Haptic vocabulary: impact on taps/tabs/record, notification haptics on success/error — pervasive, part of the product feel (`REQ-SYS-014` extends this) | throughout Views/Components |
 | PRES-094 | Motion: spring animations, matched-geometry pill/FAB transitions, typewriter reveals, progressive blur + scroll-edge fades — all respecting Reduce Motion. **(amended 2026-08-16)** Both named components are **deleted**. `ScrollEdgeFade` painted an opaque `theme.background` gradient — it hid content instead of softening it, and an opaque scrim under glass is what PRES-092 forbids. `ProgressiveBlurHeaderWrapper` never had a call site. Both are replaced by `ProgressiveBlurEdge`, a masked-material band used at the top (inside `AppHeader`, so all three header sites share it) and the bottom of both root scroll views. | `Components/ProgressiveBlurEdge.swift`, `Components/Navigation/AppHeader.swift`, component-level |
 | PRES-095 | Scroll edges are **translucent, never opaque, and never clipped**. Content passes under the chrome and blurs into it. Three rules, each learned from a regression: (1) the system `scrollEdgeEffectStyle` draws only where a system bar exists — this app hides the nav bar, so it rendered a hard white slab that sliced entry titles; both root scroll views set `scrollEdgeEffectHidden(true, for:)` instead. (2) Never put an opaque fill behind `AppHeader` — glass samples the scrolling content. (3) `ProgressiveBlurEdge` in `AppHeader` covers only the island / status-bar strip (`windowTop`), not the glass row; it must fade to clear **above** the buttons. | `Components/ProgressiveBlurEdge.swift`, `Components/Navigation/AppHeader.swift`, `Views/Journal/YourEntriesView.swift`, `Views/AI-Chat/AIChatView.swift` |
-| PRES-096 | **No private API.** `ProgressiveBlurHeader` / `VariableBlur` were removed from the project entirely (2026-08-16): they resolved `CAFilter` and `filterWithType:` through reversed-string lookup (`String("retliFAC".reversed())`) and swapped `CABackdropLayer.filters` — deliberate evasion of static analysis, and a Guideline 2.5.1 rejection risk. They were linked but unused. Any future progressive-blur work must stay on public API; verify with `strings <binary> \| grep retliFAC` returning nothing. | `MeetMemento.xcodeproj/project.pbxproj`, `Package.resolved` |
+| PRES-096 | **No private API.** `ProgressiveBlurHeader` / `VariableBlur` were removed from the project entirely (2026-08-16): they resolved `CAFilter` and `filterWithType:` through reversed-string lookup (`String("retliFAC".reversed())`) and swapped `CABackdropLayer.filters` — deliberate evasion of static analysis, and a Guideline 2.5.1 rejection risk. They were linked but unused. Any future progressive-blur work must stay on public API; verify with `strings <binary> \| grep retliFAC` returning nothing. | `withMemento.xcodeproj/project.pbxproj`, `Package.resolved` |
 | PRES-095 | Loading affordances: shimmer skeletons, modern progress ring, rotating tip cards | `Components/Data/SkeletonView.swift`, `Components/Loading/*` |
 
 ---

@@ -20,7 +20,7 @@ different place by a different mechanism:
 | Artifact | Where it lives | How it changes | Reviewed by |
 |---|---|---|---|
 | **App Privacy nutrition label** | App Store Connect → App Privacy | Editable **at any time, without shipping a build** | App Review, and every user on the product page |
-| **`PrivacyInfo.xcprivacy`** | `MeetMemento/PrivacyInfo.xcprivacy` | Ships in the binary | Automated validation at upload (ITMS-9105x) |
+| **`PrivacyInfo.xcprivacy`** | `withMemento/PrivacyInfo.xcprivacy` | Ships in the binary | Automated validation at upload (ITMS-9105x) |
 | **Privacy policy** | `docs/privacy.html` (published), `PRIVACY_POLICY.md` (source) | Published to GitHub Pages | App Review, and legally binding on us |
 
 The label being editable without a build is precisely how it drifted last time:
@@ -58,7 +58,7 @@ Apple's definition of "collect", verbatim:
 | Crash and performance data | Apple's own, opt-in at the OS level, never surfaced to us via an SDK | **No** |
 | Quality feedback (opt-in, spec 042) | Write-only RPC to the evaluations Supabase project: ratings, reason, note; question/answer only on explicit Report + include-text | **Yes** — Other User Content, Other Data Types, User ID. Linked, not tracking. Purposes: App Functionality + Analytics |
 
-Corroborating evidence: `grep -rn "URLSession" MeetMemento --include="*.swift"`
+Corroborating evidence: `grep -rn "URLSession" withMemento --include="*.swift"`
 returned **zero hits** on 2026-08-07. **2026-09-11:** `SupabaseFeedbackClient`
 is the first third-party `URLSession` call site. Legal links remain
 `UIApplication.shared.open`.
@@ -69,7 +69,7 @@ is the first third-party `URLSession` call site. Legal links remain
 **RESOLVED — but not the way this section said. Corrected 2026-09-17.**
 
 Spec 018 R1's migration already shipped. Capture runs through
-`MeetMemento/Services/SpeechAnalyzerEngine.swift` on `SpeechAnalyzer` +
+`withMemento/Services/SpeechAnalyzerEngine.swift` on `SpeechAnalyzer` +
 `SpeechTranscriber`, and there is **no `SFSpeechAudioBufferRecognitionRequest`
 and no `recognitionTask` anywhere in the target** — verified by grep on
 2026-09-17. `requiresOnDeviceRecognition` is consequently **not set, and cannot
@@ -159,14 +159,14 @@ reviewer comparing the manifest to the binary has grounds to ask.
 | Category | Reason | Justified by | Verdict |
 |---|---|---|---|
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — "access user defaults in **just your app**" | **11 files** use `UserDefaults` (`AppStateStore.swift`, `PreferencesService.swift`, `LocalProfileStore.swift`, `SecurityService.swift`, `PromptRegistry.swift`, plus view models and views) | ✅ **Keep.** Switch to (or add) `1C8F.1` **only if** spec 020's widgets introduce a shared App Group suite — there is no `suiteName` usage today |
-| `NSPrivacyAccessedAPICategoryFileTimestamp` | `C617.1` — "access timestamps, size, or other metadata of files inside the app container" | `MeetMemento/Services/LocalJournalStorage.swift:118-121` — `fileManager.attributesOfItem(atPath:)` → `.modificationDate`, on files inside the app container. Consumed by `JournalService.swift:133,170` | ✅ **Keep.** `C617.1` is precisely the right reason for container-internal metadata |
-| `NSPrivacyAccessedAPICategorySystemBootTime` | `35F9.1` | **Nothing.** `grep -rn "systemUptime\|mach_absolute_time\|kern.boottime" MeetMemento --include="*.swift"` → no matches | 🔴 **Remove.** The comment claims "for security features"; `SecurityService.swift` uses Keychain and constant-time comparison, not boot time |
+| `NSPrivacyAccessedAPICategoryFileTimestamp` | `C617.1` — "access timestamps, size, or other metadata of files inside the app container" | `withMemento/Services/LocalJournalStorage.swift:118-121` — `fileManager.attributesOfItem(atPath:)` → `.modificationDate`, on files inside the app container. Consumed by `JournalService.swift:133,170` | ✅ **Keep.** `C617.1` is precisely the right reason for container-internal metadata |
+| `NSPrivacyAccessedAPICategorySystemBootTime` | `35F9.1` | **Nothing.** `grep -rn "systemUptime\|mach_absolute_time\|kern.boottime" withMemento --include="*.swift"` → no matches | 🔴 **Remove.** The comment claims "for security features"; `SecurityService.swift` uses Keychain and constant-time comparison, not boot time |
 | `NSPrivacyAccessedAPICategoryDiskSpace` | — | Not declared, and not used — `grep -rn "volumeAvailableCapacity\|systemFreeSize\|attributesOfFileSystem"` → no matches | ✅ **Correctly absent.** Add `E174.1` **only if** capture starts checking free space before recording — a plausible future requirement for long sessions |
 | `NSPrivacyAccessedAPICategoryActiveKeyboards` | — | Not used | ✅ Correctly absent |
 
 ### Target state — the diff
 
-Remove this block from `MeetMemento/PrivacyInfo.xcprivacy`:
+Remove this block from `withMemento/PrivacyInfo.xcprivacy`:
 
 ```xml
 <!-- System Boot Time: For security features -->
@@ -270,14 +270,14 @@ artifacts in the same session.
 
 ## Verification
 
-- [ ] `grep -c "SystemBootTime" MeetMemento/PrivacyInfo.xcprivacy` → **0**.
+- [ ] `grep -c "SystemBootTime" withMemento/PrivacyInfo.xcprivacy` → **0**.
 - [ ] `scripts/ci/check_privacy_manifest.sh` passes, and fails on a planted
       violation in **both** directions (a declared-but-unused category, and a
       used-but-undeclared API).
 - [ ] `grep -rn "NSUserTrackingUsageDescription" .` → no matches in any plist.
-- [ ] `grep -rn "URLSession" MeetMemento --include="*.swift"` → no matches, or
+- [ ] `grep -rn "URLSession" withMemento --include="*.swift"` → no matches, or
       every hit is accounted for in this document and the privacy policy.
-- [ ] The App Store Connect privacy label, `MeetMemento/PrivacyInfo.xcprivacy`,
+- [ ] The App Store Connect privacy label, `withMemento/PrivacyInfo.xcprivacy`,
       and the published privacy policy all state the same thing — checked
       together, in one session, with the date recorded.
 - [ ] V8's verdict is recorded in `specs/021` R5 and mirrored to

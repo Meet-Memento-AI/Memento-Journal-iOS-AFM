@@ -137,7 +137,7 @@ fi
 # second block and the statement to Apple silently becomes false - a Guideline
 # 2.3 accuracy defect in the one answer Apple explicitly asked for (item 5 of
 # the September 2026 information request). See docs/app-store/08 section 2.
-CRISIS_JSON="${CRISIS_JSON:-MeetMemento/Resources/Safety/CrisisResources.json}"
+CRISIS_JSON="${CRISIS_JSON:-withMemento/Resources/Safety/CrisisResources.json}"
 NOTES_FILE="$META_DIR/review_notes.txt"
 if [ -f "$CRISIS_JSON" ] && [ -f "$NOTES_FILE" ]; then
   if grep -qi "identical in every region" "$NOTES_FILE"; then

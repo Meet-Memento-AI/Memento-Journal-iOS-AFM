@@ -1,6 +1,6 @@
 //
 //  NarrationFooter.swift
-//  MeetMemento
+//  withMemento
 //
 //  Hands-free narration chrome for AIChatView: live transcript card plus
 //  mic / status / close bar. Figma 409:5620 / 409:5668.

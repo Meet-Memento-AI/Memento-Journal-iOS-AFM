@@ -1,6 +1,6 @@
 //
 //  JournalView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Main journal view with integrated navigation stack and toolbar
 //

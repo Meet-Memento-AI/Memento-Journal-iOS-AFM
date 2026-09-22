@@ -1,6 +1,6 @@
 //
 //  PhotoAction.swift
-//  MeetMemento
+//  withMemento
 //
 //  What AddEntryView's composer did to an entry's photo during this session.
 //

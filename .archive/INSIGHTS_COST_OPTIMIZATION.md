@@ -68,8 +68,8 @@ With 7-day cache + manual refresh:
 
 ### 2. Entry Milestone Requirement (99.6% savings)
 **Files Modified:**
-- `MeetMemento/ViewModels/InsightViewModel.swift`
-- `MeetMemento/Views/Insights/InsightsView.swift`
+- `withMemento/ViewModels/InsightViewModel.swift`
+- `withMemento/Views/Insights/InsightsView.swift`
 
 **What Changed:**
 - ✅ Insights only generate at entry milestones: **3, 6, 9, 12, 15, 18, 21...**
@@ -184,7 +184,7 @@ DROP TRIGGER IF EXISTS trigger_invalidate_insights_on_entry_delete ON entries;
 ```
 
 ### Swift Changes
-**File:** `MeetMemento/ViewModels/InsightViewModel.swift`
+**File:** `withMemento/ViewModels/InsightViewModel.swift`
 
 ```swift
 // Check entry count is multiple of 3
@@ -209,7 +209,7 @@ if entryCount % 3 != 0 {
 ```
 
 ### UI Changes
-**File:** `MeetMemento/Views/Insights/InsightsView.swift`
+**File:** `withMemento/Views/Insights/InsightsView.swift`
 
 ```swift
 // New milestone progress state

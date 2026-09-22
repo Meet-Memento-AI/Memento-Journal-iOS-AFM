@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The chunker feeds VoicePlaybackService's per-sentence enqueue seam from
 /// ChatService's *cumulative* delta bodies. The contract under test: every

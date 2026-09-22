@@ -35,9 +35,9 @@ worth more than RevenueCat's subscriber-analytics dashboard if the two conflict.
 
 ## Current State (evidence)
 
-Existing monetization code (`MeetMemento/Views/.../Monetization`,
+Existing monetization code (`withMemento/Views/.../Monetization`,
 `SubscriptionPlan.swift` model) targets the current $9.99/mo /$79/yr plan against
-the pre-2.0 backend; `MeetMemento/PrivacyInfo.xcprivacy` currently declares
+the pre-2.0 backend; `withMemento/PrivacyInfo.xcprivacy` currently declares
 collected data types (User Content, Email, Name, User ID) that describe the
 Supabase backend being deleted — flagged stale in `CONSTITUTION.md` §2 *Store
 compliance*, to be corrected by this spec.
@@ -238,7 +238,7 @@ Corollaries:
 - **No analytics SDK, at all.** Study telemetry is manually collected via
   surveys and interviews (`REQ-EVAL-005`) — slower, and the price of the
   label.
-- `MeetMemento/PrivacyInfo.xcprivacy` currently declares User Content, Email,
+- `withMemento/PrivacyInfo.xcprivacy` currently declares User Content, Email,
   Name, and User ID — describing the Supabase backend being deleted, flagged
   stale in `CONSTITUTION.md` §2. It is rewritten by this spec **after** V8
   resolves (the verdict determines the final declaration), not before.
@@ -321,7 +321,7 @@ demonstrated once with a throwaway fixture branch/package and recorded here.
 >
 > **Re-verified 2026-08-18 — the cost of fixing this has collapsed.** The partial
 > note above lists three off-allowlist packages. Only **one** remains:
-> `grep -oE 'repositoryURL = "[^"]+"' MeetMemento.xcodeproj/project.pbxproj`
+> `grep -oE 'repositoryURL = "[^"]+"' withMemento.xcodeproj/project.pbxproj`
 > now returns `SVGKit/SVGKit` alone. `supabase/supabase-swift` went with spec
 > 015's decommission and `dominikmartn/progressiveblurheader` is gone too —
 > neither this spec nor `ROADMAP.md` records when. Update this partial note when

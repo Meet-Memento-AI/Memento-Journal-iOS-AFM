@@ -1,6 +1,6 @@
 //
 //  CitationTimelineItem.swift
-//  MeetMemento
+//  withMemento
 //
 //  Molecule: one citation row — circle + date tag, then excerpt below
 //

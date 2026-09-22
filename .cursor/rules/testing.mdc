@@ -1,10 +1,10 @@
 ---
-description: When to add or update regression tests for MeetMemento
+description: When to add or update regression tests for withMemento
 globs:
-  - MeetMemento/**/*ChatViewModel*.swift
-  - MeetMemento/**/*ChatService*.swift
-  - MeetMemento/**/*Onboarding*.swift
-  - MeetMemento/Services/Intelligence/**/*.swift
+  - withMemento/**/*ChatViewModel*.swift
+  - withMemento/**/*ChatService*.swift
+  - withMemento/**/*Onboarding*.swift
+  - withMemento/Services/Intelligence/**/*.swift
 ---
 
 # Regression tests
@@ -14,8 +14,8 @@ When you change **chat behavior**, the **onboarding flow**, or the **on-device i
 ## Commands
 
 - **iOS (unit + UI):**
-  `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' test`
-  If the destination is not found, pick an available iPhone simulator from `xcodebuild -showdestinations -scheme MeetMemento`.
+  `xcodebuild -scheme withMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' test`
+  If the destination is not found, pick an available iPhone simulator from `xcodebuild -showdestinations -scheme withMemento`.
 
 ## Conventions
 

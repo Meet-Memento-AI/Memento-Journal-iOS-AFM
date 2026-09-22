@@ -1,6 +1,6 @@
 //
 //  SettingsToggleRow.swift
-//  MeetMemento
+//  withMemento
 //
 //  Settings row with a trailing Toggle.
 //

@@ -1,6 +1,6 @@
 //
 //  Spec029PerfHelperTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Pure decision helpers introduced by spec 029: turn-timing bookkeeping, the
 //  narration watchdog's adaptive tick, the speech-authorization fast path, and
@@ -9,7 +9,7 @@
 
 import Speech
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 // MARK: - TurnTimings
 

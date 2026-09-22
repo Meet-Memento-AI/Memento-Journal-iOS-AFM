@@ -30,7 +30,7 @@
 # Usage: scripts/ci/check_no_hardcoded_context_budgets.sh
 set -euo pipefail
 
-MODULE="${INTELLIGENCE_MODULE_DIR:-MeetMemento/Services/Intelligence}"
+MODULE="${INTELLIGENCE_MODULE_DIR:-withMemento/Services/Intelligence}"
 
 if [ ! -d "$MODULE" ]; then
   echo "FAIL: intelligence module not found at $MODULE"

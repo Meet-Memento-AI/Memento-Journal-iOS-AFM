@@ -1,6 +1,6 @@
 //
 //  TransparentNavigationContainer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Makes a NavigationStack's container genuinely see-through, so a transparent
 //  stack root reveals what sits behind the stack instead of a system fill.

@@ -1,7 +1,7 @@
 # 📊 ContentView.swift Review & Best Practices
 
 **Date**: December 15, 2024  
-**Target**: `MeetMemento/ContentView.swift`  
+**Target**: `withMemento/ContentView.swift`  
 **Framework**: SwiftUI  
 **Current Status**: ✅ Functional, ⚠️ Needs optimization
 
@@ -186,7 +186,7 @@ Group {
 ```swift
 //
 //  ContentView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Main authenticated content view that displays the journal and insights tabs.
 //  Uses a bottom tab switcher for navigation and includes a FAB for creating entries.
@@ -226,7 +226,7 @@ private enum AppTab: String, CaseIterable, Identifiable, Hashable, LabeledTab {
 
 // MARK: - Main View
 
-/// The main authenticated content view of the MeetMemento app.
+/// The main authenticated content view of the withMemento app.
 ///
 /// Displays either the journal or insights view based on the selected bottom tab.
 /// Includes:
@@ -485,7 +485,7 @@ public struct ContentView: View {
 
 ### Step 1: Backup Current File
 ```bash
-cp MeetMemento/ContentView.swift MeetMemento/ContentView.swift.backup
+cp withMemento/ContentView.swift withMemento/ContentView.swift.backup
 ```
 
 ### Step 2: Replace with Improved Version
@@ -504,7 +504,7 @@ Copy the complete refactored implementation above.
 
 ### Step 4: Remove Backup
 ```bash
-rm MeetMemento/ContentView.swift.backup
+rm withMemento/ContentView.swift.backup
 ```
 
 ---

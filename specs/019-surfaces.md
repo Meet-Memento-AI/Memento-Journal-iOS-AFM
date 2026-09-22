@@ -500,7 +500,7 @@ first would leave the end-state contract with no source of truth to restore
 *from*.
 
 **Acceptance:** after Task 7,
-`grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no app-target
+`grep -rn 'ChatService\|InsightsService' withMemento/` returns no app-target
 matches, and no §4 reuse-ledger row remains unclaimed-and-undeleted (spec
 001's hygiene standard: no zombie code).
 
@@ -600,7 +600,7 @@ extraction, not a rewrite.
       silently skipped week; notification audit finds exactly two
       identifiers app-wide (opt-in daily reminder, weekly-ready).
 - [ ] Legacy deletion (R9, after Task 7 only):
-      `grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no
+      `grep -rn 'ChatService\|InsightsService' withMemento/` returns no
       app-target matches.
 
 ## Regression Guards

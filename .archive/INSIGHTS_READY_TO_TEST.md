@@ -59,7 +59,7 @@ Reviewed all files - **naming is consistent**:
 ### 1. Build & Run App
 ```bash
 # Open in Xcode
-open MeetMemento.xcodeproj
+open withMemento.xcodeproj
 
 # Build and run (⌘R)
 ```

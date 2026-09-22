@@ -39,12 +39,12 @@ surfaces) can be built until this schema exists.
 
 ## Current State (evidence)
 
-No `@Model` classes or `import SwiftData` anywhere in `MeetMemento/` (confirmed
+No `@Model` classes or `import SwiftData` anywhere in `withMemento/` (confirmed
 2026-07-23). Current persistence is Supabase Postgres via `supabase-swift`, with
-plain `Codable` structs in `MeetMemento/Models/` (`Entry.swift`, `JournalEntry.swift`,
+plain `Codable` structs in `withMemento/Models/` (`Entry.swift`, `JournalEntry.swift`,
 `ChatSession.swift`, `Insight.swift`/`UserInsight.swift`, etc.) — see this spec's
 Tasks for the mapping from each old model to its new `@Model` equivalent.
-`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `MeetMemento.xcodeproj/project.pbxproj`
+`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `withMemento.xcodeproj/project.pbxproj`
 (needs raising to 27.0 per `REQ-PLAT-001`).
 
 ## Requirements
@@ -432,7 +432,7 @@ source doc's generic table.
 remote pull skipped per `REQ-MIG-001` escape clause" or a tested pull path
 (fixture: a synthetic server-side-only entry set, imported once, UUIDs
 preserved, second run is a no-op) — exists **before** the `supabase/` deletion
-commit. After deletion: `grep -ri "supabase" MeetMemento/ --include="*.swift"`
+commit. After deletion: `grep -ri "supabase" withMemento/ --include="*.swift"`
 returns nothing, the SPM dependency is gone, and the app builds and passes
 023's regression walkthrough. Unblocked except that the deletion commit itself
 waits on spec 013's gate (Spike A pass + DEC-002 resolved) per 013's
@@ -527,7 +527,7 @@ disposition.
       offline) after "Delete everything"; post-deletion cold launch is
       indistinguishable from fresh install (R6). Spotlight/TTS legs activate
       with specs 016/018.
-- [ ] `grep -n "IPHONEOS_DEPLOYMENT_TARGET" MeetMemento.xcodeproj/project.pbxproj`
+- [ ] `grep -n "IPHONEOS_DEPLOYMENT_TARGET" withMemento.xcodeproj/project.pbxproj`
       shows 27.0 and strict concurrency = complete is set — **Xcode-27-gated**
       (R7).
 - [ ] Airplane-mode walkthrough scripted and run: launch → capture → transcribe
@@ -537,7 +537,7 @@ disposition.
       `SystemLanguageModel.availability` binding re-verified on iOS 27 SDK (R7).
 - [ ] `REQ-MIG-001` disposition recorded in this spec (skip-with-documentation
       or tested pull path with preserved UUIDs) **before** the `supabase/`
-      deletion commit; after deletion, `grep -ri "supabase" MeetMemento/
+      deletion commit; after deletion, `grep -ri "supabase" withMemento/
       --include="*.swift"` returns nothing and the `supabase-swift` SPM
       dependency is gone (R8).
 - [ ] All four R9 verification items mirrored into

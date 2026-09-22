@@ -27,7 +27,7 @@ MAX="${INTELLIGENCE_IMPORTER_MAX:-1}"
 EXPECT_EXACTLY="${INTELLIGENCE_IMPORTER_EXPECT_EXACTLY:-1}"
 
 roots=()
-for d in MeetMemento MeetMementoTests MeetMementoUITests; do
+for d in withMemento withMementoTests withMementoUITests; do
   [ -d "$d" ] && roots+=("$d")
 done
 

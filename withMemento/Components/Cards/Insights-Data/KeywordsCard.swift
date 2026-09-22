@@ -1,6 +1,6 @@
 //
 //  KeywordsCard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Created by Sebastian Mendo on 1/13/26.
 //

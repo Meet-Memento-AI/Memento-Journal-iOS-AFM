@@ -1,6 +1,6 @@
 //
 //  SpeechService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Native iOS speech-to-text. Capture engine is SpeechAnalyzer /
 //  SpeechTranscriber / SpeechDetector (spec 018 R1). Permission still uses

@@ -1,6 +1,6 @@
 //
 //  ExportService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Exports the user's journal as Markdown and JSON. The store description
 //  calls export "the point" of owning your words, so this is a core surface,

@@ -167,11 +167,11 @@ The Swift files are already created, just need to be added to Xcode:
 
 #### How to Add to Xcode
 
-1. Open `MeetMemento.xcodeproj`
-2. Right-click on project → "Add Files to MeetMemento..."
+1. Open `withMemento.xcodeproj`
+2. Right-click on project → "Add Files to withMemento..."
 3. Select the 3 files above
 4. ✅ Copy items if needed
-5. ✅ Add to target: MeetMemento
+5. ✅ Add to target: withMemento
 
 #### Update JournalView
 

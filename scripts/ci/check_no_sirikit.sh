@@ -4,7 +4,7 @@
 #
 set -euo pipefail
 
-hits=$(grep -rlE --include='*.swift' '^import[[:space:]]+Intents|INIntent|INExtension' MeetMemento 2>/dev/null | sort -u || true)
+hits=$(grep -rlE --include='*.swift' '^import[[:space:]]+Intents|INIntent|INExtension' withMemento 2>/dev/null | sort -u || true)
 if [ -n "$hits" ]; then
   echo "FAIL [spec 020]: SiriKit types present:"
   echo "$hits"

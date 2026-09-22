@@ -2,7 +2,7 @@
 
 ## Overview
 
-MeetMemento already has account deletion code implemented in `SupabaseService.swift`, but it requires a database function in Supabase to fully delete the auth account.
+withMemento already has account deletion code implemented in `SupabaseService.swift`, but it requires a database function in Supabase to fully delete the auth account.
 
 **Current Implementation:**
 1. ✅ Deletes all journal entries from `entries` table
@@ -16,7 +16,7 @@ MeetMemento already has account deletion code implemented in `SupabaseService.sw
 ### **Step 1: Open Supabase Dashboard**
 
 1. Go to https://supabase.com/dashboard
-2. Select your MeetMemento project
+2. Select your withMemento project
 3. Click **"SQL Editor"** in the left sidebar
 
 ---
@@ -89,7 +89,7 @@ delete_user  | FUNCTION
 
 ### **Step 4: Test Account Deletion**
 
-1. Run your MeetMemento app
+1. Run your withMemento app
 2. Create a test account via onboarding
 3. Go to **Settings → Danger Zone → Delete Account**
 4. Confirm deletion

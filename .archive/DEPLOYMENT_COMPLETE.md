@@ -8,7 +8,7 @@
 
 ## 🎉 Summary
 
-Your MeetMemento database has been successfully optimized and deployed to production. All migrations are live and working.
+Your withMemento database has been successfully optimized and deployed to production. All migrations are live and working.
 
 ### What Was Deployed:
 

@@ -1,6 +1,6 @@
 //
 //  AppearanceSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Customize app theme and display settings
 //

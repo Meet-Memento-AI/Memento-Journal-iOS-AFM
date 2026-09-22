@@ -1,6 +1,6 @@
 //
 //  SettingsSelectableRow.swift
-//  MeetMemento
+//  withMemento
 //
 //  Selectable Settings row with checkmark trailing (theme picker, etc.).
 //  Matches SettingsRow chrome: icon frame, title weight, padding, spacing.

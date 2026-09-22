@@ -1,6 +1,6 @@
 //
 //  JournalBackdropShader.swift
-//  MeetMemento
+//  withMemento
 //
 //  Tokenized Figma shader "Journal backdrop" (node 786:2721). The WebGPU
 //  runtime cannot run on iOS; these are the three operations that shader

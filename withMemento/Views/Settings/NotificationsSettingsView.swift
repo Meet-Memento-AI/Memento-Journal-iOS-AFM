@@ -1,6 +1,6 @@
 //
 //  NotificationsSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  ATTACH-08: daily reminder + weekly-ready. Off by default. 019 R8.
 //

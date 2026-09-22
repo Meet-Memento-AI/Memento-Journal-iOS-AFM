@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Coverage note: the journal is on-device only, so there is no
 /// CRUD-over-network path to test. What's covered here is
@@ -519,7 +519,7 @@ final class JournalServiceTests: XCTestCase {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
         let vmSource = try String(
-            contentsOf: repo.appendingPathComponent("MeetMemento/ViewModels/OnboardingViewModel.swift"),
+            contentsOf: repo.appendingPathComponent("withMemento/ViewModels/OnboardingViewModel.swift"),
             encoding: .utf8
         )
         XCTAssertFalse(
@@ -532,7 +532,7 @@ final class JournalServiceTests: XCTestCase {
         )
 
         let coordinator = try String(
-            contentsOf: repo.appendingPathComponent("MeetMemento/Views/Onboarding/OnboardingCoordinatorView.swift"),
+            contentsOf: repo.appendingPathComponent("withMemento/Views/Onboarding/OnboardingCoordinatorView.swift"),
             encoding: .utf8
         )
         XCTAssertFalse(coordinator.contains("createFirstJournalEntry"))

@@ -1,6 +1,6 @@
 //
 //  ChatContinuityTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Covers the AI-chat performance/continuity fixes: derived-key caching,
 //  history rehydration from the local store, and the typewriter "seen" flag
@@ -8,7 +8,7 @@
 //
 
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class ChatContinuityTests: XCTestCase {
 

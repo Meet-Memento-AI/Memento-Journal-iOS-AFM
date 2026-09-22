@@ -27,10 +27,10 @@ with visibly different fallback behavior — `AddEntryView` uses both at once. G
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | `LaunchLoadingView` hardcodes `Color.white.ignoresSafeArea()`; app root elsewhere uses theme-aware `RootBackground` (`MeetMementoApp.swift:18`). Dark-mode cold start flashes white. | `MeetMemento/Views/LaunchLoadingView.swift:29` (approx; re-verify) | MEDIUM |
-| 2 | Three failsafes race: 3s watchdog (`MeetMementoApp.swift:106-116`), 6s secondary (`LaunchLoadingView.swift:45-61`), 8s session-fetch timeout (`AuthViewModel.initializeAuth` `:106`). The first two duplicate verbatim the manual mutation of `isAuthenticated`/`hasCompletedOnboarding`/`authState`/`hasCheckedAuth`/`isInitializing`. | those three sites | MEDIUM (fragility) |
+| 1 | `LaunchLoadingView` hardcodes `Color.white.ignoresSafeArea()`; app root elsewhere uses theme-aware `RootBackground` (`withMementoApp.swift:18`). Dark-mode cold start flashes white. | `withMemento/Views/LaunchLoadingView.swift:29` (approx; re-verify) | MEDIUM |
+| 2 | Three failsafes race: 3s watchdog (`withMementoApp.swift:106-116`), 6s secondary (`LaunchLoadingView.swift:45-61`), 8s session-fetch timeout (`AuthViewModel.initializeAuth` `:106`). The first two duplicate verbatim the manual mutation of `isAuthenticated`/`hasCompletedOnboarding`/`authState`/`hasCheckedAuth`/`isInitializing`. | those three sites | MEDIUM (fragility) |
 | 3 | Two glass systems: native `.glassEffect` inside `#if canImport(FoundationModels)` guards (11 files: `TopNavHeader`, `TopTabNav`, `SettingsView`, `AppearanceSettingsView`, `AboutSettingsView`, `DataUsageInfoView`, `ChatInputField`, `NarrateButton`, `ListeningPanel`, `ChatHistorySheet`, `AddEntryView`) vs `mementoGlassEffect` wrapper (8 files: `ContentView`, `NewEntryFAB`, `DrawerMenuView`, `ChatHistoryItem`, `EditAboutYourselfView`, `LearnAboutYourselfView`, `AddEntryView`). **`AddEntryView` uses both.** Wrapper's `.tint()`/`.interactive()` are documented no-ops (`GlassEffectCompat.swift:9-16`) → surfaces silently differ. | grep both APIs | MEDIUM |
-| 4 | Deprecated `NavigationView` still in 2 files (target is iOS 17+; `NavigationStack` is the replacement). | `grep -rln "NavigationView" MeetMemento/` | LOW |
+| 4 | Deprecated `NavigationView` still in 2 files (target is iOS 17+; `NavigationStack` is the replacement). | `grep -rln "NavigationView" withMemento/` | LOW |
 
 ## Requirements
 
@@ -60,7 +60,7 @@ call. Don't execute R2 until spec 023 R1 lands.
 **2026-07-23 — outcome confirmed by spec 023 R1: moot, not just superseded.**
 `AppStateStore.initializeAppState()` (`Services/AppStateStore.swift`) is fully
 synchronous — UserDefaults reads and a Keychain-backed inactivity check, no
-`await`, no network call, no timeout path of any kind. `MeetMementoApp.swift`'s
+`await`, no network call, no timeout path of any kind. `withMementoApp.swift`'s
 root `.task` calls it directly with no watchdog `Task`, no 6s
 `LaunchLoadingView` failsafe, no 8s session-fetch timeout; the three-failsafe
 race, the five hand-mutated auth fields, and `resolveAsUnauthenticated(reason:)`
@@ -69,7 +69,7 @@ written (consolidate three failsafes into one) does not apply — there is
 nothing to consolidate. Confirmed empirically: the equivalent-race concern this
 note raised ("if an equivalent bootstrap race emerges against local-store
 readiness") did not materialize — `test_launch_doesNotCrash`
-(`MeetMementoUITests/MeetMementoSmokeUITests.swift`) launches under
+(`withMementoUITests/withMementoSmokeUITests.swift`) launches under
 `-UITesting` and reaches `.runningForeground` well inside R2's original 6–8s
 bound (observed ~4s), with `initializeAppState()` having already fully
 resolved by then. R2 is closed as moot; no further action needed here.
@@ -129,12 +129,12 @@ Grep for `.glassEffect(` finds only `GlassEffectCompat.swift`.
 - [ ] Device/simulator in dark mode: cold launch screen-recording shows no white frame.
 - [ ] Airplane-mode cold launch: app resolves to welcome/lock screen in ≤8s via the
       single failsafe (add a temporary log to prove which path fired, then remove it).
-- [ ] ~~`grep -rn "\.glassEffect(" MeetMemento/ --include="*.swift"` → only
+- [ ] ~~`grep -rn "\.glassEffect(" withMemento/ --include="*.swift"` → only
       `GlassEffectCompat.swift`~~ **(superseded by spec 024)** — now:
-      `grep -rn "mementoGlassEffect" MeetMemento/ --include="*.swift"` → 0 (wrapper
-      deleted); `grep -rn "fallback.*Background" MeetMemento/` → 0; native
+      `grep -rn "mementoGlassEffect" withMemento/ --include="*.swift"` → 0 (wrapper
+      deleted); `grep -rn "fallback.*Background" withMemento/` → 0; native
       `.glassEffect(` appears directly in the view files.
-- [ ] `grep -rln "NavigationView" MeetMemento/` → 0.
+- [ ] `grep -rln "NavigationView" withMemento/` → 0.
 - [ ] Side-by-side screenshots (before/after) of: chat input pills, top nav, tab pill,
       settings cards, FAB, drawer, AddEntryView — light and dark — appearance preserved.
 - [ ] Full test suite + a normal launch → journal → chat smoke run.

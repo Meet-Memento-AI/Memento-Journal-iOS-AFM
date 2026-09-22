@@ -1,11 +1,11 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask-core@17")
+        XCTAssertEqual(resolved.version, "ask-core@19")
         XCTAssertTrue(resolved.text.contains("Hard bans:"))
         XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
@@ -44,7 +44,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@17+p4")
+        XCTAssertEqual(resolved.version, "ask-core@19+p4")
         XCTAssertFalse(resolved.text.contains("Themes they chose:"))
         XCTAssertTrue(resolved.text.contains("Faint lens (not an agenda):"))
         XCTAssertTrue(resolved.text.contains("Conversation first"))
@@ -60,7 +60,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@17")
+        XCTAssertEqual(resolved.version, "ask-core@19")
         XCTAssertFalse(resolved.text.contains("I want to understand my stress patterns more deeply"))
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
     }
@@ -73,7 +73,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@17")
+        XCTAssertEqual(resolved.version, "ask-degraded@19")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
     }
 
@@ -178,7 +178,13 @@ final class AskPromptContractTests: XCTestCase {
         }
         let full = PromptRegistry.instructions(for: .ask).text
         XCTAssertTrue(full.contains("Markdown you may use"))
-        XCTAssertTrue(full.contains("exact journal quotes"))
+        // ask-core@19: the reply never quotes an entry — their own words are
+        // shown by the "Reviewed your journals" link, which is built from
+        // reconciled citations and so cannot contain anything retrieval did not
+        // place in context. A typed quote carries no such guarantee.
+        XCTAssertFalse(full.contains("exact journal quotes"))
+        XCTAssertTrue(full.contains("Never italics"))
+        XCTAssertTrue(full.contains("Never quote an entry"))
         XCTAssertTrue(full.contains("unordered lists starting with"))
         XCTAssertTrue(full.contains("ordered lists starting with"))
         XCTAssertTrue(PromptRegistry.channelSuffix(.meta).contains("what you can do together"))

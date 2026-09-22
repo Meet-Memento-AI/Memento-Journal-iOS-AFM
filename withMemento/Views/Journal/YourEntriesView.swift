@@ -1,6 +1,6 @@
 //
 //  YourEntriesView.swift
-//  MeetMemento
+//  withMemento
 //
 //  "Your Entries" tab - displays journal entries grouped by month
 //

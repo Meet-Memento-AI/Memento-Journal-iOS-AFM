@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI

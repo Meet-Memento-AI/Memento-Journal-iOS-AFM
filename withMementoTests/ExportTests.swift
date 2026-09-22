@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Pure-function coverage for the journal export (JournalExporter /
 /// EntryExportDTO). No disk, no UI — runs in the online CI suite.

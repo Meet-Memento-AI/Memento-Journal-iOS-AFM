@@ -1,6 +1,6 @@
 //
 //  FeedbackEnvelope.swift
-//  MeetMemento
+//  withMemento
 //
 //  Wire DTO for spec 042. Built from the on-device AnswerFeedback row after
 //  consent redaction. Report events always carry the question and answer.

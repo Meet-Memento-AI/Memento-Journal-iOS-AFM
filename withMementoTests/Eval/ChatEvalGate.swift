@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The chat quality gate (spec 022 R1/R2): ~100 live generations through the
 /// path `AIChatView` actually uses, scored mechanically, all-or-nothing.
@@ -8,10 +8,10 @@ import XCTest
 /// ```
 /// TEST_RUNNER_CHAT_EVAL=1 \
 /// DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-/// xcodebuild test -scheme MeetMemento \
+/// xcodebuild test -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
 ///   -parallel-testing-enabled NO \
-///   -only-testing:MeetMementoTests/ChatEvalGate
+///   -only-testing:withMementoTests/ChatEvalGate
 /// ```
 ///
 /// Skipped by default so it never runs on the merge lane — it needs a live

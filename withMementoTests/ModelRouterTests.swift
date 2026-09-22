@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 017 R2's acceptance criteria for the table-driven router.
 final class ModelRouterTests: XCTestCase {

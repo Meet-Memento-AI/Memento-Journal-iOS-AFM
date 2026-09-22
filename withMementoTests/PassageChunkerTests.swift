@@ -1,6 +1,6 @@
 import NaturalLanguage
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class PassageChunkerTests: XCTestCase {
 

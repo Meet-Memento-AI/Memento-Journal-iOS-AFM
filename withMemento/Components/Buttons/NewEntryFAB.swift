@@ -1,6 +1,6 @@
 //
 //  NewEntryFAB.swift
-//  MeetMemento
+//  withMemento
 //
 //  Floating Action Button for creating new journal entries.
 //  Icon-only: plain, untinted Liquid Glass — no `.glassProminent`, no brand

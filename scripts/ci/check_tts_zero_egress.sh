@@ -7,7 +7,7 @@
 #
 set -euo pipefail
 
-roots=(MeetMemento/Services/Voice Packages/SupertonicTTS)
+roots=(withMemento/Services/Voice Packages/SupertonicTTS)
 existing=()
 for d in "${roots[@]}"; do
   [ -d "$d" ] && existing+=("$d")
