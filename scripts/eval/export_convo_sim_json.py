@@ -61,6 +61,9 @@ def arm_block(rows: list[dict], arm: str) -> dict:
 
     return {
         "arm": arm,
+        # Counted, not doubled from the assistant count: a conversation can end
+        # on an unanswered user turn, so the two are not always in step.
+        "messages": sum(1 for r in rows if r.get("arm") == arm),
         "generated": total,
         "assistant_turns": len(assistant),
         "errors": sum(1 for r in assistant if r.get("error")),
