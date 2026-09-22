@@ -100,6 +100,64 @@ and this is the evidence for why that caution was right.
 
 ---
 
+## Nothing scores dates, and dates are where it still invents
+
+Found by a peer session while sourcing a comparison span, and it is the clearest
+gap either study has turned up.
+
+A 2026-09-20 turn on the `cold` arm renders this, in notebook voice:
+
+> I don't see anything from that stretch—the kettle doesn't appear in the recent
+> turns.
+>
+> ### *March 12 – Argument with Dario about the move*
+
+The quote is **real and verbatim** — `Fixtures/cold-start` entry `cs-02` reads
+"Argument with Dario about the move." The date is invented. Every cold-start entry
+is dated relatively (`daysAgo` 1, 3, 5, 8, 11, 15, 20, 26), so `cs-02` is three days
+old and no March 12 entry exists to cite. The reply also denies having anything and
+then quotes an entry in the same breath, which is the cite-then-deny hedge
+`stanceMatchingEvidence` exists to prevent.
+
+The only code that fired was `hall.uncitedQuote` — correct as far as it goes, since
+the span was quoted without attribution, but it names the wrong failure. What the
+model got wrong is the date on a true quote.
+
+Measured across both runs, counting a month-name-plus-day assertion in the reply body:
+
+| run · arm | generated | assert a date | of those, **no** gating violation |
+|---|---|---|---|
+| 2026-09-20 · `empty` | 1,597 | 1 (0.1%) | 1 (100%) |
+| 2026-09-20 · `cold` | 1,522 | 73 (4.8%) | 48 (65.8%) |
+| Study II · `empty` | 1,760 | 9 (0.5%) | 8 (88.9%) |
+| Study II · `persona` | 1,626 | 118 (7.3%) | 63 (53.4%) |
+
+**No scorer targets date assertions**, so between half and nine in ten of them pass
+clean. On the seeded arms a date can legitimately be right — `Fixtures/corpus` is
+absolutely dated — so 118 is not 118 errors. On the `empty` arm every date assertion
+is necessarily invented, and that is the number that should be zero: it is **9, up
+from 1**, in a build that already carries `2c0d2f5`'s `[Today: …]` prompt anchor.
+
+Three things follow:
+
+1. **The anchor did not fix it and may have made it worse.** `todayLine()` gives the
+   model a clock; it did not stop the model attaching dates to things. The
+   `PromptDateAnchorTests` assert the line is present in the prompt, which is a
+   different claim from the model using it correctly.
+2. **There is no `hall.fabricatedDate`.** 046's motivating example — "I don't see
+   anything from that stretch — the entry from March 12 shows a spike in missed
+   classes" — is quoted in `2c0d2f5`'s own commit message, and nothing in
+   `ChatEvalScoring` measures it. That turn, on the zero-entry arm of the 2026-09-20
+   run, carries an empty `violations` array.
+3. **A grounding failure hiding inside an attribution code is the same conflation as
+   the fabricated-quote one.** Two different defects are reaching one name again,
+   which is the pattern 048 R1 was written about.
+
+A date scorer is cheap and checkable without a model: entry dates are known, so any
+month-day assertion either matches a cited entry's `createdAt` or it does not.
+
+---
+
 ## 047: the routing collapse moved too
 
 | | 2026-09-20 | Study II |
@@ -267,6 +325,9 @@ six-figure sample counts remains not executable here.
 3. **Refresh `Fixtures/corpus` to relative dates**, the way `Fixtures/cold-start`
    already uses `daysAgo`. No arm in either study can currently ask a current
    journal about last week.
-4. **Land 048 R3's counterfactual pairs.** Contrast, not volume, is what both
+4. **Add a date scorer.** No check targets an asserted date, so 89% of the
+   zero-entry arm's invented dates pass clean, and the count went up rather than
+   down after the prompt anchor landed. It needs no model to evaluate.
+5. **Land 048 R3's counterfactual pairs.** Contrast, not volume, is what both
    studies found things with, and a 56% rate on one authored world cannot separate
    model behaviour from corpus properties.
