@@ -9,6 +9,7 @@ findings:
   - policy-and-channel-both-instruct-the-question
   - structural-miss-is-a-span-not-a-reply
   - second-generation-cannot-sit-in-front-of-tts
+  - textdiff-checkpoint-does-not-decode-text
 source_refs: [REQ-EPI-004, REQ-EPI-005, REQ-EPI-007, REQ-INT-017, REQ-PRM-004]
 tech_refs: [technology/01-foundation-models.md, technology/04-evaluations.md]
 ---
@@ -164,6 +165,46 @@ new violation.
 **Acceptance:** `DialogueDiffusion.swift` does not import `FoundationModels`.
 `makeResult` still returns the cleaned draft.
 
+## The TextDiff checkpoint
+
+[sebmendo1/text-diffusion-defense-swift](https://github.com/sebmendo1/text-diffusion-defense-swift)
+at `76ffe8b` is the Python TextDiff library (`textdiff.ControlDD`). The
+tree has no Swift sources and no Core ML model. `main` is the only branch.
+
+What it is: a 384-d embedding denoiser (`DenoisingModel`: time MLP plus
+three linear layers) trained to move adversarial sentence embeddings away
+from harm. `all-MiniLM-L6-v2` encodes the user prompt. Risk above 0.3 is a
+reject. Risk between 0.05 and 0.3 is a suggested rewrite. The diffusion
+depth (`t_max` 50 / 100 / 200) is chosen from the embedding's L2 norm, not
+from `ResponsePolicy`.
+
+What the text path actually returns: `EmbeddingProcessor.embedding_to_text`
+ignores the denoised vector and returns the literal
+`"Cleaned text from embedding"`. `get_clean_text_for_llm` and the medium-risk
+`cleaned_prompt` both go through that function. There is no decoder.
+
+Use it only as an offline second reader on adversarial fixtures:
+
+```python
+result = textdiff.ControlDD().analyze_and_respond(user_prompt)
+# status, risk_score, risk_categories, problematic_words
+```
+
+Compare those categories with `SafetyClassifier`. Do not pass
+`cleaned_prompt`, `llm_prompt` from a medium-risk result, or
+`get_clean_text_for_llm` into Ask.
+
+Do not put it in the app.
+
+- Spec 026 already runs `SafetyRouter` before classification. Crisis is a
+  static card. Hard refuses are authored strings. A diffusion rewrite must
+  not replace either, and must not become the text retrieval and
+  `QuestionShape` see. Rewriting the person's sentence changes the
+  expectation the policy is computed from.
+- The checkpoint has no condition for acknowledge / list / reflect. It
+  cannot fix a question on a goodbye.
+- PyTorch and sentence-transformers do not belong in the on-device binary.
+
 ## Out of Scope
 
 - Replacing Foundation Models with a diffusion LM.
@@ -173,6 +214,8 @@ new violation.
   evidence row 2 is real and should be fixed in the prompt spec that owns
   those strings; this spec only stops spending a model call to paper over it.
 - Running the reverse step before the first spoken sentence.
+- Calling `textdiff.ControlDD.get_clean_text_for_llm` from the app or the
+  eval harness. The function does not decode the denoised embedding.
 
 ## Tasks
 
