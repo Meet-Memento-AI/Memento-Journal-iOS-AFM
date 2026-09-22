@@ -50,13 +50,21 @@ enum EvidenceLadder {
     }
 
     /// The single line inserted into the prompt. Copy is fixed.
-    static func promptLine(_ rung: EvidenceRung, retrieval: RetrievalResult) -> String {
+    ///
+    /// `exact` points at the pack's markers instead of carrying the entry's
+    /// words and a date the model would then retype (spec 050, amending 049
+    /// R3's "You wrote X on [date]."). Without a quotable slot it names no text.
+    static func promptLine(
+        _ rung: EvidenceRung,
+        retrieval: RetrievalResult,
+        pack: EvidencePack? = nil
+    ) -> String {
         switch rung {
         case .exact:
-            guard let entry = retrieval.entries.first else {
-                return "One entry may be what you mean."
-            }
-            return "You wrote \(excerpt(entry)) on \(dateText(entry.date))."
+            guard !retrieval.isEmpty else { return "One entry may be what you mean." }
+            guard let slot = pack?.slots.first else { return "One entry is about this." }
+            let quote = slot.quoteText == nil ? "" : " {{quote:\(slot.index)}}"
+            return "One entry answers this: {{date:\(slot.index)}}\(quote)."
         case .strong:
             return "Two entries are about this."
         case .ambiguous:
@@ -66,20 +74,5 @@ enum EvidenceLadder {
         case .conversationOnly:
             return "Stay with what they just said."
         }
-    }
-
-    private static func excerpt(_ entry: RetrievedEntry) -> String {
-        let raw = entry.quotedSpan ?? entry.text
-        let flat = raw.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-        // budget-exempt: ladder excerpt clip, not a model window
-        let clipped = String(flat.prefix(80))
-        return clipped.isEmpty ? "that" : clipped
-    }
-
-    private static func dateText(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: date)
     }
 }

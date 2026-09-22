@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -333,7 +333,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@18` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@19` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -2106,7 +2106,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        computedFacts: [InsightFact] = [],
                                        policy: ResponsePolicy? = nil,
                                        retracted: [String] = [],
-                                       interpretationCut: Bool = false) -> String {
+                                       interpretationCut: Bool = false,
+                                       evidencePack: EvidencePack? = nil) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
         // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
@@ -2159,18 +2160,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // other direction, so the stance falls back to the honest-empty copy.
         // Every line below reads `effectiveStance`, never `stance`.
         // A miss does not carry the nearest entry. Quoting it and then denying
-        // it is the cite-then-deny hedge.
-        let miss = stance == .noMatch || stance == .nearbyOnly || archiveEmpty
-        let hasEvidenceBlock = channel.allowsRetrieval && !retrieval.contextBlock.isEmpty && !miss
+        // it is the cite-then-deny hedge. The pack makes that call (spec 050),
+        // so the prompt and the renderer agree on what evidence exists; the
+        // live path passes the same pack it renders with.
+        let pack = evidencePack ?? EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: channel, archiveEmpty: archiveEmpty
+        )
+        let hasEvidenceBlock = pack.carriesEvidence
         let effectiveStance = Self.stanceMatchingEvidence(
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
         var parts: [String] = [effectiveStance.promptLine]
         if channel == .notebook || channel == .thread {
-            let rung = EvidenceLadder.rung(
-                stance: effectiveStance, retrieval: hasEvidenceBlock ? retrieval : .empty, question: question
-            )
-            parts.append(EvidenceLadder.promptLine(rung, retrieval: hasEvidenceBlock ? retrieval : .empty))
+            let shipped = hasEvidenceBlock ? retrieval : .empty
+            let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
+            parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
         }
         let grounded = effectiveStance.isGrounded(retrieval: retrieval)
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
@@ -2229,13 +2233,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // of the ambient text stays in the prompt. Only the instruction
             // that contradicted it changed.
             let framing = "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
-            parts.append(framing + retrieval.contextBlock)
+            parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
         } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {
                 parts.append("[No journal entries matched this topic]")
             }
+        }
+        if let legend = pack.promptLegend(channel: channel) {
+            parts.append(legend)
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.

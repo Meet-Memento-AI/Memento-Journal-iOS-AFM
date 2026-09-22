@@ -87,6 +87,51 @@ struct EvidencePack: Sendable, Equatable {
     }
 }
 
+// MARK: - Model-facing legend (spec 050 R2)
+
+extension EvidencePack {
+
+    static let legendHeader = "[Evidence]\nMarkers only: the app swaps each for that entry's exact words or date. "
+        + "Never type a journal quote or date yourself, never change a number, never use italics."
+    static let legendFooter = "If none fits, use no markers."
+    static let ambientNote = "[Evidence: background only — no quote or date markers this turn. "
+        + "Speak about these entries in your own words; never quote them, never use italics.]"
+    static let noneNote = "[Evidence: none — no quote or date markers this turn. "
+        + "Never write a journal quote, a journal date, or italics.]"
+
+    /// What the journal recipe is told about markers this turn. The matched
+    /// legend lists each slot's exact words beside its markers, so the model
+    /// chooses a slot rather than recalling a sentence. Nil on channels that
+    /// never retrieve: their prompts never mention markers.
+    func promptLegend(channel: ReplyChannel) -> String? {
+        guard channel.allowsRetrieval else { return nil }
+        switch state {
+        case .matched:
+            guard !slots.isEmpty else { return nil }
+            let rows = slots.map { slot -> String in
+                let date = "\(slot.index). {{date:\(slot.index)}} = \(slot.displayDate)"
+                guard let quote = slot.quoteText else { return date + " · no quote" }
+                let shown = slot.quoteIsClipped ? quote + "…" : quote
+                return date + " · {{quote:\(slot.index)}} = \"\(shown)\""
+            }
+            return ([Self.legendHeader] + rows + [Self.legendFooter]).joined(separator: "\n")
+        case .ambient:
+            return Self.ambientNote
+        case .none:
+            return Self.noneNote
+        }
+    }
+
+    /// The context block without its `quoted:` lines. The legend carries the
+    /// quotable span now, and an ambient row must not advertise one. The
+    /// `[ref n | date]` lines stay exactly as built: `citedRefs` addresses them.
+    static func promptContextBlock(_ block: String) -> String {
+        block.components(separatedBy: "\n")
+            .filter { !$0.hasPrefix("quoted: \"") }
+            .joined(separator: "\n")
+    }
+}
+
 enum EvidencePackBuilder {
 
     /// Mirrors what `buildAskPrompt` ships. A miss (`.noMatch`, `.nearbyOnly`,

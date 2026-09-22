@@ -270,7 +270,7 @@ final class ReplyChannelTests: XCTestCase {
         }
     }
 
-    /// Thread is its own recipe (ask-core@18 + follow-up suffix), so the
+    /// Thread is its own recipe (ask-core@19 + follow-up suffix), so the
     /// follow-up turn needs its own slot — notebook alone never matched it.
     func test_threadRecipe_isDistinctFromNotebook() {
         let budget = ContextBudget(window: .unavailable)

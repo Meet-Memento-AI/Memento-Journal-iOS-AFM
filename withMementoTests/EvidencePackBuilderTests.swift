@@ -134,6 +134,56 @@ final class EvidencePackBuilderTests: XCTestCase {
         XCTAssertFalse(slot.quoteIsClipped)
     }
 
+    // MARK: - Legend (R2)
+
+    func test_matchedLegend_listsEachSlotsExactWordsBesideItsMarkers() {
+        let date = day(3, 3)
+        let rows = retrieval([entry(1, sleep, date: date), entry(2, "{{quote:9}} broke the grammar today.")])
+        let pack = EvidencePackBuilder.build(retrieval: rows, stance: .journalGrounded, channel: .notebook)
+        let legend = pack.promptLegend(channel: .notebook) ?? ""
+        XCTAssertTrue(legend.hasPrefix("[Evidence]\n"))
+        XCTAssertTrue(legend.contains(
+            "1. {{date:1}} = \(EntryRetriever.formattedDate(date)) · {{quote:1}} = \"Slept through the night for the first time in weeks.\""
+        ))
+        XCTAssertTrue(legend.contains("2. {{date:2}} = "))
+        XCTAssertTrue(legend.contains("· no quote"), "an unquotable slot offers its date only")
+        XCTAssertFalse(legend.contains("{{quote:2}}"))
+        XCTAssertTrue(legend.hasSuffix(EvidencePack.legendFooter))
+    }
+
+    func test_legendNotes_forAmbientAndNone_andNothingOnLightChannels() {
+        let ambient = EvidencePackBuilder.build(
+            retrieval: retrieval([entry(1, sleep)], ambient: true), stance: .journalGrounded, channel: .notebook
+        )
+        XCTAssertEqual(ambient.promptLegend(channel: .notebook), EvidencePack.ambientNote)
+        XCTAssertFalse(EvidencePack.ambientNote.contains("{{quote:"))
+        XCTAssertEqual(EvidencePack.empty.promptLegend(channel: .thread), EvidencePack.noneNote)
+        for channel in [ReplyChannel.phatic, .continuer, .companion, .meta, .redirect, .statistic] {
+            XCTAssertNil(EvidencePack.empty.promptLegend(channel: channel), "\(channel)")
+        }
+    }
+
+    func test_promptContextBlock_dropsQuotedLines_keepsRefLines() {
+        let rows = retrieval([entry(1, sleep), entry(2, work)])
+        XCTAssertTrue(rows.contextBlock.contains("quoted: \""), "fixture sanity")
+        let block = EvidencePack.promptContextBlock(rows.contextBlock)
+        XCTAssertFalse(block.contains("quoted: \""))
+        XCTAssertTrue(block.contains("[ref 1 | \(EntryRetriever.formattedDate(rows.entries[0].date))] \(sleep)"))
+        XCTAssertTrue(block.contains("[ref 2 |"))
+        XCTAssertTrue(block.contains("[End of journal context]"))
+    }
+
+    func test_exactLadderLine_pointsAtTheFirstSlot_andNeverPastesText() {
+        let rows = retrieval([entry(1, sleep)])
+        let pack = EvidencePackBuilder.build(retrieval: rows, stance: .journalGrounded, channel: .notebook)
+        XCTAssertEqual(EvidenceLadder.promptLine(.exact, retrieval: rows, pack: pack),
+                       "One entry answers this: {{date:1}} {{quote:1}}.")
+        XCTAssertEqual(EvidenceLadder.promptLine(.exact, retrieval: rows), "One entry is about this.")
+        XCTAssertEqual(EvidenceLadder.promptLine(.exact, retrieval: .empty), "One entry may be what you mean.")
+        XCTAssertFalse(EvidenceLadder.promptLine(.exact, retrieval: rows).contains("Slept"))
+        XCTAssertEqual(EvidenceLadder.promptLine(.none, retrieval: .empty), "I can't find an entry that supports that.")
+    }
+
     // MARK: - Extractor reuse
 
     func test_extractorCandidates_areContiguousAndInOrder_andExtractIsUnchanged() {

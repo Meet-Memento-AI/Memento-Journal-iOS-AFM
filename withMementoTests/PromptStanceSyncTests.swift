@@ -41,9 +41,52 @@ final class PromptStanceSyncTests: XCTestCase {
     }
 
     func test_promptVersions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@18")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@18")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@19")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@19")
         XCTAssertEqual(PromptRegistry.instructions(for: .summary).version, "summarize@2")
+    }
+
+    /// Spec 050: every channel that can carry an [Evidence] list states the
+    /// marker rule, in the full and the degraded suffix.
+    func test_retrievingChannelSuffixes_stateTheMarkerContract() {
+        for channel in ReplyChannel.allCases where channel.allowsRetrieval {
+            for degraded in [false, true] {
+                let suffix = PromptRegistry.channelSuffix(channel, degraded: degraded)
+                XCTAssertTrue(suffix.contains("{{quote:N}}"), "\(channel) degraded=\(degraded)")
+                XCTAssertTrue(suffix.contains("{{date:N}}"), "\(channel) degraded=\(degraded)")
+                let lines = suffix.split(separator: "\n", omittingEmptySubsequences: true)
+                XCTAssertLessThanOrEqual(lines.count, 6, "\(channel) degraded=\(degraded)")
+            }
+        }
+        for stance in [TurnStance.journalGrounded, .followupThread] {
+            XCTAssertTrue(stance.promptLine.contains("{{quote:N}}"), "\(stance)")
+            XCTAssertTrue(stance.promptLine.contains("[Evidence]"), "\(stance)")
+        }
+    }
+
+    /// Spec 050: no surface the model reads may still grant italics as the
+    /// vehicle for a journal quote, or ask it to reproduce a quoted field.
+    func test_noPromptSurface_grantsItalicQuotes() {
+        let retired = [
+            "italic exact quote", "italics for exact journal quotes", "italic quote",
+            "exact quote in *italics*", "italics for an exact journal quote",
+            "reproduce any quoted field exactly"
+        ]
+        var surfaces: [String: String] = ["AskAnswerGuides.body": AskAnswerGuides.body]
+        for channel in ReplyChannel.allCases {
+            for degraded in [false, true] {
+                surfaces["\(channel) degraded=\(degraded)"] =
+                    PromptRegistry.instructions(for: .ask, degraded: degraded, channel: channel).text
+            }
+        }
+        for stance in TurnStance.allCases {
+            surfaces["stance \(stance)"] = stance.promptLine
+        }
+        for (name, text) in surfaces {
+            for phrase in retired {
+                XCTAssertFalse(text.contains(phrase), "\(name) still says \"\(phrase)\"")
+            }
+        }
     }
 
     func test_askPrompt_hasAntiTemplateHardBans() {
@@ -88,7 +131,10 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertTrue(line.contains("then one question"))
         XCTAssertTrue(line.contains("pattern from the evidence"))
         XCTAssertTrue(line.contains("###"))
-        XCTAssertTrue(line.contains("italic exact quote"))
+        XCTAssertTrue(line.contains("{{date:N}}"))
+        XCTAssertTrue(line.contains("{{quote:N}}"))
+        XCTAssertFalse(line.contains("italic"))
+        XCTAssertTrue(line.contains("never type a quote or date yourself"))
         XCTAssertFalse(line.contains("Open only if"))
         XCTAssertFalse(line.contains("answer and stop"))
         XCTAssertTrue(TurnStance.followupThread.promptLine.contains("entry inventory"))
