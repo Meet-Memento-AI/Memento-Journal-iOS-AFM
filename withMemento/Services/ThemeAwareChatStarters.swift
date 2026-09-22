@@ -190,7 +190,7 @@ enum ThemeAwareChatStarters {
                 themeName: theme
             ))
         }
-        return Array(result.prefix(limit))
+        return filled(result, limit: limit)
     }
 
     /// Pills on the empty-state tiles when the profile has no confirmed themes.
@@ -230,6 +230,42 @@ enum ThemeAwareChatStarters {
 
     private struct PromptsFile: Decodable {
         let prompts: [String]
+    }
+
+    /// Exactly `limit` cards, no two showing the same face.
+    ///
+    /// The empty state is a fixed three-tile layout, so "however many the
+    /// archive happened to yield" is not a valid answer. Two ways it used to
+    /// come up short:
+    ///
+    /// - `DeepPromptBuilder.interleave` stops as soon as no kind has another
+    ///   fact left, so an archive with one qualifying cluster and nothing else
+    ///   yields one card. `rotateSuggestions` then installed that one card over
+    ///   the three openers already on screen, and two tiles vanished.
+    /// - `ChatMessagesView` only fell back to openers when the list was
+    ///   *empty*, so one or two cards rendered as one or two tiles.
+    ///
+    /// Preferred cards keep their order and win ties; `fillers` top the list up.
+    /// Deduplication is by the visible label, case- and whitespace-insensitive,
+    /// because two tiles reading the same thing is the defect a person sees —
+    /// `id` is a fresh UUID per rotation, so it can never catch this.
+    static func filled(
+        _ preferred: [ChatSuggestion],
+        limit: Int = 3,
+        fillers: [ChatSuggestion] = ChatSuggestion.fallbackStarters
+    ) -> [ChatSuggestion] {
+        var result: [ChatSuggestion] = []
+        var seen: Set<String> = []
+
+        for card in preferred + fillers {
+            guard result.count < limit else { break }
+            let face = card.label
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            guard !face.isEmpty, seen.insert(face).inserted else { continue }
+            result.append(card)
+        }
+        return result
     }
 
     /// Turns a card's topic into the instruction the assistant opens on.

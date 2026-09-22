@@ -498,7 +498,8 @@ public struct AIChatView: View {
         // Opener cards land synchronously so the empty state is never blank.
         // Deep cards replace them once the archive has been read, which needs
         // entries off disk and through decryption — too slow for `onAppear`.
-        currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
+        let openers = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
+        currentSuggestions = openers
         suggestionThemeSignature = LocalProfileStore.ensureMigratedProfile().confirmedThemeIds
         suggestionGeneration &+= 1
         guard hasEntries, seededSuggestions == nil else { return }
@@ -509,7 +510,11 @@ public struct AIChatView: View {
             guard !deep.isEmpty,
                   generation == suggestionGeneration,
                   viewModel.messages.isEmpty else { return }
-            currentSuggestions = deep
+            // The archive rarely yields three. Topping up from the openers
+            // already on screen keeps the layout at three tiles and keeps the
+            // two that do not change from flickering as they are replaced by
+            // themselves.
+            currentSuggestions = ThemeAwareChatStarters.filled(deep, fillers: openers)
         }
     }
 

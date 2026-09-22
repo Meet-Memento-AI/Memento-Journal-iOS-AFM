@@ -723,8 +723,11 @@ struct ChatMessagesView: View {
     /// Empty chat always shows three starter tiles under the headline.
     /// Falls back to the generic pool if rotation has not landed yet.
     private var displayedSuggestions: [ChatSuggestion] {
-        if !suggestions.isEmpty { return Array(suggestions.prefix(3)) }
-        return ChatSuggestion.fallbackStarters
+        // Backstop, not the primary guarantee: whatever reaches this view —
+        // a short deep-card set, a seeded preview list, an empty first frame —
+        // renders as three tiles with three different faces. `filled` only
+        // reads static constants, so this stays cheap on every redraw.
+        ThemeAwareChatStarters.filled(suggestions)
     }
 }
 
