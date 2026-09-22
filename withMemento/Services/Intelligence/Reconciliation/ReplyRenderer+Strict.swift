@@ -238,7 +238,8 @@ extension RenderPass {
 
     private static func monthNumber(_ name: String) -> Int? {
         let names = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-        return names.firstIndex(of: String(name.lowercased().prefix(3))).map { $0 + 1 }
+        let abbreviation = String(name.lowercased().prefix(3)) // budget-exempt: month abbreviation, not a model payload
+        return names.firstIndex(of: abbreviation).map { $0 + 1 }
     }
 
     private func dateIsBacked(_ date: WrittenDate, written: String) -> Bool {

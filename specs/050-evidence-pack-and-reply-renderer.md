@@ -2,7 +2,7 @@
 id: 050
 title: Evidence Pack and Reply Renderer — The Model Points, Swift Quotes
 tier: P1
-status: in-progress (2026-09-22)
+status: in-progress (2026-09-22 — implementation landed; Mac lane verification and the re-sim are pending)
 effort: 1 session, landed as stacked commits (see Tasks)
 depends_on: [017, 037, 039, 044, 046, 049]
 findings:
@@ -78,7 +78,7 @@ follow the same template.
 | 8 | **Streaming paints raw model text.** `askStream` yields `strippingReferenceMarkers(snapshot)` on every delta; narration feeds those deltas to TTS through `StreamingSentenceChunker`, whose first-chunk fast path speaks before a sentence ends. Anything the final pass removes has already been seen and possibly spoken. | `FoundationModelsIntelligenceService.swift:1758-1803`, `ViewModels/NarrationCoordinator.swift:537-583` | High |
 | 9 | **Citation chips do not mirror the reply.** `AskCitation.excerpt` is `previewExcerpt(entry.text, query:)` — a 120-char window around the first query term — not the words the reply showed. | `CitationReconciliation.swift:183-191, 226-245`, `ChatService.swift:343-353` | Medium |
 | 10 | **`main` does not compile.** PR #32 added `let shape = QuestionShapeResolver.shape(…)` beside the existing `let shape = resolveTurnShape(…)` in `finishAskPrep` — an invalid redeclaration. CI never ran (self-hosted runners offline; every run since 2026-09-20 is `queued`/`cancelled`). | `FoundationModelsIntelligenceService.swift:1139, 1146`; `gh run list --branch main` | **Critical** |
-| 11 | **`main` fails its own size gate.** `ask-core@18` + notebook suffix is 4,526 characters (measured with `swiftc`); `AskPromptSizeTests` allows 4,518 (55% of 8,214). | `Prompt/PromptRegistry.swift:396-472, 562-572`, `AskPromptSizeTests.swift:9-21` | High |
+| 11 | **`main` fails its own size gate.** `ask-core@18` + notebook suffix is 4,526 characters (measured with `swiftc`); `AskPromptSizeTests` allows 4,518 (55% of 8,214). *Resolved by R3: `ask-core@19` + notebook suffix is 4,499.* | `Prompt/PromptRegistry.swift:396-472, 562-572`, `AskPromptSizeTests.swift:9-21` | High |
 | 12 | **R1/R3/R4 from the local `harness/device-report-r1-r3-r4` branch are not on `main`.** No `settleAndStop`, no "ambient → journalGrounded". `main` closed the ambient+noMatch contradiction differently (PR #32): ambient + non-inventory → `.noMatch` **and** the evidence block is withheld; ambient + inventory → `.journalGrounded` with the block. This spec preserves *main's* semantics, not the local branch's. | `Retrieval/RetrievalPolicy.swift:212-228`, `FoundationModelsIntelligenceService.swift:2160-2167` | — (constraint) |
 | 13 | **Reusable parts already exist.** `RetrievedEntry.quotedSpan` (a contiguous span of the excerpt, via `QuotedSpanExtractor`), the whitespace-normalised passage excerpt (`PassageChunker.excerpt`), `EvidenceState` (`none/ambient/matched`), `CitationReconciliation`'s fold. | `EntryRetriever.swift:25-54`, `QuotedSpanExtractor.swift`, `Evidence/EvidenceState.swift` | — (reuse) |
 | 14 | **The project half-finished a rename.** `e4d1621` moved `MeetMemento/` → `withMemento/` and `MeetMemento.xcodeproj` → `withMemento.xcodeproj`, but `project.pbxproj`'s synchronized groups still say `path = MeetMemento` / `MeetMementoTests`, CI still passes `-scheme MeetMemento`, and `ConversationSimulation.swift` alone imports `withMemento` (every other test imports `MeetMemento`). New files here follow the on-disk `withMemento/` layout; the rename itself is not this spec's to finish. | `withMemento.xcodeproj/project.pbxproj:61-80`, `.github/workflows/ios-build-online.yml:59-116`, `withMementoTests/Eval/ConversationSimulation.swift:2` | High (blocks every Mac verification step until reconciled) |
@@ -332,8 +332,15 @@ private-use placeholders, so no later step can touch an expansion):
 7. `.none` pack: heading lines are dropped (journal form without evidence).
    Any pack: a heading left empty is dropped.
 8. Cleanup (spacing, punctuation, empty quote pairs, blank-line runs); if a
-   final body has no words left, one authored neutral line is used and
-   `usedFallback` is recorded.
+   final body has no words left, one authored neutral line
+   (`ReplyRenderer.emptyFallback`) is used and `usedFallback` is recorded.
+   An empty reply stays empty.
+
+As built: an adopted sentence keeps the passage's own sentence end, so it
+never fuses with the next sentence; a dropped quotation keeps its span's
+terminator, so only its own sentence goes; a quote already shown is never
+repeated (`droppedDuplicateQuoteCount`). The strict passes live in
+`ReplyRenderer+Strict.swift` and streaming in `ReplyRenderer+Streaming.swift`.
 
 **Invariants (tested):**
 
@@ -365,15 +372,20 @@ Wire points in `FoundationModelsIntelligenceService.swift`:
 - `makeResult` renders first; `EpistemicGuard`, `OutputSafetyScanner`, and
   citations all read the rendered body. Citations =
   `CitationReconciliation.citations(for:pack:citedRefs:retrieval:question:)`:
-  chips first (excerpt = the quote shown), then date-only expansions, then
-  `reconcileCitations` as a backstop — **matched packs only**.
+  the entries the body shows (quoted or dated) lead, in the order shown — a
+  quoted entry's excerpt is the quote itself — then `reconcileCitations` as a
+  backstop, capped at three — **matched packs only**.
 - `askStream` — **buffer-then-render, per stable prefix.** Each snapshot is
   cut to a stable prefix (sentence granularity on notebook/thread, word
   granularity on light channels, never inside an open marker, italic, or
   quotation) and rendered with the same pack. Raw model text never reaches
   the bubble or TTS; a whole-reply buffer was rejected because it would
   undo spec 029/032's first-audio work for every turn. The incremental
-  output-safety scan and the watchdog are unchanged.
+  output-safety scan and the watchdog are unchanged. A delta whose rendered
+  body is empty or unchanged is not yielded, so the thinking state stays up
+  until the first settled sentence instead of painting an empty bubble.
+  Word granularity can retract a sentence start on a light channel if a
+  later fabricated quotation drops that sentence; it never shows the quote.
 - The "Reviewed your journals" pre-citations are emitted only for `.matched`.
 - `recoverOrdinaryRefusal`'s light retry renders with a `.none` pack.
 - `statisticResult` is untouched: it never reaches the model or the renderer.
@@ -400,12 +412,14 @@ quote; an ambient turn persists no sources.
 
 ### R7. Eval hooks and the re-sim plan (`REQ-REF-007`)
 
-`ConversationSimulation` writes `render_version` and an `evidence_pack`
-object (state, slot count, expanded quote/date slots, and every counter in
-`ReplyRenderStats`) on each assistant row — additive keys, so
+`ConversationSimulation` writes `render_version`, `chips` (count), and an
+`evidence_pack` object on each assistant row — additive keys, so
 `analyze_convo_sim.py` keeps working and can split `hall.fabricatedQuote` by
 channel × citation × pack state. The body it scores is already the rendered
-body.
+body. Keys: `state`, `slots`, `expanded_quotes`, `expanded_dates`,
+`adopted_quotes`, `dropped_markers`, `duplicate_quotes`, `stripped_italics`,
+`dropped_quotations`, `unwrapped_bold`, `stripped_dates`, `dropped_headings`,
+`fallback`.
 
 **Acceptance (run when the Mac lane is online — document, do not block):**
 
@@ -436,30 +450,36 @@ body.
 
 ## Tasks
 
-Stacked commits on `cursor/evidence-pack-reply-renderer-a39c`, in the order
-the implementation prompt requires (two housekeeping commits first):
+The plan landed as PR #34. The implementation is stacked on
+`cursor/evidence-pack-renderer-impl-a39c`, in the order the implementation
+prompt requires (one housekeeping commit first):
 
 - [x] 0. `spec(050)`: this plan.
-- [ ] 0b. `fix(intelligence)`: rename the question-shape binding in
+- [x] 0b. `fix(intelligence)`: rename the question-shape binding in
       `finishAskPrep` so `main`'s tree compiles (finding 10).
-- [ ] 1. `evidence-pack`: `EvidencePack` + builder + `QuotedSpanExtractor.candidates`
+- [x] 1. `evidence-pack`: `EvidencePack` + builder + `QuotedSpanExtractor.candidates`
       + `EvidencePackBuilderTests`. No prompt change. (R1)
-- [ ] 2. `renderer`: `ReplyRenderer` — placeholders, expansion, chips,
-      dropped markers, italic unwrap, citations helper — + `ReplyRendererTests`. (R4)
-- [ ] 3. `prompts`: retire the italic contract; legend + `quoted:` removal in
+- [x] 2. `renderer`: `ReplyRenderer` — placeholders, expansion, chips,
+      dropped markers, italic unwrap — + `ReplyRendererTests`. (R4)
+- [x] 3. `prompts`: retire the italic contract; legend + `quoted:` removal in
       `buildAskPrompt`; ladder marker copy; exemplar; `ask-core@19`; size gate;
       update `PromptStanceSyncTests`, `AskPromptContractTests`,
       `ConversationalRecallContractTests`, `PromptPersonalizationTests`,
-      `PromptRegistryResolutionTests`, `AskPromptSizeTests`, `FailureCorpusTests`. (R2, R3)
-- [ ] 4. `ask`: wire the pack and renderer into `ask`, `askStream` (stable
-      prefixes), `makeResult`, `recoverOrdinaryRefusal`; render log line. (R5)
-- [ ] 5. `renderer (strict)`: adoption, fabricated-quotation sentence drop,
+      `PromptRegistryResolutionTests`, `AskPromptSizeTests`. (R2, R3)
+      `FailureCorpusTests` needed no edit: its ladder calls use the
+      pack-less form, whose copy still differs by rung.
+- [x] 4. `ask`: wire the pack and renderer into `ask`, `askStream` (stable
+      prefixes), `makeResult`, `recoverOrdinaryRefusal`; the citations
+      helper; render log line. (R5)
+- [x] 5. `renderer (strict)`: adoption, fabricated-quotation sentence drop,
       conversation allowance, bold verification, date ban, heading drop. (R4)
-- [ ] 6. `chat`: `AskResult.chips` / `renderStats`; citation chips mirror the
+- [x] 6. `chat`: `AskResult.chips` / `renderStats`; citation chips mirror the
       rendered quote. (R6)
-- [ ] 7. `eval`: convo-sim `evidence_pack` / `render_version` fields; this
-      spec's re-sim section; README / ROADMAP registration; 037 and 049
-      amendment notes. (R7)
+- [x] 7. `eval`: convo-sim `evidence_pack` / `render_version` / `chips`
+      fields; this spec's re-sim section; README / ROADMAP registration;
+      037 and 049 amendment notes. (R7) `ConversationSimulation.swift`'s
+      lone `@testable import withMemento` now matches the `MeetMemento`
+      module every other test imports.
 
 ## Verification
 
@@ -477,10 +497,37 @@ fresh checkout.
       -only-testing:MeetMementoTests/PromptContradictionTests
       -only-testing:MeetMementoTests/FailureCorpusTests` green.
 - [ ] Full online suite per `.github/PULL_REQUEST_TEMPLATE.md`.
-- [ ] `scripts/ci/check_single_intelligence_importer.sh` still reports exactly 1.
-- [ ] `scripts/ci/check_no_hardcoded_context_budgets.sh` passes (new clip
-      constants carry `budget-exempt` notes where they are not model windows).
+- [x] `scripts/ci/check_single_intelligence_importer.sh` still reports exactly 1.
+- [x] `scripts/ci/check_no_hardcoded_context_budgets.sh` passes (the one new
+      clip, a month-name abbreviation, carries a `budget-exempt` note).
 - [ ] Re-sim (Mac, when online) — see "Re-running the study" below.
+
+### What was verified without a Mac (2026-09-22)
+
+The Mac runners were offline, so the pure-Swift half was compiled and run on
+a Linux Swift 6.2 toolchain: a scratch SwiftPM package whose sources are the
+real repo files (the Intelligence layer's Foundation-only files, `Entry`,
+`ThemeCatalog`, `LocalProfileStore`, `ModelRouter`, `AskTranscriptPlan` over
+a SHA-256 shim) plus the pure sections of `EntryRetriever.swift` and
+`FoundationModelsIntelligenceService.swift` extracted verbatim — the result
+types, the context block, `buildAskPrompt`, `stanceMatchingEvidence`, and the
+citation statics. It ran 230 tests from 15 real test files, all green:
+`EvidencePackBuilderTests`, `ReplyRendererTests`, `PromptStanceSyncTests`,
+`AskPromptContractTests`, `AskPromptSizeTests` (red on `main`, green here),
+`ConversationalRecallContractTests`, `PromptContradictionTests`,
+`ReferenceMarkerStrippingTests`, `PromptPersonalizationTests`,
+`PromptRegistryResolutionTests`, `TurnShapeCadenceTests`,
+`ConversationalMoveTests`, `ReplyChannelTests`, `RetrievalPolicyTests`,
+`AskPipelineTests`, and `ChatEvalScoring` as a helper. SwiftLint `--strict`
+is clean on every new app file; the files this change edits report only
+violations `main` already has.
+
+Mac-only, not run: anything importing FoundationModels, UIKit, SwiftUI or
+NaturalLanguage — the live `ask` / `askStream` / `makeResult` wiring (checked
+by reading, and by the harness compiling every API it calls),
+`FailureCorpusTests` and `ResponsePolicyTests` (need the NaturalLanguage
+retriever), `AskTranscriptPlanTests` (needs `ChatService`), the chat UI, and
+the convo-sim itself.
 
 ### Re-running the study
 
