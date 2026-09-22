@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""Emit one JSON blob of aggregates for the comparison page.
+
+The page embeds this rather than the JSONL: the two runs together are about
+10 MB of per-message records, and a browser has no business parsing that to
+draw eight charts. Every number here comes from `analyze_convo_sim`'s own
+definitions, imported rather than re-implemented, so the page and the CLI
+report cannot drift apart.
+
+    scripts/eval/export_convo_sim_json.py \
+        --run "Study I:eval-archive/convo-sim/full-2026-09-20.jsonl" \
+        --run "Study II:eval-archive/convo-sim/full-2026-09-21-persona.jsonl" \
+        --out /tmp/convo-sim.json
+"""
+from __future__ import annotations
+
+import argparse
+import collections
+import importlib.util
+import json
+import statistics
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location("acs", HERE / "analyze_convo_sim.py")
+acs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(acs)
+
+
+def percentile(values: list[float], q: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, int(q * len(ordered)))]
+
+
+def arm_block(rows: list[dict], arm: str) -> dict:
+    gen = acs.generated(rows, arm)
+    total = len(gen)
+    cited = [r for r in gen if r.get("citations")]
+    ages = [c["entry_age_days"] for r in cited for c in r["citations"] if "entry_age_days" in c]
+    secs = [r["seconds"] for r in gen if "seconds" in r]
+    before = [r for r in gen if not r.get("history_truncated")]
+    after = [r for r in gen if r.get("history_truncated")]
+    assistant = [r for r in rows if r.get("role") == "assistant" and r.get("arm") == arm]
+
+    runs = collections.defaultdict(list)
+    for row in rows:
+        if row.get("arm") == arm:
+            runs[row["run_id"]].append(row)
+
+    return {
+        "arm": arm,
+        "generated": total,
+        "assistant_turns": len(assistant),
+        "errors": sum(1 for r in assistant if r.get("error")),
+        "swift_computed": sum(1 for r in assistant if r.get("prompt_version") == "insight-fact@1"),
+        "conversations": len(runs),
+        # Rates are gating-only, matching ChatEvalScoring.gating: `gen.*` is
+        # shape telemetry and the three unarmed `hall.*` codes are measured but
+        # do not gate. The raw code counts below carry them separately.
+        "gating_violations": sum(acs.violated(r) for r in gen),
+        "invented_material": sum(
+            any(v["code"] in acs.FABRICATION_CODES for v in r.get("violations", [])) for r in gen
+        ),
+        "notebook": sum(1 for r in gen if r.get("channel") == "notebook"),
+        "cited_turns": len(cited),
+        "citations": sum(len(r["citations"]) for r in cited),
+        "median_cited_entry_age_days": statistics.median(ages) if ages else None,
+        "codes": dict(collections.Counter(
+            v["code"] for r in gen for v in r.get("violations", [])
+        )),
+        "channels": dict(collections.Counter(r.get("channel") for r in gen if r.get("channel"))),
+        "latency": {
+            "n": len(secs),
+            "p50": percentile(secs, 0.5),
+            "p90": percentile(secs, 0.9),
+            "max": max(secs) if secs else None,
+        },
+        "degraded": sum(1 for r in gen if r.get("was_degraded")),
+        "designed_refusals": sum(1 for r in rows if r.get("arm") == arm and r.get("designed_refusal")),
+        "history_window": {
+            "before_n": len(before),
+            "before_rate": 100 * sum(acs.violated(r) for r in before) / len(before) if before else None,
+            "after_n": len(after),
+            "after_rate": 100 * sum(acs.violated(r) for r in after) / len(after) if after else None,
+        },
+        "median_conversation_length": statistics.median([len(t) for t in runs.values()]) if runs else None,
+        "fallback_person_turns": sum(
+            1 for r in rows if r.get("arm") == arm and r.get("move") == "fallback"
+        ),
+    }
+
+
+def per_field(rows: list[dict], arms: list[str], field: str) -> list[dict]:
+    out = []
+    for value in sorted({r.get(field) for r in acs.generated(rows) if r.get(field)}):
+        entry = {"key": value}
+        for arm in arms:
+            cell = [r for r in acs.generated(rows, arm) if r.get(field) == value]
+            hits = sum(acs.violated(r) for r in cell)
+            entry[arm] = {
+                "n": len(cell),
+                "hits": hits,
+                "rate": 100 * hits / len(cell) if cell else None,
+            }
+        out.append(entry)
+    return out
+
+
+def examples(rows: list[dict], code: str, limit: int = 8) -> list[dict]:
+    """A handful of real spans per code.
+
+    A rate is not evidence on its own: `hall.fabricatedQuote` at 46% could be a
+    model inventing entries or a scorer mis-defining a quote, and only the text
+    settles which. The page carries these so a reader can judge instead of
+    taking the number on trust.
+    """
+    seen, out = set(), []
+    for row in rows:
+        if row.get("role") != "assistant":
+            continue
+        for violation in row.get("violations", []):
+            if violation["code"] != code:
+                continue
+            detail = violation.get("detail", "")
+            if detail in seen:
+                continue
+            seen.add(detail)
+            out.append({
+                "arm": row.get("arm"),
+                "detail": detail,
+                "body": row.get("text", "")[:400],
+                "channel": row.get("channel"),
+                "turn_type": row.get("turn_type"),
+                "persona_id": row.get("persona_id"),
+                "cited": len(row.get("citations", [])),
+            })
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def run_block(label: str, path: Path) -> dict:
+    rows = acs.load(path)
+    manifest_path = path.with_suffix(".manifest.json")
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    arms = [a["name"] for a in manifest.get("arms", [])] or sorted(
+        {r.get("arm") for r in rows if r.get("arm")}
+    )
+    assistant = [r for r in rows if r.get("role") == "assistant"]
+
+    seen_turns = {r.get("turn_type") for r in assistant if r.get("turn_type")}
+    matrix = []
+    for turn in list(acs.TURN_TYPES) + sorted(seen_turns - set(acs.TURN_TYPES)):
+        cells = {
+            channel: sum(
+                1 for r in assistant
+                if r.get("turn_type") == turn and r.get("channel") == channel
+            )
+            for channel in acs.REPLY_CHANNELS
+        }
+        matrix.append({
+            "turn_type": turn,
+            "cells": cells,
+            "total": sum(cells.values()),
+            "rate": 100 * sum(cells.values()) / len(assistant) if assistant else 0,
+        })
+
+    return {
+        "label": label,
+        "file": path.name,
+        "messages": len(rows),
+        "manifest": {
+            key: manifest.get(key) for key in (
+                "label", "started_at", "finished_at", "git_sha", "git_branch",
+                "os_version", "runs_per_arm", "min_messages", "max_messages",
+                "history_message_limit", "notes", "scorers",
+            ) if manifest.get(key) is not None
+        },
+        "complete": "finished_at" in manifest,
+        "arms_meta": [
+            {
+                "name": a["name"],
+                "entry_count": a.get("entry_count"),
+                "entry_date_range": a.get("entry_date_range") or None,
+            }
+            for a in manifest.get("arms", [])
+        ],
+        "arms": [arm_block(rows, arm) for arm in arms],
+        "turn_matrix": matrix,
+        "personas": per_field(rows, arms, "persona_id"),
+        "intents": per_field(rows, arms, "intent_id"),
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run", action="append", required=True,
+                        help="LABEL:path/to/run.jsonl")
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+
+    runs, all_rows = [], []
+    for item in args.run:
+        label, _, path = item.partition(":")
+        path = Path(path)
+        runs.append(run_block(label, path))
+        all_rows.extend(acs.load(path))
+
+    payload = {
+        "runs": runs,
+        "fabrication_codes": list(acs.FABRICATION_CODES),
+        "report_only_codes": list(acs.REPORT_ONLY_CODES),
+        "turn_types": list(acs.TURN_TYPES),
+        "reply_channels": list(acs.REPLY_CHANNELS),
+        "examples": {
+            code: examples(all_rows, code)
+            for code in ("hall.fabricatedQuote", "hall.uncitedQuote", "rule.boldNotTheirWords")
+        },
+    }
+    args.out.write_text(json.dumps(payload, indent=1))
+    print(f"wrote {args.out} ({args.out.stat().st_size / 1024:.0f} KB)")
+    for run in runs:
+        state = "complete" if run["complete"] else "PARTIAL"
+        print(f"  {run['label']}: {run['messages']} messages, {state}, "
+              f"arms {[a['arm'] for a in run['arms']]}")
+
+
+if __name__ == "__main__":
+    main()
