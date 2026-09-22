@@ -1143,8 +1143,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let computed = computedSlice.isEmpty
             ? []
             : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
-        let shape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
-        let policy = ResponsePolicyResolver.policy(shape: shape, evidence: core.evidence)
+        let questionShape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
+        let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
         let retracted = RetractedClaims.claims(in: core.history)
         let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
         let prompt = Self.buildAskPrompt(
