@@ -18,8 +18,18 @@ import argparse
 import collections
 import importlib.util
 import json
+import re
 import statistics
 from pathlib import Path
+
+# A month-name-plus-day assertion in the reply body. No scorer targets these, so
+# the count has to be derived from the text; on a zero-entry arm every one of
+# them is invented by construction, which is the number that should be zero.
+DATE_ASSERTION = re.compile(
+    r"\b(January|February|March|April|May|June|July|August|September|October|November|December)"
+    r"\s+\d{1,2}\b",
+    re.IGNORECASE,
+)
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("acs", HERE / "analyze_convo_sim.py")
@@ -85,6 +95,12 @@ def arm_block(rows: list[dict], arm: str) -> dict:
             "after_n": len(after),
             "after_rate": 100 * sum(acs.violated(r) for r in after) / len(after) if after else None,
         },
+        "date_assertions": (lambda dated: {
+            "n": len(dated),
+            "rate": 100 * len(dated) / total if total else None,
+            # Unflagged by any gating code: the failure is invisible to the suite.
+            "unflagged": sum(1 for r in dated if not acs.violated(r)),
+        })([r for r in gen if DATE_ASSERTION.search(r.get("text") or "")]),
         "median_conversation_length": statistics.median([len(t) for t in runs.values()]) if runs else None,
         "fallback_person_turns": sum(
             1 for r in rows if r.get("arm") == arm and r.get("move") == "fallback"

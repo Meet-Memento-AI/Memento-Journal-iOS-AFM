@@ -304,6 +304,33 @@
     <div class="spans" id="spans"></div>
   </section>
 
+  <section id="dates">
+    <div class="sechead">
+      <div class="eyebrow">An unscored failure mode</div>
+      <h2>Nothing checks an asserted date</h2>
+    </div>
+    <p>A reply can name a date no entry carries and pass every check. On a seeded arm a date
+      can legitimately be right, so those counts are not error counts — but on a zero-entry arm
+      every asserted date is invented by construction, and that column should read zero.</p>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Replies asserting a month-and-day, and how many pass clean</h3>
+          <p>Derived from the reply text, because no scorer emits a code for it.</p></div>
+        <div class="legend" id="legend-dates"></div>
+      </div>
+      <div class="datatable-scroll" id="table-dates"></div>
+    </div>
+    <div class="callout">
+      <div class="eyebrow">Why this is not just a missing check</div>
+      <p>Spec 046's own motivating example is one of these turns — <em>"I don't see anything from
+        that stretch — the entry from March 12 shows a spike in missed classes"</em>, on the arm with
+        no journal at all — and its <code>violations</code> array is empty. Elsewhere the model quotes
+        a real entry verbatim and attaches a date that entry does not have; the only code that fires
+        is <code>hall.uncitedQuote</code>, which names the attribution and not the invention.
+        Two different defects are reaching one code again.</p>
+    </div>
+  </section>
+
   <section id="cost">
     <div class="sechead">
       <div class="eyebrow">Throughput</div>
@@ -908,6 +935,37 @@
       card.appendChild(body);
       host.appendChild(card);
     });
+  })();
+
+  // ------------------------------------------------------------------ dates
+  (function dates() {
+    const host = document.getElementById("table-dates");
+    if (!CELLS.some((c) => c.d.date_assertions)) {
+      host.textContent = "Not available — re-export the aggregates to include this.";
+      return;
+    }
+    // A table, not a chart: four rows of three related counts, where the
+    // interesting comparison is "of those, how many were caught" rather than
+    // any magnitude. A bar chart of 1, 73, 9, 118 would say less.
+    dataTable(host,
+      ["Study · arm", "Entries", "Generated", "Assert a date", "Rate %", "Passed clean", "Caught"],
+      CELLS.map((c) => {
+        const d = c.d.date_assertions;
+        const caught = d.n - d.unflagged;
+        const flag = document.createElement("span");
+        if (c.entries === 0 && d.unflagged > 0) {
+          flag.className = "dir worse";
+          flag.textContent = `\u25b2 ${caught} of ${d.n}`;
+        } else {
+          flag.className = d.n === 0 ? "dir noise" : "dir";
+          flag.textContent = d.n === 0 ? "—" : `${caught} of ${d.n}`;
+        }
+        return [c.label, c.entries, c.d.generated, d.n, fmt(d.rate, 1), d.unflagged, flag];
+      }));
+    legend(document.getElementById("legend-dates"), [
+      { color: "var(--critical)", label: "zero-entry arm: every asserted date is invented" },
+      { color: "var(--rule-strong)", label: "seeded arm: a date may be correct" },
+    ]);
   })();
 
   // ---------------------------------------------------------------- latency

@@ -130,10 +130,12 @@ Measured across both runs, counting a month-name-plus-day assertion in the reply
 | 2026-09-20 · `empty` | 1,597 | 1 (0.1%) | 1 (100%) |
 | 2026-09-20 · `cold` | 1,522 | 73 (4.8%) | 48 (65.8%) |
 | Study II · `empty` | 1,760 | 9 (0.5%) | 8 (88.9%) |
-| Study II · `persona` | 1,626 | 118 (7.3%) | 63 (53.4%) |
+| Study II · `persona` | 1,626 | 118 (7.3%) | 83 (70.3%) |
 
-**No scorer targets date assertions**, so between half and nine in ten of them pass
-clean. On the seeded arms a date can legitimately be right — `Fixtures/corpus` is
+**No scorer targets date assertions**, so between two thirds and nine in ten of them
+pass clean. (The "no violation" column is gating-only, like every other rate here:
+`hall.fabricatedQuote` is report-only, so a dated turn that trips only that code
+still counts as passing clean — which is the situation, not a rounding choice.) On the seeded arms a date can legitimately be right — `Fixtures/corpus` is
 absolutely dated — so 118 is not 118 errors. On the `empty` arm every date assertion
 is necessarily invented, and that is the number that should be zero: it is **9, up
 from 1**, in a build that already carries `2c0d2f5`'s `[Today: …]` prompt anchor.

@@ -75,6 +75,11 @@
       "after_n": 439,
       "after_rate": 17.767653758542142
      },
+     "date_assertions": {
+      "n": 1,
+      "rate": 0.06261740763932373,
+      "unflagged": 1
+     },
      "median_conversation_length": 36.0,
      "fallback_person_turns": 7
     },
@@ -124,6 +129,11 @@
       "before_rate": 11.748633879781421,
       "after_n": 424,
       "after_rate": 13.679245283018869
+     },
+     "date_assertions": {
+      "n": 73,
+      "rate": 4.7963206307490145,
+      "unflagged": 48
      },
      "median_conversation_length": 34.0,
      "fallback_person_turns": 0
@@ -631,6 +641,11 @@
       "after_n": 535,
       "after_rate": 4.11214953271028
      },
+     "date_assertions": {
+      "n": 9,
+      "rate": 0.5113636363636364,
+      "unflagged": 8
+     },
      "median_conversation_length": 38.0,
      "fallback_person_turns": 9
     },
@@ -683,6 +698,11 @@
       "before_rate": 16.926869350862777,
       "after_n": 409,
       "after_rate": 17.6039119804401
+     },
+     "date_assertions": {
+      "n": 118,
+      "rate": 7.2570725707257075,
+      "unflagged": 83
      },
      "median_conversation_length": 34.0,
      "fallback_person_turns": 0
