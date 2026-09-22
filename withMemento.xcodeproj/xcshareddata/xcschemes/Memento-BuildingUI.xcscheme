@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A52968632E8CCF12004F65BE"
-               BuildableName = "MeetMemento.app"
-               BlueprintName = "MeetMemento"
-               ReferencedContainer = "container:MeetMemento.xcodeproj">
+               BuildableName = "withMemento.app"
+               BlueprintName = "withMemento"
+               ReferencedContainer = "container:withMemento.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -44,9 +44,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A52968632E8CCF12004F65BE"
-            BuildableName = "MeetMemento.app"
-            BlueprintName = "MeetMemento"
-            ReferencedContainer = "container:MeetMemento.xcodeproj">
+            BuildableName = "withMemento.app"
+            BlueprintName = "withMemento"
+            ReferencedContainer = "container:withMemento.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </LaunchAction>
@@ -60,9 +60,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A52968632E8CCF12004F65BE"
-            BuildableName = "MeetMemento.app"
-            BlueprintName = "MeetMemento"
-            ReferencedContainer = "container:MeetMemento.xcodeproj">
+            BuildableName = "withMemento.app"
+            BlueprintName = "withMemento"
+            ReferencedContainer = "container:withMemento.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </ProfileAction>
