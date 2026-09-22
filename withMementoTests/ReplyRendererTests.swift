@@ -202,6 +202,81 @@ final class ReplyRendererTests: XCTestCase {
         XCTAssertEqual(rendered.stats.droppedHeadingCount, 1)
     }
 
+    // MARK: - Streaming (R5)
+
+    func test_sentencePrefix_holdsTheSentenceStillGrowing() {
+        let prefix = { ReplyRenderer.stablePrefix(of: $0, granularity: .sentence) }
+        XCTAssertEqual(prefix("You finally slept. The quiet came"), "You finally slept.")
+        XCTAssertEqual(prefix("You finally slept."), "", "a terminator with nothing after it may still grow")
+        XCTAssertEqual(prefix("You finally slept. "), "You finally slept.")
+        XCTAssertEqual(prefix("### {{date:1}}\n{{quote:1}}\n\nThe climb"), "### {{date:1}}\n{{quote:1}}\n\n")
+        XCTAssertEqual(prefix("It was *quiet.* Then"), "It was *quiet.*")
+    }
+
+    /// Sentence granularity holds the whole sentence an open construct sits
+    /// in; word granularity holds from the construct itself.
+    func test_stablePrefix_neverCutsInsideAMarkerItalicOrQuotation() {
+        let expected: [ReplyRenderer.StreamGranularity: String] = [.sentence: "You slept.", .word: "You slept. Then"]
+        for (granularity, settled) in expected {
+            let prefix = { ReplyRenderer.stablePrefix(of: $0, granularity: granularity) }
+            XCTAssertEqual(prefix("You slept. Then {{quo"), settled, "\(granularity)")
+            XCTAssertEqual(prefix("You slept. Then *I finally felt"), settled, "\(granularity)")
+            XCTAssertEqual(prefix("You slept. Then “I finally felt"), settled, "\(granularity)")
+            XCTAssertEqual(prefix("You slept. Then **the quiet"), settled, "\(granularity)")
+        }
+    }
+
+    func test_wordPrefix_holdsAPartialWordAndADateStillArriving() {
+        let prefix = { ReplyRenderer.stablePrefix(of: $0, granularity: .word) }
+        XCTAssertEqual(prefix("Hey there, how are y"), "Hey there, how are")
+        XCTAssertEqual(prefix("Hey there, how are you "), "Hey there, how are you ")
+        XCTAssertEqual(prefix("That was back in March"), "That was back in", "a word still growing")
+        XCTAssertEqual(prefix("That was back in March 3, "), "That was back in ", "a date still growing")
+        XCTAssertEqual(prefix("That was back in March 3, 2026, and then the rest "),
+                       "That was back in March 3, 2026, and then the rest ")
+    }
+
+    /// I1 on the stream: every delta a person could see or hear is rendered
+    /// text, and each one is where the final reply begins.
+    func test_streamingBodies_neverShowMarkersOrUnverifiedItalics_andGrowIntoTheFinal() {
+        let pack = matchedPack()
+        let raw = "You finally got some rest. *I felt light for once.* \n\n### {{date:1}}\n{{quote:1}}\n\n"
+            + "The quiet came back on {{date:1}}. What changed that week?"
+        let final = ReplyRenderer.render(raw, pack: pack).body
+        var previous = ""
+        for end in raw.indices {
+            let partial = String(raw[..<end])
+            let body = ReplyRenderer.streamingBody(partial, pack: pack, context: .empty, granularity: .sentence)
+            XCTAssertFalse(body.contains("{") || body.contains("}"), partial)
+            XCTAssertFalse(body.unicodeScalars.contains { (0xE000...0xE7FF).contains($0.value) }, partial)
+            for span in italicSpans(body) {
+                XCTAssertEqual(span, sleepQuote, "only the pack's quote is ever italic: \(partial)")
+            }
+            XCTAssertTrue(final.hasPrefix(body), "delta is not a prefix of the final: \(body)")
+            XCTAssertGreaterThanOrEqual(body.count, previous.count, "sentence deltas never retract")
+            previous = body
+        }
+    }
+
+    // MARK: - Citations (R5)
+
+    func test_citations_leadWithWhatTheBodyShows_andOnlyOnAMatchedPack() {
+        let rows = retrieval([sleepEntry, workEntry])
+        let pack = matchedPack()
+        let rendered = render("On {{date:2}} it was loud. {{quote:1}} What now?", pack)
+        let citations = CitationReconciliation.citations(
+            for: rendered, pack: pack, citedRefs: [1], retrieval: rows, question: "how was work"
+        )
+        XCTAssertEqual(citations.map(\.entryId), [workEntry.id, sleepEntry.id])
+
+        for other in [ambientPack(), EvidencePack.empty] {
+            let shown = render("Lately work. What now?", other)
+            XCTAssertTrue(CitationReconciliation.citations(
+                for: shown, pack: other, citedRefs: [1, 2], retrieval: rows, question: "work"
+            ).isEmpty, "\(other.state) must not cite")
+        }
+    }
+
     // MARK: - Empty results
 
     func test_replyThatRendersToNothing_usesTheFallback_onlyWhenFinal() {

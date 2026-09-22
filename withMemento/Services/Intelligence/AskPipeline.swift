@@ -5,14 +5,18 @@
 //  The readable map of one Ask turn. Later sessions edit stages here.
 //  This file does not import FoundationModels. The service still generates.
 //
-//  Seven steps, in order:
+//  Eight steps, in order:
 //  1. safety — SafetyRouter, thrown by the service before `plan`
 //  2. response policy — the turn the classifier already picked; S7 names the policy
 //  3. evidence ladder — S6 writes one rung; today the plan carries no rung
-//  4. retrieval — the service still retrieves after `plan`
-//  5. prompt — the service still builds the prompt
-//  6. generate — the service still generates
-//  7. epistemic guard — output safety today; S6+ checks the rung
+//  4. retrieval — the service still retrieves after `plan`, then builds the
+//     turn's EvidencePack from what the prompt will carry (spec 050)
+//  5. prompt — the service still builds the prompt; the pack adds the
+//     [Evidence] marker legend
+//  6. generate — the service still generates; the model places markers
+//  7. render — ReplyRenderer expands markers from the pack and strips what
+//     the pack cannot back, on the final body and on every streamed delta
+//  8. epistemic guard — output safety and the rung check read the rendered body
 //
 
 import Foundation

@@ -831,6 +831,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
         let spoken: Bool
+        /// What the prompt carries and the renderer may insert (spec 050).
+        /// `buildAskPrompt` received this exact pack.
+        let pack: EvidencePack
+        /// What the person has said, for quoting and dating their own words.
+        let renderContext: RenderContext
 
         var zone: TrustZone { request.zone }
     }
@@ -1147,6 +1152,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
         let retracted = RetractedClaims.claims(in: core.history)
         let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
+        let pack = EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: core.channel, archiveEmpty: core.entries.isEmpty
+        )
         let prompt = Self.buildAskPrompt(
             question: core.question,
             history: HistoryWindow.promptHistory(core.history),
@@ -1167,7 +1175,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             computedFacts: computed,
             policy: policy,
             retracted: retracted,
-            interpretationCut: interpretationCut
+            interpretationCut: interpretationCut,
+            evidencePack: pack
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
@@ -1179,7 +1188,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
             channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
-            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken
+            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken,
+            pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
         )
     }
 
@@ -1226,18 +1236,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
-    /// Builds the final `AskResult` (citations reconciled, reference markers
-    /// stripped, output safety scanned) from either the whole-answer `respond`
-    /// or the last streamed snapshot.
+    /// Builds the final `AskResult` from either the whole-answer `respond` or
+    /// the last streamed snapshot. The renderer runs first (spec 050): every
+    /// check below — the epistemic guard, output safety, citations — reads
+    /// exactly the body the person will see.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String, latency: Duration,
                             promptTokens: Int? = nil, cachedTokens: Int? = nil) throws -> AskResult {
         // The model produced output, so whatever else this turn does — including
         // an output-safety throw below — the pipeline is not in an outage.
         noteGenerationSucceeded()
-        let cleanedBody = Self.strippingReferenceMarkers(
-            OutputSafetyScanner.strippingHarnessMarkup(body)
-        )
+        let rendered = ReplyRenderer.render(body, pack: prep.pack, context: prep.renderContext)
+        AppLogger.log("[Intelligence] render \(rendered.stats.logLine)", type: .info)
+        let cleanedBody = rendered.body
         let rung = EvidenceLadder.rung(
             stance: prep.stance, retrieval: prep.retrieval, question: question
         )
@@ -1253,10 +1264,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 throw IntelligenceError.safetyRefusal(hit.category)
             }
         }
-        // `cleanedBody`, not `body`: markers are already stripped, and the quote
-        // match should see exactly the text the reader sees.
-        let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
+        // What the body shows leads; the model's citedRefs are the backstop.
+        let citations = CitationReconciliation.citations(
+            for: rendered, pack: prep.pack, citedRefs: citedRefs,
+            retrieval: prep.retrieval, question: question
         )
         let toolsCalled = askSearchState?.toolsCalled ?? 0
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
@@ -1398,8 +1409,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: Self.askOptions(for: .phatic, retrievalRan: false, spoken: core.spoken),
                 bodyOnly: true
             )
+            let rendered = ReplyRenderer.render(
+                body, pack: .empty, context: RenderContext(question: question, history: core.history)
+            )
             return AskResult(
-                heading1: nil, heading2: nil, body: body, citations: [],
+                heading1: nil, heading2: nil, body: rendered.body, citations: [],
                 zoneUsed: core.route.executionZone, wasDegraded: false,
                 promptVersion: resolved.version,
                 modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
@@ -1729,9 +1743,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                     let session = prepared.adopted.session
                     let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken, evidence: prep.evidence)
-                    let reviewed = Self.reconcileCitations(
-                        [], retrieval: prep.retrieval, question: question
-                    )
+                    // Only a matched pack may cite; ambient and miss turns show
+                    // no "Reviewed your journals" link (spec 050 R6).
+                    let reviewed = prep.pack.state == .matched
+                        ? Self.reconcileCitations([], retrieval: prep.retrieval, question: question)
+                        : []
+                    let granularity = ReplyRenderer.granularity(for: prep.channel)
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
@@ -1740,8 +1757,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
                             var tail = StreamTail()
-                            var lastRawBody = ""
+                            var lastPrefix = ""
                             var lastCleaned = ""
+                            var lastYielded = ""
                             var scannedCount = 0
                             var sawFirstSnapshot = false
                             var streamState: OSSignpostIntervalState?
@@ -1769,12 +1787,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 tail.body = body
                                 if let refs = citedRefs { tail.citedRefs = refs }
 
+                                // Buffer-then-render per stable prefix (spec 050 R5):
+                                // whole sentences on journal channels, whole words on
+                                // light ones, never inside an open marker or quote. The
+                                // bubble and TTS only ever see rendered text.
+                                let prefix = ReplyRenderer.stablePrefix(of: tail.body, granularity: granularity)
                                 let cleaned: String
-                                if tail.body == lastRawBody {
+                                if prefix == lastPrefix {
                                     cleaned = lastCleaned
                                 } else {
-                                    cleaned = Self.strippingReferenceMarkers(tail.body)
-                                    lastRawBody = tail.body
+                                    cleaned = ReplyRenderer.render(
+                                        prefix, pack: prep.pack, context: prep.renderContext, isFinal: false
+                                    ).body
+                                    lastPrefix = prefix
                                     lastCleaned = cleaned
                                 }
 
@@ -1793,6 +1818,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 }
                                 scannedCount = cleaned.count
 
+                                // Nothing settled yet, or nothing new: keep the
+                                // thinking state rather than paint an empty bubble.
+                                guard cleaned != lastYielded else { return }
+                                lastYielded = cleaned
                                 continuation.yield(.delta(
                                     bodySoFar: cleaned,
                                     heading1: nil,

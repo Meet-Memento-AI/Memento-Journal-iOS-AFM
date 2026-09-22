@@ -211,6 +211,39 @@ static func quotedRefs(in body: String, retrieval: RetrievalResult) -> [Int] {
     }
 }
 
+// MARK: - Rendered citations (spec 050 R5)
+
+/// What the citation sheet shows for a rendered reply. The entries the body
+/// quotes or dates lead, in the order it shows them; `reconcileCitations`
+/// (the model's citedRefs, verbatim matches, the reviewed top-N) is the
+/// backstop. Only a matched pack cites: an ambient or miss turn shows none,
+/// whatever the model put in citedRefs.
+static func citations(
+    for rendered: RenderedReply,
+    pack: EvidencePack,
+    citedRefs: [Int],
+    retrieval: RetrievalResult,
+    question: String
+) -> [AskCitation] {
+    guard pack.state == .matched else { return [] }
+    let byId = Dictionary(retrieval.entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    var seen = Set<UUID>()
+    var chosen: [AskCitation] = []
+    for id in rendered.citations where seen.insert(id).inserted {
+        guard let entry = byId[id] else { continue }
+        chosen.append(AskCitation(
+            entryId: id,
+            entryDate: entry.date,
+            excerpt: previewExcerpt(entry.text, query: question)
+        ))
+    }
+    let backstop = reconcileCitations(citedRefs, retrieval: retrieval, question: question, body: rendered.body)
+    for citation in backstop where seen.insert(citation.entryId).inserted {
+        chosen.append(citation)
+    }
+    return Array(chosen.prefix(maxCitations))
+}
+
 private static let quoteWindow = 30
 
 private static func citationFold(_ s: String) -> String {
