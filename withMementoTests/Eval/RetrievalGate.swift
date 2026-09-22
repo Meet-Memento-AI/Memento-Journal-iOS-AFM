@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 044 R2 — SDK-free retrieval gate.
 ///

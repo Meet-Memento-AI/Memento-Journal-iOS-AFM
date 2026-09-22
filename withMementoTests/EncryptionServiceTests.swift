@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// In-memory keychain so encryption tests never touch the real Keychain
 /// (unit tests don't have the entitlements for it anyway) and each test

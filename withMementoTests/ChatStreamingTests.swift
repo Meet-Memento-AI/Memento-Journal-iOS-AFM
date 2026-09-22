@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Covers the streaming plumbing added for chat-speed: the protocol-level
 /// `askStream` / `sendMessageStream` must emit at least one `.delta` before the

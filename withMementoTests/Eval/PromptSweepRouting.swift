@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Where does each of the 1,000 sweep prompts get *routed*, before a single
 /// token is generated?

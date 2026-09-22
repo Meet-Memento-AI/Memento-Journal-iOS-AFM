@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// A 1,000-generation exploratory sweep through the exact path `AIChatView`
 /// uses, against the full 262-entry persona corpus.

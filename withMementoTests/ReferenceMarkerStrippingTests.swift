@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The `[ref N]` labels in the context block are an internal handle for
 /// `citedRefs`, not a citation style — but they sit in the model's context as

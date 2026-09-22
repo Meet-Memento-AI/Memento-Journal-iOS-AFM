@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 014 R1's acceptance criteria for the trust-boundary contract.
 ///

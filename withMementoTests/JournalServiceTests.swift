@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Coverage note: the journal is on-device only, so there is no
 /// CRUD-over-network path to test. What's covered here is

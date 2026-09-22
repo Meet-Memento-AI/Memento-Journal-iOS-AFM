@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Fixture access for the chat evaluation gate (spec 022 R1/R2).
 ///

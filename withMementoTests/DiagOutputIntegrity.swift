@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: scores every reply for scaffolding leaks, ask@14 rule breaks,
 /// fabricated quotes and runaway decode — across turn types, and A/B across

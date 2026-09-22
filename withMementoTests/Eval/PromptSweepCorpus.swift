@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// The 1,000-prompt exploratory sweep corpus.
 ///

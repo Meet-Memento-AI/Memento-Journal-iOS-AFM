@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe: the empty-archive runaway (19s, `<ctrl…>` tokens, ~10
 /// concatenated replies, invented journal quotes) appeared on `askStream` but

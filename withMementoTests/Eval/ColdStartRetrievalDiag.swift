@@ -1,6 +1,6 @@
 import NaturalLanguage
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Which guard actually blocks a cold-start question?
 ///

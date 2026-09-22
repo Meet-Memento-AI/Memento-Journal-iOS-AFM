@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The chat quality gate (spec 022 R1/R2): ~100 live generations through the
 /// path `AIChatView` actually uses, scored mechanically, all-or-nothing.

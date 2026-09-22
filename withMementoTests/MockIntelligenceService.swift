@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Deterministic IntelligenceService double for onboarding / profile tests.
 final class MockIntelligenceService: IntelligenceService, @unchecked Sendable {

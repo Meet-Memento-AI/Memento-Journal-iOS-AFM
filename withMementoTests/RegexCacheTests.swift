@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 029: the classifiers now compile each regex once and reuse it.
 /// These tests pin (a) parity with the old compile-per-call behavior across

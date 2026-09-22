@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Keeps the stance contract from drifting: every TurnStance tag that
 /// RetrievalPolicy can emit must be explained in the ask prompt, and the

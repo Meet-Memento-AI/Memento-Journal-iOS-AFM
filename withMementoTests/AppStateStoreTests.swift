@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Replaces AuthViewModelTests (spec 023 removes accounts; spec 011 R3
 /// retargets this test's acceptance criteria to the local app-state machine).

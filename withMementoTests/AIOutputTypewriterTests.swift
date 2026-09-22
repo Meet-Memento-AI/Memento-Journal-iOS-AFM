@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Pins the adaptive typewriter (spec 029): the pure reveal curve in
 /// `AIOutputComponent.revealStep`, the stable-prefix split the incremental

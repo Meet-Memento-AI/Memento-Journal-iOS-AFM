@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Mechanical scoring for the chat evaluation gate.
 ///

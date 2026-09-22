@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 039 R1: ReplyChannel is the only TurnType → recipe map.
 final class ReplyChannelTests: XCTestCase {

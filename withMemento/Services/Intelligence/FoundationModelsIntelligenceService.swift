@@ -1143,8 +1143,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let computed = computedSlice.isEmpty
             ? []
             : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
-        let shape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
-        let policy = ResponsePolicyResolver.policy(shape: shape, evidence: core.evidence)
+        // Distinct from `shape` above: that one is the `RecallTurnShape` cadence
+        // `buildAskPrompt` takes, this one is the `QuestionShape` the response
+        // policy reads. Both were named `shape` in the same scope, which is why
+        // this did not compile.
+        let questionShape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
+        let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
         let retracted = RetractedClaims.claims(in: core.history)
         let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
         let prompt = Self.buildAskPrompt(

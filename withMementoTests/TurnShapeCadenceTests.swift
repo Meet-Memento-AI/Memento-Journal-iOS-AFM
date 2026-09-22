@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 037 R3 / 039 R6: every generated Ask turn Opens.
 final class TurnShapeCadenceTests: XCTestCase {

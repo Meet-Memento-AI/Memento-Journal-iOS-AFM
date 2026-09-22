@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Pure-function coverage of `VoicePlaybackService.bestVoiceIdentifier` —
 /// the ranking that fixes the "generic compact voice" regression: quality

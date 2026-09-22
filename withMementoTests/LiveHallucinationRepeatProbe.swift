@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe: re-runs the three highest-severity defects the streaming
 /// latency probe surfaced, N times each, to separate a one-off sample from a

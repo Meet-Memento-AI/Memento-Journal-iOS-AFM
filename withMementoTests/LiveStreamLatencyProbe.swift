@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe (not a regression test): measures the latency the user
 /// actually feels in AIChatView — time-to-first-token on the streaming path —

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 017 R3's acceptance criteria. The governor is inert in production on the
 /// iOS 26 SDK (the only provider returns nil), so its whole lifecycle is

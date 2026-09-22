@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 037 R6 / R7: unit contracts for the six recall goldens (counts removed)
 /// and the 3–5 entry Ask cap. Full Apple Evaluations harness stays 022;

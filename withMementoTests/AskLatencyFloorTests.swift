@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 029 latency floor: no-RAG turns must not wait on the journal loader;
 /// notebook still loads before retrieve.

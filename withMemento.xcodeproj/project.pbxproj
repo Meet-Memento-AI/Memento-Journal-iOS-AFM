@@ -17,28 +17,28 @@
 			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A52968632E8CCF12004F65BE;
-			remoteInfo = MeetMemento;
+			remoteInfo = withMemento;
 		};
 		A529687F2E8CCF14004F65BE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A529685C2E8CCF12004F65BE /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A52968632E8CCF12004F65BE;
-			remoteInfo = MeetMemento;
+			remoteInfo = withMemento;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A52968642E8CCF12004F65BE /* MeetMemento.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MeetMemento.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A52968642E8CCF12004F65BE /* withMemento.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = withMemento.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A52968742E8CCF13004F65BE /* withMementoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = withMementoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A529687E2E8CCF14004F65BE /* withMementoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = withMementoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A5CHARTS022F0000020000CH02 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
-		B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
-		B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MeetMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
+		B7F000012F00110000A00001 /* withMemento/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = withMemento/Config/Debug.xcconfig; sourceTree = "<group>"; };
+		B7F000022F00110000A00001 /* withMemento/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = withMemento/Config/Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		A55633722E8F75090007E35E /* Exceptions for "MeetMemento" folder in "MeetMemento" target */ = {
+		A55633722E8F75090007E35E /* Exceptions for "withMemento" folder in "withMemento" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Config/Debug.local.xcconfig,
@@ -54,27 +54,27 @@
 				Utilities/COMPONENT_TEMPLATE.md,
 				Utilities/UTILITIES_GUIDE.md,
 			);
-			target = A52968632E8CCF12004F65BE /* MeetMemento */;
+			target = A52968632E8CCF12004F65BE /* withMemento */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A52968662E8CCF12004F65BE /* MeetMemento */ = {
+		A52968662E8CCF12004F65BE /* withMemento */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A55633722E8F75090007E35E /* Exceptions for "MeetMemento" folder in "MeetMemento" target */,
+				A55633722E8F75090007E35E /* Exceptions for "withMemento" folder in "withMemento" target */,
 			);
-			path = MeetMemento;
+			path = withMemento;
 			sourceTree = "<group>";
 		};
-		A52968772E8CCF14004F65BE /* MeetMementoTests */ = {
+		A52968772E8CCF14004F65BE /* withMementoTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MeetMementoTests;
+			path = withMementoTests;
 			sourceTree = "<group>";
 		};
-		A52968812E8CCF14004F65BE /* MeetMementoUITests */ = {
+		A52968812E8CCF14004F65BE /* withMementoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MeetMementoUITests;
+			path = withMementoUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -110,9 +110,9 @@
 			isa = PBXGroup;
 			children = (
 				B7F000052F00110000A00001 /* Config */,
-				A52968662E8CCF12004F65BE /* MeetMemento */,
-				A52968772E8CCF14004F65BE /* MeetMementoTests */,
-				A52968812E8CCF14004F65BE /* MeetMementoUITests */,
+				A52968662E8CCF12004F65BE /* withMemento */,
+				A52968772E8CCF14004F65BE /* withMementoTests */,
+				A52968812E8CCF14004F65BE /* withMementoUITests */,
 				A5296C8E2E8D9B15004F65BE /* Frameworks */,
 				A52968652E8CCF12004F65BE /* Products */,
 			);
@@ -121,9 +121,9 @@
 		A52968652E8CCF12004F65BE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A52968642E8CCF12004F65BE /* MeetMemento.app */,
-				A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */,
-				A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */,
+				A52968642E8CCF12004F65BE /* withMemento.app */,
+				A52968742E8CCF13004F65BE /* withMementoTests.xctest */,
+				A529687E2E8CCF14004F65BE /* withMementoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -139,8 +139,8 @@
 		B7F000052F00110000A00001 /* Config */ = {
 			isa = PBXGroup;
 			children = (
-				B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */,
-				B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */,
+				B7F000012F00110000A00001 /* withMemento/Config/Debug.xcconfig */,
+				B7F000022F00110000A00001 /* withMemento/Config/Release.xcconfig */,
 			);
 			name = Config;
 			sourceTree = "<group>";
@@ -148,9 +148,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A52968632E8CCF12004F65BE /* MeetMemento */ = {
+		A52968632E8CCF12004F65BE /* withMemento */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMemento" */;
+			buildConfigurationList = A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMemento" */;
 			buildPhases = (
 				A52968602E8CCF12004F65BE /* Sources */,
 				A52968612E8CCF12004F65BE /* Frameworks */,
@@ -161,19 +161,19 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				A52968662E8CCF12004F65BE /* MeetMemento */,
+				A52968662E8CCF12004F65BE /* withMemento */,
 			);
-			name = MeetMemento;
+			name = withMemento;
 			packageProductDependencies = (
 				A5D0E1A12F0000010000AA02 /* SupertonicTTS */,
 			);
-			productName = MeetMemento;
-			productReference = A52968642E8CCF12004F65BE /* MeetMemento.app */;
+			productName = withMemento;
+			productReference = A52968642E8CCF12004F65BE /* withMemento.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A52968732E8CCF13004F65BE /* MeetMementoTests */ = {
+		A52968732E8CCF13004F65BE /* withMementoTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A529688B2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMementoTests" */;
+			buildConfigurationList = A529688B2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMementoTests" */;
 			buildPhases = (
 				A52968702E8CCF13004F65BE /* Sources */,
 				A52968712E8CCF13004F65BE /* Frameworks */,
@@ -185,16 +185,16 @@
 				A52968762E8CCF13004F65BE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A52968772E8CCF14004F65BE /* MeetMementoTests */,
+				A52968772E8CCF14004F65BE /* withMementoTests */,
 			);
-			name = MeetMementoTests;
-			productName = MeetMementoTests;
-			productReference = A52968742E8CCF13004F65BE /* MeetMementoTests.xctest */;
+			name = withMementoTests;
+			productName = withMementoTests;
+			productReference = A52968742E8CCF13004F65BE /* withMementoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		A529687D2E8CCF14004F65BE /* MeetMementoUITests */ = {
+		A529687D2E8CCF14004F65BE /* withMementoUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A529688E2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMementoUITests" */;
+			buildConfigurationList = A529688E2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMementoUITests" */;
 			buildPhases = (
 				A529687A2E8CCF14004F65BE /* Sources */,
 				A529687B2E8CCF14004F65BE /* Frameworks */,
@@ -206,11 +206,11 @@
 				A52968802E8CCF14004F65BE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A52968812E8CCF14004F65BE /* MeetMementoUITests */,
+				A52968812E8CCF14004F65BE /* withMementoUITests */,
 			);
-			name = MeetMementoUITests;
-			productName = MeetMementoUITests;
-			productReference = A529687E2E8CCF14004F65BE /* MeetMementoUITests.xctest */;
+			name = withMementoUITests;
+			productName = withMementoUITests;
+			productReference = A529687E2E8CCF14004F65BE /* withMementoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -236,7 +236,7 @@
 					};
 				};
 			};
-			buildConfigurationList = A529685F2E8CCF12004F65BE /* Build configuration list for PBXProject "MeetMemento" */;
+			buildConfigurationList = A529685F2E8CCF12004F65BE /* Build configuration list for PBXProject "withMemento" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -253,9 +253,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				A52968632E8CCF12004F65BE /* MeetMemento */,
-				A52968732E8CCF13004F65BE /* MeetMementoTests */,
-				A529687D2E8CCF14004F65BE /* MeetMementoUITests */,
+				A52968632E8CCF12004F65BE /* withMemento */,
+				A52968732E8CCF13004F65BE /* withMementoTests */,
+				A529687D2E8CCF14004F65BE /* withMementoUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -311,12 +311,12 @@
 /* Begin PBXTargetDependency section */
 		A52968762E8CCF13004F65BE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = A52968632E8CCF12004F65BE /* MeetMemento */;
+			target = A52968632E8CCF12004F65BE /* withMemento */;
 			targetProxy = A52968752E8CCF13004F65BE /* PBXContainerItemProxy */;
 		};
 		A52968802E8CCF14004F65BE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = A52968632E8CCF12004F65BE /* MeetMemento */;
+			target = A52968632E8CCF12004F65BE /* withMemento */;
 			targetProxy = A529687F2E8CCF14004F65BE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -447,20 +447,27 @@
 		};
 		A52968892E8CCF14004F65BE /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7F000012F00110000A00001 /* MeetMemento/Config/Debug.xcconfig */;
+			baseConfigurationReference = B7F000012F00110000A00001 /* withMemento/Config/Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = MeetMemento/MeetMemento.entitlements;
+				CODE_SIGN_ENTITLEMENTS = withMemento/withMemento.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
-				DEVELOPMENT_ASSET_PATHS = "\"MeetMemento/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"withMemento/Preview Content\"";
+				DEVELOPMENT_TEAM = F3NM4HTMW8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MeetMemento/Info.plist;
+				INFOPLIST_FILE = withMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Memento needs camera access to add a photo to your journal entries.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Memento uses Face ID to protect your private journal entries.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Memento uses your location to attach a place name to a new journal entry. It does not store your coordinates.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Memento needs microphone access to transcribe your voice into journal entries.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Memento uses speech recognition to convert your voice to text for journaling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -472,7 +479,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMemento;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "MEMENTO_AI $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -483,20 +490,27 @@
 		};
 		A529688A2E8CCF14004F65BE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7F000022F00110000A00001 /* MeetMemento/Config/Release.xcconfig */;
+			baseConfigurationReference = B7F000022F00110000A00001 /* withMemento/Config/Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
-				CODE_SIGN_ENTITLEMENTS = MeetMemento/MeetMemento.entitlements;
+				CODE_SIGN_ENTITLEMENTS = withMemento/withMemento.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
-				DEVELOPMENT_ASSET_PATHS = "\"MeetMemento/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"withMemento/Preview Content\"";
+				DEVELOPMENT_TEAM = F3NM4HTMW8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MeetMemento/Info.plist;
+				INFOPLIST_FILE = withMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Memento needs camera access to add a photo to your journal entries.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Memento uses Face ID to protect your private journal entries.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Memento uses your location to attach a place name to a new journal entry. It does not store your coordinates.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Memento needs microphone access to transcribe your voice into journal entries.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Memento uses speech recognition to convert your voice to text for journaling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -508,7 +522,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMemento;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAI;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "MEMENTO_AI $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -526,12 +540,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMementoTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeetMemento.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeetMemento";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/withMemento.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/withMemento";
 			};
 			name = Debug;
 		};
@@ -544,12 +558,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMementoTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeetMemento.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MeetMemento";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/withMemento.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/withMemento";
 			};
 			name = Release;
 		};
@@ -560,12 +574,12 @@
 				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMementoUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAIUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = MeetMemento;
+				TEST_TARGET_NAME = withMemento;
 			};
 			name = Debug;
 		};
@@ -576,19 +590,19 @@
 				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sebastianmendo.MeetMementoUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sebmendo.withMementoAIUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = MeetMemento;
+				TEST_TARGET_NAME = withMemento;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A529685F2E8CCF12004F65BE /* Build configuration list for PBXProject "MeetMemento" */ = {
+		A529685F2E8CCF12004F65BE /* Build configuration list for PBXProject "withMemento" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A52968862E8CCF14004F65BE /* Debug */,
@@ -597,7 +611,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMemento" */ = {
+		A52968882E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMemento" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A52968892E8CCF14004F65BE /* Debug */,
@@ -606,7 +620,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A529688B2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMementoTests" */ = {
+		A529688B2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMementoTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A529688C2E8CCF14004F65BE /* Debug */,
@@ -615,7 +629,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A529688E2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "MeetMementoUITests" */ = {
+		A529688E2E8CCF14004F65BE /* Build configuration list for PBXNativeTarget "withMementoUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A529688F2E8CCF14004F65BE /* Debug */,

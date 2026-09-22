@@ -4,7 +4,7 @@
 //
 
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class PlaceNameFormatterTests: XCTestCase {
     func test_format_localityAndAdministrativeArea() {

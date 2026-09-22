@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Deep agentic evaluation — the half `ChatEvalGate` deliberately does not score.
 ///

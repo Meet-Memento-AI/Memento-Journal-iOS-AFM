@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 046 R1 / 049 S2–S3: every scorer regex compiles, and every `hall.*`
 /// and `rule.*` code has a fixture that emits it.

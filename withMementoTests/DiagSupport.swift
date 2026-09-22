@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Shared corpus + automatic scoring for the iOS 27 chat diagnostics.
 /// Throwaway diagnostics, not regression tests.

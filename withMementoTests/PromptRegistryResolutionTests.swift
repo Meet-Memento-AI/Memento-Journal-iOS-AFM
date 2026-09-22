@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 017 R8 / REQ-PRM-001: "given any intent/zone/degraded combination the
 /// router can produce, when the registry resolves it, then a bundled prompt with

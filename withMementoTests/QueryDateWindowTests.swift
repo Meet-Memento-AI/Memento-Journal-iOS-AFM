@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The date grammar behind the temporal half of the gold set. Pure — no model,
 /// no simulator, no corpus.

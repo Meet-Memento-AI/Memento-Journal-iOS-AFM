@@ -9,7 +9,7 @@
 
 import Speech
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 // MARK: - TurnTimings
 
