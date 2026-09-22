@@ -37,6 +37,20 @@ FABRICATION_CODES = (
     "hall.narrativeJoin", "rule.boldNotTheirWords",
 )
 
+# Every `TurnType` and `ReplyChannel` case, so 048 R2's "report the zero rows"
+# means the cases the code actually has, not the ones a run happened to reach.
+# Kept in sync by hand with Routing/TurnClassifier.swift and
+# Routing/ReplyChannel.swift; `--check-enums` fails when a run produces a value
+# missing from these, which is the drift that matters.
+TURN_TYPES = (
+    "social", "acknowledgement", "meta", "share", "followup", "journalQuery",
+    "quantitative", "reflectiveQuestion", "offdomain", "correction",
+)
+REPLY_CHANNELS = (
+    "phatic", "continuer", "meta", "companion", "thread", "notebook",
+    "statistic", "redirect",
+)
+
 # `ChatEvalScoring.gating` excludes these three alongside `gen.*`: they are
 # measured but do not gate until 046 R1's two warehoused runs have happened.
 REPORT_ONLY_CODES = (
@@ -165,20 +179,27 @@ def report(path: Path) -> None:
     table("Violation rate by arm × channel", grid)
 
     # --- 048 R2: the confusion matrix, zero rows included
-    turn_types = sorted({r.get("turn_type") for r in assistant if r.get("turn_type")})
-    channels = sorted({r.get("channel") for r in assistant if r.get("channel")})
+    # 048 R2: every case gets a row, including the ones at zero — a turn type
+    # that stops firing has to be a visible result and not a missing row. Any
+    # value the run produced that these tuples do not know about is appended
+    # and flagged, because the alternative is silently dropping it.
+    seen_turns = {r.get("turn_type") for r in assistant if r.get("turn_type")}
+    seen_channels = {r.get("channel") for r in assistant if r.get("channel")}
+    turn_types = list(TURN_TYPES) + sorted(seen_turns - set(TURN_TYPES))
+    channels = list(REPLY_CHANNELS) + sorted(seen_channels - set(REPLY_CHANNELS))
+    unknown = (seen_turns - set(TURN_TYPES)) | (seen_channels - set(REPLY_CHANNELS))
     matrix = [("turn_type", *channels, "total", "rate")]
     for turn in turn_types:
         cells = [sum(1 for r in assistant if r.get("turn_type") == turn and r.get("channel") == c)
                  for c in channels]
-        matrix.append((turn, *cells, sum(cells), pct(sum(cells), len(assistant))))
-    # A TurnType the run never reached is the result 048 R2 exists to surface,
-    # so it gets a row of zeros rather than being omitted.
-    for turn in ("journalQuery", "share", "social", "acknowledgement", "followup",
-                 "statistic", "safety", "unknown"):
-        if turn not in turn_types:
-            matrix.append((f"{turn} (never fired)", *[0] * len(channels), 0, "0.0%"))
+        label = turn if turn in seen_turns else f"{turn} (never fired)"
+        if turn not in TURN_TYPES:
+            label = f"{turn} (NOT IN TURN_TYPES — update the script)"
+        matrix.append((label, *cells, sum(cells), pct(sum(cells), len(assistant))))
     table("TurnType × ReplyChannel (all assistant turns)", matrix)
+    if unknown:
+        print(f"\n! values this script does not know about: {sorted(unknown)} — "
+              "add them to TURN_TYPES / REPLY_CHANNELS")
 
     for field, name in (("question_shape", "QuestionShape"), ("response_policy", "ResponsePolicy"),
                         ("evidence_state", "EvidenceState"), ("zone", "TrustZone")):
