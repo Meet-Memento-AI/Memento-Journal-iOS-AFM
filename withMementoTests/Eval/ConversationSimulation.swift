@@ -16,9 +16,14 @@ import XCTest
 /// a second, persona-briefed session through `evalRawGenerate`, which exists
 /// only in DEBUG and deliberately bypasses the Memento persona.
 ///
-/// Two arms, 100 conversations each:
-///   * `empty` — no journal at all (a brand-new install)
-///   * `cold`  — the 8-entry `Fixtures/cold-start` journal
+/// Arms (`CONVO_SIM_ARMS`), 100 conversations each:
+///   * `empty`   — no journal at all (a brand-new install)
+///   * `cold`    — the 8-entry `Fixtures/cold-start` journal
+///   * `persona` — the 262-entry, nine-month `Fixtures/corpus` journal
+///
+/// The 2026-09-20 study ran `empty,cold`. `persona` is the mature-archive
+/// world: with no corpus every quote is fabricated by definition, so the
+/// quotation and citation scorers only mean something on this arm.
 ///
 /// This **reports**; it never gates. Scoring fields are recorded as data for
 /// later analysis, not asserted on. The only assertion is that the run produced
@@ -74,6 +79,22 @@ final class ConversationSimulation: XCTestCase {
         let entries: [Entry]
         let fixtureIDs: [UUID: String]
         let quoteIndex: ChatEvalScoring.QuoteIndex
+
+        /// A citation says *which* entry was used; only the entry's own date
+        /// says whether the model reached for recent evidence or old evidence.
+        /// On the 262-entry arm that distinction is the whole question.
+        var createdAtByUUID: [UUID: Date] {
+            Dictionary(entries.map { ($0.id, $0.createdAt) }, uniquingKeysWith: { first, _ in first })
+        }
+
+        /// Oldest and newest entry, ISO-8601, for the manifest. The persona
+        /// corpus is absolutely dated and the cold-start one is relative to
+        /// `Date()`, so a reader cannot tell what world an arm was without it.
+        var entryDateRange: [String] {
+            guard let first = entries.first?.createdAt, let last = entries.last?.createdAt else { return [] }
+            let iso = ISO8601DateFormatter()
+            return [iso.string(from: min(first, last)), iso.string(from: max(first, last))]
+        }
     }
 
     // MARK: - Test
@@ -196,6 +217,8 @@ final class ConversationSimulation: XCTestCase {
             )
             let evidence: EvidenceState = arm.entries.isEmpty ? .none : .matched
             let channel = ReplyChannel.resolve(turn: turnType, hasImages: false, evidence: evidence)
+            let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
+            let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
 
             var result: AskResult?
             var failure: String?
@@ -239,24 +262,50 @@ final class ConversationSimulation: XCTestCase {
             row["channel"] = channel.rawValue
             row["history_messages"] = capped.count
             row["history_truncated"] = capped.count < history.count
+            // Routing is decided before generation, so it is recorded before
+            // generation too — a refused or timed-out turn still says which
+            // way the pipeline sent it, which is exactly the turn you want
+            // routing data for.
+            row["evidence_state"] = evidence.rawValue
+            row["question_shape"] = shape.rawValue
+            row["response_policy"] = policy.rawValue
 
             if let result {
                 row["prompt_version"] = result.promptVersion
                 row["model_identifier"] = result.modelIdentifier
                 row["was_degraded"] = result.wasDegraded
                 row["tools_called"] = result.toolsCalled
-                row["citations"] = result.citations.map { citation in
-                    [
+                // Notebook voice renders headings; the 2026-09-20 archive
+                // recorded only `body`, so the headings the evidence-discipline
+                // finding is partly about were never in the data at all.
+                row["heading1"] = result.heading1 ?? ""
+                row["heading2"] = result.heading2 ?? ""
+                // No `String` raw value on `TrustZone`; `String(describing:)`
+                // yields the case name, which is what a report wants.
+                row["zone"] = String(describing: result.zoneUsed)
+                // The generation's own measure, beside the harness's
+                // `seconds` — the gap between them is stream overhead.
+                row["model_seconds"] = Double(result.latency.components.seconds)
+                    + Double(result.latency.components.attoseconds) / 1e18
+                row["body_chars"] = result.body.count
+                row["body_words"] = result.body.split(whereSeparator: { $0.isWhitespace }).count
+                let createdAt = arm.createdAtByUUID
+                let iso = ISO8601DateFormatter()
+                row["citations"] = result.citations.map { citation -> [String: Any] in
+                    var encoded: [String: Any] = [
                         "entry_uuid": citation.entryId.uuidString,
                         "fixture_id": arm.fixtureIDs[citation.entryId] ?? "",
                         "excerpt": citation.excerpt
                     ]
+                    if let date = createdAt[citation.entryId] {
+                        encoded["entry_created_at"] = iso.string(from: date)
+                        encoded["entry_age_days"] = Date().timeIntervalSince(date) / 86_400
+                    }
+                    return encoded
                 }
                 row["facts"] = Self.encodeFacts(result.facts)
                 let isCasual = turnType == .social || turnType == .acknowledgement
                 let cap = channel.maximumResponseTokens(retrievalRan: !result.citations.isEmpty)
-                let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
-                let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
                 let bodyEmpty = result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 let openRequired = ResponsePolicyResolver.openRequired(
                     policy: policy, bodyIsEmpty: bodyEmpty || result.promptVersion == "insight-fact@1"
@@ -387,15 +436,29 @@ final class ConversationSimulation: XCTestCase {
     // MARK: - Arms
 
     private static func buildArms() throws -> [Arm] {
-        let cold = try ChatEvalCorpus.coldStartCorpus()
+        // Both loaded once, outside the map: `QuoteIndex` hashes every 30-char
+        // gram in the corpus, which on the 262-entry persona journal is not
+        // free enough to do per arm.
+        let cold = armNames.contains("cold") ? try ChatEvalCorpus.coldStartCorpus() : nil
+        let persona = armNames.contains("persona") ? try ChatEvalCorpus.personaCorpus() : nil
         return armNames.compactMap { name in
             switch name {
             case "empty":
                 return Arm(name: "empty", entries: [], fixtureIDs: [:],
                            quoteIndex: ChatEvalScoring.QuoteIndex([]))
             case "cold":
+                guard let cold else { return nil }
                 return Arm(name: "cold", entries: cold.entries, fixtureIDs: cold.idByUUID,
                            quoteIndex: ChatEvalScoring.QuoteIndex(cold.entries))
+            // The 262-entry, nine-month journal. The 2026-09-20 study ran
+            // `empty` against `cold` (8 entries); nothing has ever put the
+            // long-form path in front of a *mature* archive, which is the only
+            // world where citation, quotation and fabrication can be told
+            // apart — with no corpus, every quote is fabricated by definition.
+            case "persona":
+                guard let persona else { return nil }
+                return Arm(name: "persona", entries: persona.entries, fixtureIDs: persona.idByUUID,
+                           quoteIndex: ChatEvalScoring.QuoteIndex(persona.entries))
             default:
                 return nil
             }
@@ -526,11 +589,30 @@ final class ConversationSimulation: XCTestCase {
             "max_messages": maxMessages,
             "history_message_limit": ChatService.historyMessageLimit,
             "arms": arms.map { ["name": $0.name, "entry_count": $0.entries.count,
+                                "entry_date_range": $0.entryDateRange,
                                 "fixture_ids": $0.fixtureIDs.values.sorted()] },
+            // Which scorers produced the `violations` arrays. A code absent
+            // from a run means "this scorer did not fire"; a code absent from
+            // this list means "this scorer was not run" — the 2026-09-20
+            // archive cannot tell those two apart.
+            "scorers": [
+                "leaks", "ruleBreaks", "fabricatedQuotes", "uncitedQuote", "boldNotTheirWords",
+                "runaway", "insightDigitDisagrees", "insightContradictsSuppressed"
+            ],
             "personas": ConvoSimCast.personas.map { ["id": $0.id, "brief": $0.brief] },
             "intents": ConvoSimCast.intents.map { ["id": $0.id, "opener": $0.opener] },
             "os_version": ProcessInfo.processInfo.operatingSystemVersionString
         ]
+        // A test process on a simulator has no git, so the build identity is
+        // passed in. Without it an archived run cannot be tied to the code
+        // that produced it, which is what makes the 2026-09-20 numbers
+        // impossible for anyone else to reproduce.
+        for (key, variable) in [("git_sha", "CONVO_SIM_GIT_SHA"),
+                                ("git_branch", "CONVO_SIM_GIT_BRANCH"),
+                                ("git_dirty", "CONVO_SIM_GIT_DIRTY"),
+                                ("notes", "CONVO_SIM_NOTES")] {
+            if let value = env[variable], !value.isEmpty { manifest[key] = value }
+        }
         if let finished { manifest["finished_at"] = iso.string(from: finished) }
         if let messages { manifest["messages_recorded"] = messages }
         if let data = try? JSONSerialization.data(withJSONObject: manifest,
