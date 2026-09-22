@@ -30,6 +30,7 @@ enum TurnType: String, Sendable, Equatable, CaseIterable {
     case quantitative       // how many / how often / when last — InsightEngine (045 R5)
     case reflectiveQuestion // "why do I keep doing this?"
     case offdomain          // general-knowledge question about the world
+    case correction         // factual correction or interpretation-cut
 }
 
 enum TurnClassifier {
@@ -218,8 +219,8 @@ enum TurnClassifier {
     /// before `retrospectivePatterns` so "how often" / "when did I last"
     /// do not steal the 512-token notebook path (045 R5).
     static let quantitativePatterns: [String] = [
-        #"\bhow many( times)?\b"#,
-        #"\bhow often\b"#,
+        #"\bhow many( times)?\b.{0,48}\bi\b"#,
+        #"\bhow often\b.{0,48}\bi\b"#,
         #"\bwhen did i last\b"#,
         #"\bwhen was the last time\b"#,
         #"\bhow has (my )?.{0,40}\b(changed|shifted)\b"#
@@ -234,10 +235,9 @@ enum TurnClassifier {
     /// Classifies ONLY the current message. `hasHistory` gates `followup` —
     /// without prior turns there is nothing to follow up on.
     ///
-    /// `lastAssistantAskedQuestion` is the narration fork: a spoken answer to
-    /// "How did work feel?" ("it was actually pretty heavy") is a follow-up,
-    /// not a fresh share. Typed chat leaves this false so existing routing
-    /// stays put.
+    /// `lastAssistantAskedQuestion` is true when the previous assistant turn
+    /// asked something, in typed chat and in narration. A short answer to
+    /// that question is a follow-up.
     static func classify( // swiftlint:disable:this cyclomatic_complexity
         _ message: String,
         hasHistory: Bool,
@@ -360,6 +360,11 @@ enum TurnClassifier {
             return .offdomain
         }
 
+        // 7b. correction — before the share default. Ordinary disagreement
+        // about the person's own life ("I don't think that's why I was tired")
+        // does not match these phrases and stays a share.
+        if isCorrection(normalized) { return .correction }
+
         // 8. default: questions go to journalQuery (retrieval decides), and
         // statements are shares — both retrieve, so ambiguity is never deafness.
         return isQuestion ? .journalQuery : .share
@@ -369,6 +374,16 @@ enum TurnClassifier {
 // MARK: - Helpers
 
 extension TurnClassifier {
+
+    private static func isCorrection(_ normalized: String) -> Bool {
+        let cues = [
+            "that's not what happened", "thats not what happened",
+            "you got that wrong", "you got this wrong", "you got it wrong",
+            "that's wrong", "thats wrong", "you're wrong", "you are wrong",
+            "reading too much", "too vague", "too soft", "you keep calling"
+        ]
+        return cues.contains { normalized.contains($0) }
+    }
 
     private static let stopwordsForDeixis: Set<String> = [
         "what", "whats", "about", "is", "was", "does", "mean", "means", "do",

@@ -161,6 +161,12 @@ struct AskResult: Sendable {
     let facts: [InsightFact]
     /// Session 10 / 044 R4. Zero on iOS 26 and on channels that never attach tools.
     let toolsCalled: Int
+    /// Spec 050 R6: the quotes the body shows, each from the turn's evidence
+    /// pack. Empty on ambient, miss, light, and statistic turns.
+    let chips: [QuoteChip]
+    /// Spec 050 R7: what the renderer did, in counts. Nil where no model
+    /// text was rendered (statistic, authored copy).
+    let renderStats: ReplyRenderStats?
 
     init(
         heading1: String?,
@@ -173,7 +179,9 @@ struct AskResult: Sendable {
         modelIdentifier: String,
         latency: Duration = .zero,
         facts: [InsightFact] = [],
-        toolsCalled: Int = 0
+        toolsCalled: Int = 0,
+        chips: [QuoteChip] = [],
+        renderStats: ReplyRenderStats? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
@@ -186,6 +194,8 @@ struct AskResult: Sendable {
         self.latency = latency
         self.facts = facts
         self.toolsCalled = toolsCalled
+        self.chips = chips
+        self.renderStats = renderStats
     }
 }
 

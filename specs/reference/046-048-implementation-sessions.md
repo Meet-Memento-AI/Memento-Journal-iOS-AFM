@@ -229,3 +229,30 @@ conversation, and a designed refusal must not end a run. Wire reporting into the
 Only now. Each armed threshold cites **two** warehoused runs in the PR body. A
 threshold proposed from a single run is rejected — including for
 `hall.fabricatedQuote`, whose true rate nobody has ever seen.
+
+---
+
+## Evidence-first program (spec 049) — S0–S13
+
+These sessions land 046–048 and the scorecard in
+[`049`](../049-epistemic-voice-and-response-policy.md). Do not skip ahead:
+later sessions assume the scorer and the evidence gate already exist. Standing
+rules above apply to every session. The voice stays. 049 forbids flattening
+imagery, short sentences, or quiet language.
+
+| Session | What changes | Done when |
+|---------|--------------|-----------|
+| S0 | Docs only. Tick 044 R1/R2/R5 and 045 `InsightEngine`. Leave 044 R4 and R6 open. Add 049. Amend 039 (Open only on `reflect`), 046 (delete the nearbyOnly hedge), 047 (interpretation-cut). Register 049 on the roadmap. | A reader of the roadmap can tell what is built and what these sessions will change |
+| S1 | `AskPipeline` thin wrapper. No behavior change. Header lists safety, response policy, evidence ladder, retrieval, prompt, generate, epistemic guard. | Pipeline test matches today's `ReplyChannel.resolve` for each `TurnType`, including the photo bump. No prompt snapshot changes |
+| S2 | Test target only. Repair `hall.fabricatedQuote` (`\x{201C}` / `\x{201D}`). Add `hall.firstPersonPerception` and `hall.narrativeJoin`. Report-only. | Every regex compiles. Each `hall.*` / `rule.*` code has a fixture. Replay counts recorded |
+| S3 | Test target only. `QuoteIndex([])` treats an italic span or `###` heading as fabricated, reusing `quotedRefs`. | Fixtures cover `contains`, `quotesCorpus`, `fabricatedQuotes`, `uncitedQuote`, `boldNotTheirWords`. A reply with none of those spans emits nothing |
+| S4 | `EvidenceState` (`.none` / `.ambient` / `.matched`) gates `ReplyChannel`. A `journalQuery` on `.none` is never `notebook` or `thread`. | A zero-entry journal question cannot resolve to notebook |
+| S5 | `.none` decodes `LightAskAnswer`. Delete the self-assessing `@Guide` clause. | `test_spokenNotebook_usesBodyOnlySchema` still passes. Empty archive cannot emit `###`, italics, or `citedRefs` |
+| S6 | `EvidenceLadder` writes one prompt line. Delete the nearbyOnly hedge. Bump `ask-core@17` and `ask-degraded@17` to `@18`. | Inventory with hits uses `exact` or `strong`. A miss is `none` with no nearest-entry quote. Core stays inside the size budget |
+| S7 | `QuestionShape` and `ResponsePolicy`. "Last Tuesday" and "before the pottery class" filter `createdAt`. One suffix per policy. | Advice opener is `list`. Goodbye is `acknowledge`. Pottery is not ranked first when earlier entries exist |
+| S8 | Ungate `answeringLastQuestion`. `TurnType.correction` selects `retract`. Interpretation-cut also retracts and stores the claim. | A correction is never `guardrailRefusal`. Follow-up rate, thread share, and correction rate are recorded. No threshold armed |
+| S9 | One light retry for ordinary refusals on `share` or `social`. Move the safety line into the regulated-advice suffix. Strip harness markup before the bubble is stored. Quantitative labels are real subjects. | Three consecutive refusals still go unavailable. `extractSubject` does not label a card `from`, `the`, or `didn` |
+| S10 | `HistoryWindow`: summary plus last 4 turns plus the current message. Notebook also gets evidence passages. `.none` skips retrieval and adopts the prewarmed light session. Cap cuts end on a sentence boundary. | Narration stays on `askStream`. `AskLatencyFloorTests` stays green |
+| S11 | Route matrix, counterfactual pairs, failure corpus. Re-run one zero-entry arm and one cold arm against the September log. | A `TurnType` at zero is reported. Thresholds wait for two warehoused runs |
+| S12 | `SearchJournalTool` on `notebook` and `thread` only, two calls max, after S6 abstention. On-device passage downrank from thumbs-down, purged when the entry is deleted. | Phatic, companion, and redirect never see a tool. No derived fact enters the evidence block without source entry ids |
+| S13 | Move files into `Routing/`, `Evidence/`, `Retrieval/`, `Prompt/`, `Reconciliation/`. No logic change. `AskPipeline.swift` and the intelligence service stay at the intelligence root. | `check_single_intelligence_importer.sh` still reports 1. Forbidden-phrase lint stays clean |

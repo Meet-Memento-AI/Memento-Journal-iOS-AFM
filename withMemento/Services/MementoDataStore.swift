@@ -92,6 +92,7 @@ enum MementoDataStore {
     }
 
     static func deleteEntry(id: UUID, container: ModelContainer? = nil) {
+        PassageDownrankStore.purge(entryID: id)
         let context = context(container: container)
         if let row = existingEntry(id: id, context: context) {
             context.delete(row)

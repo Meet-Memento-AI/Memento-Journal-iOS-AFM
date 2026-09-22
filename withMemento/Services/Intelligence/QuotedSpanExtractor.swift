@@ -4,7 +4,8 @@
 //
 //  Spec 037 follow-on / 019 archival quotes: pick one short contiguous
 //  sentence from an entry for the evidence row's quoted field. Pure Swift —
-//  no FoundationModels. The model is told to reproduce this field exactly.
+//  no FoundationModels. Spec 050: `EvidencePackBuilder` walks `candidates`
+//  to find a span it can insert verbatim.
 //
 
 import Foundation
@@ -20,18 +21,24 @@ enum QuotedSpanExtractor {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        let sentences = splitSentences(trimmed)
-        let candidates = sentences
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.count >= minChars && $0.count <= maxChars }
-
-        if let first = candidates.first, trimmed.contains(first) {
+        if let first = candidates(from: trimmed).first {
             return first
         }
 
         if trimmed.count <= maxChars { return trimmed }
         let prefix = String(trimmed.prefix(maxChars))
         return trimmed.hasPrefix(prefix) ? prefix : nil
+    }
+
+    /// Every sentence of `text` inside the quote length bounds, in order.
+    /// Each is a contiguous substring of the trimmed text; `extract` returns
+    /// the first, and falls back to the whole text or a prefix when none fits.
+    static func candidates(from text: String) -> [String] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        return splitSentences(trimmed)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count >= minChars && $0.count <= maxChars && trimmed.contains($0) }
     }
 
     private static func splitSentences(_ text: String) -> [String] {

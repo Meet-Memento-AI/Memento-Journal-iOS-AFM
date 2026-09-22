@@ -37,11 +37,17 @@ specs/
 │                        handling); REQ-CST- — draft
 ├── 048-*.md           ← harness depth II (self-testing scorers, route coverage,
 │                        counterfactual worlds, failure corpus); REQ-HAR- — draft
+├── 049-*.md           ← epistemic voice and response policy (perception ban,
+│                        narrative-join ban, evidence ladder, one-detail reflection,
+│                        history window); voice non-goal; REQ-EPI- — draft
+├── 050-*.md           ← evidence pack and reply renderer (the model places
+│                        {{quote:n}} / {{date:n}} markers, Swift inserts the words;
+│                        ask-core@19); REQ-REF- — in progress
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
     ├── 044-045-implementation-sessions.md    ← session-by-session build order for 044+045
-    ├── 046-048-implementation-sessions.md    ← session-by-session build order for 046+047+048
+    ├── 046-048-implementation-sessions.md    ← session-by-session build order for 046+047+048, extended with the 049 evidence-first program (S0–S13)
     └── technology/                           ← Apple-framework API reference library
         └── 00…13-*.md                        ← cited by tech_refs in specs 013–036
 ```

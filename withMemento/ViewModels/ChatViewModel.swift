@@ -484,8 +484,9 @@ class ChatViewModel: ObservableObject {
         let priorHistory: [ChatTurn] = prior
             .filter { !$0.isStarterPrompt }
             .map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
-        let answeringLastQuestion = origin == .narration
-            && ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
+        // Ungated on `origin` as of origin/main: a typed reply to a question
+        // the assistant just asked is a follow-up too, not only a spoken one.
+        let answeringLastQuestion = ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
         let turn = TurnClassifier.classify(
             text,
             hasHistory: !priorHistory.isEmpty,
@@ -994,6 +995,11 @@ class ChatViewModel: ObservableObject {
         case .thumbsDown:
             thumbsDownMessages.insert(draft.messageID)
             thumbsUpMessages.remove(draft.messageID)
+            if let message = messages.first(where: { $0.id == draft.messageID }) {
+                for citation in message.citations ?? [] {
+                    PassageDownrankStore.record(entryID: citation.entryId, excerpt: citation.excerpt)
+                }
+            }
             persistFeedback(
                 messageID: draft.messageID,
                 rating: .negative,

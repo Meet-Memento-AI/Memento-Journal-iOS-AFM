@@ -140,6 +140,14 @@ final class TurnClassifierTests: XCTestCase {
         XCTAssertEqual(classify("When did I first say I was burnt out?"), .journalQuery)
         XCTAssertEqual(classify("How has sleep shown up for me this month?"), .journalQuery)
         XCTAssertEqual(classify("How tall is Everest?"), .offdomain)
+        XCTAssertNotEqual(classify("how many stars are in the sky?"), .quantitative)
+    }
+
+    func test_correction_isNotAShareOrARefusalShape() {
+        XCTAssertEqual(classify("you got that wrong"), .correction)
+        XCTAssertEqual(classify("that's not what happened"), .correction)
+        XCTAssertEqual(classify("you're reading too much into the silence"), .correction)
+        XCTAssertEqual(classify("I don't think that's why I was tired"), .share)
     }
 
     /// No starter may route to the counting path.

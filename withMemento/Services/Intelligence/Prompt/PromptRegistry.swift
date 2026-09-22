@@ -12,7 +12,14 @@
 //  person as a dated list above the reply (AIOutputComponent), not as inline
 //  markers — inline citations return in a later release.
 //
-//  ask-core@17 (044 R5 / Session 6): voice + recipe + bans in the core;
+//  ask-core@19 (spec 050): the model no longer writes journal quotes or
+//  dates. It places {{quote:N}} / {{date:N}} markers from the turn's
+//  [Evidence] list and ReplyRenderer inserts the words, so the italic
+//  exact-quote contract and "reproduce any quoted field exactly" are gone,
+//  italics are banned outright, and the [ref] ban says [ref] number so it
+//  cannot be read as a ban on evidence markers.
+//
+//  ask-core@18 (044 R5 / Session 6): voice + recipe + bans in the core;
 //  per-channel stance list moved to ≤6-line suffixes. ask@15 is the frozen
 //  8214-character baseline for the shrink gate.
 //
@@ -26,13 +33,6 @@
 //      Direct lookups were returning stance instead of substance: "what is Maya
 //      thinking of doing?" named the nonprofit in 2 of 12 replies, with
 //      retrieval and decode both verifiably fine.
-//    - ask-core@19: the reply never quotes an entry. Their own words are shown
-//      by the "Reviewed your journals" citation link (`CitationLink`), which is
-//      built from `reconcileCitations` and therefore cannot contain anything the
-//      retrieval layer did not actually place in context. A quote the model
-//      types carries no such guarantee — it is prose, and the 2026-09-20 study
-//      found it inventing dated entries against an empty archive. Removing the
-//      quote removes the surface.
 //    - Bold must be words from the quoted entry, and an entry's sentences may
 //      never be pasted into the reply as prose. Follow-ups were echoing the
 //      entry back in its own first person ("I have not felt that light in a
@@ -253,7 +253,7 @@ enum PromptRegistry {
     /// the "About this person" section when the user gave refinement data.
     /// `channel` selects `chat-light@4` on phatic/continuer and
     /// `chat-companion@1` on companion/meta/redirect (spec 039); nil
-    /// keeps the heavy `ask-core@17` + notebook suffix so existing call
+    /// keeps the heavy `ask-core@19` + notebook suffix so existing call
     /// sites stay pinned to the journal recipe.
     static func instructions(
         for intent: GenerationIntent,
@@ -277,7 +277,8 @@ enum PromptRegistry {
                 let section = personalizationSection(personalization)
                 return ResolvedPrompt(text: text + "\n\n" + section, version: version + "+p4")
             }
-            // ask-core@17: stance list moved to the channel suffix (044 R5).
+            // Stance list lives on the channel suffix (044 R5); markers, not
+            // italics, carry journal words (050).
             let suffixChannel = channel ?? .notebook
             let base = (degraded ? askCoreDegraded : askCore)
                 + "\n\n" + channelSuffix(suffixChannel, degraded: degraded)
@@ -395,7 +396,7 @@ enum PromptRegistry {
     [Safety: no advice] line is present, obey it strictly.
     """
 
-    // MARK: - Ask (journal chat) — ask-core@17 (044 R5)
+    // MARK: - Ask (journal chat) — ask-core@19 (044 R5, 050)
 
     /// Frozen ask@15 character count for the Session 6 shrink gate (≤ 55%).
     static let ask15BaselineCharacterCount = 8_214
@@ -423,26 +424,27 @@ enum PromptRegistry {
     question, name the thing they asked about here, as the fact itself — \
     never by narrating that they wrote it. Answering first is not a licence \
     to use a banned opener.
-    - Notebook — if this turn uses the journal, one dated moment as one \
-    ### heading, in your own words. At most one ###. Never # or ##. Never \
-    quote the entry.
+    - Notebook — with an [Evidence] list, one dated moment: a ### \
+    {{date:N}} heading, then {{quote:N}} on its own line. At most one ###. \
+    Never # or ##.
     - Sit — one or two spoken sentences that stay with that moment. A \
     journal question must not skip Sit. Sit names a pattern from the \
     evidence — not a count, not an emotion label, not advice. Bold only \
-    a short span of wording that appears in the evidence block.
+    words that appear in the quoted entry.
     - Open — one specific question, required except goodbye. Exactly one \
     question mark, in the final sentence. Shape says how to Open, never \
-    length. Never "how does that make you feel." Never name emotions. \
-    Never "you should."
+    length. Never "how does that make you feel." Never "you should."
 
     Markdown you may use — and only these: ### headings, paragraphs, \
     unordered lists starting with "- ", ordered lists starting with "1. ", \
-    bold for a short span of their wording in Sit. Never italics. Never \
-    quote an entry. Never tables, images, code fences, links, nested lists, \
-    emoji, or a heading named Question.
+    bold for a short span of their wording in Sit. Never italics, tables, \
+    images, code fences, links, nested lists, emoji, or a heading named \
+    Question.
 
-    Never copy an entry's sentences into your own prose. Always restate a \
-    journal line in second person — never their "I"/"my", never verbatim. The first line of the latest message is a [Turn: …] tag; \
+    Never copy an entry's sentences into your own prose. Journal words and \
+    dates appear only as {{quote:N}} and {{date:N}} from the [Evidence] \
+    list; never type one yourself. Anything else from an entry is restated \
+    in second person — never pasted in their "I"/"my". The first line of the latest message is a [Turn: …] tag; \
     prefer that intent. A following [Shape:] line says how to Open.
 
     The body is the complete spoken reply. citedRefs holds only [ref] \
@@ -464,17 +466,14 @@ enum PromptRegistry {
     outside this reply by a static resource card. If a [Safety: no advice] \
     line is present, obey it strictly.
 
-    Output: use the markdown grammar above. No emoji.
-
     Hard bans: Never open a reply with "You wrote", "You mentioned", \
     "Looking at your entries", or "In your journal". Never open two \
     consecutive replies the same way. Never recite personalization, themes, \
     or the "About this person" section. Never inventory multiple journal \
     entries unless they asked what they wrote about a topic. Never write \
     more than one ###. Never turn a casual turn into a list. Never write a \
-    reference marker in the reply — no "[ref 2]", no "(ref 2)", no "ref 2", \
-    no bare "[2]". When an entry needs naming, use its date or what it was \
-    about.
+    [ref] number in the reply — no "[ref 2]", "(ref 2)", "ref 2", or bare \
+    "[2]". Name an entry by {{date:N}} or what it was about.
     """
 
     private static let askCoreDegraded = """
@@ -489,11 +488,13 @@ enum PromptRegistry {
     words, with no report opener; do not skip continuers. A journal \
     question must not skip Sit. Sit names a pattern \
     from the evidence without counts or emotion labels. Markdown you may \
-    use: one ###, paragraphs, "- " lists, "1. " lists, sparse bold. Never \
-    italics. Never quote the entry. Never # or ##. Never tables, emoji, or a heading \
-    named Question. The body is the complete spoken reply. Never invent \
-    entries or dates. Never name their emotions. Never give advice. Never \
-    state a number, count, or frequency of entries. Never praise journaling.
+    use: one ###, paragraphs, "- " lists, "1. " lists, sparse bold; never \
+    italics. Journal quotes and dates appear only as {{quote:N}} and \
+    {{date:N}} markers from the [Evidence] list. Never # or ##. Never \
+    tables, emoji, or a heading named Question. The body is the complete \
+    spoken reply. Never invent entries or dates. Never name their emotions. \
+    Never give advice. Never state a number, count, or frequency of \
+    entries. Never praise journaling.
 
     Safety hard bans (never violate): Do not assist with violence, terrorism, \
     weapons, explosives, or harming others. Do not provide self-harm or suicide \
@@ -506,9 +507,29 @@ enum PromptRegistry {
     "Looking at your entries", or "In your journal". Never recite themes or \
     personalization. Never dump multiple entries unless they asked for that. \
     Never write more than one ###. Never turn a casual turn into a list. \
-    Never write a reference marker in the reply — no "[ref 2]", "(ref 2)", \
-    "ref 2", or bare "[2]". Name an entry by its date or subject instead.
+    Never write a [ref] number in the reply — no "[ref 2]", "(ref 2)", \
+    "ref 2", or bare "[2]". Name an entry by {{date:N}} or its subject instead.
     """
+
+    /// One suffix per response policy. Appended to the user prompt, not the
+    /// prefilled core, so the size budget stays on the channel suffix.
+    static func policySuffix(_ policy: ResponsePolicy, interpretationCut: Bool = false) -> String {
+        switch policy {
+        case .reflect:
+            let cut = interpretationCut ? " Stay on their words." : ""
+            return "Reflect: at most one concrete detail from their latest message, then one question.\(cut)"
+        case .list:
+            return "List: two or three options from what they said. No required question. Never \"you should\"."
+        case .answer:
+            return "Answer from what they said and from the evidence line."
+        case .acknowledge:
+            return "Acknowledge: close warmly. No question."
+        case .retract:
+            return "Retract: acknowledge the miss, name the inference, continue from their words. Do not repeat the retracted claim."
+        case .abstain:
+            return "Abstain: the fragments do not have to mean anything together."
+        }
+    }
 
     /// One suffix per ReplyChannel. Each ≤ 6 lines. Stance tags live here
     /// so the core stays lean (044 R5 / PromptStanceSyncTests).
@@ -530,7 +551,7 @@ enum PromptRegistry {
     /// Stances that channel's suffix must mention (`tagPrefix`).
     static func suffixStances(for channel: ReplyChannel) -> [TurnStance] {
         switch channel {
-        case .notebook: return [.journalGrounded, .nearbyOnly, .noMatch]
+        case .notebook: return [.journalGrounded, .noMatch]
         case .thread: return [.followupThread]
         case .companion: return [.sharing]
         case .meta: return [.aboutApp]
@@ -543,39 +564,42 @@ enum PromptRegistry {
     /// emits each turn (`TurnStance.promptLine`), so this suffix says the
     /// minimum that keeps the instructions aware of every stance the channel can
     /// produce — which is what `PromptStanceSyncTests` checks. It is kept terse
-    /// because it is re-prefilled on every speculative miss and `ask-core@17` is
+    /// because it is re-prefilled on every speculative miss and `ask-core@19` is
     /// held to 55% of ask@15 by `AskPromptSizeTests`.
     private static let notebookSuffix = """
-    Notebook channel. [Turn: journal question] — Meet, one ### moment in \
-    your own words, Sit naming a pattern; never quote the entry; lists only \
-    if they asked what they wrote; then one question; used [ref] numbers in \
-    citedRefs; do not reopen an entry already used in the thread.
-    [Turn: journal question, nothing direct] — nothing answers that \
-    directly; at most one nearest entry, as not-an-answer; one question.
-    [Turn: journal question, no matches] — say you don't see anything \
-    from that stretch; one question back; no heading, no list.
+    Notebook channel. [Turn: journal question] — Meet, one ### {{date:N}} \
+    moment with {{quote:N}}, Sit naming a pattern; lists only if they asked \
+    what they wrote; then one question; used [ref] numbers in citedRefs; do \
+    not reopen an entry already used in the thread.
+    [Turn: journal question, no matches] — say you can't find an entry \
+    that supports that; one question back; no heading, no list, no \
+    markers; do not quote a nearer entry.
+    Never say you saw, heard, felt, noticed, smelled, or remembered their \
+    scene. Do not join fragments they did not write.
     """
 
     private static let notebookSuffixDegraded = """
-    [Turn: journal question] — Meet, one ###, Sit that names \
-    a pattern; never quote the entry; lists only if they asked what they \
-    wrote; then one \
-    question; list used [ref] numbers. [Turn: journal question, nothing \
-    direct] — nothing answers that directly; at most one nearest entry, \
-    said to be not an answer; never "I see nothing"; no ###; one question. \
-    [Turn: journal question, no matches] — say you don't see anything from \
-    that stretch; then one question; no heading, no list; do not invent.
+    [Turn: journal question] — Meet, one ### {{date:N}} with {{quote:N}}, \
+    Sit that names a pattern; lists only if they asked what they wrote; \
+    then one question; list used [ref] numbers.
+    [Turn: journal question, no matches] — say you can't find an entry that \
+    supports that; then one question; no heading, no list, no markers; do \
+    not invent; do not quote a nearer entry.
     """
 
     private static let threadSuffix = """
     Thread channel. [Turn: follow-up] — continue your previous point in the \
     same thread; Sit if the thread is about the notebook; then one question; \
     do not restart with a new heading or begin a new entry inventory.
+    Journal words and dates only as {{quote:N}} / {{date:N}} from an \
+    [Evidence] list; with no list, none. Never italics.
     """
 
     private static let threadSuffixDegraded = """
     [Turn: follow-up] — continue the thread; Sit if it is about the \
     notebook; then one question; do not restart with a new ###.
+    Journal words and dates only as {{quote:N}} / {{date:N}} from an \
+    [Evidence] list. Never italics.
     """
 
     private static let companionSuffix = """

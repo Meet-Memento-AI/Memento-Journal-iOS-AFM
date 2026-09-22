@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook and ### only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording. Never italics and never quote an entry back — their own words are shown by the citation link, so a quote you type is one you could have invented. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook and ### only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording. Never italics and never quote an entry back — their own words are shown by the citation link, so a quote you type is one you could have invented. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -227,8 +227,11 @@ final class SearchJournalTool: Tool {
             entries: entries,
             limits: limits
         )
-        state.ingest(retrieved.entries)
-        ingestPool(retrieved.entries)
+        let renumbered = SessionCandidatePool.renumber(
+            retrieved.entries, startingAt: state.extraEntries.count + 1
+        )
+        state.ingest(renumbered)
+        ingestPool(renumbered)
         if retrieved.contextBlock.isEmpty {
             return "No matching journal entries."
         }
@@ -330,7 +333,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@17` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@19` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -819,6 +822,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let retrieval: RetrievalResult
         let stance: TurnStance
         let channel: ReplyChannel
+        let evidence: EvidenceState
         let prompt: String
         let resolved: ResolvedPrompt
         let budget: ContextBudget
@@ -827,6 +831,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
         let spoken: Bool
+        /// What the prompt carries and the renderer may insert (spec 050).
+        /// `buildAskPrompt` received this exact pack.
+        let pack: EvidencePack
+        /// What the person has said, for quoting and dating their own words.
+        let renderContext: RenderContext
 
         var zone: TrustZone { request.zone }
     }
@@ -844,6 +853,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let safety: SafetyDecision
         let turn: TurnType
         let channel: ReplyChannel
+        var evidence: EvidenceState
         let route: ResolvedRoute
         let budget: ContextBudget
         let promptCap: Int
@@ -856,7 +866,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         func replacingEntries(_ entries: [Entry]) -> AskCore {
             AskCore(
                 question: question, history: history, entries: entries, images: images,
-                spoken: spoken, deep: deep, safety: safety, turn: turn, channel: channel, route: route,
+                spoken: spoken, deep: deep, safety: safety, turn: turn, channel: channel, evidence: evidence, route: route,
                 budget: budget, promptCap: promptCap, poolLimits: poolLimits,
                 resolved: resolved, request: request, plan: plan,
                 storedPersonalization: storedPersonalization
@@ -873,6 +883,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         clock: ContinuousClock
     ) -> AskResult {
         let facts = InsightEngine.answer(query: core.question, entries: entries)
+        if facts.count == 1, facts[0].value == InsightEngine.unsupportedCopy {
+            return AskResult(
+                heading1: nil,
+                heading2: nil,
+                body: InsightEngine.unsupportedCopy,
+                citations: [],
+                zoneUsed: core.route.executionZone,
+                wasDegraded: false,
+                promptVersion: "insight-fact@1",
+                modelIdentifier: "swift",
+                latency: clock.now - started,
+                facts: []
+            )
+        }
         return AskResult(
             heading1: nil,
             heading2: nil,
@@ -914,18 +938,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         LiveTurnClock.shared.start(.prepClassify)
         let classifyState = signposter.beginInterval("prep.classify", id: spid)
-        let answeringLastQuestion = spoken
-            && ConversationalMove.lastAssistantQuestion(in: history) != nil
-        let turn = TurnClassifier.classify(
-            question,
-            hasHistory: !history.isEmpty,
+        let answeringLastQuestion = ConversationalMove.lastAssistantQuestion(in: history) != nil
+        let turnPlan = AskPipeline.plan(
+            question: question,
+            history: history,
+            hasImages: hasImages,
+            spoken: spoken,
             lastAssistantAskedQuestion: answeringLastQuestion
         )
+        let turn = turnPlan.turn
         signposter.endInterval("prep.classify", classifyState)
         LiveTurnClock.shared.end(.prepClassify)
 
-        let channel = ReplyChannel.resolve(turn: turn, hasImages: hasImages)
-            .applyingSpokenFollowUpRecipe(turn: turn, history: history, spoken: spoken)
+        let channel = turnPlan.channel
         // Statistic never reads SystemLanguageModel — not for availability,
         // not for contextSize. The count is Swift.
         let budget = ContextBudget(
@@ -965,7 +990,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
             deep: deep,
-            safety: safety, turn: turn, channel: channel, route: route, budget: budget,
+            safety: safety, turn: turn, channel: channel, evidence: .matched, route: route, budget: budget,
             promptCap: limits.maxEntries,
             poolLimits: RetrievalLimits(
                 maxEntries: SessionCandidatePool.capacity,
@@ -1003,11 +1028,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let entries = await Self.resolveJournalEntries(
             channel: core.channel, provided: core.entries, loadEntries: loadEntries
         )
-        let filled = core.replacingEntries(entries)
+        var filled = applyingEvidence(entries.isEmpty ? .none : .matched, to: core.replacingEntries(entries))
         async let visionTask: String? = Self.visionBlockIfNeeded(
             current: filled.images, history: filled.history
         )
-        async let wideTask: RetrievalResult = retrieveWide(filled)
+        async let wideTask: RetrievalResult = retrieveIfNeeded(filled)
         let attachOnMiss = SearchJournalPolicy.shouldAttach(channel: filled.channel)
             && Self.canAttachSearchTool
             && !entries.isEmpty
@@ -1024,7 +1049,51 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         ) && Self.canAttachSearchTool
         let wide = await wideTask
         let visionBlock = await visionTask
+        if filled.evidence != .none, wide.isEmpty || wide.isAmbient {
+            filled.evidence = .ambient
+        }
         return (filled, adopted, wide, visionBlock, toolsAttached)
+    }
+
+    /// Empty archive is known before retrieval. Notebook and thread drop to
+    /// companion and the session plan is rebuilt so generation adopts the
+    /// prewarmed companion recipe, not ask-core.
+    private func applyingEvidence(_ evidence: EvidenceState, to core: AskCore) -> AskCore {
+        let hasImages = !core.images.isEmpty || core.history.contains { !$0.imageJPEGs.isEmpty }
+        let channel = ReplyChannel.resolve(turn: core.turn, hasImages: hasImages, evidence: evidence)
+            .applyingSpokenFollowUpRecipe(turn: core.turn, history: core.history, spoken: core.spoken)
+        guard channel != core.channel else {
+            var same = core
+            same.evidence = evidence
+            return same
+        }
+        let (resolved, plan) = AskTranscriptPlan.forAsk(
+            channel: channel,
+            stored: core.storedPersonalization,
+            history: core.history,
+            budget: core.budget,
+            zone: core.route.executionZone,
+            degraded: core.route.useDegradedPrompt
+        )
+        let request = GenerationRequest(
+            intent: .ask,
+            zone: core.route.executionZone,
+            allowsDegradation: core.request.allowsDegradation,
+            promptVersion: resolved.version,
+            toolsEnabled: SearchJournalPolicy.shouldAttach(channel: channel) && Self.canAttachSearchTool
+        )
+        return AskCore(
+            question: core.question, history: core.history, entries: core.entries, images: core.images,
+            spoken: core.spoken, deep: core.deep, safety: core.safety, turn: core.turn, channel: channel,
+            evidence: evidence, route: core.route, budget: core.budget, promptCap: core.promptCap,
+            poolLimits: core.poolLimits, resolved: resolved, request: request, plan: plan,
+            storedPersonalization: core.storedPersonalization
+        )
+    }
+
+    private func retrieveIfNeeded(_ core: AskCore) -> RetrievalResult {
+        if core.evidence == .none { return .empty }
+        return retrieveWide(core)
     }
 
     private func retrieveWide(_ core: AskCore) -> RetrievalResult {
@@ -1067,7 +1136,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ) -> AskPreparation {
         let isNewConversation = startsNewConversation(history: core.history)
         let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
-        let stance = RetrievalPolicy.stance(turn: core.turn, retrieval: retrieval)
+        let stance = RetrievalPolicy.stance(
+            turn: core.turn, retrieval: retrieval, question: core.question
+        )
         let hasEvidence = !retrieval.isEmpty && !retrieval.isAmbient
         let move = ConversationalMove.resolve(
             turn: core.turn, message: core.question, history: core.history,
@@ -1081,9 +1152,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let computed = computedSlice.isEmpty
             ? []
             : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
+        let questionShape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
+        let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
+        let retracted = RetractedClaims.claims(in: core.history)
+        let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
+        let pack = EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: core.channel, archiveEmpty: core.entries.isEmpty
+        )
         let prompt = Self.buildAskPrompt(
             question: core.question,
-            history: core.history,
+            history: HistoryWindow.promptHistory(core.history),
             retrieval: retrieval,
             stance: stance,
             shape: shape,
@@ -1098,7 +1176,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             move: move,
             personalization: core.storedPersonalization,
             spoken: core.spoken,
-            computedFacts: computed
+            computedFacts: computed,
+            policy: policy,
+            retracted: retracted,
+            interpretationCut: interpretationCut,
+            evidencePack: pack
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
@@ -1110,8 +1192,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
-            channel: core.channel, prompt: prompt, resolved: core.resolved, budget: core.budget,
-            plan: core.plan, generationOptions: generationOptions, spoken: core.spoken
+            channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
+            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken,
+            pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
         )
     }
 
@@ -1158,16 +1241,25 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
-    /// Builds the final `AskResult` (citations reconciled, reference markers
-    /// stripped, output safety scanned) from either the whole-answer `respond`
-    /// or the last streamed snapshot.
+    /// Builds the final `AskResult` from either the whole-answer `respond` or
+    /// the last streamed snapshot. The renderer runs first (spec 050): every
+    /// check below — the epistemic guard, output safety, citations — reads
+    /// exactly the body the person will see.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String, latency: Duration,
                             promptTokens: Int? = nil, cachedTokens: Int? = nil) throws -> AskResult {
         // The model produced output, so whatever else this turn does — including
         // an output-safety throw below — the pipeline is not in an outage.
         noteGenerationSucceeded()
-        let cleanedBody = Self.strippingReferenceMarkers(body)
+        let rendered = ReplyRenderer.render(body, pack: prep.pack, context: prep.renderContext)
+        AppLogger.log("[Intelligence] render \(rendered.stats.logLine)", type: .info)
+        let cleanedBody = rendered.body
+        let rung = EvidenceLadder.rung(
+            stance: prep.stance, retrieval: prep.retrieval, question: question
+        )
+        for finding in EpistemicGuard.findings(body: cleanedBody, rung: rung) {
+            AppLogger.log("[Intelligence] epistemic code=\(finding.code)", type: .info)
+        }
         if let hit = OutputSafetyScanner.scan(cleanedBody) {
             SafetyMetrics.record(SafetyDecision(category: hit.category, action: hit.action, confidence: 1))
             switch hit.action {
@@ -1177,10 +1269,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 throw IntelligenceError.safetyRefusal(hit.category)
             }
         }
-        // `cleanedBody`, not `body`: markers are already stripped, and the quote
-        // match should see exactly the text the reader sees.
-        let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
+        // What the body shows leads; the model's citedRefs are the backstop.
+        let citations = CitationReconciliation.citations(
+            for: rendered, pack: prep.pack, citedRefs: citedRefs,
+            retrieval: prep.retrieval, question: question
         )
         let toolsCalled = askSearchState?.toolsCalled ?? 0
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
@@ -1199,7 +1291,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: prep.request.promptVersion,
             modelIdentifier: Self.modelIdentifier(for: prep.zone),
             latency: latency,
-            toolsCalled: toolsCalled
+            toolsCalled: toolsCalled,
+            chips: rendered.chips,
+            renderStats: rendered.stats
         )
     }
 
@@ -1250,7 +1344,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 images: images,
                 history: history,
                 options: prep.generationOptions,
-                bodyOnly: prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
+                bodyOnly: prep.channel.usesBodyOnlySchema(spoken: prep.spoken, evidence: prep.evidence)
             )
             let counted = await Self.measurePromptTokens(
                 instructions: prep.resolved.text, prompt: prep.prompt
@@ -1260,10 +1354,81 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 prep: prep, question: question, latency: clock.now - started,
                 promptTokens: counted.prompt, cachedTokens: counted.cached
             )
-        } catch let error as IntelligenceError {
-            throw error
         } catch {
-            throw mapAnyGenerationError(error)
+            let mapped = (error as? IntelligenceError) ?? mapAnyGenerationError(error)
+            if let recovered = await recoverOrdinaryRefusal(
+                mapped: mapped, core: core, question: question, clock: clock, started: started
+            ) {
+                return recovered
+            }
+            throw mapped
+        }
+    }
+
+    /// One light retry for an ordinary refusal on a share or a greeting.
+    /// A correction never becomes the authored guardrail sentence. The log
+    /// line is the error case only.
+    private func recoverOrdinaryRefusal(
+        mapped: IntelligenceError,
+        core: AskCore,
+        question: String,
+        clock: ContinuousClock,
+        started: ContinuousClock.Instant
+    ) async -> AskResult? {
+        guard case .guardrailRefusal = mapped else { return nil }
+        if core.turn == .correction {
+            AppLogger.log("[Intelligence] refusal case=correction_retract", type: .error)
+            return AskResult(
+                heading1: nil, heading2: nil,
+                body: "You're right — I had that wrong. I'll stay with your words.",
+                citations: [],
+                zoneUsed: core.route.executionZone,
+                wasDegraded: false,
+                promptVersion: "chat-light@4",
+                modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
+                latency: clock.now - started
+            )
+        }
+        guard core.turn == .share || core.turn == .social else { return nil }
+        switch core.safety.action {
+        case .continue, .continueConstrained:
+            break
+        case .showCrisisCard, .hardRefuse:
+            return nil
+        }
+        AppLogger.log("[Intelligence] refusal case=guardrailRefusal retry=chat-light@4", type: .error)
+        let (resolved, plan) = AskTranscriptPlan.forAsk(
+            channel: .phatic,
+            stored: .none,
+            history: HistoryWindow.promptHistory(core.history),
+            budget: core.budget,
+            zone: core.route.executionZone,
+            degraded: false
+        )
+        let session = makeSession(from: plan)
+        let prompt = "The person's latest message: \(question)"
+        do {
+            let (body, _) = try await Self.respondToAsk(
+                session: session,
+                prompt: prompt,
+                images: [],
+                history: core.history,
+                options: Self.askOptions(for: .phatic, retrievalRan: false, spoken: core.spoken),
+                bodyOnly: true
+            )
+            let rendered = ReplyRenderer.render(
+                body, pack: .empty, context: RenderContext(question: question, history: core.history)
+            )
+            return AskResult(
+                heading1: nil, heading2: nil, body: rendered.body, citations: [],
+                zoneUsed: core.route.executionZone, wasDegraded: false,
+                promptVersion: resolved.version,
+                modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
+                latency: clock.now - started,
+                renderStats: rendered.stats
+            )
+        } catch {
+            return nil
         }
     }
 
@@ -1539,12 +1704,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 let started = clock.now
                 let signposter = PerfSignposts.chatTurn
                 let spid = signposter.makeSignpostID()
+                var coreForRetry: AskCore?
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
                     let core = try await prepareAskCore(
                         question: question, history: history, entries: [], images: images,
                         spoken: spoken, deep: deep
                     )
+                    coreForRetry = core
                     if core.channel == .statistic {
                         let entries = await loadEntries()
                         let result = statisticResult(
@@ -1588,10 +1755,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
 
                     let session = prepared.adopted.session
-                    let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken)
-                    let reviewed = Self.reconcileCitations(
-                        [], retrieval: prep.retrieval, question: question
-                    )
+                    let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken, evidence: prep.evidence)
+                    // Only a matched pack may cite; ambient and miss turns show
+                    // no "Reviewed your journals" link (spec 050 R6).
+                    let reviewed = prep.pack.state == .matched
+                        ? Self.reconcileCitations([], retrieval: prep.retrieval, question: question)
+                        : []
+                    let granularity = ReplyRenderer.granularity(for: prep.channel)
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
@@ -1600,8 +1770,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
                             var tail = StreamTail()
-                            var lastRawBody = ""
+                            var lastPrefix = ""
                             var lastCleaned = ""
+                            var lastYielded = ""
                             var scannedCount = 0
                             var sawFirstSnapshot = false
                             var streamState: OSSignpostIntervalState?
@@ -1629,12 +1800,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 tail.body = body
                                 if let refs = citedRefs { tail.citedRefs = refs }
 
+                                // Buffer-then-render per stable prefix (spec 050 R5):
+                                // whole sentences on journal channels, whole words on
+                                // light ones, never inside an open marker or quote. The
+                                // bubble and TTS only ever see rendered text.
+                                let prefix = ReplyRenderer.stablePrefix(of: tail.body, granularity: granularity)
                                 let cleaned: String
-                                if tail.body == lastRawBody {
+                                if prefix == lastPrefix {
                                     cleaned = lastCleaned
                                 } else {
-                                    cleaned = Self.strippingReferenceMarkers(tail.body)
-                                    lastRawBody = tail.body
+                                    cleaned = ReplyRenderer.render(
+                                        prefix, pack: prep.pack, context: prep.renderContext, isFinal: false
+                                    ).body
+                                    lastPrefix = prefix
                                     lastCleaned = cleaned
                                 }
 
@@ -1653,6 +1831,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 }
                                 scannedCount = cleaned.count
 
+                                // Nothing settled yet, or nothing new: keep the
+                                // thinking state rather than paint an empty bubble.
+                                guard cleaned != lastYielded else { return }
+                                lastYielded = cleaned
                                 continuation.yield(.delta(
                                     bodySoFar: cleaned,
                                     heading1: nil,
@@ -1728,12 +1910,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     // ChatViewModel/.final, narration's post-drain listen, and
                     // conversation open all call prewarmNextTurn with the
                     // just-updated history.
-                } catch let error as IntelligenceError {
-                    continuation.finish(throwing: error)
                 } catch is CancellationError {
                     continuation.finish()
                 } catch {
-                    continuation.finish(throwing: self.mapAnyGenerationError(error))
+                    let mapped = (error as? IntelligenceError) ?? self.mapAnyGenerationError(error)
+                    if let core = coreForRetry, let recovered = await self.recoverOrdinaryRefusal(
+                        mapped: mapped, core: core, question: question, clock: clock, started: started
+                    ) {
+                        continuation.yield(.final(recovered))
+                        continuation.finish()
+                    } else {
+                        continuation.finish(throwing: mapped)
+                    }
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
@@ -1956,10 +2144,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return "[Today: \(formatter.string(from: now))]"
     }
 
-    static func stanceMatchingEvidence(_ stance: TurnStance, hasEvidenceBlock: Bool) -> TurnStance {
+    static func stanceMatchingEvidence(
+        _ stance: TurnStance, hasEvidenceBlock: Bool, archiveEmpty: Bool = false
+    ) -> TurnStance {
+        if archiveEmpty { return stance }
         switch stance {
         case .nearbyOnly where !hasEvidenceBlock: return .noMatch
-        case .noMatch where hasEvidenceBlock: return .nearbyOnly
         default: return stance
         }
     }
@@ -1976,7 +2166,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        move: ConversationalMove? = nil,
                                        personalization: PromptPersonalization = .none,
                                        spoken: Bool = false,
-                                       computedFacts: [InsightFact] = []) -> String {
+                                       computedFacts: [InsightFact] = [],
+                                       policy: ResponsePolicy? = nil,
+                                       retracted: [String] = [],
+                                       interpretationCut: Bool = false,
+                                       evidencePack: EvidencePack? = nil) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
         // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
@@ -2006,6 +2200,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 light.append(anti)
             }
             light.append("The person's latest message: \(question)")
+            if let policy {
+                light.append(PromptRegistry.policySuffix(policy, interpretationCut: interpretationCut))
+            }
+            if let retractedLine = RetractedClaims.promptLine(
+                claims: retracted, interpretationCut: interpretationCut
+            ) {
+                light.append(retractedLine)
+            }
             return light.joined(separator: "\n\n")
         }
 
@@ -2020,9 +2222,23 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // emptied (`sliceRetrieval`) — that promise is the contradiction in the
         // other direction, so the stance falls back to the honest-empty copy.
         // Every line below reads `effectiveStance`, never `stance`.
-        let hasEvidenceBlock = channel.allowsRetrieval && !retrieval.contextBlock.isEmpty
-        let effectiveStance = Self.stanceMatchingEvidence(stance, hasEvidenceBlock: hasEvidenceBlock)
+        // A miss does not carry the nearest entry. Quoting it and then denying
+        // it is the cite-then-deny hedge. The pack makes that call (spec 050),
+        // so the prompt and the renderer agree on what evidence exists; the
+        // live path passes the same pack it renders with.
+        let pack = evidencePack ?? EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: channel, archiveEmpty: archiveEmpty
+        )
+        let hasEvidenceBlock = pack.carriesEvidence
+        let effectiveStance = Self.stanceMatchingEvidence(
+            stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
+        )
         var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
+        if channel == .notebook || channel == .thread {
+            let shipped = hasEvidenceBlock ? retrieval : .empty
+            let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
+            parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
+        }
         let grounded = effectiveStance.isGrounded(retrieval: retrieval)
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
                                                       isGrounded: grounded) {
@@ -2079,20 +2295,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // that answers all three. That revert still stands: every character
             // of the ambient text stays in the prompt. Only the instruction
             // that contradicted it changed.
-            let framing = effectiveStance == .nearbyOnly
-                ? "Journal evidence — these are the person's most recent entries, NOT an answer "
-                + "to what they asked. Nothing here is on their topic. Do not treat this as the "
-                + "answer and do not summarize it. You may mention at most one of these, and only "
-                + "while saying clearly it is not what they asked about. Never claim the notebook "
-                + "is empty or that you see nothing:\n"
-                : "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
-            parts.append(framing + retrieval.contextBlock)
+            let framing = "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
+            parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
         } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {
                 parts.append("[No journal entries matched this topic]")
             }
+        }
+        if let legend = pack.promptLegend(channel: channel) {
+            parts.append(legend)
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
@@ -2136,243 +2349,30 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
         }
         parts.append("The person's latest message: \(question)")
+        if let policy {
+            parts.append(PromptRegistry.policySuffix(policy, interpretationCut: interpretationCut))
+        }
+        if let retractedLine = RetractedClaims.promptLine(
+            claims: retracted, interpretationCut: interpretationCut
+        ) {
+            parts.append(retractedLine)
+        }
         return parts.joined(separator: "\n\n")
     }
 
     // MARK: - Reference-marker stripping
 
-    /// Removes `[ref 2]`, `(ref 2)`, `ref 2`, and bare `[2]` from a reply.
-    ///
-    /// The prompt and the `body` @Guide both ban these, but the `[ref N]` labels
-    /// are sitting right there in the model's context as the naming convention
-    /// for entries, and a small on-device model leaks them into prose. Nothing
-    /// downstream strips markers — `RichTextParser` does not treat `[n]` as a link,
-    /// and bullets — so anything the model writes reaches the screen verbatim.
-    /// This is the backstop.
-    ///
-    /// Inline citations return in a later release; this whole function goes
-    /// away then, along with the prompt bans.
-    /// Compiled once (spec 029 R3): these ran fresh on every streamed snapshot,
-    /// which multiplied ~6 regex compiles by the snapshot count of every reply.
-    /// Ordered: bracketed/parenthesised ref forms, then bare square-bracket
-    /// numbers, then a bare "ref 2". Each tolerates lists ("ref 1 and 2").
-    private static let markerRegexes: [NSRegularExpression] = {
-        let numberList = #"\d+(?:\s*(?:,|and|&)\s*\d+)*"#
-        let patterns = [
-            // Schema field names written as prose. FIRST, because the model
-            // emits `citedRefs:[1]` / `citedRefs: 1.` as a trailing line of the
-            // body far more often than it emits a bare `[ref 1]` — measured
-            // 2026-08-23, and the same behaviour that used to kill the turn
-            // outright before `AskAnswer.citedRefs` became optional. The
-            // `\brefs?` pattern below can never match inside `citedRefs`
-            // (`d` and `R` are both word characters), so this is not redundant.
-            #"\s*\bcitedRefs\b\s*:?\s*(?:\[[^\]]*\]|"# + numberList + #")?\.?"#,
-            #"\s*\bheading[12]\b\s*:?\s*"#,
-            #"\s*[\[(]\s*refs?\.?\s*#?"# + numberList + #"\s*[\])]"#,
-            #"\s*\[\s*"# + numberList + #"\s*\]"#,
-            #"\s*\brefs?\.?\s*#?"# + numberList + #"\b"#,
-            // Bracket pairs the number-bearing patterns above cannot see:
-            // `[,]`, `[]`, `[ref]`, `[-]`. Observed live as a trailing `[,]`.
-            // Bounded to 6 inner characters and no digits so a real aside in
-            // square brackets is left alone.
-            #"\s*\[\s*[^\]\d]{0,6}\s*\]"#
-        ]
-        return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
-    }()
-
-    /// Tidy what removal left behind: a space before punctuation, doubled
-    /// spaces, and an emptied parenthesis pair.
-    private static let cleanupRegexes: [(regex: NSRegularExpression, template: String)] = {
-        let cleanups: [(String, String)] = [
-            (#"\s+([,.;:!?])"#, "$1"),
-            (#"[ \t]{2,}"#, " "),
-            (#"\(\s*\)"#, ""),
-            // The square-bracket twin of the rule above — a removal can leave
-            // `[]` behind the same way it leaves `()`.
-            (#"\[\s*\]"#, ""),
-            // Removing a trailing field name leaves the blank line it sat on.
-            (#"\n{3,}"#, "\n\n")
-        ]
-        return cleanups.compactMap { pattern, template in
-            (try? NSRegularExpression(pattern: pattern)).map { ($0, template) }
-        }
-    }()
-
-    /// Artefacts of a generation that ran off the end of its reply, rather than
-    /// anything the model meant to say. All observed in the chat eval gate on
-    /// 2026-08-23 and all unambiguous, which is why removing them is safe:
-    ///
-    /// - a `<ctrl46>` control token and everything after it — one reply spilled
-    ///   2,122 characters this way, continuing past its closing question into
-    ///   `**} <ctrl46>Memento leans into the quiet…`;
-    /// - a trailing `}` / `**}` where the structured object leaked into prose;
-    /// - a dangling heading the reply never filled in (`### July 19, 2026 *`
-    ///   as the final line, the italic quote never arriving) — five replies
-    ///   ended mid-notebook-moment like this;
-    /// - a lone trailing `###` on a turn that should carry no heading at all.
-    ///
-    /// Deliberately conservative: it removes only trailing wreckage and never
-    /// rewrites the reply. Nothing here can add a closing question the model
-    /// failed to write — a reply that stops early is reported by the gate as
-    /// `rule.noOpen`, not quietly patched.
-    private static let truncationArtifactRegexes: [NSRegularExpression] = {
-        let patterns = [
-            #"<ctrl[\s\S]*$"#,                 // control token → end
-            #"\*{0,2}\}\s*$"#,                 // leaked closing brace at the end
-            // A heading the reply never filled in. The character class excludes
-            // sentence punctuation and caps the run at 40, which is what keeps
-            // this off a heading used *inline* mid-reply: replies are often a
-            // single line ("…quiet shifts. ### August 2, 2026 *“…”* … What is
-            // it you're holding onto right now?"), and an earlier version of
-            // this pattern matched from `###` to end of string and deleted the
-            // quote, the reflection and the closing question with it. Five
-            // otherwise-clean replies lost their question that way before the
-            // eval gate caught it.
-            #"\n?#{3}[^\n?.!]{0,40}\*?[ \t]*$"#,
-            #"\n?#{3}\s*$"#                    // bare trailing ###
-        ]
-        return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
-    }()
-
     static func strippingReferenceMarkers(_ body: String) -> String {
-        var out = body
-        for regex in truncationArtifactRegexes {
-            out = regex.stringByReplacingMatches(
-                in: out,
-                range: NSRange(out.startIndex..., in: out),
-                withTemplate: ""
-            )
-        }
-        for regex in markerRegexes {
-            out = regex.stringByReplacingMatches(
-                in: out,
-                range: NSRange(out.startIndex..., in: out),
-                withTemplate: ""
-            )
-        }
-        for (regex, template) in cleanupRegexes {
-            out = regex.stringByReplacingMatches(
-                in: out,
-                range: NSRange(out.startIndex..., in: out),
-                withTemplate: template
-            )
-        }
-        return out.trimmingCharacters(in: .whitespacesAndNewlines)
+        CitationReconciliation.strippingReferenceMarkers(body)
     }
 
-    // MARK: - Citation reconciliation (the anti-fabrication guard)
+    static func quotedRefs(in body: String, retrieval: RetrievalResult) -> [Int] {
+        CitationReconciliation.quotedRefs(in: body, retrieval: retrieval)
+    }
 
-    private static let maxCitations = 3
-
-    /// Which journal entries this reply may be attributed to.
-    ///
-    /// Three sources, in priority order:
-    ///
-    /// 1. **What the model said it used** (`refs`), filtered to refs that were
-    ///    actually in the prompt — a hallucinated ref number cites nothing.
-    /// 2. **What the reply demonstrably quotes** (`quotedRefs(in:)`). Derived in
-    ///    Swift from the body, so it cannot be fabricated and does not depend on
-    ///    the model filling `citedRefs` — which it frequently does not, writing
-    ///    the field into its prose instead (see `AskAnswer`). This is what makes
-    ///    "the reply quoted an entry" and "the UI shows that entry" the same
-    ///    statement rather than two independent guesses.
-    /// 3. **The top reviewed entries**, only for a real topical match, so
-    ///    "Reviewed your journals" appears from the first delta and stays put.
-    ///
-    /// Ambient retrieval (recent life handed over as background, no topical
-    /// match) used to return `[]` unconditionally. That was the bug behind
-    /// replies that quoted an entry verbatim while the citation UI showed
-    /// nothing: the entries were in the prompt and quotable, but uncitable.
-    /// Ambient results are now citable — but they get no top-N fallback, so an
-    /// ambient turn cites exactly what it used and nothing more.
-    ///
-    /// `body` is nil on the pre-generation call that seeds the "Reviewed your
-    /// journals" link, where there is no reply text to check yet.
-    ///
-    /// Gating citations on a `.noMatch` stance was tried on 2026-08-23 and
-    /// reverted with the context-block change above: too many turns that the
-    /// journal genuinely answers are labelled `.noMatch` by retrieval, so the
-    /// gate silently stripped citations from correct, grounded replies.
     private static func reconcileCitations(_ refs: [Int], retrieval: RetrievalResult,
                                            question: String, body: String? = nil) -> [AskCitation] {
-        guard !retrieval.isEmpty else { return [] }
-        let byRef = Dictionary(uniqueKeysWithValues: retrieval.entries.map { ($0.ref, $0) })
-
-        var seen = Set<Int>()
-        var chosenRefs = refs.filter { byRef[$0] != nil && seen.insert($0).inserted }
-
-        if let body {
-            for ref in quotedRefs(in: body, retrieval: retrieval) where seen.insert(ref).inserted {
-                chosenRefs.append(ref)
-            }
-        }
-
-        if chosenRefs.isEmpty, !retrieval.isAmbient {
-            chosenRefs = retrieval.entries.prefix(maxCitations).map(\.ref)
-        }
-
-        return chosenRefs.prefix(maxCitations).compactMap { ref in
-            guard let entry = byRef[ref] else { return nil }
-            return AskCitation(
-                entryId: entry.id,
-                entryDate: entry.date,
-                excerpt: Self.previewExcerpt(entry.text, query: question)
-            )
-        }
-    }
-
-    /// Refs whose entry text the reply reproduces verbatim.
-    ///
-    /// Matching is on a normalised form — case, curly quotes, dashes and
-    /// whitespace all vary between what the model emits and what is stored, and
-    /// a quote that survives the model's typography is still a quote. The
-    /// 30-character window is long enough that ordinary shared phrasing ("I have
-    /// not felt") does not trip it, short enough to catch a clipped quote.
-    private static func quotedRefs(in body: String, retrieval: RetrievalResult) -> [Int] {
-        let needle = citationFold(body)
-        guard needle.count >= quoteWindow else { return [] }
-        let windows = Array(needle)
-        return retrieval.entries.compactMap { entry -> Int? in
-            let hay = citationFold(entry.text)
-            guard hay.count >= quoteWindow else { return nil }
-            for i in 0...(windows.count - quoteWindow) {
-                if hay.contains(String(windows[i..<(i + quoteWindow)])) { return entry.ref }
-            }
-            return nil
-        }
-    }
-
-    private static let quoteWindow = 30
-
-    private static func citationFold(_ s: String) -> String {
-        var t = s.lowercased()
-        for (from, to) in [("\u{2019}", "'"), ("\u{2018}", "'"),
-                           ("\u{201C}", "\""), ("\u{201D}", "\""),
-                           ("\u{2014}", "-"), ("\u{2013}", "-")] {
-            t = t.replacingOccurrences(of: from, with: to)
-        }
-        return t.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-    }
-
-    private static func previewExcerpt(_ text: String, query: String, window: Int = 120) -> String {
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count > window else { return clean }
-        // Center on the first query-term hit, else take the start.
-        let terms = query.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init).filter { $0.count > 3 }
-        let lower = clean.lowercased()
-        var start = clean.startIndex
-        for term in terms {
-            if let r = lower.range(of: term) {
-                start = r.lowerBound
-                break
-            }
-        }
-        let from = clean.index(start, offsetBy: -min(30, clean.distance(from: clean.startIndex, to: start)), limitedBy: clean.startIndex) ?? clean.startIndex
-        let to = clean.index(from, offsetBy: window, limitedBy: clean.endIndex) ?? clean.endIndex
-        var excerpt = String(clean[from..<to])
-        if from != clean.startIndex { excerpt = "…" + excerpt }
-        if to != clean.endIndex { excerpt += "…" }
-        return excerpt
+        CitationReconciliation.reconcileCitations(refs, retrieval: retrieval, question: question, body: body)
     }
 
     // MARK: - Errors & identifiers

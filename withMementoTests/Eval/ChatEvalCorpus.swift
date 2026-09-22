@@ -232,4 +232,37 @@ enum ChatEvalCorpus {
     static func daysAgo(_ n: Int) -> Date {
         Calendar.current.date(byAdding: .day, value: -n, to: Date()) ?? Date()
     }
+
+    /// Same question, two worlds. The ladder, not the model, explains the
+    /// difference: the present world can cite the entry; the absent world is
+    /// rung `none`.
+    struct CounterfactualPair {
+        let id: String
+        let question: String
+        let present: Entry
+        let absentNote: String
+    }
+
+    static let counterfactualPairs: [CounterfactualPair] = [
+        CounterfactualPair(
+            id: "dario-present-absent",
+            question: "Who is Dario",
+            present: Entry(
+                title: "Argument with Dario",
+                text: "Argument with Dario about the move. He wants to decide by the end of the month.",
+                createdAt: daysAgo(3)
+            ),
+            absentNote: "No entry names Dario, so the rung is none and nothing is cited."
+        ),
+        CounterfactualPair(
+            id: "coffee-true-then-ended",
+            question: "Am I still drinking the second coffee?",
+            present: Entry(
+                title: "Second coffee",
+                text: "Quit the second coffee last week. The morning is quieter without it.",
+                createdAt: daysAgo(6)
+            ),
+            absentNote: "The coffee fact ended in this world; the other world never had the entry."
+        )
+    ]
 }

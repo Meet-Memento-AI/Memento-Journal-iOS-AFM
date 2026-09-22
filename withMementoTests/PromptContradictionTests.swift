@@ -86,31 +86,26 @@ final class PromptContradictionTests: XCTestCase {
         }
     }
 
-    /// The converse. `.nearbyOnly` tells the model it is holding nearby entries;
-    /// if the block were absent that promise would be its own contradiction, so
-    /// `buildAskPrompt` downgrades the stance to `.noMatch` instead.
-    func test_nearbyOnlyStance_eitherCarriesEvidenceOrBecomesNoMatch() {
-        let withEvidence = prompt(stance: .nearbyOnly, retrieval: retrieval(ambient: true), channel: .notebook)
-        XCTAssertTrue(withEvidence.contains("[ref 1 |"))
-        XCTAssertTrue(withEvidence.contains(TurnStance.nearbyOnly.tagPrefix))
+    /// A miss does not quote the nearest entry and then deny it.
+    func test_miss_doesNotQuoteNearestEntry() {
+        let ambient = prompt(stance: .nearbyOnly, retrieval: retrieval(ambient: true), channel: .notebook)
+        XCTAssertFalse(ambient.contains("[ref 1 |"))
+        XCTAssertTrue(ambient.contains("I can't find an entry that supports that."))
+        XCTAssertFalse(ambient.contains("not an answer"))
 
-        let withNone = prompt(stance: .nearbyOnly, retrieval: .empty, channel: .notebook)
+        let withNone = prompt(stance: .noMatch, retrieval: .empty, channel: .notebook)
         XCTAssertFalse(withNone.contains("[ref 1 |"))
-        XCTAssertTrue(withNone.contains(TurnStance.noMatch.tagPrefix),
-                      "a nearby stance with no evidence must fall back to the honest-empty copy")
-        XCTAssertFalse(withNone.contains(TurnStance.nearbyOnly.tagPrefix))
+        XCTAssertTrue(withNone.contains(TurnStance.noMatch.tagPrefix))
     }
 
-    /// The stance that invites the model to name the nearest entry must never
-    /// also tell it the notebook is empty.
-    func test_nearbyOnlyCopy_neverDenies() {
+    func test_nearbyOnlyCopy_doesNotCiteThenDeny() {
         let line = TurnStance.nearbyOnly.promptLine
-        XCTAssertTrue(line.contains("not an answer"))
-        XCTAssertTrue(line.contains("never say you see nothing at all"))
+        XCTAssertFalse(line.contains("not an answer"))
+        XCTAssertFalse(line.contains("closest thing"))
         XCTAssertFalse(line.contains("you don't see anything"))
         let shape = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .nearbyOnly)
         XCTAssertNotNil(shape)
-        XCTAssertFalse(shape?.contains("you don't see it") ?? true)
+        XCTAssertFalse(shape?.contains("not-an-answer") ?? true)
         XCTAssertFalse(ConversationalMove.nearestThenAsk.cueLine.contains("don't see"))
     }
 }

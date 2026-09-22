@@ -42,7 +42,8 @@ enum SafetyRouter {
     static let crisisAcknowledgment =
         "I’m concerned about what you’re sharing. Please reach out for real support — I’m a journaling companion, not a crisis service."
 
-    /// Stance overlay prepended when generation continues under constraints.
+    /// Regulated-advice instruction. Not a bracket tag: the model copied
+    /// `[Safety: no advice]` into the bubble.
     static let constrainedStanceLine =
-        "[Safety: no advice — do not diagnose; do not give medical, legal, or financial instructions; do not say \"you should\"; reflect only, then one open question]"
+        "Do not diagnose. Do not give medical, legal, or financial instructions. Do not say \"you should\". Reflect only."
 }

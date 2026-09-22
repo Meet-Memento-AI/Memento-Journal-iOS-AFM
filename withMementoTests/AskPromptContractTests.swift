@@ -20,8 +20,8 @@ final class AskPromptContractTests: XCTestCase {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
             XCTAssertTrue(
-                text.contains("Never write a reference marker in the reply"),
-                "degraded=\(degraded): the marker ban must be explicit"
+                text.contains("Never write a [ref] number in the reply"),
+                "degraded=\(degraded): the [ref] ban must be explicit"
             )
             XCTAssertTrue(text.contains("[ref 2]"), "degraded=\(degraded): ban should show the form")
         }
@@ -99,7 +99,8 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertTrue(AskAnswerGuides.body.contains("Sound like a person talking"))
         XCTAssertTrue(AskAnswerGuides.body.contains("End with one specific question"))
         XCTAssertTrue(AskAnswerGuides.body.contains("skip the question only on goodbye"))
-        XCTAssertTrue(AskAnswerGuides.body.contains("only if this turn uses the journal"))
+        XCTAssertFalse(AskAnswerGuides.body.contains("only if this turn uses the journal"))
+        XCTAssertTrue(AskAnswerGuides.body.contains("one ### heading"))
         XCTAssertFalse(AskAnswerGuides.body.contains("Open only if a [Shape:] line asks"))
         XCTAssertFalse(AskAnswerGuides.body.contains("Meet them, Notebook, and Sit"))
         XCTAssertTrue(LightAskAnswerGuides.body.contains("One or two spoken sentences"))
@@ -166,9 +167,10 @@ final class AskPromptContractTests: XCTestCase {
             )
             XCTAssertTrue(text.contains("###"), "degraded=\(degraded): ### heading grammar")
             XCTAssertTrue(
-                text.contains("italic") || text.contains("*italic*"),
-                "degraded=\(degraded): italic quotes"
+                text.localizedCaseInsensitiveContains("never italics"),
+                "degraded=\(degraded): italics are the app's typography, never the model's"
             )
+            XCTAssertTrue(text.contains("{{quote:N}}"), "degraded=\(degraded): quotes arrive as markers")
             XCTAssertTrue(
                 text.contains("lists only if they asked what they")
                     || text.contains("lists only if they asked what they wrote"),
@@ -178,13 +180,8 @@ final class AskPromptContractTests: XCTestCase {
         }
         let full = PromptRegistry.instructions(for: .ask).text
         XCTAssertTrue(full.contains("Markdown you may use"))
-        // ask-core@19: the reply never quotes an entry — their own words are
-        // shown by the "Reviewed your journals" link, which is built from
-        // reconciled citations and so cannot contain anything retrieval did not
-        // place in context. A typed quote carries no such guarantee.
         XCTAssertFalse(full.contains("exact journal quotes"))
-        XCTAssertTrue(full.contains("Never italics"))
-        XCTAssertTrue(full.contains("Never quote an entry"))
+        XCTAssertTrue(full.contains("[Evidence] list"))
         XCTAssertTrue(full.contains("unordered lists starting with"))
         XCTAssertTrue(full.contains("ordered lists starting with"))
         XCTAssertTrue(PromptRegistry.channelSuffix(.meta).contains("what you can do together"))
@@ -620,6 +617,121 @@ final class AskPromptContractTests: XCTestCase {
                 "degraded=\(degraded): generative crisis counseling must be gone"
             )
         }
+    }
+
+    // MARK: - Spec 050: markers, not italics
+
+    private func groundedRetrieval(ambient: Bool = false) -> RetrievalResult {
+        let entries = [
+            RetrievedEntry(ref: 1, id: UUID(), date: Date(timeIntervalSince1970: 1_772_539_200),
+                           text: "Slept through the night for the first time in weeks. The house was quiet."),
+            RetrievedEntry(ref: 2, id: UUID(), date: Date(timeIntervalSince1970: 1_773_057_600),
+                           text: "Work was loud again today and I left with my jaw still tight.")
+        ]
+        return RetrievalResult(
+            entries: entries,
+            contextBlock: EntryRetriever.contextBlock(for: entries, ambient: ambient),
+            isAmbient: ambient
+        )
+    }
+
+    private func journalPrompt(
+        _ question: String, stance: TurnStance, channel: ReplyChannel, retrieval: RetrievalResult,
+        archiveEmpty: Bool = false
+    ) -> String {
+        FoundationModelsIntelligenceService.buildAskPrompt(
+            question: question,
+            history: [],
+            retrieval: retrieval,
+            stance: stance,
+            shape: .answerOpen,
+            archiveEmpty: archiveEmpty,
+            budget: ContextBudget(window: .unavailable),
+            channel: channel,
+            move: .patternThenAsk
+        )
+    }
+
+    func test_groundedNotebookPrompt_carriesTheEvidenceLegend_notTheItalicContract() {
+        let retrieval = groundedRetrieval()
+        let prompt = journalPrompt("How have I been sleeping?", stance: .journalGrounded,
+                                   channel: .notebook, retrieval: retrieval)
+        XCTAssertTrue(prompt.contains("[Evidence]"))
+        XCTAssertTrue(prompt.contains("{{quote:1}} = \"Slept through the night for the first time in weeks.\""))
+        XCTAssertTrue(prompt.contains("{{date:1}} = \(EntryRetriever.formattedDate(retrieval.entries[0].date))"))
+        XCTAssertTrue(prompt.contains("{{quote:2}}"))
+        XCTAssertTrue(prompt.contains("[ref 1 |"), "citedRefs addressing is unchanged")
+        XCTAssertFalse(prompt.contains("quoted: \""), "the legend carries the quote now")
+        XCTAssertFalse(prompt.contains("italic exact quote"))
+        XCTAssertFalse(prompt.contains("You wrote "), "the ladder no longer pastes journal text")
+    }
+
+    func test_groundedThreadPrompt_carriesTheSameLegend() {
+        let prompt = journalPrompt("tell me more", stance: .followupThread,
+                                   channel: .thread, retrieval: groundedRetrieval())
+        XCTAssertTrue(prompt.contains("[Evidence]"))
+        XCTAssertTrue(prompt.contains("{{quote:1}}"))
+        XCTAssertFalse(prompt.contains("quoted: \""))
+    }
+
+    func test_singleEntryLadder_pointsAtMarkers() {
+        let one = groundedRetrieval()
+        let single = RetrievalResult(
+            entries: [one.entries[0]],
+            contextBlock: EntryRetriever.contextBlock(for: [one.entries[0]], ambient: false),
+            isAmbient: false
+        )
+        let prompt = journalPrompt("What did I write about sleep?", stance: .journalGrounded,
+                                   channel: .notebook, retrieval: single)
+        XCTAssertTrue(prompt.contains("One entry answers this: {{date:1}} {{quote:1}}."))
+    }
+
+    func test_ambientPrompt_carriesBackgroundButNoQuoteMarkers() {
+        let prompt = journalPrompt("What have I been writing about lately?", stance: .journalGrounded,
+                                   channel: .notebook, retrieval: groundedRetrieval(ambient: true))
+        XCTAssertTrue(prompt.contains("[ref 1 |"), "ambient rows still ship as background")
+        XCTAssertTrue(prompt.contains(EvidencePack.ambientNote))
+        XCTAssertFalse(prompt.contains("{{quote:1}}"))
+        XCTAssertFalse(prompt.contains("quoted: \""), "an ambient row must not advertise a quotable field")
+    }
+
+    func test_missPrompt_carriesNoEvidenceAndNoMarkers() {
+        let prompt = journalPrompt("What did I write about my dog?", stance: .noMatch,
+                                   channel: .notebook, retrieval: groundedRetrieval(ambient: true))
+        XCTAssertFalse(prompt.contains("[ref 1 |"))
+        XCTAssertFalse(prompt.contains("{{quote:1}}"))
+        XCTAssertTrue(prompt.contains(EvidencePack.noneNote))
+        XCTAssertTrue(prompt.contains(TurnStance.noMatch.tagPrefix))
+    }
+
+    func test_lightChannels_neverMentionMarkers() {
+        for channel in [ReplyChannel.phatic, .continuer, .companion, .meta, .redirect] {
+            let prompt = journalPrompt("hello", stance: .casual, channel: channel, retrieval: groundedRetrieval())
+            XCTAssertFalse(prompt.contains("{{"), "\(channel)")
+            XCTAssertFalse(prompt.contains("[Evidence"), "\(channel)")
+        }
+    }
+
+    /// The live path hands `buildAskPrompt` the pack it renders with; the
+    /// derived pack must be the same one, or prompt and renderer drift.
+    func test_explicitPack_andDerivedPack_buildTheSamePrompt() {
+        let retrieval = groundedRetrieval()
+        let pack = EvidencePackBuilder.build(retrieval: retrieval, stance: .journalGrounded, channel: .notebook)
+        let derived = journalPrompt("How have I been sleeping?", stance: .journalGrounded,
+                                    channel: .notebook, retrieval: retrieval)
+        let explicit = FoundationModelsIntelligenceService.buildAskPrompt(
+            question: "How have I been sleeping?",
+            history: [],
+            retrieval: retrieval,
+            stance: .journalGrounded,
+            shape: .answerOpen,
+            archiveEmpty: false,
+            budget: ContextBudget(window: .unavailable),
+            channel: .notebook,
+            move: .patternThenAsk,
+            evidencePack: pack
+        )
+        XCTAssertEqual(derived, explicit)
     }
 
     private func assertShortAssembler(_ prompt: String, latest: String, file: StaticString = #filePath, line: UInt = #line) {

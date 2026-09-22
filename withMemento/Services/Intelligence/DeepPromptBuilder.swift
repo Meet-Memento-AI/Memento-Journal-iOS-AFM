@@ -177,6 +177,7 @@ enum DeepPromptBuilder {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         guard !terms.isEmpty else { return nil }
+        // budget-exempt: cluster label terms, not a model payload
         return terms.count == 1 ? terms[0] : terms.prefix(2).joined(separator: " and ")
     }
 

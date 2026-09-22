@@ -18,6 +18,29 @@ enum OutputSafetyScanner {
     /// Scan model output for policy leaks (methods, weapons how-to, diagnosis,
     /// crisis counseling voice, etc.). Runs on every streamed snapshot, so the
     /// packs below go through SafetyClassifier's compile-once regex cache.
+    /// Harness markup that must not reach the stored bubble. Safety scanning
+    /// still sees the stripped text.
+    static func strippingHarnessMarkup(_ body: String) -> String {
+        var text = body
+        if let regex = try? NSRegularExpression(pattern: #"\[Safety:[^\]]*\]"#) {
+            text = regex.stringByReplacingMatches(
+                in: text, range: NSRange(location: 0, length: (text as NSString).length), withTemplate: ""
+            )
+        }
+        text = text.replacingOccurrences(of: "[End of journal context]", with: "")
+        if let fence = text.range(of: "```", options: .backwards) {
+            let tail = text[fence.lowerBound...]
+            if !tail.dropFirst(3).contains("```") {
+                text.removeSubrange(fence.lowerBound..<text.endIndex)
+            }
+        }
+        while text.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("###") {
+            guard let range = text.range(of: "###", options: .backwards) else { break }
+            text.removeSubrange(range)
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     static func scan(_ text: String) -> OutputSafetyHit? {
         let normalized = SafetyClassifier.normalize(text)
         guard !normalized.isEmpty else { return nil }

@@ -106,6 +106,8 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
             return .answerThenAsk
         case .offdomain:
             return .redirectThenAsk
+        case .correction:
+            return .answerThenAsk
         }
     }
 

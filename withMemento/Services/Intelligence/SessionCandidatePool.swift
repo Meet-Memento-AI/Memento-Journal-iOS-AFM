@@ -19,6 +19,19 @@ struct SessionCandidatePool: Sendable, Equatable {
         surfacedIDs = []
     }
 
+    /// Tool results continue the ref sequence instead of restarting at 1.
+    static func renumber(_ entries: [RetrievedEntry], startingAt: Int) -> [RetrievedEntry] {
+        entries.enumerated().map { offset, entry in
+            RetrievedEntry(
+                ref: startingAt + offset,
+                id: entry.id,
+                date: entry.date,
+                text: entry.text,
+                quotedSpan: entry.quotedSpan
+            )
+        }
+    }
+
     mutating func ingest(_ entries: [RetrievedEntry]) {
         for entry in entries where !rankedIDs.contains(entry.id) {
             rankedIDs.append(entry.id)

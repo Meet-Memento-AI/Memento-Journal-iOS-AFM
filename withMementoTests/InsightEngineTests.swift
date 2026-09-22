@@ -483,4 +483,18 @@ final class InsightEngineTests: XCTestCase {
             ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts).isEmpty
         )
     }
+
+    func test_extractSubject_rejectsJunkLabels() {
+        let banned = ["from", "the", "didn", "fog", "app", "reply"]
+        for query in [
+            "how has the fog changed",
+            "how many times did I from the app",
+            "when did I last didn reply"
+        ] {
+            let subject = InsightEngine.extractSubject(query, window: nil)
+            XCTAssertFalse(banned.contains(subject), "\(query) labeled \(subject)")
+        }
+        let facts = InsightEngine.answer(query: "how has the fog changed", entries: [])
+        XCTAssertEqual(facts.first?.value, InsightEngine.unsupportedCopy)
+    }
 }

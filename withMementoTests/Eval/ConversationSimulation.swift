@@ -188,8 +188,14 @@ final class ConversationSimulation: XCTestCase {
 
             // --- the assistant's turn, through the path AIChatView uses
             let capped = Array(history.suffix(ChatService.historyMessageLimit))
-            let turnType = TurnClassifier.classify(cleanedUser, hasHistory: !capped.isEmpty)
-            let channel = ReplyChannel.resolve(turn: turnType, hasImages: false)
+            let answeringLastQuestion = ConversationalMove.lastAssistantQuestion(in: capped) != nil
+            let turnType = TurnClassifier.classify(
+                cleanedUser,
+                hasHistory: !capped.isEmpty,
+                lastAssistantAskedQuestion: answeringLastQuestion
+            )
+            let evidence: EvidenceState = arm.entries.isEmpty ? .none : .matched
+            let channel = ReplyChannel.resolve(turn: turnType, hasImages: false, evidence: evidence)
 
             var result: AskResult?
             var failure: String?
@@ -247,11 +253,24 @@ final class ConversationSimulation: XCTestCase {
                     ]
                 }
                 row["facts"] = Self.encodeFacts(result.facts)
+                row["render_version"] = ReplyRenderer.version
+                row["chips"] = result.chips.count
+                if let stats = result.renderStats {
+                    row["evidence_pack"] = Self.encodeRenderStats(stats)
+                }
                 let isCasual = turnType == .social || turnType == .acknowledgement
                 let cap = channel.maximumResponseTokens(retrievalRan: !result.citations.isEmpty)
+                let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
+                let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
+                let bodyEmpty = result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let openRequired = ResponsePolicyResolver.openRequired(
+                    policy: policy, bodyIsEmpty: bodyEmpty || result.promptVersion == "insight-fact@1"
+                )
                 let violations =
                     ChatEvalScoring.leaks(result.body)
-                    + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: arm.quoteIndex)
+                    + ChatEvalScoring.ruleBreaks(
+                        result.body, isCasual: isCasual, index: arm.quoteIndex, openRequired: openRequired
+                    )
                     + ChatEvalScoring.fabricatedQuotes(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations,
                                                    index: arm.quoteIndex)
@@ -467,6 +486,27 @@ final class ConversationSimulation: XCTestCase {
               let data = try? JSONEncoder().encode(facts),
               let decoded = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
         return decoded
+    }
+
+    /// Spec 050 R7: lets the analyzer split `hall.fabricatedQuote` by channel ×
+    /// citation × pack state, and read how often the model placed markers
+    /// versus wrote text the renderer had to adopt or drop.
+    private static func encodeRenderStats(_ stats: ReplyRenderStats) -> [String: Any] {
+        [
+            "state": stats.packState.rawValue,
+            "slots": stats.slotCount,
+            "expanded_quotes": stats.expandedQuoteSlots,
+            "expanded_dates": stats.expandedDateSlots,
+            "adopted_quotes": stats.adoptedQuoteCount,
+            "dropped_markers": stats.droppedMarkerCount,
+            "duplicate_quotes": stats.droppedDuplicateQuoteCount,
+            "stripped_italics": stats.strippedItalicCount,
+            "dropped_quotations": stats.droppedQuotationCount,
+            "unwrapped_bold": stats.unwrappedBoldCount,
+            "stripped_dates": stats.strippedDateCount,
+            "dropped_headings": stats.droppedHeadingCount,
+            "fallback": stats.usedFallback
+        ]
     }
 
     // MARK: - Sink

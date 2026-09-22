@@ -47,16 +47,20 @@ struct AskTranscriptPlan: Equatable, Sendable {
     /// `LocalChatStore` / `assistantContentJSON`.
     static let exemplarMarker = "[Exemplar]"
 
+    /// Marker form (spec 050): the pair teaches placing {{date:N}} and
+    /// {{quote:N}} from an [Evidence] list, never typing the quote.
     static let exemplarUser = """
     [Turn: journal question]
+    [Evidence]
+    1. {{date:1}} = August 14, 2026 · {{quote:1}} = "Four hours up, and at the top it broke open completely."
     \(exemplarMarker) What did I write about the hike?
     """
 
     static let exemplarAssistant = """
     You were up Mount Tamalpais with Maya when the fog broke.
 
-    ### 21 days ago
-    *Four hours up, and at the top it broke open completely.*
+    ### {{date:1}}
+    {{quote:1}}
 
     The climb and the quiet at the top sat in the same day.
 
@@ -79,8 +83,9 @@ struct AskTranscriptPlan: Equatable, Sendable {
             entries.append(.userPrompt(exemplarUser))
             entries.append(.assistantResponse(exemplarAssistant))
         }
-        for turn in history.suffix(budget.maxHistoryTurns) {
-            let text = String(turn.text.prefix(budget.maxHistoryCharsPerTurn))
+        let windowed = HistoryWindow.promptHistory(Array(history))
+        for turn in windowed.suffix(budget.maxHistoryTurns) {
+            let text = ContextBudget.clipToSentence(turn.text, limit: budget.maxHistoryCharsPerTurn)
             entries.append(turn.role == .user ? .userPrompt(text) : .assistantResponse(text))
         }
         return AskTranscriptPlan(

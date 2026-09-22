@@ -177,6 +177,14 @@ out of it.
 - Given a non-empty archive with ambient-only retrieval, when the prompt is built,
   then the stance and channel are already consistent and
   `stanceMatchingEvidence` changes nothing.
+
+**Amendment (2026-09-21, spec 049).** Delete the `nearbyOnly` instruction
+that tells the model the closest entry is not the answer and then quotes
+it. That sentence made every broad-recall and every "last Tuesday" opener
+cite an entry and deny it. Inventory with any hits uses the `exact` or
+`strong` rung. A true miss is rung `none` and does not quote a nearest
+entry. "I don't see anything from that stretch" is legal only on rung
+`none`.
 - Given `DiagTurnRouting`, when run, then its table reports the evidence state
   alongside the channel for every row.
 - Given a fresh 100-conversation zero-entry arm (`048` R5), when measured, then its
