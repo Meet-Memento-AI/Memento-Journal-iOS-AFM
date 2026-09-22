@@ -30,6 +30,19 @@ final class StarterOpensConversationTests: XCTestCase {
         return ChatViewModel(chatService: service)
     }
 
+    /// A card whose question is shown on screen. Built by hand rather than
+    /// from `DeepPromptBuilder` so this file tests the transcript property in
+    /// isolation; the generated prompts get their own routing guard.
+    private var analysisCard: ChatSuggestion {
+        ChatSuggestion(
+            label: "The thread through work",
+            seed: "Look across my entries about work and tell me what keeps coming up.",
+            themeName: "Patterns",
+            kind: .analysis,
+            promptText: "What keeps coming up when I write about work?"
+        )
+    }
+
     func test_tappingAStarter_appendsNoUserTurn() async {
         let model = viewModel()
         model.startConversation(about: ChatSuggestion.fallbackStarters[0])
@@ -89,5 +102,58 @@ final class StarterOpensConversationTests: XCTestCase {
 
         XCTAssertEqual(model.messages.count, before,
                        "a starter opened over an existing conversation")
+    }
+
+    // MARK: - Analysis cards
+
+    /// The bubble the person asked for — and the reason it cannot be a user
+    /// turn. `isStarterPrompt` renders like one without being one.
+    func test_tappingAnAnalysisCard_showsThePromptWithoutAUserTurn() async {
+        let model = viewModel()
+        model.startConversation(about: analysisCard)
+        try? await Task.sleep(for: .milliseconds(300))
+
+        XCTAssertTrue(
+            model.messages.allSatisfy { !$0.isFromUser },
+            "an analysis card wrote a turn as the person: "
+                + model.messages.filter(\.isFromUser).map(\.content).joined(separator: " | ")
+        )
+        XCTAssertEqual(
+            model.messages.filter(\.isStarterPrompt).map(\.content),
+            ["What keeps coming up when I write about work?"],
+            "the question that started the conversation is not in the transcript"
+        )
+    }
+
+    /// The seed reads like an instruction to the model. It is not what the
+    /// person sees, on either kind of card.
+    func test_analysisSeedIsNeverShownOnScreen() async {
+        let card = analysisCard
+        let model = viewModel()
+        model.startConversation(about: card)
+        try? await Task.sleep(for: .milliseconds(300))
+
+        for message in model.messages {
+            XCTAssertFalse(message.content.contains(card.seed),
+                           "the model-facing seed reached the transcript")
+        }
+    }
+
+    /// The whole reason the starter is not a user turn: this transcript
+    /// becomes a journal entry, and the person did not write the question.
+    func test_summaryNeverCarriesTheStarterPrompt() {
+        let prompt = "What keeps coming up when I write about work?"
+        let messages = [
+            ChatMessage.starterPrompt(text: prompt),
+            ChatMessage.aiMessage(body: "Work shows up mostly late at night."),
+            ChatMessage(content: "that tracks", isFromUser: true)
+        ]
+
+        let turns = ChatService.summaryTurns(from: messages)
+
+        XCTAssertFalse(turns.contains { $0.text == prompt },
+                       "the starter question reached the journal summariser")
+        XCTAssertEqual(turns.map(\.role), [.assistant, .user],
+                       "dropping the starter must not disturb the other turns")
     }
 }

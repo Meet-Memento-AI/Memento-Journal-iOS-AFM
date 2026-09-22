@@ -123,9 +123,21 @@ protocol ChatServiceProtocol: AnyObject {
     /// `spoken` is the narration fork (shorter caps + spoken shape).
     func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error>
 
-    /// Assistant-opened turn (a starter card). `seed` instructs the model and is
-    /// never stored as the person's turn.
-    func openConversationStream(seed: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error>
+    /// Card-opened turn. `seed` instructs the model and is never stored as the
+    /// person's turn.
+    ///
+    /// `starterPrompt` is the human-readable question the card asked; it is
+    /// persisted under the `starter` role so reloading the thread restores the
+    /// bubble. `title` names the conversation in history (the seed reads like
+    /// an instruction, so it makes a poor title). `deep` raises the notebook
+    /// token cap for the deliberate analysis path only.
+    func openConversationStream(
+        seed: String,
+        sessionId: UUID?,
+        starterPrompt: String?,
+        title: String?,
+        deep: Bool
+    ) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 extension ChatServiceProtocol {
@@ -133,7 +145,13 @@ extension ChatServiceProtocol {
 
     /// Mocks fall back to an ordinary send; only the live `ChatService`
     /// suppresses the stored user turn.
-    func openConversationStream(seed: String, sessionId: UUID?) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func openConversationStream(
+        seed: String,
+        sessionId: UUID?,
+        starterPrompt: String? = nil,
+        title: String? = nil,
+        deep: Bool = false
+    ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         sendMessageStream(seed, sessionId: sessionId, images: [], spoken: false)
     }
 
@@ -366,15 +384,31 @@ class ChatService {
     /// events (so the bubble fills as it generates), then persists the turn and
     /// emits `.final`. Persistence and citation mapping run *after* the stream
     /// so nothing blocks first-token.
-    func openConversationStream(seed: String, sessionId: UUID? = nil) -> AsyncThrowingStream<ChatStreamEvent, Error> {
-        stream(seed, sessionId: sessionId, images: [], spoken: false, persistUserTurn: false)
+    func openConversationStream(
+        seed: String,
+        sessionId: UUID? = nil,
+        starterPrompt: String? = nil,
+        title: String? = nil,
+        deep: Bool = false
+    ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        stream(seed, sessionId: sessionId, images: [], spoken: false, persistUserTurn: false,
+               starterPrompt: starterPrompt, title: title, deep: deep)
     }
 
     func sendMessageStream(_ text: String, sessionId: UUID? = nil, images: [Data] = [], spoken: Bool = false) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         stream(text, sessionId: sessionId, images: images, spoken: spoken, persistUserTurn: true)
     }
 
-    private func stream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool, persistUserTurn: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    private func stream(
+        _ text: String,
+        sessionId: UUID?,
+        images: [Data],
+        spoken: Bool,
+        persistUserTurn: Bool,
+        starterPrompt: String? = nil,
+        title: String? = nil,
+        deep: Bool = false
+    ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let conversationId = sessionId ?? UUID()
@@ -390,6 +424,7 @@ class ChatService {
                         history: history,
                         images: images,
                         spoken: spoken,
+                        deep: deep,
                         loadEntries: { await entriesTask.value }
                     ) {
                         switch event {
@@ -416,8 +451,13 @@ class ChatService {
                     let persistState = PerfSignposts.chatTurn.beginInterval("persist.turn")
                     Self.persistTurnPair(
                         conversationId: conversationId,
-                        title: String(text.prefix(100)),
+                        // `text` is the model-facing seed on a card-opened
+                        // turn, so titling from it listed threads in history
+                        // as "Open the conversation by asking them about…".
+                        // Callers that have a human title pass one.
+                        title: title ?? String(text.prefix(100)),
                         userText: persistUserTurn ? text : "",
+                        starterPrompt: starterPrompt,
                         assistantJSON: Self.assistantContentJSON(
                             body: result.body, heading1: result.heading1, heading2: result.heading2,
                             sources: sources, promptVersion: result.promptVersion,
@@ -508,12 +548,21 @@ class ChatService {
         conversationId: UUID,
         title: String,
         userText: String,
+        starterPrompt: String? = nil,
         assistantJSON: String,
         zone: String = "z0Device",
         wasDegraded: Bool = false,
         promptVersion: String = ""
     ) {
         MementoDataStore.upsertConversation(id: conversationId, title: title)
+        // A suggestion card's question, under its own role so reloading the
+        // thread restores the bubble. Stored as `starter`, never `user`: the
+        // role is what `summarizeChat` and the transcript both key off, and
+        // filing it as the person's turn is what would write it into their
+        // journal as a sentence they never typed.
+        if let starterPrompt, !starterPrompt.isEmpty {
+            MementoDataStore.appendTurn(conversationId: conversationId, role: "starter", text: starterPrompt)
+        }
         // An assistant-opened turn has no user message. Storing an empty one
         // would resurrect it as a blank user bubble on reload, and feed it to
         // `summarizeChat` as something the person said.
@@ -530,6 +579,9 @@ class ChatService {
         )
         if !MementoDataStore.hasCompletedLegacyImport {
             LocalChatStore.shared.upsertSession(id: conversationId, title: title)
+            if let starterPrompt, !starterPrompt.isEmpty {
+                LocalChatStore.shared.appendMessage(role: "starter", content: starterPrompt, to: conversationId)
+            }
             if !userText.isEmpty {
                 LocalChatStore.shared.appendMessage(role: "user", content: userText, to: conversationId)
             }
@@ -584,11 +636,23 @@ class ChatService {
 
     /// The model-facing history for a conversation, rebuilt from the store's
     /// trailing records (single source of truth, spec 017 R9).
+    /// Roles that become a `.user` turn in model-facing history.
+    ///
+    /// `starter` is here on purpose. The question a card asked is what the
+    /// answer is an answer *to*, so leaving it out (or worse, filing it as
+    /// `.assistant`, which is where any non-`user` role lands by default)
+    /// makes the second turn of a card-opened conversation incoherent — the
+    /// model sees its own analysis with nothing that prompted it. Attributing
+    /// it to the person is safe here because this history never reaches
+    /// `summarizeChat`, which is the one path that writes to the journal and
+    /// which drops starter turns outright.
+    static let userRoles: Set<String> = ["user", "starter"]
+
     static func recentHistory(for conversationId: UUID) -> [ChatTurn] {
         if MementoDataStore.hasCompletedLegacyImport {
             return Array(MementoDataStore.turns(conversationId: conversationId).suffix(historyMessageLimit))
                 .map { dto in
-                    dto.role == "user"
+                    userRoles.contains(dto.role)
                         ? ChatTurn(role: .user, text: dto.content)
                         : ChatTurn(role: .assistant, text: unwrapAssistantBody(dto.content))
                 }
@@ -596,7 +660,7 @@ class ChatService {
         return LocalChatStore.shared
             .recentTurnRecords(for: conversationId, limit: historyMessageLimit)
             .map { record in
-                record.role == "user"
+                userRoles.contains(record.role)
                     ? ChatTurn(role: .user, text: record.content)
                     : ChatTurn(role: .assistant, text: unwrapAssistantBody(record.content))
             }
@@ -606,7 +670,7 @@ class ChatService {
     /// unwrapping each assistant message's `{…, body}` JSON back to plain text.
     static func historyTurns(from dtos: [ChatMessageDTO]) -> [ChatTurn] {
         dtos.map { dto in
-            dto.role == "user"
+            userRoles.contains(dto.role)
                 ? ChatTurn(role: .user, text: dto.content)
                 : ChatTurn(role: .assistant, text: unwrapAssistantBody(dto.content))
         }
@@ -663,11 +727,28 @@ class ChatService {
 
     // MARK: - Chat Summary
 
+    /// The transcript as the summariser sees it.
+    ///
+    /// Starter-card questions are dropped, not re-filed. `isFromUser` is false
+    /// for them, so without this they would map to `.assistant` and the summary
+    /// would attribute a question to the assistant that it never asked — and
+    /// filing them as `.user` instead would be worse still, writing them into
+    /// the person's own journal as a sentence they never wrote. Neither role is
+    /// right, so neither is used.
+    ///
+    /// Static and internal so the property can be tested directly rather than
+    /// through a live generation. `SummaryExcludesStarterTests` pins it.
+    static func summaryTurns(from messages: [ChatMessage]) -> [ChatTurn] {
+        messages
+            .filter { !$0.isStarterPrompt }
+            .map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
+    }
+
     /// Summarizes a chat conversation into a journal entry, on-device.
     func summarizeChat(messages: [ChatMessage], sessionId: UUID?) async throws -> ChatSummaryResponse {
                 AppLogger.log("📝 [ChatService] Summarizing chat on-device (\(messages.count) messages)...")
 
-        let turns = messages.map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
+        let turns = Self.summaryTurns(from: messages)
         let outcome = try await intelligence.summarizeConversation(turns)
 
                 AppLogger.log("✅ [ChatService] Summary generated title=\(outcome.value.title.prefix(40)) "

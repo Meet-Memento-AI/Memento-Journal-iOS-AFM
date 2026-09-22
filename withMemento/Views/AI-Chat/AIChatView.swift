@@ -54,6 +54,9 @@ public struct AIChatView: View {
     /// Confirmed theme ids the current chips were built from. Re-rotate when
     /// the user edits journal goals so pills stay in sync.
     @State private var suggestionThemeSignature: [String] = []
+    /// Bumped on every rotation so an in-flight archive read cannot land its
+    /// cards over a newer rotation (theme change, conversation cleared).
+    @State private var suggestionGeneration: Int = 0
 
     private let hasEntries: Bool
     /// When set, the view opens already in Narration Mode with this phase —
@@ -492,8 +495,38 @@ public struct AIChatView: View {
     }
 
     private func rotateSuggestions() {
+        // Opener cards land synchronously so the empty state is never blank.
+        // Deep cards replace them once the archive has been read, which needs
+        // entries off disk and through decryption — too slow for `onAppear`.
         currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
         suggestionThemeSignature = LocalProfileStore.ensureMigratedProfile().confirmedThemeIds
+        suggestionGeneration &+= 1
+        guard hasEntries, seededSuggestions == nil else { return }
+
+        let generation = suggestionGeneration
+        Task {
+            let deep = await Self.deepSuggestions()
+            guard !deep.isEmpty,
+                  generation == suggestionGeneration,
+                  viewModel.messages.isEmpty else { return }
+            currentSuggestions = deep
+        }
+    }
+
+    /// Cards built from the archive, or `[]` when there is too little in it.
+    ///
+    /// Off the main actor: `loadAllEntriesLocally` decrypts every entry.
+    private static func deepSuggestions() async -> [ChatSuggestion] {
+        await Task.detached(priority: .userInitiated) {
+            let entries = JournalService.shared.loadAllEntriesLocally(
+                legacyPIN: SecurityService.shared.getPIN()
+            )
+            guard !entries.isEmpty else { return [] }
+            return DeepPromptBuilder.prompts(
+                entries: entries,
+                moodLabels: MementoDataStore.moodLabelsByEntry()
+            )
+        }.value
     }
 
     private func dismissKeyboard() {

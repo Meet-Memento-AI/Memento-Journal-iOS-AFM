@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook and ### only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording. Never italics and never quote an entry back — their own words are shown by the citation link, so a quote you type is one you could have invented. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook, ###, and italic quotes only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Notebook and ### only if this turn uses the journal; otherwise leave citedRefs empty. Markdown subset allowed when the journal is in play: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording. Never italics and never quote an entry back — their own words are shown by the citation link, so a quote you type is one you could have invented. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -839,6 +839,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let entries: [Entry]
         let images: [Data]
         let spoken: Bool
+        /// Suggestion-card analysis path — raises the notebook token cap.
+        let deep: Bool
         let safety: SafetyDecision
         let turn: TurnType
         let channel: ReplyChannel
@@ -854,7 +856,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         func replacingEntries(_ entries: [Entry]) -> AskCore {
             AskCore(
                 question: question, history: history, entries: entries, images: images,
-                spoken: spoken, safety: safety, turn: turn, channel: channel, route: route,
+                spoken: spoken, deep: deep, safety: safety, turn: turn, channel: channel, route: route,
                 budget: budget, promptCap: promptCap, poolLimits: poolLimits,
                 resolved: resolved, request: request, plan: plan,
                 storedPersonalization: storedPersonalization
@@ -886,7 +888,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private func prepareAskCore(
-        question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
+        question: String, history: [ChatTurn], entries: [Entry], images: [Data],
+        spoken: Bool = false, deep: Bool = false
     ) async throws -> AskCore {
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
@@ -961,6 +964,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
+            deep: deep,
             safety: safety, turn: turn, channel: channel, route: route, budget: budget,
             promptCap: limits.maxEntries,
             poolLimits: RetrievalLimits(
@@ -1101,6 +1105,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             for: core.channel,
             retrievalRan: retrievalRan,
             spoken: core.spoken,
+            deep: core.deep,
             toolsAttached: toolsAttached
         )
         return AskPreparation(
@@ -1270,12 +1275,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         for channel: ReplyChannel,
         retrievalRan: Bool,
         spoken: Bool,
+        deep: Bool = false,
         toolsAttached: Bool = false
     ) -> GenerationOptions {
         _ = toolsAttached
         return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
-            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
+            maximumResponseTokens: channel.maximumResponseTokens(
+                retrievalRan: retrievalRan, spoken: spoken, deep: deep
+            )
         )
     }
 
@@ -1522,6 +1530,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         history: [ChatTurn],
         images: [Data],
         spoken: Bool,
+        deep: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
@@ -1533,7 +1542,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
                     let core = try await prepareAskCore(
-                        question: question, history: history, entries: [], images: images, spoken: spoken
+                        question: question, history: history, entries: [], images: images,
+                        spoken: spoken, deep: deep
                     )
                     if core.channel == .statistic {
                         let entries = await loadEntries()

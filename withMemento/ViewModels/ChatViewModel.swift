@@ -91,6 +91,11 @@ class ChatViewModel: ObservableObject {
         var userCount = 0
         var assistantCount = 0
         for message in messages {
+            // A starter prompt is neither side's turn, so it counts toward
+            // neither. Counting it as an assistant reply would let Summarize
+            // light up on a card tap plus one answer — a conversation the
+            // person has not yet said anything in.
+            if message.isStarterPrompt { continue }
             if message.isFromUser {
                 if countsAsUserTurn(message) { userCount += 1 }
             } else if countsAsAssistantReply(message) {
@@ -366,7 +371,27 @@ class ChatViewModel: ObservableObject {
     /// transcript.
     func startConversation(about suggestion: ChatSuggestion) {
         guard !isLoading, messages.isEmpty else { return }
-        performSend(text: suggestion.seed, userMessageId: nil, origin: .composer)
+
+        switch suggestion.kind {
+        case .opener:
+            // The assistant asks them a question. Nothing is shown as having
+            // been asked, because nothing was.
+            performSend(text: suggestion.seed, userMessageId: nil, origin: .composer)
+
+        case .analysis:
+            // The card asked a real question about the archive, so show it.
+            // This bubble is not a user turn — see `ChatMessage.isStarterPrompt`.
+            let prompt = suggestion.promptText ?? suggestion.label
+            appendMessage(ChatMessage.starterPrompt(text: prompt))
+            performSend(
+                text: suggestion.seed,
+                userMessageId: nil,
+                origin: .composer,
+                starterPrompt: prompt,
+                title: suggestion.label,
+                deep: true
+            )
+        }
     }
 
     /// Copy the model reads when the person sends photos without typing.
@@ -437,15 +462,28 @@ class ChatViewModel: ObservableObject {
     /// `ChatService.summarizeChat` maps on-screen messages to `ChatTurn`s by
     /// `isFromUser` and writes them into a journal entry. A seeded user bubble
     /// would be summarised back to them as their own words.
-    private func performSend(text: String, images: [Data] = [], userMessageId: UUID?, origin: SendOrigin) {
+    private func performSend(
+        text: String,
+        images: [Data] = [],
+        userMessageId: UUID?,
+        origin: SendOrigin,
+        starterPrompt: String? = nil,
+        title: String? = nil,
+        deep: Bool = false
+    ) {
         isLoading = true
         let generation = sendGeneration
         // Prior turns only — the current user message is already appended,
         // except on an assistant-opened turn where there is no user message.
         let prior = userMessageId == nil ? Array(messages) : Array(messages.dropLast())
-        let priorHistory: [ChatTurn] = prior.map {
-            ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content)
-        }
+        // The starter bubble for *this* turn is already on screen and its
+        // question is what `text` is about to ask, so including it here would
+        // hand the model the same question twice — and as an `.assistant` turn,
+        // since `isFromUser` is false for it. Starters from earlier turns come
+        // back through the store's `starter` role instead.
+        let priorHistory: [ChatTurn] = prior
+            .filter { !$0.isStarterPrompt }
+            .map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
         let answeringLastQuestion = origin == .narration
             && ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
         let turn = TurnClassifier.classify(
@@ -533,7 +571,13 @@ class ChatViewModel: ObservableObject {
 
             do {
                 let events = userMessageId == nil
-                    ? chatService.openConversationStream(seed: text, sessionId: currentSessionId)
+                    ? chatService.openConversationStream(
+                        seed: text,
+                        sessionId: currentSessionId,
+                        starterPrompt: starterPrompt,
+                        title: title,
+                        deep: deep
+                    )
                     : chatService.sendMessageStream(
                         text, sessionId: currentSessionId, images: images,
                         spoken: origin == .narration
@@ -758,6 +802,13 @@ class ChatViewModel: ObservableObject {
                         zone: extracted.zone,
                         wasDegraded: extracted.wasDegraded
                     )
+                }
+
+                // A suggestion card's question. Restored as a starter, never
+                // as a user turn, so reopening the thread cannot turn it into
+                // something the person said.
+                if dto.role == "starter" {
+                    return ChatMessage.starterPrompt(id: dto.id, text: dto.content, isNew: false)
                 }
 
                 // User messages: isNew = false (default)
@@ -1068,7 +1119,9 @@ class ChatViewModel: ObservableObject {
         }
         let assistant = messages[index]
         let prompt: String
-        if index > 0, messages[index - 1].isFromUser {
+        // A starter prompt is the question this reply answers, so a reported
+        // answer is attributed to it exactly as a typed question would be.
+        if index > 0, messages[index - 1].isFromUser || messages[index - 1].isStarterPrompt {
             prompt = messages[index - 1].content
         } else {
             prompt = ""

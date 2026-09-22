@@ -1,6 +1,6 @@
 //
 //  ChatMessageBubble.swift
-//  MeetMemento
+//  withMemento
 //
 //  Message bubble component for AI Chat interface
 //
@@ -76,7 +76,19 @@ public struct ChatMessageBubble: View {
     }
 
     public var body: some View {
-        if message.isFromUser {
+        if message.isStarterPrompt {
+            // The question a suggestion card asked. Rendered as the user
+            // bubble so the transcript shows what started the conversation,
+            // but deliberately without the resend menu or the retry row:
+            // the person never typed this, so there is nothing of theirs to
+            // send again. `isStarterPrompt` is checked before `isFromUser`
+            // because it is false for these — see `ChatMessage`.
+            HStack(alignment: .top, spacing: UserBubbleSurface.rowSpacing) {
+                Spacer(minLength: UserBubbleSurface.leadingGutter)
+
+                UserBubbleSurface(text: message.content, imageJPEGs: [])
+            }
+        } else if message.isFromUser {
             // User messages: right-aligned with bubble background
             HStack(alignment: .top, spacing: UserBubbleSurface.rowSpacing) {
                 Spacer(minLength: UserBubbleSurface.leadingGutter)

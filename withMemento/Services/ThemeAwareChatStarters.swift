@@ -40,6 +40,26 @@ import Foundation
 /// These open in the present tense and lean on nothing in the archive, because
 /// the person most likely to be looking at them has written nothing yet — where
 /// the old recall starters answered "0 times".
+/// What tapping a card is supposed to do.
+///
+/// The two kinds differ in who speaks first, which is why they cannot share a
+/// code path:
+///
+/// - `.opener` — the archive is thin or the person is new. The assistant asks
+///   *them* a question and nothing is shown as having been asked. This is the
+///   original behaviour and everything documented above applies to it.
+/// - `.analysis` — the archive has enough in it to be read. The card carries a
+///   real question about the journal, that question is shown in the transcript
+///   as `promptText`, and the answer comes back grounded in retrieved entries.
+///
+/// An `.analysis` seed must classify as `TurnType.journalQuery` so it routes to
+/// `ReplyChannel.notebook` — the only channel that both retrieves and runs the
+/// model. `DeepPromptRoutingTests` fails if one ever routes to `.quantitative`.
+enum ChatSuggestionKind: Hashable {
+    case opener
+    case analysis
+}
+
 struct ChatSuggestion: Hashable, Identifiable {
     let id: UUID
     /// The card face. A topic, in the app's voice — never first person.
@@ -48,12 +68,29 @@ struct ChatSuggestion: Hashable, Identifiable {
     /// turn by the person.
     let seed: String
     let themeName: String?
+    let kind: ChatSuggestionKind
+    /// For `.analysis` only: the question shown in the transcript as the turn
+    /// that started the conversation. Nil for `.opener`, which shows nothing.
+    ///
+    /// This is deliberately not the `seed`. The seed is an instruction written
+    /// for the model and reads like one; this is the same question written for
+    /// a person to read back.
+    let promptText: String?
 
-    init(label: String, seed: String, themeName: String?, id: UUID = UUID()) {
+    init(
+        label: String,
+        seed: String,
+        themeName: String?,
+        kind: ChatSuggestionKind = .opener,
+        promptText: String? = nil,
+        id: UUID = UUID()
+    ) {
         self.id = id
         self.label = label
         self.seed = seed
         self.themeName = themeName
+        self.kind = kind
+        self.promptText = promptText
     }
 
     /// Canvas-only starters so AIChatView previews show pills without writing

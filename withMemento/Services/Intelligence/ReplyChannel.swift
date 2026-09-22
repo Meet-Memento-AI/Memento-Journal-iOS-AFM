@@ -1,6 +1,6 @@
 //
 //  ReplyChannel.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 039: the only mapping from TurnType (+ photos) to a generation
 //  recipe. Rank 0 is cheapest. Skipping a rank (ask@14 + 512 tokens on a
@@ -160,7 +160,13 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// (one or two spoken sentences plus a question); meta stays 128 for
     /// about-the-app lists. Notebook/thread drop to 256 so Meet + one Sit
     /// beat + Open still fit without a spoken essay.
-    func maximumResponseTokens(retrievalRan: Bool, spoken: Bool = false) -> Int {
+    /// `deep` is the suggestion-card analysis path: the person tapped a card
+    /// asking the archive to be read across many entries, and is waiting on a
+    /// synthesis rather than a chat reply. Only notebook/thread honour it, and
+    /// only when typed — narration keeps its 256 so a spoken answer never
+    /// becomes an essay. Typed questions the person wrote themselves stay at
+    /// 512, so ordinary chat latency is unchanged.
+    func maximumResponseTokens(retrievalRan: Bool, spoken: Bool = false, deep: Bool = false) -> Int {
         switch self {
         case .phatic: return 80
         case .continuer, .statistic: return 64
@@ -168,6 +174,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         case .companion: return spoken ? 80 : 128
         case .thread, .notebook:
             if spoken { return 256 }
+            if deep { return 1024 }
             return PromptExperiments.typedNotebookCap256 ? 256 : 512
         case .redirect: return 80
         }

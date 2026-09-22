@@ -1,6 +1,6 @@
 //
 //  IntelligenceService.swift
-//  MeetMemento
+//  withMemento
 //
 //  The app's single intelligence boundary (architecture principle P3 /
 //  REQ-INT-001, spec 017). Every AI surface depends on THIS protocol; only the
@@ -334,11 +334,16 @@ protocol IntelligenceService: Sendable {
     /// Streaming Ask that loads the journal only after the channel is known.
     /// No-RAG turns must not await `loadEntries`. The protocol extension
     /// loads eagerly and forwards; the Foundation Models service overrides.
+    ///
+    /// `deep` is the suggestion-card analysis path: the person asked for the
+    /// archive to be read across many entries and is waiting on a synthesis,
+    /// so notebook/thread get a larger token cap. Typed chat passes false.
     func askStream(
         _ question: String,
         history: [ChatTurn],
         images: [Data],
         spoken: Bool,
+        deep: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error>
 
@@ -438,6 +443,7 @@ extension IntelligenceService {
         askStream(question, history: history, entries: entries, images: images, spoken: false)
     }
 
+    /// Back-compat overload for callers that never ask for the deep path.
     func askStream(
         _ question: String,
         history: [ChatTurn],
@@ -445,7 +451,22 @@ extension IntelligenceService {
         spoken: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
-        AsyncThrowingStream { continuation in
+        askStream(question, history: history, images: images, spoken: spoken,
+                  deep: false, loadEntries: loadEntries)
+    }
+
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        deep: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        // The eager fallback has no channel gate, so `deep` cannot change the
+        // cap here; the Foundation Models service overrides this.
+        _ = deep
+        return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let entries = await loadEntries()
