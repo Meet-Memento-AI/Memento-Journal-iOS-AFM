@@ -43,6 +43,23 @@ final class StarterOpensConversationTests: XCTestCase {
         )
     }
 
+    /// Every card kind now shows what it asked. The bubble is a starter turn,
+    /// never the person's — which is the property the rest of this file pins.
+    func test_tappingAnOpener_showsItsBubble() async {
+        let opener = ChatSuggestion.fallbackStarters[0]
+        let model = viewModel()
+        model.startConversation(about: opener)
+        try? await Task.sleep(for: .milliseconds(300))
+
+        XCTAssertEqual(
+            model.messages.filter(\.isStarterPrompt).map(\.content),
+            [opener.promptText ?? opener.label],
+            "tapping an opener left no visible cause for the reply that followed"
+        )
+        XCTAssertTrue(model.messages.allSatisfy { !$0.isFromUser },
+                      "the opener bubble was filed as the person's turn")
+    }
+
     func test_tappingAStarter_appendsNoUserTurn() async {
         let model = viewModel()
         model.startConversation(about: ChatSuggestion.fallbackStarters[0])

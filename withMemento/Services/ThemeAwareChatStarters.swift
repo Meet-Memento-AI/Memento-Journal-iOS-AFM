@@ -106,22 +106,27 @@ struct ChatSuggestion: Hashable, Identifiable {
     /// person looking at the empty state has most likely written nothing — which
     /// is where the old recall starters answered "0 times".
     private static let openers: [ChatSuggestion] = [
-        ChatSuggestion(
-            label: "The week you've had",
-            seed: "Open the conversation by asking how their week has actually been.",
-            themeName: "Wellness"
-        ),
-        ChatSuggestion(
-            label: "Something small that went right",
-            seed: "Open the conversation by asking about one small thing that went right today.",
-            themeName: "Gratitude"
-        ),
-        ChatSuggestion(
-            label: "A thing you keep coming back to",
-            seed: "Open the conversation by asking what keeps returning to them lately.",
-            themeName: "Mindfulness"
-        )
+        opener(card: "The week you've had",
+               opens: "Let's talk about the week I've had.",
+               theme: "Wellness"),
+        opener(card: "Something small that went right",
+               opens: "Let's talk about something small that went right.",
+               theme: "Gratitude"),
+        opener(card: "A thing you keep coming back to",
+               opens: "Let's talk about a thing I keep coming back to.",
+               theme: "Mindfulness")
     ]
+
+    /// One opener card, with the three strings kept in step.
+    static func opener(card: String, opens: String, theme: String?) -> ChatSuggestion {
+        ChatSuggestion(
+            label: card,
+            seed: ThemeAwareChatStarters.seed(forOpening: opens),
+            themeName: theme,
+            kind: .opener,
+            promptText: opens
+        )
+    }
 }
 
 enum ThemeAwareChatStarters {
@@ -138,12 +143,8 @@ enum ThemeAwareChatStarters {
         var pool: [ChatSuggestion] = []
         for name in names {
             let lower = name.lowercased()
-            for topic in templates(for: lower, display: name) {
-                pool.append(ChatSuggestion(
-                    label: topic,
-                    seed: Self.seed(forTopic: topic),
-                    themeName: name
-                ))
+            for pair in templates(for: lower, display: name) {
+                pool.append(ChatSuggestion.opener(card: pair.card, opens: pair.opens, theme: name))
             }
         }
 
@@ -184,10 +185,8 @@ enum ThemeAwareChatStarters {
                 theme = pillNames[themeCursor % pillNames.count]
             }
             themeCursor += 1
-            result.append(ChatSuggestion(
-                label: topic,
-                seed: Self.seed(forTopic: topic),
-                themeName: theme
+            result.append(ChatSuggestion.opener(
+                card: topic, opens: opensLine(forCard: topic), theme: theme
             ))
         }
         return filled(result, limit: limit)
@@ -205,7 +204,20 @@ enum ThemeAwareChatStarters {
     /// past two weeks?" shipped in the pool while a green test forbade the
     /// phrase. It lives here now so `ThemePriorTests.allStarterPrompts` and the
     /// routing guard in `TurnClassifierTests` can both reach it.
-    static var genericPool: [String] {
+    /// One authored pair: the tile face, and the line the person's bubble shows.
+    ///
+    /// Both are written by hand. Deriving `opens` from `card` was tried and
+    /// abandoned — a second-to-first-person transform cannot tell the noun
+    /// "something" from a verb, so "Something you noticed about yourself"
+    /// became "Something me noticed about myself". A rule that is wrong on
+    /// 5 of 44 entries is worse than a file someone has to keep in step,
+    /// because nothing tells you when it breaks on entry 45.
+    struct StarterPrompt: Decodable, Hashable {
+        let card: String
+        let opens: String
+    }
+
+    static var genericEntries: [StarterPrompt] {
         if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
            let data = try? Data(contentsOf: url),
            let json = try? JSONDecoder().decode(PromptsFile.self, from: data),
@@ -215,21 +227,32 @@ enum ThemeAwareChatStarters {
         return bundledOpeners
     }
 
+    /// Tile faces only — what the routing and phrase guards walk.
+    static var genericPool: [String] { genericEntries.map(\.card) }
+
+    /// The authored bubble line for a card, or the card itself when it did not
+    /// come from the file (tests inject their own pools).
+    static func opensLine(forCard card: String) -> String {
+        genericEntries.first { $0.card == card }?.opens ?? card
+    }
+
     /// Used only when the resource is missing. Kept short and in the same voice
     /// as the file — the old inline fallback was a second copy of the archive
     /// queries, so a missing resource silently restored the behaviour the file
     /// was re-authored to remove.
-    private static let bundledOpeners: [String] = [
-        "The week you've had",
-        "Something small that went right",
-        "A thing you keep coming back to",
-        "How today actually went",
-        "How you've been sleeping",
-        "Thinking out loud"
+    private static let bundledOpeners: [StarterPrompt] = [
+        .init(card: "The week you've had", opens: "Let's talk about the week I've had."),
+        .init(card: "Something small that went right",
+              opens: "Let's talk about something small that went right."),
+        .init(card: "A thing you keep coming back to",
+              opens: "Let's talk about a thing I keep coming back to."),
+        .init(card: "How today actually went", opens: "Let's talk about how today actually went."),
+        .init(card: "How you've been sleeping", opens: "Let's talk about how I've been sleeping."),
+        .init(card: "Thinking out loud", opens: "I just want to think out loud for a bit.")
     ]
 
     private struct PromptsFile: Decodable {
-        let prompts: [String]
+        let prompts: [StarterPrompt]
     }
 
     /// Exactly `limit` cards, no two showing the same face.
@@ -272,8 +295,20 @@ enum ThemeAwareChatStarters {
     ///
     /// The person never sees this and it is never stored as their turn — it
     /// exists only so the model has something to speak first about.
-    static func seed(forTopic topic: String) -> String {
-        "Open the conversation by asking them about this, in one question: \(topic)."
+    /// What the model is asked to do once the person's bubble is on screen.
+    ///
+    /// The old seed said "open the conversation by asking them about this",
+    /// which was right while tapping a card showed nothing: the assistant had
+    /// to raise the topic because nobody else had. Now the card puts the
+    /// person's line in the transcript first, so re-asking reads as if the
+    /// assistant did not read it — "Let's talk about the week I've had." met
+    /// with "How has your week been?".
+    ///
+    /// Still one question, because there is nothing in the archive to answer
+    /// from: the opener path is what a thin journal falls back to.
+    static func seed(forOpening opens: String) -> String {
+        "They have just said: \"\(opens)\" Reply to that. Ask one question that "
+            + "moves it forward. Do not ask them to raise the topic again."
     }
 
     /// Themed topics, in the app's voice.
@@ -284,12 +319,16 @@ enum ThemeAwareChatStarters {
     /// or thin journal it answers with nothing. A starter's job is to get the
     /// first honest sentence out of the person; the notebook can be consulted
     /// once there is something to consult.
-    private static func templates(for lower: String, display: String) -> [String] {
+    private static func templates(for lower: String, display: String) -> [StarterPrompt] {
         [
-            "\(display) lately",
-            "How \(lower) has been going",
-            "Where \(lower) is sitting right now",
-            "\(display) this week"
+            .init(card: "\(display) lately",
+                  opens: "Let's talk about \(lower) lately."),
+            .init(card: "How \(lower) has been going",
+                  opens: "Let's talk about how \(lower) has been going."),
+            .init(card: "Where \(lower) is sitting right now",
+                  opens: "Let's talk about where \(lower) is sitting right now."),
+            .init(card: "\(display) this week",
+                  opens: "Let's talk about \(lower) this week.")
         ]
     }
 }

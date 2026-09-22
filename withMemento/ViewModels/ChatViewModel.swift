@@ -372,26 +372,26 @@ class ChatViewModel: ObservableObject {
     func startConversation(about suggestion: ChatSuggestion) {
         guard !isLoading, messages.isEmpty else { return }
 
-        switch suggestion.kind {
-        case .opener:
-            // The assistant asks them a question. Nothing is shown as having
-            // been asked, because nothing was.
-            performSend(text: suggestion.seed, userMessageId: nil, origin: .composer)
-
-        case .analysis:
-            // The card asked a real question about the archive, so show it.
-            // This bubble is not a user turn — see `ChatMessage.isStarterPrompt`.
-            let prompt = suggestion.promptText ?? suggestion.label
-            appendMessage(ChatMessage.starterPrompt(text: prompt))
-            performSend(
-                text: suggestion.seed,
-                userMessageId: nil,
-                origin: .composer,
-                starterPrompt: prompt,
-                title: suggestion.label,
-                deep: true
-            )
-        }
+        // Every card shows what it asked, whichever kind it is. The bubble is
+        // never a user turn — `isStarterPrompt` keeps it out of the person's
+        // journal, which is the property that made showing it safe at all.
+        //
+        // Openers used to show nothing, on the reasoning that the assistant was
+        // the one raising the topic. That left the common case — a thin archive,
+        // where openers are all a person ever sees — with a tap that produced no
+        // visible cause for the reply that followed.
+        let prompt = suggestion.promptText ?? suggestion.label
+        appendMessage(ChatMessage.starterPrompt(text: prompt))
+        performSend(
+            text: suggestion.seed,
+            userMessageId: nil,
+            origin: .composer,
+            starterPrompt: prompt,
+            title: suggestion.label,
+            // Only the archive path earns the larger cap: an opener has nothing
+            // retrieved to synthesise from.
+            deep: suggestion.kind == .analysis
+        )
     }
 
     /// Copy the model reads when the person sends photos without typing.
