@@ -1,6 +1,6 @@
 //
 //  LearnAboutYourselfView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Onboarding step: journal goals (Figma 334:1600).
 //

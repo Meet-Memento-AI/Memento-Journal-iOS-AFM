@@ -1,6 +1,6 @@
 //
 //  CitationDateTag.swift
-//  MeetMemento
+//  withMemento
 //
 //  Atom: pill-shaped date tag for journal citations timeline
 //

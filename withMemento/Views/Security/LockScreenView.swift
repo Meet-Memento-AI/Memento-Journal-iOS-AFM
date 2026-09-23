@@ -1,6 +1,6 @@
 //
 //  LockScreenView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Lock screen that protects app content with FaceID or PIN.
 //  Designed to match the LaunchScreen for seamless transition.
@@ -41,7 +41,7 @@ struct LockScreenView: View {
             VStack {
 
                 // App logo - half size of LaunchScreen
-                Image("MeetMemento-AppIcon")
+                Image("withMemento-AppIcon")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 70, height: 64)

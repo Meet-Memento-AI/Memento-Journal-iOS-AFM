@@ -1,6 +1,6 @@
 //
 //  AnswerFeedback.swift
-//  MeetMemento
+//  withMemento
 //
 //  On-device quality label for one assistant reply (spec 041).
 //  One row per messageID; thumbs and Report mutate the same record.

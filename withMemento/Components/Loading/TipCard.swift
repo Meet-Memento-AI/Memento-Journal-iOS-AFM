@@ -1,6 +1,6 @@
 //
 //  TipCard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared tip card component for loading screens
 //

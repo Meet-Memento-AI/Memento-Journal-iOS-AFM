@@ -77,7 +77,7 @@ production:**
 
 | | Evidence |
 |---|---|
-| **The Support URL still returns 404.** `https://sebmendo1.github.io/MeetMemento/support.html` → HTTP 404; the live index links only privacy and terms | `curl -o /dev/null -w "%{http_code}"` |
+| **The Support URL still returns 404.** `https://sebmendo1.github.io/withMemento/support.html` → HTTP 404; the live index links only privacy and terms | `curl -o /dev/null -w "%{http_code}"` |
 | **The published privacy policy still names OpenAI, Google, and Supabase** — third-party AI and a backend the app no longer uses | `curl -s …/privacy.html \| grep -io "openai\|google\|supabase"` |
 
 ### Why the fixes did not reach production — the lesson worth keeping
@@ -85,10 +85,10 @@ production:**
 The corrected files **were** committed. They were committed to
 `Meet-Memento-AI/Memento-Journal-iOS-AFM`, which has **GitHub Pages disabled**.
 The live site is served from a **different repository and branch** —
-`sebmendo1/MeetMemento` @ `Memento-v1.1`, path `/docs`.
+`sebmendo1/withMemento` @ `Memento-v1.1`, path `/docs`.
 
 `gh api repos/Meet-Memento-AI/Memento-Journal-iOS-AFM/pages` → **404**.
-`gh api repos/sebmendo1/MeetMemento/pages` → `"branch": "Memento-v1.1", "path": "/docs"`.
+`gh api repos/sebmendo1/withMemento/pages` → `"branch": "Memento-v1.1", "path": "/docs"`.
 
 **Three lessons, encoded in this library:**
 

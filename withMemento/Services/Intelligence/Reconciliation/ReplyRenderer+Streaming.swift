@@ -1,6 +1,6 @@
 //
 //  ReplyRenderer+Streaming.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 050 R5: what a streaming delta may show. Each snapshot is cut to a
 //  stable prefix and rendered with the turn's pack, so raw model text never

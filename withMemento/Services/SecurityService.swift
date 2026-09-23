@@ -1,6 +1,6 @@
 //
 //  SecurityService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Keychain PIN storage and Face ID / Touch ID biometric authentication.
 //
@@ -14,10 +14,17 @@ class SecurityService {
 
     private let keychain: KeychainStoring
     private let now: () -> Date
-    private let pinKeychainKey = "com.sebastianmendo.MeetMemento.userPIN"
-    private let securityModeKey = "com.sebastianmendo.MeetMemento.securityMode"
-    private let lastActivityKey = "com.sebastianmendo.MeetMemento.lastActivityTimestamp"
+    private let pinKeychainKey = "com.sebmendo.withMementoAI.userPIN"
+    private let securityModeKey = "com.sebmendo.withMementoAI.securityMode"
+    private let lastActivityKey = "com.sebmendo.withMementoAI.lastActivityTimestamp"
     private let inactivityTimeoutDays: Double = 14
+
+    /// Pre-rename key names. The bundle ID moved from
+    /// `com.sebastianmendo.MeetMemento` to `com.sebmendo.withMementoAI`, and
+    /// these keys embedded the old one. See `IdentifierMigration`.
+    private let legacyPINKeychainKey = "com.sebastianmendo.MeetMemento.userPIN"
+    private let legacySecurityModeKey = "com.sebastianmendo.MeetMemento.securityMode"
+    private let legacyLastActivityKey = "com.sebastianmendo.MeetMemento.lastActivityTimestamp"
 
     /// `keychain` and `now` default to real implementations; tests inject a
     /// mock keychain (no Keychain entitlements in unit tests) and a fixed
@@ -25,6 +32,20 @@ class SecurityService {
     init(keychain: KeychainStoring = SystemKeychainStore(), now: @escaping () -> Date = Date.init) {
         self.keychain = keychain
         self.now = now
+        migrateLegacyKeysIfNeeded()
+    }
+
+    /// Moves a pre-rename PIN and its UserDefaults companions onto the current
+    /// key names. Runs once per launch and is a no-op once nothing is left
+    /// under the old names — the common case on a fresh install.
+    private func migrateLegacyKeysIfNeeded() {
+        IdentifierMigration.migrateKeychainAccount(
+            from: legacyPINKeychainKey,
+            to: pinKeychainKey,
+            using: keychain
+        )
+        IdentifierMigration.migrateDefaultsKey(from: legacySecurityModeKey, to: securityModeKey)
+        IdentifierMigration.migrateDefaultsKey(from: legacyLastActivityKey, to: lastActivityKey)
     }
 
     enum SecurityMode: String {

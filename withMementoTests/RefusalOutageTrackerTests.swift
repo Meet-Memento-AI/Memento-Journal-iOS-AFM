@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// A single refusal must stay a designed empty state; a run of them must not.
 /// Covers MEM-209, where every generation refused on an iOS 26.0 simulator and

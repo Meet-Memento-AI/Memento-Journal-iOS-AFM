@@ -1,7 +1,7 @@
 # Font Implementation Guide
 
 ## Overview
-This guide walks you through implementing the Recoleta and Manrope fonts in the MeetMemento app.
+This guide walks you through implementing the Recoleta and Manrope fonts in the withMemento app.
 
 ## Current Status
 ✅ Typography system implemented  
@@ -16,9 +16,9 @@ This guide walks you through implementing the Recoleta and Manrope fonts in the 
 2. **Manrope**: Download from [Google Fonts](https://fonts.google.com/specimen/Manrope)
 
 ### File Structure
-Place font files in: `/MeetMemento/Resources/Fonts/`
+Place font files in: `/withMemento/Resources/Fonts/`
 ```
-MeetMemento/
+withMemento/
 └── Resources/
     └── Fonts/
         ├── Recoleta-Black.ttf (or .otf)
@@ -31,7 +31,7 @@ MeetMemento/
 
 ### In Xcode:
 1. **Drag & Drop**: Drag font files from Finder into Xcode
-2. **Target Membership**: Ensure fonts are added to "MeetMemento" target
+2. **Target Membership**: Ensure fonts are added to "withMemento" target
 3. **Bundle Resources**: Verify fonts appear in Build Phases > Copy Bundle Resources
 
 ### Verification:

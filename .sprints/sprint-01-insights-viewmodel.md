@@ -18,7 +18,7 @@
 ## 📋 Tasks Breakdown
 
 ### Task 1.1: Create Data Models (30 mins)
-**File**: `MeetMemento/Models/Insights.swift`
+**File**: `withMemento/Models/Insights.swift`
 
 - [ ] Create `JournalInsights` struct
 - [ ] Create `InsightSummary` struct
@@ -41,7 +41,7 @@ struct InsightSummary: Codable {
 ```
 
 ### Task 1.2: Create ViewModel Class (1 hour)
-**File**: `MeetMemento/ViewModels/InsightsViewModel.swift`
+**File**: `withMemento/ViewModels/InsightsViewModel.swift`
 
 - [ ] Create `InsightsViewModel` class
 - [ ] Add `@MainActor` attribute
@@ -214,7 +214,7 @@ private func isCacheStale(_ insights: JournalInsights) -> Bool {
 
 ### Files Created:
 ```
-MeetMemento/
+withMemento/
 ├── Models/
 │   └── Insights.swift (NEW)
 └── ViewModels/

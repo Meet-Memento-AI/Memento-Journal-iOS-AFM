@@ -1,6 +1,6 @@
 //
 //  DataUsageInfoView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Information about what data is collected and how it's used
 //  Required for iOS App Store transparency

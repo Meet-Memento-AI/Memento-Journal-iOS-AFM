@@ -1,6 +1,6 @@
 //
 //  ConversationAudioController.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 034: two named audio paths. Conversation uses .playAndRecord +
 //  voice processing; read-back stays half-duplex playback. Tap-interrupt

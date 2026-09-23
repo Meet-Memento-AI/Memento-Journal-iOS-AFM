@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: quantifies the two misroute classes the first routing sweep
 /// exposed. Pure Swift, no model calls.

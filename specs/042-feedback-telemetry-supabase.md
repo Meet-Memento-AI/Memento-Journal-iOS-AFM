@@ -136,7 +136,7 @@ that a Report sends the question, answer, reason, and note.
 ## 4. Secrets
 
 `SUPABASE_URL` and `SUPABASE_ANON_KEY` live in gitignored
-`MeetMemento/Config/Supabase.xcconfig`, included from Debug/Release via
+`withMemento/Config/Supabase.xcconfig`, included from Debug/Release via
 `#include?`. Committed example: `Supabase.xcconfig.example`. Surfaced
 through `Info.plist`. **`service_role` must never appear in the app, repo,
 or CI for the app target.** Missing or unexpanded keys → no-op; clones

@@ -1,6 +1,6 @@
 //
 //  EvidenceState.swift
-//  MeetMemento
+//  withMemento
 //
 //  How much of the journal this turn may use. Decided by code, before the
 //  model writes. No Foundation Models import.

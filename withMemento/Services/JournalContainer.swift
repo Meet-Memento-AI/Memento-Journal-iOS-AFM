@@ -1,6 +1,6 @@
 //
 //  JournalContainer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 015 R2: SwiftData store with CloudKit private-DB mirroring.
 //  The device is the system of record — CloudKit failure degrades to local.

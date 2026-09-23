@@ -1,6 +1,6 @@
 //
 //  OutputSafetyScanner.swift
-//  MeetMemento
+//  withMemento
 //
 //  Post-generation scan of assistant text (spec 026 R7). Hits replace the
 //  reply with crisis card or hard refuse — unsafe body must not persist.

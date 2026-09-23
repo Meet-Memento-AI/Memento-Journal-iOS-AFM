@@ -1,6 +1,6 @@
 import XCTest
 
-final class MeetMementoSmokeUITests: XCTestCase {
+final class withMementoSmokeUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

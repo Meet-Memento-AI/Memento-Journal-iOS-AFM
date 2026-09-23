@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 017 R9. The budget is a contract, not a habit — so these tests pin the
 /// properties the contract depends on, not the specific numbers the shares

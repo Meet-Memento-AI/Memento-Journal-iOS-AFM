@@ -24,7 +24,7 @@ gives specs 002–006 a clean surface: nothing they touch should collide with ju
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | `MeetMemento/Secrets.swift` holds a real Supabase project URL + anon key. **Verified NOT tracked and never committed** (`git log --all --follow` empty; ignored at `.gitignore:106`). Dead code — zero `Secrets.` references in the app; runtime uses the xcconfig path. | `MeetMemento/Secrets.swift:12-13` | LOW (hygiene — anon key is public-by-design, RLS-protected) |
+| 1 | `withMemento/Secrets.swift` holds a real Supabase project URL + anon key. **Verified NOT tracked and never committed** (`git log --all --follow` empty; ignored at `.gitignore:106`). Dead code — zero `Secrets.` references in the app; runtime uses the xcconfig path. | `withMemento/Secrets.swift:12-13` | LOW (hygiene — anon key is public-by-design, RLS-protected) |
 | 2 | Untracked Deno coverage artifact with no ignore rule — one careless `git add -A` away from being committed. | `supabase/functions/chat/coverage/` (html/lcov/json) | LOW |
 | 3 | Root-level clutter: `Sora.zip`, `Sora_test.zip`, `cleanup.sh`, `DEPLOY_WEEKLY_QUESTIONS.sh`, `deploy-migrations.sh`, `TEST_QUESTIONS.sh`, `verify_preview_optimization.sh`, `get-user-token.ts`, `test-insights.ts` | repo root (`ls *.zip *.sh *.ts`) | MEDIUM |
 | 4 | Ad-hoc SQL files at root — evidence of SQL applied to prod outside migrations: `DELETE_USER_SQL.sql`, `SETUP_JOURNAL_ENTRIES.sql` | repo root | MEDIUM (content feeds spec 003) |
@@ -39,7 +39,7 @@ returns only legitimate matches (docs/templates with placeholders, this specs fo
 passes locally.
 
 ### R2. Dead credential file removed
-**Acceptance:** `MeetMemento/Secrets.swift` deleted from disk (it is unreferenced);
+**Acceptance:** `withMemento/Secrets.swift` deleted from disk (it is unreferenced);
 app still builds. The `.gitignore:106` rule stays (protects against recreation).
 
 ### R3. Generated artifacts ignored
@@ -64,7 +64,7 @@ content (they are its evidence — do not destroy before 003 reads them).
 ## Tasks
 
 - [x] 1. Run the R1 secrets sweep across tracked files; record results in this spec.
-- [x] 2. Delete `MeetMemento/Secrets.swift`; remove its `project.pbxproj` file reference
+- [x] 2. Delete `withMemento/Secrets.swift`; remove its `project.pbxproj` file reference
       if one exists (there was none — 0 refs); build to confirm no breakage. (R2)
 - [x] 3. Add `.gitignore` entries: `supabase/functions/**/coverage/`, `.scannerwork/`,
       `.claude/worktrees/`. (R3)
@@ -72,7 +72,7 @@ content (they are its evidence — do not destroy before 003 reads them).
       003's evidence row 6 (2026-07-13), then both files moved to `.archive/adhoc-sql/`. (R4)
 - [x] 5. `Sora.zip` / `Sora_test.zip` deleted — both were **corrupt** (unzip: no
       end-of-central-directory) and the Sora fonts are already installed at
-      `MeetMemento/Resources/Fonts/Sora-*.ttf`. Seven loose scripts moved into
+      `withMemento/Resources/Fonts/Sora-*.ttf`. Seven loose scripts moved into
       `scripts/` with a provenance/staleness table in `scripts/README.md`. (R4)
 - [x] 6. Commit as a single hygiene commit referencing `[spec-001]`.
 
@@ -81,7 +81,7 @@ content (they are its evidence — do not destroy before 003 reads them).
 - Tracked filenames matching `secret` → **none**.
 - JWT-shaped strings (`eyJ…`) in tracked files → exactly two, **both verified
   placeholders by decoding their payloads**:
-  - `MeetMemento/Services/SupabaseService.swift:49` → `{"iss":"supabase","ref":"local","role":"anon"}` (intentional fallback)
+  - `withMemento/Services/SupabaseService.swift:49` → `{"iss":"supabase","ref":"local","role":"anon"}` (intentional fallback)
   - `.github/workflows/ios-tests.yml:41,46` → `{"ref":"ci","role":"anon"}` (CI stub)
 - `sk-…` / `AIza…` provider-key patterns → **none**.
 - Supabase URLs in tracked files → placeholders (`example`, `placeholder`, `invalid`,
@@ -90,7 +90,7 @@ content (they are its evidence — do not destroy before 003 reads them).
   the project URL/ref is a public identifier (it ships inside every app binary and in
   every API request); leaving it in historical docs is acceptable. No live key
   accompanies it anywhere tracked.
-- `MeetMemento/Secrets.swift` (the only real-key file) — re-confirmed via
+- `withMemento/Secrets.swift` (the only real-key file) — re-confirmed via
   `git ls-files --error-unmatch` + `git log --all`: **never tracked, never committed**;
   deleted from disk. Note: an earlier report that it was tracked came from misreading
   `git check-ignore` output (which echoes matching ignored paths).
@@ -103,11 +103,11 @@ content (they are its evidence — do not destroy before 003 reads them).
 - [x] `git status --porcelain` shows no coverage/`.scannerwork`/worktree artifacts
       (ignore rules verified). ✅
 - [x] `ls *.sh *.ts *.sql *.zip 2>/dev/null` at repo root → empty. ✅
-- [x] `xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17' build`
+- [x] `xcodebuild -scheme withMemento -destination 'platform=iOS Simulator,name=iPhone 17' build`
       → BUILD SUCCEEDED after `Secrets.swift` deletion. ✅
 
 ## Regression Guards
 
 - Config loading (xcconfig → Info.plist → `SupabaseService`) untouched — the app must
   still resolve `SUPABASE_URL`/`SUPABASE_ANON_KEY` from `*.local.xcconfig`.
-- Do not delete `MeetMemento/Config/*.template` files — they are the documented setup path.
+- Do not delete `withMemento/Config/*.template` files — they are the documented setup path.

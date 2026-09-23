@@ -1,6 +1,6 @@
 //
 //  AIOutputComponent.swift
-//  MeetMemento
+//  withMemento
 //
 //  AI output component with markdown support, headings, and citation links
 //

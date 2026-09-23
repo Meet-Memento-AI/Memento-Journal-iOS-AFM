@@ -13,7 +13,7 @@ Successfully implemented **Phases 1-5** of the onboarding completion plan. All u
 
 ### **Phase 1: Fix Entry Point** ✅
 
-**File:** `MeetMementoApp.swift`
+**File:** `withMementoApp.swift`
 
 **Changes:**
 - Simplified routing logic so ALL users start at WelcomeView unless fully onboarded
@@ -367,7 +367,7 @@ Task {
 1. User opens app → **WelcomeView**
 2. WelcomeView `.onAppear` checks auth status
 3. User is authenticated + onboarding complete
-4. MeetMementoApp shows **ContentView** immediately (no WelcomeView shown)
+4. withMementoApp shows **ContentView** immediately (no WelcomeView shown)
 
 ---
 
@@ -434,7 +434,7 @@ Task {
 
 ### **Modified (8 files):**
 
-1. **`MeetMementoApp.swift`**
+1. **`withMementoApp.swift`**
    - Simplified routing logic
    - All incomplete onboarding users go to WelcomeView
 
@@ -503,7 +503,7 @@ Task {
 ### **State Management Pattern:**
 
 ```
-MeetMementoApp
+withMementoApp
     ↓
 WelcomeView (checks auth + onboarding status)
     ↓

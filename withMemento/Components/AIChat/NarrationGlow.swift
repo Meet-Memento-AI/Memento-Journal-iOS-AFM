@@ -1,6 +1,6 @@
 //
 //  NarrationGlow.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bottom "voice shadow" (Figma 302:619) for Chat's narration mode.
 //

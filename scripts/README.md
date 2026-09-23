@@ -21,7 +21,7 @@ Making any of these a *required* status check is a branch-protection setting
 (`docs/BRANCH_PROTECTION_SETUP.md`).
 
 The Release-endpoint assertion (spec-006 R3) is **inlined into the Xcode Release
-build phase** in `MeetMemento.xcodeproj/project.pbxproj` (to stay inside Xcode's
+build phase** in `withMemento.xcodeproj/project.pbxproj` (to stay inside Xcode's
 user-script sandbox) — there is no standalone `ci/assert_release_endpoint.sh`.
 
 ## Utility scripts (dev-only, not referenced by CI)

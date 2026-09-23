@@ -1,6 +1,6 @@
 //
 //  TurnShapeCadence.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 037 R3 / 039 R6: generated Ask turns Open. Overlay says *how* to
 //  ask, never "do not end with a question." Light channels skip the overlay

@@ -1,6 +1,6 @@
 //
 //  SpikeC_NamedIndexVisibilityTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Spec 013 R1 / DEC-002 / V1 — can Spotlight donation be hidden from
 //  system-wide search while remaining app-retrievable?

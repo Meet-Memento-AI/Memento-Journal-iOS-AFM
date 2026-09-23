@@ -1,6 +1,6 @@
 //
 //  TrustZone.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 014 R1's canonical trust-boundary contract, adopted verbatim. This file
 //  is pure Swift on purpose: it is the vocabulary every other module uses to

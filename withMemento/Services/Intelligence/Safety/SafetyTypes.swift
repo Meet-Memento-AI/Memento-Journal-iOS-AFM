@@ -1,6 +1,6 @@
 //
 //  SafetyTypes.swift
-//  MeetMemento
+//  withMemento
 //
 //  Harm taxonomy + routing actions for the on-device Safety layer (spec 026).
 //

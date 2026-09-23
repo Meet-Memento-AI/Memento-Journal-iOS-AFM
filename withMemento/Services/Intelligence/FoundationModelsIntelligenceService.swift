@@ -848,6 +848,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let entries: [Entry]
         let images: [Data]
         let spoken: Bool
+        /// Suggestion-card analysis path — raises the notebook token cap.
+        let deep: Bool
         let safety: SafetyDecision
         let turn: TurnType
         let channel: ReplyChannel
@@ -864,7 +866,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         func replacingEntries(_ entries: [Entry]) -> AskCore {
             AskCore(
                 question: question, history: history, entries: entries, images: images,
-                spoken: spoken, safety: safety, turn: turn, channel: channel, evidence: evidence, route: route,
+                spoken: spoken, deep: deep, safety: safety, turn: turn, channel: channel, evidence: evidence, route: route,
                 budget: budget, promptCap: promptCap, poolLimits: poolLimits,
                 resolved: resolved, request: request, plan: plan,
                 storedPersonalization: storedPersonalization
@@ -910,7 +912,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private func prepareAskCore(
-        question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
+        question: String, history: [ChatTurn], entries: [Entry], images: [Data],
+        spoken: Bool = false, deep: Bool = false
     ) async throws -> AskCore {
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
@@ -986,6 +989,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
+            deep: deep,
             safety: safety, turn: turn, channel: channel, evidence: .matched, route: route, budget: budget,
             promptCap: limits.maxEntries,
             poolLimits: RetrievalLimits(
@@ -1080,7 +1084,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskCore(
             question: core.question, history: core.history, entries: core.entries, images: core.images,
-            spoken: core.spoken, safety: core.safety, turn: core.turn, channel: channel,
+            spoken: core.spoken, deep: core.deep, safety: core.safety, turn: core.turn, channel: channel,
             evidence: evidence, route: core.route, budget: core.budget, promptCap: core.promptCap,
             poolLimits: core.poolLimits, resolved: resolved, request: request, plan: plan,
             storedPersonalization: core.storedPersonalization
@@ -1183,6 +1187,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             for: core.channel,
             retrievalRan: retrievalRan,
             spoken: core.spoken,
+            deep: core.deep,
             toolsAttached: toolsAttached
         )
         return AskPreparation(
@@ -1435,12 +1440,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         for channel: ReplyChannel,
         retrievalRan: Bool,
         spoken: Bool,
+        deep: Bool = false,
         toolsAttached: Bool = false
     ) -> GenerationOptions {
         _ = toolsAttached
         return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
-            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
+            maximumResponseTokens: channel.maximumResponseTokens(
+                retrievalRan: retrievalRan, spoken: spoken, deep: deep
+            )
         )
     }
 
@@ -1687,6 +1695,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         history: [ChatTurn],
         images: [Data],
         spoken: Bool,
+        deep: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
@@ -1699,7 +1708,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
                     let core = try await prepareAskCore(
-                        question: question, history: history, entries: [], images: images, spoken: spoken
+                        question: question, history: history, entries: [], images: images,
+                        spoken: spoken, deep: deep
                     )
                     coreForRetry = core
                     if core.channel == .statistic {
@@ -2113,6 +2123,27 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ///
     /// So the prompt never asks for a denial while holding evidence, and never
     /// promises nearby entries it does not have, whatever the caller passed.
+    /// The model has no clock. Without this it cannot resolve "last Tuesday",
+    /// "yesterday" or "this week" against the dated entries in the context
+    /// block, so it guesses — and a guessed date in a journal reads as fact.
+    ///
+    /// Measured on the 2026-09-20 study: 90 of 3,119 generated replies asserted
+    /// a specific date, 14 of them on the arm with **no journal at all**,
+    /// including "I don't see anything from that stretch — the entry from
+    /// March 12 shows a spike in missed classes". It invented a dated entry in
+    /// the same sentence that admitted it had none.
+    ///
+    /// Same format as `EntryRetriever.formattedDate` plus the weekday, so the
+    /// model can compare this line against `[ref N | March 12, 2026]` directly
+    /// and resolve a weekday name without arithmetic it cannot do.
+    static func todayLine(now: Date = Date(), calendar: Calendar = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        return "[Today: \(formatter.string(from: now))]"
+    }
+
     static func stanceMatchingEvidence(
         _ stance: TurnStance, hasEvidenceBlock: Bool, archiveEmpty: Bool = false
     ) -> TurnStance {
@@ -2147,7 +2178,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let fallbackMove: ConversationalMove = channel.usesLightPrompt
                 ? .greetAndAsk : .reflectAndAsk
             let cue = move?.cueLine ?? fallbackMove.cueLine
-            var light: [String] = [cue]
+            var light: [String] = [cue, Self.todayLine()]
             if safetyConstrained {
                 light.insert(SafetyRouter.constrainedStanceLine, at: 0)
             }
@@ -2202,7 +2233,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let effectiveStance = Self.stanceMatchingEvidence(
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
-        var parts: [String] = [effectiveStance.promptLine]
+        var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
         if channel == .notebook || channel == .thread {
             let shipped = hasEvidenceBlock ? retrieval : .empty
             let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)

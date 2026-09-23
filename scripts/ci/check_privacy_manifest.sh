@@ -21,8 +21,8 @@
 # Usage: scripts/ci/check_privacy_manifest.sh
 set -euo pipefail
 
-MANIFEST="${MANIFEST:-MeetMemento/PrivacyInfo.xcprivacy}"
-SRC_ROOT="${SRC_ROOT:-MeetMemento}"
+MANIFEST="${MANIFEST:-withMemento/PrivacyInfo.xcprivacy}"
+SRC_ROOT="${SRC_ROOT:-withMemento}"
 
 [ -f "$MANIFEST" ] || { echo "FAIL: privacy manifest not found: $MANIFEST"; exit 1; }
 

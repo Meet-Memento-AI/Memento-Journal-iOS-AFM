@@ -1,6 +1,6 @@
 //
 //  ChatSendChoreographer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Send choreography for Chat: the user's bubble flies from the composer to a
 //  pinned rest position 32pt below the header, and holds there while the reply

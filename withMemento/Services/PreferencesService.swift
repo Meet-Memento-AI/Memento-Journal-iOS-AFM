@@ -1,6 +1,6 @@
 //
 //  PreferencesService.swift
-//  MeetMemento
+//  withMemento
 //
 //  User preferences for theme and feature toggles.
 //

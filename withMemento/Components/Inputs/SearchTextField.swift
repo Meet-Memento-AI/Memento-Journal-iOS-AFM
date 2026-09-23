@@ -1,6 +1,6 @@
 //
 //  SearchTextField.swift
-//  MeetMemento
+//  withMemento
 //
 //  Reusable search text field component for search overlays
 //

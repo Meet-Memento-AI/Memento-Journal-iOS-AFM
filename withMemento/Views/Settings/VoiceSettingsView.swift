@@ -1,6 +1,6 @@
 //
 //  VoiceSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Read-aloud voice and speed. Exactly four voices, bundled in the app
 //  (specs 030 R4, 033 R1/R5; DEC-011/DEC-012).

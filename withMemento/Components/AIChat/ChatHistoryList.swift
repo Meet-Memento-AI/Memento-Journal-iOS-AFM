@@ -1,6 +1,6 @@
 //
 //  ChatHistoryList.swift
-//  MeetMemento
+//  withMemento
 //
 //  Scrollable list of chat history items
 //

@@ -1,6 +1,6 @@
 //
 //  PassageChunker.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 044 R1: split an entry into 2–4 sentence passages for embedding
 //  and excerpting. Never splits inside a sentence. Pure NaturalLanguage —

@@ -1,6 +1,6 @@
 //
 //  ProfileSheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Profile and settings, opened from the Journal header's avatar.
 //

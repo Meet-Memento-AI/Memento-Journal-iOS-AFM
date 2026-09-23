@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Session 6 shrink gate: `ask-core@19` + notebook suffix must be on a path
 /// to ≤ 55% of the frozen `ask@15` character count (8214). Device-lane

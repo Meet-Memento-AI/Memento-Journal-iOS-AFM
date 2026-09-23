@@ -1,6 +1,6 @@
 //
 //  RetractedClaims.swift
-//  MeetMemento
+//  withMemento
 //
 //  A correction or an interpretation-cut stores the claim the assistant just
 //  made. Later turns must not repeat it. Derived from history so nothing

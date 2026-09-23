@@ -1,6 +1,6 @@
 //
 //  ViewModifiers.swift
-//  MeetMemento
+//  withMemento
 //
 //  Created by Claude Code
 //  Reusable view modifiers for consistent UI patterns

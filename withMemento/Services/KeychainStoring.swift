@@ -1,6 +1,6 @@
 //
 //  KeychainStoring.swift
-//  MeetMemento
+//  withMemento
 //
 //  Testable seam over Keychain access (spec-011 R1), so EncryptionService
 //  and SecurityService can be unit tested without touching the real

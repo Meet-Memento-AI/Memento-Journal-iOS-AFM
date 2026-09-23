@@ -1,7 +1,7 @@
 
 //
 //  EntryViewModel.swift
-//  MeetMemento
+//  withMemento
 //
 //  Manages journal entries. No accounts (spec 023): entries are read from
 //  and written to on-device encrypted storage only, via JournalService's

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Long-form self-play conversation capture (the 200-conversation study).
 ///

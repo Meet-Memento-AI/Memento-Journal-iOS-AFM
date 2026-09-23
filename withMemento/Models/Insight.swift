@@ -1,6 +1,6 @@
 //
 //  Insight.swift
-//  MeetMemento
+//  withMemento
 //
 //  Minimal stub models for Insights (UI boilerplate).
 //

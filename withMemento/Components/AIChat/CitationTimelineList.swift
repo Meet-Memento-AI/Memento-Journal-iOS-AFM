@@ -1,6 +1,6 @@
 //
 //  CitationTimelineList.swift
-//  MeetMemento
+//  withMemento
 //
 //  Organism: vertical timeline with list of citation items
 //

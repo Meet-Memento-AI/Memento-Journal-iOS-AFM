@@ -1,6 +1,6 @@
 //
 //  AIChatFooter.swift
-//  MeetMemento
+//  withMemento
 //
 //  Footer wrapper for AI Chat interface.
 //  Wraps ChatInputField with proper padding — and nothing else. Chat history

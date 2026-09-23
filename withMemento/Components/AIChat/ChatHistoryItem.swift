@@ -1,6 +1,6 @@
 //
 //  ChatHistoryItem.swift
-//  MeetMemento
+//  withMemento
 //
 //  Individual chat session item for history list
 //

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe (not a regression test): measures the latency the user
 /// actually feels in AIChatView — time-to-first-token on the streaming path —
@@ -9,7 +9,12 @@ import XCTest
 /// `askStream`, so total time there is not what the user waits for.
 final class LiveStreamLatencyProbe: XCTestCase {
 
-    static let outPath = "/private/tmp/claude-501/-Users-sebastianmendo-Swift-projects-Memento-AI-MeetMemento/094f3be1-69b0-4026-bb20-1aad71a89c42/scratchpad/latency.md"
+    /// Was an absolute path into one agent session's scratchpad on one
+    /// machine; that directory does not exist here, so the final `try`
+    /// write threw and failed this probe. Routed through `Diag.outDir`,
+    /// which creates the directory and reports a failure instead of
+    /// throwing (046 R1: no more silent or spurious output paths).
+    static let outFile = "latency.md"
 
     private static func ms(_ d: Duration) -> String {
         let s = Double(d.components.seconds) + Double(d.components.attoseconds) * 1e-18
@@ -107,10 +112,10 @@ final class LiveStreamLatencyProbe: XCTestCase {
                 details += "```\n\(body)\n```\n"
             }
 
-            try? (out + details).write(toFile: Self.outPath, atomically: true, encoding: .utf8)
+            Diag.write((out + details), Self.outFile)
         }
 
-        try (out + details).write(toFile: Self.outPath, atomically: true, encoding: .utf8)
+        Diag.write((out + details), Self.outFile)
         print(out + details)
     }
 

@@ -1,6 +1,6 @@
 //
 //  QuotaGovernor.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 017 R3 / REQ-INT-005–008. An actor that answers exactly one question:
 //  what PCC capability does this intent get right now?

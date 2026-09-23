@@ -1,6 +1,6 @@
 //
 //  LocalJournalStorage.swift
-//  MeetMemento
+//  withMemento
 //
 //  Stores encrypted journal content on device for local viewing.
 //  Each entry is saved as a separate file for efficient access.

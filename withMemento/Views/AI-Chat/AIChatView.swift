@@ -1,6 +1,6 @@
 //
 //  AIChatView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Chat page: typing and hands-free narration are modes of the same surface.
 //  Header stays; the thread dissolves for a listening canvas; footer and glow swap.
@@ -54,6 +54,9 @@ public struct AIChatView: View {
     /// Confirmed theme ids the current chips were built from. Re-rotate when
     /// the user edits journal goals so pills stay in sync.
     @State private var suggestionThemeSignature: [String] = []
+    /// Bumped on every rotation so an in-flight archive read cannot land its
+    /// cards over a newer rotation (theme change, conversation cleared).
+    @State private var suggestionGeneration: Int = 0
 
     private let hasEntries: Bool
     /// When set, the view opens already in Narration Mode with this phase —
@@ -63,39 +66,12 @@ public struct AIChatView: View {
     /// reads confirmed themes from the local profile instead.
     private let seededSuggestions: [ChatSuggestion]?
 
-    private static var allPrompts: [String] = {
-        if let url = Bundle.main.url(forResource: "AISuggestionPrompts", withExtension: "json"),
-           let data = try? Data(contentsOf: url),
-           let json = try? JSONDecoder().decode(PromptsFile.self, from: data) {
-            return json.prompts
-        }
-        return [
-            "Analyze my current mindset from my journal activity in the past week",
-            "Explore the themes from my journals about my friendships",
-            "Summarize my journal entries in the last month",
-            "What emotions have I been experiencing most frequently?",
-            "Help me identify patterns in my daily routines",
-            "What are the recurring themes in my recent reflections?",
-            "What have I written about sleep lately?",
-            "What am I most grateful for based on my entries?",
-            "Find moments of joy I've captured in my journals",
-            "What challenges have I overcome recently?",
-            "What goals have I been working toward?",
-            "How do my weekday entries differ from weekend ones?",
-            "What relationships seem most important to me right now?",
-            "Identify any sources of stress I've mentioned recently",
-            "What have I learned about myself this month?",
-            "What brings me peace according to my entries?",
-            "How do I handle difficult situations?",
-            "What creative ideas have I been exploring?",
-            "Suggest one intention for the week ahead based on my entries",
-            "What does happiness mean to me based on my reflections?"
-        ]
-    }()
+    /// Starter copy lives with the other starter content, in
+    /// `ThemeAwareChatStarters` — this view only rotates it. It used to be a
+    /// private array here, which put a fourth copy of the pool out of reach of
+    /// any test while `rotate` fed two of the three visible cards from it.
+    private static var allPrompts: [String] { ThemeAwareChatStarters.genericPool }
 
-    private struct PromptsFile: Decodable {
-        let prompts: [String]
-    }
 
     init(
         viewModel: ChatViewModel,
@@ -252,7 +228,7 @@ public struct AIChatView: View {
             Button("Cancel", role: .cancel) { stopNarration() }
         } message: {
             Text(
-                "MeetMemento needs microphone access to transcribe your voice. "
+                "withMemento needs microphone access to transcribe your voice. "
                 + "Enable it in Settings > Privacy > Microphone."
             )
         }
@@ -346,7 +322,7 @@ public struct AIChatView: View {
                         onDismissKeyboard: dismissKeyboard,
                         onSuggestionTap: { suggestion in
                             dismissKeyboard()
-                            viewModel.sendMessage(prompt: suggestion)
+                            viewModel.startConversation(about: suggestion)
                         }
                     )
                     .narrationDissolve(
@@ -519,8 +495,43 @@ public struct AIChatView: View {
     }
 
     private func rotateSuggestions() {
-        currentSuggestions = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
+        // Opener cards land synchronously so the empty state is never blank.
+        // Deep cards replace them once the archive has been read, which needs
+        // entries off disk and through decryption — too slow for `onAppear`.
+        let openers = ThemeAwareChatStarters.rotate(genericPool: Self.allPrompts, limit: 3)
+        currentSuggestions = openers
         suggestionThemeSignature = LocalProfileStore.ensureMigratedProfile().confirmedThemeIds
+        suggestionGeneration &+= 1
+        guard hasEntries, seededSuggestions == nil else { return }
+
+        let generation = suggestionGeneration
+        Task {
+            let deep = await Self.deepSuggestions()
+            guard !deep.isEmpty,
+                  generation == suggestionGeneration,
+                  viewModel.messages.isEmpty else { return }
+            // The archive rarely yields three. Topping up from the openers
+            // already on screen keeps the layout at three tiles and keeps the
+            // two that do not change from flickering as they are replaced by
+            // themselves.
+            currentSuggestions = ThemeAwareChatStarters.filled(deep, fillers: openers)
+        }
+    }
+
+    /// Cards built from the archive, or `[]` when there is too little in it.
+    ///
+    /// Off the main actor: `loadAllEntriesLocally` decrypts every entry.
+    private static func deepSuggestions() async -> [ChatSuggestion] {
+        await Task.detached(priority: .userInitiated) {
+            let entries = JournalService.shared.loadAllEntriesLocally(
+                legacyPIN: SecurityService.shared.getPIN()
+            )
+            guard !entries.isEmpty else { return [] }
+            return DeepPromptBuilder.prompts(
+                entries: entries,
+                moodLabels: MementoDataStore.moodLabelsByEntry()
+            )
+        }.value
     }
 
     private func dismissKeyboard() {

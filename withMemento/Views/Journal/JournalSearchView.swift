@@ -1,6 +1,6 @@
 //
 //  JournalSearchView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Full-screen search overlay for journal entries
 //

@@ -1,6 +1,6 @@
 //
 //  ComputedFactsBlock.swift
-//  MeetMemento
+//  withMemento
 //
 //  Session 12 / 045 R5 D: non-suppressed InsightFacts as a `[Computed]`
 //  prompt block. Counts are words, never digits.

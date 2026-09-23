@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-# NOT "MeetMemento": /Users/sebastianmendo/Swift-projects/MeetMemento (the old
+# NOT "withMemento": /Users/sebastianmendo/Swift-projects/withMemento (the old
 # cloud-backend repo) has the same directory name, so the default would make
 # both repos share one set of containers and one Docker volume.
 project_id = "memento-feedback"

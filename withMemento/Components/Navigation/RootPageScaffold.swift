@@ -1,6 +1,6 @@
 //
 //  RootPageScaffold.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared chrome for Journal and Chat (Chat's narration mode uses the same
 //  scaffold, swapping only the footer and glow).

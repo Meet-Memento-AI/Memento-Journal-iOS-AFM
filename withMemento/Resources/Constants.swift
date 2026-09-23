@@ -1,6 +1,6 @@
 //
 //  Constants.swift
-//  MeetMemento
+//  withMemento
 //
 //  Single source of truth for the support address and hosted legal pages, so
 //  the three surfaces that show them (Settings, About, Data Usage) can never

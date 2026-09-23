@@ -1,6 +1,6 @@
 //
 //  DictationWaveform.swift
-//  MeetMemento
+//  withMemento
 //
 //  Scrolling waveform shown inside ChatInputField while dictating.
 //  Figma 431:6079 (ChatInputField / State=Narration).

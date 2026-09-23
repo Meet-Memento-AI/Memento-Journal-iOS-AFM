@@ -83,13 +83,13 @@ central promise, and the detector for it is currently disabled.
 
 | # | Finding | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | **`hall.fabricatedQuote` has never executed.** The pattern is a Swift raw string containing `\u{201C}`; raw strings do not process backslash escapes, so NSRegularExpression receives those characters literally, and ICU accepts `\uhhhh` / `\x{hhhh}` but not `\u{…}`. Confirmed at runtime: `NSRegularExpression(pattern:)` throws `The value "…" is invalid`; the same pattern with `\x{201C}` compiles and matches. | `ChatEvalScoring.swift:236` (pattern), `:221` (`spans` swallows via `try?`) | **Critical** |
+| 1 | **`hall.fabricatedQuote` has never executed.** The pattern is a Swift raw string containing `\u{201C}`; raw strings do not process backslash escapes, so NSRegularExpression receives those characters literally, and ICU accepts `\uhhhh` / `\x{hhhh}` but not `\u{…}`. Confirmed at runtime: `NSRegularExpression(pattern:)` throws `The value "…" is invalid`; the same pattern with `\x{201C}` compiles and matches. Replayed over the archived run, the old pattern fires **0 times across all 3,119 generated turns**; the repaired one fires on 200 empty-arm turns. | `ChatEvalScoring.swift:236` (pattern), `:221` (`spans` swallows via `try?`) | **Critical** |
 | 2 | **A regex scorer that fails to compile returns `[]` silently.** `spans()` is `guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }`. There is no assertion anywhere that a scorer's pattern compiles, and no positive fixture proving any `hall.*` scorer fires. | `ChatEvalScoring.swift:220-224` | **Critical** |
 | 3 | **Empty-corpus behaviour of the quote scorers is emergent, not specified.** `QuoteIndex([])` leaves `haystack == ""` and `grams` empty, so `contains` is constant-false and `quotesCorpus` returns `nil` unconditionally. `hall.uncitedQuote` therefore *cannot* fire with no entries; `fabricatedQuotes` and `boldNotTheirWords` invert into hair-triggers that would flag every span. Measured: `hall.uncitedQuote` 0 on the empty arm vs 7 on cold. | `ChatEvalScoring.swift:44-65` (`QuoteIndex.init`), `:73-76`, `:81-95`, `:247-251`, `:317-327` | High |
 | 4 | **Channel is resolved before retrieval, from the turn type alone.** `ReplyChannel.resolve(turn:hasImages:)` has no evidence parameter, so a `journalQuery` against an empty store resolves to `notebook`. Measured: 36.8% of zero-entry turns (588/1,597) routed to `notebook`. | `FoundationModelsIntelligenceService.swift:924`, `ReplyChannel.swift:27-39` | High |
 | 5 | **Notebook voice with no evidence is the worst cell in the matrix.** Violation rate 38.3% (`notebook`/empty) vs 20.5% (`notebook`/cold) vs 6.8% (`companion`/empty) and 9.5% (`companion`/cold). It is also the slowest: 2.98s p50 vs 1.67s for `companion`/empty. | `.eval-runs/convo-sim/full-2026-09-20.jsonl`, grouped by `arm` × `channel` | High |
 | 6 | **The schema grants the form; the prompt then asks for restraint.** `AskAnswer.body`'s `@Guide` reads "Notebook, ###, and italic quotes only if this turn uses the journal" — a self-assessment delegated to a ~3B model. The pipeline already knows the answer: `archiveEmpty` is a `buildAskPrompt` parameter and emits `[No journal entries in the archive]`. | `FoundationModelsIntelligenceService.swift:56-90` (`AskAnswer`), `:2059-2064` (`archiveEmpty` branch), `RetrievalPolicy.swift:86-93` (`.noMatch` promptLine) | High |
-| 7 | **Fabricated entry content on an empty archive.** 13.1% of zero-entry generated turns (212/1,597) carry an italic span ≥12 characters or a `###` heading presenting invented journal material; 202 of those match the *intended* `fabricatedQuotes` pattern exactly, and none was flagged by it. | `.eval-runs/convo-sim/full-2026-09-20.jsonl`; reproduce with the pattern in row 1 | **Critical** |
+| 7 | **Fabricated entry content on an empty archive.** 13.1% of zero-entry generated turns (212/1,597) carry an italic span ≥12 characters or a `###` heading presenting invented journal material; 202 carry a span matching the *intended* `fabricatedQuotes` pattern, of which 200 survive the scorer's `fold` + trim + 12-character floor and fire; none was flagged, because the scorer never ran. | `.eval-runs/convo-sim/full-2026-09-20.jsonl`; reproduce with the pattern in row 1 | **Critical** |
 | 8 | **An invented citation *ref* is already impossible.** `reconcileCitations` filters `refs` to those present in `byRef`, built from the entries actually placed in context. Prose fabrication is the uncovered half, not citation fabrication. | `FoundationModelsIntelligenceService.swift:2265-2291` | — (guard to preserve) |
 
 ## Requirements
@@ -119,8 +119,9 @@ were previously invisible. That is detection appearing, not quality regressing.
 
 **Acceptance:**
 - Given the repaired pattern, when `hall.fabricatedQuote` is replayed over
-  `.eval-runs/convo-sim/full-2026-09-20.jsonl`, then it fires on the 202 empty-arm
-  turns carrying a matching span, and on zero turns carrying no italic span.
+  `.eval-runs/convo-sim/full-2026-09-20.jsonl`, then it fires on 200 empty-arm turns
+  and on zero turns carrying no italic span. (Measured 2026-09-21. 202 turns match the
+  raw pattern; two spans fall below the 12-character floor once folded and trimmed.)
 - Given any scorer in `ChatEvalScoring` whose pattern fails to compile, when the unit
   suite runs, then a test fails and names that scorer.
 - Given each `hall.*` and `rule.*` regex scorer, then a positive fixture exists that

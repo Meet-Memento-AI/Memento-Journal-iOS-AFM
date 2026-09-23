@@ -1167,7 +1167,7 @@ interface ErrorResponse {
 ### File Tree
 
 ```
-MeetMemento/
+withMemento/
 ├── Models/
 │   ├── Insight.swift                  [MODIFY] Complete model
 │   ├── Theme.swift                    [CREATE] Theme model

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Merge-lane retrieve scale table (harness chat-speed plan). Live AFM /
 /// `DiagLatencyProfile` stays device-lane (`CI_ONLINE` skips it). These

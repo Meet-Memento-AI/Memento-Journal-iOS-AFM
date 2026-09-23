@@ -1,6 +1,6 @@
 //
 //  ProgressiveBlurEdge.swift
-//  MeetMemento
+//  withMemento
 //
 //  A translucent blur band for a scroll view's top or bottom edge. Content
 //  passes underneath and blurs into the chrome instead of being clipped by it.

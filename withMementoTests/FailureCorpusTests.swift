@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Deterministic checks for the September failure corpus. Generation stays
 /// serial and off this suite; the route, the ladder, and the scorers are

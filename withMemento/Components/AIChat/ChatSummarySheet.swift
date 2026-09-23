@@ -1,6 +1,6 @@
 //
 //  ChatSummarySheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bottom sheet modal for summarizing a chat conversation into a journal entry.
 //

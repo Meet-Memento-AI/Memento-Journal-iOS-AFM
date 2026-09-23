@@ -1,6 +1,6 @@
 //
 //  TurnTimings.swift
-//  MeetMemento
+//  withMemento
 //
 //  Pure per-turn stage-duration bookkeeping (spec 029 R1). Callers pass
 //  ContinuousClock instants; this type never reads a clock itself, so tests

@@ -1,6 +1,6 @@
 //
 //  MementoSheetChrome.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared house sheet chrome: drag handle, corner radius, primary glass tint.
 //  Compose sheets (Summary, Report) and list sheets (History, Citations,

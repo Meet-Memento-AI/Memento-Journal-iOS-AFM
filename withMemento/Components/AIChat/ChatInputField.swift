@@ -1,6 +1,6 @@
 //
 //  ChatInputField.swift
-//  MeetMemento
+//  withMemento
 //
 //  The chat composer: one glass capsule that morphs between three states.
 //  Figma 433:1077 (Default), 976:2838 (single-line typing), 976:2850
@@ -884,7 +884,7 @@ private struct SpeechAlertsModifier: ViewModifier {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(
-                    "MeetMemento needs microphone access to transcribe your voice. "
+                    "withMemento needs microphone access to transcribe your voice. "
                     + "Enable it in Settings > Privacy > Microphone."
                 )
             }

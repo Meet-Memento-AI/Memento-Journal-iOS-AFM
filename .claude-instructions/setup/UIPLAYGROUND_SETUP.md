@@ -17,7 +17,7 @@ All showcase files have been created:
 
 ### Step 1: Create the UIPlayground Target
 
-1. Open `MeetMemento.xcodeproj` in Xcode
+1. Open `withMemento.xcodeproj` in Xcode
 2. Click on the project name in the navigator (top of file tree)
 3. At the bottom of the targets list, click the **"+"** button
 4. Select **iOS → App** → Click **Next**
@@ -25,7 +25,7 @@ All showcase files have been created:
    - **Product Name**: `UIPlayground`
    - **Team**: (select your team)
    - **Organization Identifier**: `com.sebmendo` (or your identifier)
-   - **Bundle Identifier**: `com.sebmendo.MeetMemento.UIPlayground`
+   - **Bundle Identifier**: `com.sebmendo.withMementoAI.UIPlayground`
    - **Interface**: SwiftUI
    - **Language**: Swift
 6. Click **Finish**
@@ -36,7 +36,7 @@ All showcase files have been created:
 1. **Delete** the auto-generated UIPlayground folder that Xcode created
 2. In Finder, navigate to your project folder
 3. You should see the `UIPlayground` folder with all showcase files
-4. In Xcode, **right-click** on the project navigator → **Add Files to "MeetMemento"**
+4. In Xcode, **right-click** on the project navigator → **Add Files to "withMemento"**
 5. Select the `UIPlayground` folder
 6. **IMPORTANT**: Check the following options:
    - ☑️ **Copy items if needed** (UNCHECK THIS - we don't want to copy)
@@ -46,22 +46,22 @@ All showcase files have been created:
 
 ### Step 3: Add Shared Components
 
-Now we need to add the shared UI components from MeetMemento to UIPlayground:
+Now we need to add the shared UI components from withMemento to UIPlayground:
 
-1. Select **all files** in `MeetMemento/Components` folder in the navigator
+1. Select **all files** in `withMemento/Components` folder in the navigator
 2. Open **File Inspector** (⌥⌘1)
 3. Under **Target Membership**, check ☑️ **UIPlayground**
 
 Repeat for these folders/files:
-- `MeetMemento/Components/Buttons/` (all .swift files)
-- `MeetMemento/Components/Cards/` (all .swift files)
-- `MeetMemento/Components/Inputs/` (all .swift files)
-- `MeetMemento/Components/Navigation/` (all .swift files)
-- `MeetMemento/Resources/Theme.swift`
-- `MeetMemento/Resources/Typography.swift`
-- `MeetMemento/Extensions/Color+Theme.swift`
-- `MeetMemento/Extensions/View+Theme.swift`
-- `MeetMemento/Extensions/View+Typography.swift`
+- `withMemento/Components/Buttons/` (all .swift files)
+- `withMemento/Components/Cards/` (all .swift files)
+- `withMemento/Components/Inputs/` (all .swift files)
+- `withMemento/Components/Navigation/` (all .swift files)
+- `withMemento/Resources/Theme.swift`
+- `withMemento/Resources/Typography.swift`
+- `withMemento/Extensions/Color+Theme.swift`
+- `withMemento/Extensions/View+Theme.swift`
+- `withMemento/Extensions/View+Typography.swift`
 
 ### Step 4: Configure Build Settings (Optional - for faster builds)
 
@@ -90,7 +90,7 @@ You should see the Component Gallery with all your UI components! 🎉
 
 ### Adding New Components
 
-1. Create your component in `MeetMemento/Components/`
+1. Create your component in `withMemento/Components/`
 2. Add it to **UIPlayground** target membership
 3. Create a new showcase file in `UIPlayground/Showcases/`
 4. Add a link in `ComponentGallery.swift`
@@ -107,18 +107,18 @@ You should see the Component Gallery with all your UI components! 🎉
 **Must Include:**
 - All UIPlayground/*.swift files
 - All UIPlayground/Showcases/*.swift files
-- MeetMemento/Components/**/*.swift
-- MeetMemento/Resources/Theme.swift
-- MeetMemento/Resources/Typography.swift
-- MeetMemento/Extensions/Color+Theme.swift
-- MeetMemento/Extensions/View+Theme.swift
-- MeetMemento/Extensions/View+Typography.swift
+- withMemento/Components/**/*.swift
+- withMemento/Resources/Theme.swift
+- withMemento/Resources/Typography.swift
+- withMemento/Extensions/Color+Theme.swift
+- withMemento/Extensions/View+Theme.swift
+- withMemento/Extensions/View+Typography.swift
 
 **Must Exclude (DO NOT add to UIPlayground):**
-- MeetMemento/Services/**
-- MeetMemento/ViewModels/**
-- MeetMemento/Views/** (except components)
-- MeetMementoApp.swift (from main target)
+- withMemento/Services/**
+- withMemento/ViewModels/**
+- withMemento/Views/** (except components)
+- withMementoApp.swift (from main target)
 - Any Supabase-related files
 
 ## 🐛 Troubleshooting
@@ -133,7 +133,7 @@ You should see the Component Gallery with all your UI components! 🎉
 - Add Theme.swift and View+Theme.swift to UIPlayground target
 
 ### Preview still slow
-- Make sure you're running the **UIPlayground** scheme, not **MeetMemento**
+- Make sure you're running the **UIPlayground** scheme, not **withMemento**
 - Check that Services/ViewModels are NOT included in UIPlayground target
 
 ---

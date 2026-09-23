@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 049 S1: the pipeline shell returns today's channel. No prompt change.
 final class AskPipelineTests: XCTestCase {

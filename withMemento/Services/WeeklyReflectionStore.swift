@@ -1,6 +1,6 @@
 //
 //  WeeklyReflectionStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 019 R3 / 045 R4: persisted weekly reflection artifact. Counts live
 //  in the Swift UI, never in the model.

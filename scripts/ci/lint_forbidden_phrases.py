@@ -6,7 +6,7 @@ literal (or App Store metadata) may make an absolute-privacy claim that the
 app's PCC routing (spec 017 REQ-INT-003) contradicts. The claim is about the
 app's *capability*, not one user's session, so it holds for every shipping build.
 
-Scope (per the spec's acceptance): STRING LITERALS in MeetMemento/**/*.swift,
+Scope (per the spec's acceptance): STRING LITERALS in withMemento/**/*.swift,
 plus any App Store Connect metadata source (spec 002; scanned if present). The
 lint is comment-aware — a `//`/`/* */` comment that merely *mentions* a phrase
 (e.g. WelcomeView.swift's note that we never claim it) is NOT a violation; only
@@ -20,7 +20,7 @@ Exemptions:
 Exit non-zero on any violation, naming REQ-POS-001 and spec 014.
 
 Usage: scripts/ci/lint_forbidden_phrases.py [root ...]
-       (defaults to MeetMemento + common ASC metadata dirs)
+       (defaults to withMemento + common ASC metadata dirs)
 """
 import re
 import sys
@@ -131,7 +131,7 @@ def scan_text(path):
 
 
 def main(argv):
-    roots = argv[1:] or ["MeetMemento", "fastlane/metadata", "metadata"]
+    roots = argv[1:] or ["withMemento", "fastlane/metadata", "metadata"]
     swift_files, text_files = [], []
     for root in roots:
         if not os.path.exists(root):

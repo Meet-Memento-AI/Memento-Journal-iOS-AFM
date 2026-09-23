@@ -5,11 +5,11 @@
 The error `AuthenticationServices.AuthorizationError error 1000` typically indicates one of these issues:
 
 ### 1. **Missing Entitlements** ✅ FIXED
-I've created `MeetMemento.entitlements` with the Sign in with Apple capability.
+I've created `withMemento.entitlements` with the Sign in with Apple capability.
 
 **Next Step in Xcode:**
-1. Open `MeetMemento.xcodeproj` in Xcode
-2. Select the **MeetMemento** target
+1. Open `withMemento.xcodeproj` in Xcode
+2. Select the **withMemento** target
 3. Go to **Signing & Capabilities** tab
 4. Click **+ Capability**
 5. Add **Sign in with Apple**
@@ -19,7 +19,7 @@ I've created `MeetMemento.entitlements` with the Sign in with Apple capability.
 
 **Apple Developer Portal:**
 1. Go to https://developer.apple.com/account/
-2. **Identifiers** → Select your App ID (`com.sebmendo.MeetMemento`)
+2. **Identifiers** → Select your App ID (`com.sebmendo.withMementoAI`)
 3. Enable **Sign in with Apple** capability
 4. Click **Configure** next to Sign in with Apple
 5. Set it as **Primary App ID** if asked
@@ -56,7 +56,7 @@ I've created `MeetMemento.entitlements` with the Sign in with Apple capability.
    - **Option B**: Use native iOS Sign-In (what we're using)
 
 For native iOS, Supabase needs to accept Apple ID tokens. Verify:
-- Client ID = Your Services ID (e.g., `com.sebmendo.MeetMemento.signin`)
+- Client ID = Your Services ID (e.g., `com.sebmendo.withMementoAI.signin`)
 - You have the `.p8` key configured OR using native flow
 
 ### 6. **iOS Simulator Limitations**
@@ -106,7 +106,7 @@ This is MORE reliable than OAuth web flow because:
 1. **In Xcode:**
    ```
    - Open project
-   - Select MeetMemento target
+   - Select withMemento target
    - Signing & Capabilities → + Capability → Sign in with Apple
    - Ensure Development Team is selected
    - Build and run

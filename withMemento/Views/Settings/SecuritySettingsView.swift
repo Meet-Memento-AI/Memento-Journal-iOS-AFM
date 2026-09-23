@@ -1,6 +1,6 @@
 //
 //  SecuritySettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Lets the user turn the app lock on or off, change their PIN, and switch
 //  Face ID on or off — after onboarding, not only during it.

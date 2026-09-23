@@ -170,8 +170,8 @@ not chase the gap. It is the cost of the privacy posture, and it is the right co
 archive, 2026-08-18 — binary and dSYM both `DE824DAB-2BDD-3B75-9D6A-B6139988126B`:
 
 ```
-dwarfdump --uuid build/MeetMemento.xcarchive/Products/Applications/MeetMemento.app/MeetMemento
-dwarfdump --uuid build/MeetMemento.xcarchive/dSYMs/MeetMemento.app.dSYM
+dwarfdump --uuid build/withMemento.xcarchive/Products/Applications/withMemento.app/withMemento
+dwarfdump --uuid build/withMemento.xcarchive/dSYMs/withMemento.app.dSYM
 ```
 
 Re-check this whenever the build configuration changes. A mismatched UUID means

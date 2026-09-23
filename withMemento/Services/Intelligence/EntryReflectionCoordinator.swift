@@ -1,6 +1,6 @@
 //
 //  EntryReflectionCoordinator.swift
-//  MeetMemento
+//  withMemento
 //
 //  Session 8 / 045 R3: post-save entry reflection and warm-queue backfill.
 //  No `import FoundationModels`.

@@ -1,6 +1,6 @@
 # 🚀 Implementation Guide: Journal Entry View
 
-**Project**: MeetMemento  
+**Project**: withMemento  
 **Target**: iOS 17.0+  
 **Framework**: SwiftUI  
 **Documentation**: [Apple Developer - SwiftUI](https://developer.apple.com/documentation/swiftui)
@@ -49,12 +49,12 @@ ContentView
 
 ### Step 1: Create VoiceFAB Component
 
-**File**: `MeetMemento/Components/Buttons/VoiceFAB.swift`
+**File**: `withMemento/Components/Buttons/VoiceFAB.swift`
 
 ```swift
 //
 //  VoiceFAB.swift
-//  MeetMemento
+//  withMemento
 //
 //  Floating action button for voice recording feature.
 //  Follows Apple HIG for floating action buttons.
@@ -144,12 +144,12 @@ public struct VoiceFAB: View {
 
 ### Step 2: Create JournalEntryView
 
-**File**: `MeetMemento/Views/Journal/JournalEntryView.swift`
+**File**: `withMemento/Views/Journal/JournalEntryView.swift`
 
 ```swift
 //
 //  JournalEntryView.swift
-//  MeetMemento
+//  withMemento
 //
 //  A full-screen journal entry editor with title and body fields.
 //  Follows Apple's text editing best practices.
@@ -484,7 +484,7 @@ extension View {
 
 ### Step 3: Integrate with ContentView
 
-**File**: `MeetMemento/ContentView.swift`
+**File**: `withMemento/ContentView.swift`
 
 **Add state variable** after line 38:
 
@@ -597,11 +597,11 @@ Button {
 ## 📦 Deliverables Summary
 
 ### New Files (2)
-1. `MeetMemento/Components/Buttons/VoiceFAB.swift` - Voice recording FAB component
-2. `MeetMemento/Views/Journal/JournalEntryView.swift` - Main journal entry editor
+1. `withMemento/Components/Buttons/VoiceFAB.swift` - Voice recording FAB component
+2. `withMemento/Views/Journal/JournalEntryView.swift` - Main journal entry editor
 
 ### Modified Files (1)
-3. `MeetMemento/ContentView.swift` - Add sheet presentation for journal entry
+3. `withMemento/ContentView.swift` - Add sheet presentation for journal entry
 
 ---
 

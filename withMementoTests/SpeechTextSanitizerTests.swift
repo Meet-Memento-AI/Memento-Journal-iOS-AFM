@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// One fixture per stripped pattern (mirrors the per-pattern style of
 /// scripts/ci/speakability_lint.py's selftest). The sanitizer is a

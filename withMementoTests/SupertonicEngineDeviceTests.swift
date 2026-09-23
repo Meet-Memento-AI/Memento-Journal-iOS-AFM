@@ -1,6 +1,6 @@
 //
 //  SupertonicEngineDeviceTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  MEASURE-ON-DEVICE — proves the bundled neural voice actually loads and
 //  synthesizes on real hardware (spec 030 R2 acceptance, spec 031).
@@ -14,7 +14,7 @@
 
 import AVFoundation
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class SupertonicEngineDeviceTests: XCTestCase {
 

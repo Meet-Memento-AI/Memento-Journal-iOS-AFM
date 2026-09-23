@@ -2,7 +2,7 @@
 
 ## 🎉 Your Supabase is Ready to Use!
 
-Your MeetMemento app is now fully connected to Supabase!
+Your withMemento app is now fully connected to Supabase!
 
 ### 📋 Configuration Details
 
@@ -35,17 +35,17 @@ When your app launches, look for this in the Xcode console:
 ## 📁 Updated Files
 
 ### 1. **SupabaseConfig.swift** ✅
-- Located: `MeetMemento/Resources/SupabaseConfig.swift`
+- Located: `withMemento/Resources/SupabaseConfig.swift`
 - Contains your project URL and anon key
 - Ready to use!
 
 ### 2. **SupabaseService.swift** ✅
-- Located: `MeetMemento/Services/SupabaseService.swift`
+- Located: `withMemento/Services/SupabaseService.swift`
 - Fully implemented with auth methods
 - Includes error handling and logging
 
 ### 3. **SupabaseTestView.swift** (NEW) 🆕
-- Located: `MeetMemento/Views/Settings/SupabaseTestView.swift`
+- Located: `withMemento/Views/Settings/SupabaseTestView.swift`
 - Visual connection tester
 - Access via Settings → "Test Supabase Connection"
 - **You can delete this file later if you want**
@@ -180,7 +180,7 @@ create policy "Users can insert own entries"
 
 ### 3. Update Your Models
 
-Update `MeetMemento/Models/Entry.swift`:
+Update `withMemento/Models/Entry.swift`:
 
 ```swift
 import Foundation

@@ -1,6 +1,6 @@
 //
 //  LegacyStoreImporter.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 040 R4: one-time import of encrypted journals, LocalChatStore, and
 //  LocalProfileStore into SwiftData. Idempotent.

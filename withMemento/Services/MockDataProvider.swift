@@ -1,6 +1,6 @@
 //
 //  MockDataProvider.swift
-//  MeetMemento
+//  withMemento
 //
 //  Mock data provider for UI development without a live data source.
 //  Active when USE_MOCK_DATA flag is set.

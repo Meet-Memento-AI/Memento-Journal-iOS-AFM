@@ -1,6 +1,6 @@
 import Combine
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 // MARK: - Service mocks (spec 028 R8 seams)
 

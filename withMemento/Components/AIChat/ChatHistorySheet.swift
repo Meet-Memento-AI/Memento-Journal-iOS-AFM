@@ -1,6 +1,6 @@
 //
 //  ChatHistorySheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bottom sheet showing past chat sessions
 //

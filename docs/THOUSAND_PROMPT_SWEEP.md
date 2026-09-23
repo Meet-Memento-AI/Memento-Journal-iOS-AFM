@@ -14,13 +14,13 @@ Reproduce:
 # the sweep itself: ~100 min on one simulator, resumable, ~6s/generation
 TEST_RUNNER_SWEEP=1 \
 DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-xcodebuild test -scheme MeetMemento \
+xcodebuild test -scheme withMemento \
   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
   -parallel-testing-enabled NO -test-timeouts-enabled NO \
-  -only-testing:MeetMementoTests/MementoPromptSweep
+  -only-testing:withMementoTests/MementoPromptSweep
 
 # the routing dump: no model, no simulator capability, milliseconds
-xcodebuild test … -only-testing:MeetMementoTests/PromptSweepRouting
+xcodebuild test … -only-testing:withMementoTests/PromptSweepRouting
 ```
 
 Shard across simulators with `TEST_RUNNER_SWEEP_SHARD` / `TEST_RUNNER_SWEEP_SHARDS`; output

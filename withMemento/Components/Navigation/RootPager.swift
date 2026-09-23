@@ -1,6 +1,6 @@
 //
 //  RootPager.swift
-//  MeetMemento
+//  withMemento
 //
 //  Whole-page horizontal paging between the two root screens.
 //

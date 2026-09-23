@@ -221,11 +221,11 @@ Use this to guide your attention when exploring their entries...
 | `supabase/migrations/YYYYMMDD_add_selected_goals.sql` | **Create** – add `selected_goals` column |
 | `supabase/functions/chat-with-entries/index.ts` | **Create** – Memento chat edge function |
 | `supabase/functions/chat-with-entries/types.ts` | **Create** – request/response types |
-| `MeetMemento/ViewModels/OnboardingViewModel.swift` | **Update** – implement persistence to user_profiles |
-| `MeetMemento/Models/UserContext.swift` | **Update** – add `selectedGoals` |
-| `MeetMemento/Services/InsightsService.swift` | **Update** – pass systemPromptContext to chat |
-| `MeetMemento/Views/AI-Chat/AIChatView.swift` | **Update** – fetch UserContext, call real API, remove mock |
-| (Optional) `MeetMemento/Services/UserContextService.swift` | **Create** – fetch UserContext from user_profiles |
+| `withMemento/ViewModels/OnboardingViewModel.swift` | **Update** – implement persistence to user_profiles |
+| `withMemento/Models/UserContext.swift` | **Update** – add `selectedGoals` |
+| `withMemento/Services/InsightsService.swift` | **Update** – pass systemPromptContext to chat |
+| `withMemento/Views/AI-Chat/AIChatView.swift` | **Update** – fetch UserContext, call real API, remove mock |
+| (Optional) `withMemento/Services/UserContextService.swift` | **Create** – fetch UserContext from user_profiles |
 
 ---
 

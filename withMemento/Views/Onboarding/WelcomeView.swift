@@ -1,6 +1,6 @@
 //
 //  WelcomeView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Welcome screen with video background. No account, no sign-in — Get
 //  Started reveals a privacy explainer (Figma 1009:9894), then "Open my
@@ -93,7 +93,10 @@ public struct WelcomeView: View {
 
                 // Layer 4: Content (appears after video dissolve)
                 if contentCanAppear {
+                    // Copy and CTA take the reading column; the video, the
+                    // scrim and the plate behind them stay full-bleed.
                     contentOverlay
+                        .contentColumn()
                         .opacity(isExiting ? 0 : 1)
                 }
 

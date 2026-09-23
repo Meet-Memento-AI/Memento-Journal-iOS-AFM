@@ -1,6 +1,6 @@
 //
 //  NarrationCoordinator.swift
-//  MeetMemento
+//  withMemento
 //
 //  The state machine behind hands-free Narration Mode (Figma 302:618 /
 //  409:5646): listen → auto-send on a significant pause → stream the reply

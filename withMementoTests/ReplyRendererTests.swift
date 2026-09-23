@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 050 R4: the model points, the renderer quotes. Every quote on screen
 /// is text the pack already held; nothing marker-shaped ever reaches the body.

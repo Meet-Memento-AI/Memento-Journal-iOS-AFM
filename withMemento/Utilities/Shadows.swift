@@ -1,6 +1,6 @@
 //
 //  Shadows.swift
-//  MeetMemento
+//  withMemento
 //
 //  Standardized shadow constants for consistent visual hierarchy.
 //

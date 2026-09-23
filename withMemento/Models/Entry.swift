@@ -1,6 +1,6 @@
 //
 //  Entry.swift
-//  MeetMemento
+//  withMemento
 //
 //  UI projection of a journal entry (spec 040). Persistence is SwiftData
 //  `StoredEntry` mirrored to the user's CloudKit private DB. No Memento account.

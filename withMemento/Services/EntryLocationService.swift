@@ -1,6 +1,6 @@
 //
 //  EntryLocationService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Per-entry place name (spec 018 R6 / REQ-CAP-011). One-shot
 //  reduced-accuracy Core Location, on-device MapKit reverse geocode, then

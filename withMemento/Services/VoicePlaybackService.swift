@@ -1,6 +1,6 @@
 //
 //  VoicePlaybackService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Tap-to-speak playback of completed AI chat messages via AVSpeechSynthesizer
 //  (spec 018 R7, chat amendment). One message speaks at a time. The public API

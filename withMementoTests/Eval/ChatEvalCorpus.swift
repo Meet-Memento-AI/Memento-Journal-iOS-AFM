@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Fixture access for the chat evaluation gate (spec 022 R1/R2).
 ///
@@ -60,7 +60,7 @@ enum ChatEvalCorpus {
 
         var description: String {
             "Fixtures/ not found. Set TEST_RUNNER_CHAT_EVAL_FIXTURES to the repo's "
-            + "Fixtures directory, or run from a checkout where it sits beside MeetMementoTests/."
+            + "Fixtures directory, or run from a checkout where it sits beside withMementoTests/."
         }
     }
 
@@ -69,10 +69,10 @@ enum ChatEvalCorpus {
         if let path = env["CHAT_EVAL_FIXTURES"], !path.isEmpty {
             return URL(fileURLWithPath: path)
         }
-        // MeetMementoTests/Eval/ChatEvalCorpus.swift → repo root
+        // withMementoTests/Eval/ChatEvalCorpus.swift → repo root
         let repo = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Eval
-            .deletingLastPathComponent()   // MeetMementoTests
+            .deletingLastPathComponent()   // withMementoTests
             .deletingLastPathComponent()   // repo
         let fixtures = repo.appendingPathComponent("Fixtures")
         guard FileManager.default.fileExists(atPath: fixtures.path) else {

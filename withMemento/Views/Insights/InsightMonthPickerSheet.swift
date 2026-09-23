@@ -1,6 +1,6 @@
 //
 //  InsightMonthPickerSheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Extracted month picker sheet from InsightsView
 //

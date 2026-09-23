@@ -1,6 +1,6 @@
 //
 //  SpikeA_SpotlightRecallTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Spec 013 R2 — Spike A: Core Spotlight donation + retrieval quality.
 //  Donates the full fixture corpus (Fixtures/corpus/*.json) and measures
@@ -10,7 +10,7 @@
 //  Deliberately env-gated so it never runs in normal CI/local suites:
 //    TEST_RUNNER_SPIKE_A=1 \
 //    TEST_RUNNER_SPIKE_A_FIXTURES=/path/to/repo/Fixtures \
-//    xcodebuild test ... -only-testing:MeetMementoTests/SpikeA_SpotlightRecallTests
+//    xcodebuild test ... -only-testing:withMementoTests/SpikeA_SpotlightRecallTests
 //
 //  Retrieval path note: this measures the deterministic index+query half
 //  (CSUserQuery ranked results — the same engine behind system Spotlight),

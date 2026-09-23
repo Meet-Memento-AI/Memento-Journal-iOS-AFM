@@ -1,6 +1,6 @@
 //
 //  RetrievalPolicy.swift
-//  MeetMemento
+//  withMemento
 //
 //  Maps a classified turn (TurnClassifier) to a retrieval decision and, once
 //  retrieval has run, to the stance instruction handed to the model. The

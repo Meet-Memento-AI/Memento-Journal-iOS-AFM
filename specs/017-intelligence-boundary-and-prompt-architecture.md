@@ -45,7 +45,7 @@ versioned Markdown prompts with an optional signed remote manifest.
 
 No direct Gemini SDK/HTTP calls exist in Swift — all LLM calls currently happen
 server-side in Deno edge functions, called via `ChatService.swift`
-(`MeetMemento/Services/ChatService.swift`) and `InsightsService.swift`. No
+(`withMemento/Services/ChatService.swift`) and `InsightsService.swift`. No
 `IntelligenceService`-shaped protocol, no `@Generable`/guided generation, no
 prompt registry exists client-side; prompt "versioning" today is an informally
 synced Markdown file (`supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` +
@@ -111,7 +111,7 @@ method returns the zone actually used and callers MUST surface it
 where generation happened.
 
 **Acceptance:**
-- `grep -rl --include='*.swift' 'import FoundationModels' MeetMemento MeetMementoTests MeetMementoUITests | wc -l` returns exactly **1**, and that
+- `grep -rl --include='*.swift' 'import FoundationModels' withMemento withMementoTests withMementoUITests | wc -l` returns exactly **1**, and that
   one file is in the intelligence module. This exact check runs in CI as a
   lint step (satisfying the Regression Guards' "checkable by build
   configuration, not just code review" demand — the grep is the checkable

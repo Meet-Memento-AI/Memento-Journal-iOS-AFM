@@ -169,7 +169,7 @@ then `recall@5 ≥ 0.85` and `abstention accuracy ≥ 0.90` gate, matching 022
 `RetrievalGate`'s stated bar.
 
 **Acceptance:**
-- Given `xcodebuild test -only-testing:MeetMementoTests/RetrievalGate`, when
+- Given `xcodebuild test -only-testing:withMementoTests/RetrievalGate`, when
   run on a Mac with no Apple Intelligence, then it completes and writes the
   report (the gate is SDK-free).
 - Given a planted change that zeroes the semantic weight, when the gate runs

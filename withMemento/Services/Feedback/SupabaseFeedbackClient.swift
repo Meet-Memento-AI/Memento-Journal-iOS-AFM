@@ -1,6 +1,6 @@
 //
 //  SupabaseFeedbackClient.swift
-//  MeetMemento
+//  withMemento
 //
 //  URLSession PostgREST client for spec 042. No supabase-swift.
 //  Missing URL / anon key → not configured (callers no-op).

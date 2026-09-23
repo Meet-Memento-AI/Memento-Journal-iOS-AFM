@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// A 1,000-generation exploratory sweep through the exact path `AIChatView`
 /// uses, against the full 262-entry persona corpus.
@@ -14,10 +14,10 @@ import XCTest
 /// ```
 /// TEST_RUNNER_SWEEP=1 \
 /// DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-/// xcodebuild test -scheme MeetMemento \
+/// xcodebuild test -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
 ///   -parallel-testing-enabled NO -test-timeouts-enabled NO \
-///   -only-testing:MeetMementoTests/MementoPromptSweep
+///   -only-testing:withMementoTests/MementoPromptSweep
 /// ```
 ///
 /// At ~6s per generation the full sweep is roughly 100 minutes, which is longer

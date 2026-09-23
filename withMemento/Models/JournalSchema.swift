@@ -1,6 +1,6 @@
 //
 //  JournalSchema.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 015 R1: SwiftData schema for the 2.0 store. UI still uses the
 //  `Entry` value type; these `@Model` types are the mirrored records.
@@ -198,5 +198,5 @@ enum JournalSchema {
 
     static var schema: Schema { Schema(models) }
 
-    static let cloudKitContainerID = "iCloud.com.sebastianmendo.MeetMemento"
+    static let cloudKitContainerID = "iCloud.com.sebmendo.withMementoAI"
 }

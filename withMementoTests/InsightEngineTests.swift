@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// 045 R1 / R5: InsightEngine goldens on the persona corpus. SDK-free.
 final class InsightEngineTests: XCTestCase {

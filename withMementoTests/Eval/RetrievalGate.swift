@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 044 R2 — SDK-free retrieval gate.
 ///
@@ -10,9 +10,9 @@ import XCTest
 ///
 /// ```
 /// TEST_RUNNER_RETRIEVAL_GATE=1 xcodebuild test \
-///   -scheme MeetMemento \
+///   -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-///   -only-testing:MeetMementoTests/RetrievalGate
+///   -only-testing:withMementoTests/RetrievalGate
 /// ```
 ///
 /// `RETRIEVER_GRID=1` grid-searches hybrid weights on the same gold and writes

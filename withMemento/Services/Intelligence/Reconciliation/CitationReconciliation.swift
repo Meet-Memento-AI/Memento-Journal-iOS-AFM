@@ -1,6 +1,6 @@
 //
 //  CitationReconciliation.swift
-//  MeetMemento
+//  withMemento
 //
 //  Citation reconciliation and reference-marker stripping, moved out of the
 //  intelligence service. Behavior is unchanged. No Foundation Models import.

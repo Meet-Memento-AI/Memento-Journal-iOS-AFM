@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 050 R1: the pack mirrors what the prompt carries, and every quote in
 /// it is a span Swift already had.

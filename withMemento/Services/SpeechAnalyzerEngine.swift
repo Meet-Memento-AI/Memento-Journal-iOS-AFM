@@ -1,6 +1,6 @@
 //
 //  SpeechAnalyzerEngine.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 018 R1: SpeechAnalyzer + SpeechTranscriber + SpeechDetector.
 //  No SFSpeechAudioBufferRecognitionRequest / recognitionTask.

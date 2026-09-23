@@ -1,6 +1,6 @@
 //
 //  QuotedSpanExtractor.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 037 follow-on / 019 archival quotes: pick one short contiguous
 //  sentence from an entry for the evidence row's quoted field. Pure Swift —

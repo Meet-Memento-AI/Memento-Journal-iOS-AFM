@@ -1,6 +1,6 @@
 //
 //  PromptRegistry.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bundled, versioned prompts (spec 017 R8 / REQ-PRM-001). Authored inline as
 //  Swift constants so they always compile into the binary and are always the

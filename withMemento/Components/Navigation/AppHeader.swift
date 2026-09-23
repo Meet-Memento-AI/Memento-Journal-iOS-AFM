@@ -1,6 +1,6 @@
 //
 //  AppHeader.swift
-//  MeetMemento
+//  withMemento
 //
 //  The per-page header used by the two root screens.
 //  Figma 483:1213 (JournalView) and 483:1235 (AIChatView).

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Per-pattern fixture suite mirroring `scripts/ci/speakability_lint.py`'s
 /// selftest (spec 018 R9 exit criteria: one fixture per pattern, and a

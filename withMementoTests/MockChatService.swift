@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 final class MockChatService: ChatServiceProtocol {
     var sendMessageImpl: ((String, UUID?) async throws -> ChatResponse)?

@@ -1,6 +1,6 @@
 //
 //  ReplyRenderer+Strict.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 050 R4 steps 4–7: what the renderer does with journal-shaped text
 //  the model wrote itself instead of placing a marker. A span the pack can

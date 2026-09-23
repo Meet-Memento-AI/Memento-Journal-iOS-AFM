@@ -2,14 +2,14 @@
 
 ## ✅ What Was Built
 
-Your MeetMemento app now has a complete authentication flow integrated with Supabase! Users can sign up and sign in directly from the welcome screen.
+Your withMemento app now has a complete authentication flow integrated with Supabase! Users can sign up and sign in directly from the welcome screen.
 
 ---
 
 ## 📱 New Views Created
 
 ### 1. **WelcomeView.swift** (Updated) ✅
-**Location**: `MeetMemento/Views/Onboarding/WelcomeView.swift`
+**Location**: `withMemento/Views/Onboarding/WelcomeView.swift`
 
 **Features**:
 - Three buttons now available:
@@ -25,7 +25,7 @@ Your MeetMemento app now has a complete authentication flow integrated with Supa
 - Sign Up & Sign In: Secondary buttons (theme.secondary with border)
 
 ### 2. **SignUpView.swift** (NEW) 🆕
-**Location**: `MeetMemento/Views/Onboarding/SignUpView.swift`
+**Location**: `withMemento/Views/Onboarding/SignUpView.swift`
 
 **Features**:
 - ✅ Email input field with proper keyboard type and auto-capitalization
@@ -54,7 +54,7 @@ Your MeetMemento app now has a complete authentication flow integrated with Supa
 7. Dismisses after 2 seconds
 
 ### 3. **SignInView.swift** (NEW) 🆕
-**Location**: `MeetMemento/Views/Onboarding/SignInView.swift`
+**Location**: `withMemento/Views/Onboarding/SignInView.swift`
 
 **Features**:
 - ✅ Email input field with proper keyboard type and auto-capitalization
@@ -80,7 +80,7 @@ Your MeetMemento app now has a complete authentication flow integrated with Supa
 7. Dismisses after 1.5 seconds
 
 ### 4. **AppTextField.swift** (NEW) 🆕
-**Location**: `MeetMemento/Components/Inputs/AppTextField.swift`
+**Location**: `withMemento/Components/Inputs/AppTextField.swift`
 
 **Reusable Text Input Component**
 

@@ -1,6 +1,6 @@
 //
 //  EpistemicGuard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Checks a finished reply against the rung the code already chose.
 //  It does not rewrite the voice. No Foundation Models import.

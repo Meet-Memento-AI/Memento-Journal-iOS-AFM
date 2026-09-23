@@ -249,7 +249,7 @@ After saving, briefly show the new entry in JournalView.
 
 ## 📦 Files Modified
 
-1. **MeetMemento/ContentView.swift**
+1. **withMemento/ContentView.swift**
    - Added state variable
    - Updated FAB action
    - Added sheet presentation

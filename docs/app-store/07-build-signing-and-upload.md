@@ -22,7 +22,7 @@ This document is the pipeline that replaces that.
 | Requirement | In force since | Our position |
 |---|---|---|
 | Built with **Xcode 26 or later**, using an **iOS 26+ SDK** | **2026-04-28** | ✅ **Corrected 2026-09-12.** This row used to say we build with the Xcode 27 beta toolchain, which contradicts `00` C3 and would make the app unsubmittable — **Apple does not accept App Store builds made with beta software.** Archive with the release Xcode on the build Mac, currently **26.6 (17F113)**. Uploads from an older Xcode are **rejected**, not warned |
-| **Privacy manifest** with approved reasons for required-reason APIs, in the app **and every listed third-party SDK** | 2024-05-01 | ✅ `MeetMemento/PrivacyInfo.xcprivacy`. The unjustified `SystemBootTime` row **was removed 2026-08-07** and `scripts/ci/check_privacy_manifest.sh` now fails on both over- and under-declaration (verified passing 2026-09-12) |
+| **Privacy manifest** with approved reasons for required-reason APIs, in the app **and every listed third-party SDK** | 2024-05-01 | ✅ `withMemento/PrivacyInfo.xcprivacy`. The unjustified `SystemBootTime` row **was removed 2026-08-07** and `scripts/ci/check_privacy_manifest.sh` now fails on both over- and under-declaration (verified passing 2026-09-12) |
 | Listed third-party SDKs must be **signed** | 2024-05-01 | ✅ N/A — none of our packages is on Apple's list. Changes if RevenueCat ships (`03` §3) |
 | Age-rating questionnaire answered | 2026-01-31 | ☐ `05` §1 |
 | Social-media capability declared | **2026-09** | ☐ `05` §2 — weeks away |
@@ -68,11 +68,11 @@ last-uploaded record so this cannot silently regress.
 
 ```sh
 xcodebuild \
-  -project MeetMemento.xcodeproj \
-  -scheme MeetMemento \
+  -project withMemento.xcodeproj \
+  -scheme withMemento \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -archivePath build/MeetMemento.xcarchive \
+  -archivePath build/withMemento.xcarchive \
   archive
 ```
 
@@ -106,7 +106,7 @@ already does.
 
 ```sh
 xcodebuild -exportArchive \
-  -archivePath build/MeetMemento.xcarchive \
+  -archivePath build/withMemento.xcarchive \
   -exportOptionsPlist docs/app-store/ExportOptions.plist \
   -exportPath build/export
 ```
@@ -115,7 +115,7 @@ xcodebuild -exportArchive \
 
 ```sh
 xcrun altool --validate-app \
-  -f build/export/MeetMemento.ipa \
+  -f build/export/withMemento.ipa \
   -t ios \
   --apiKey "$ASC_KEY_ID" \
   --apiIssuer "$ASC_ISSUER_ID"
@@ -130,7 +130,7 @@ process.
 
 ```sh
 xcrun altool --upload-app \
-  -f build/export/MeetMemento.ipa \
+  -f build/export/withMemento.ipa \
   -t ios \
   --apiKey "$ASC_KEY_ID" \
   --apiIssuer "$ASC_ISSUER_ID"
@@ -174,7 +174,7 @@ misbehaves.
 
 | Code | Means | Fix |
 |---|---|---|
-| **ITMS-90683** | Missing purpose string. Your code **or a linked SDK** references an API gated by a usage description | Add the named `NS*UsageDescription` to `MeetMemento/Info.plist` with a **specific, user-facing** sentence. Required even if *your* code never calls the API — an SDK's reference is enough. Boilerplate strings also draw Guideline 5.1.1 rejections (`02` §4) |
+| **ITMS-90683** | Missing purpose string. Your code **or a linked SDK** references an API gated by a usage description | Add the named `NS*UsageDescription` to `withMemento/Info.plist` with a **specific, user-facing** sentence. Required even if *your* code never calls the API — an SDK's reference is enough. Boilerplate strings also draw Guideline 5.1.1 rejections (`02` §4) |
 | **ITMS-91053** | Missing API declaration — a required-reason API used without an approved reason | Add the category and a valid reason code to `NSPrivacyAccessedAPITypes`. See `03` §2 for the code table |
 | **ITMS-91054** | Invalid API category | Typo in `NSPrivacyAccessedAPIType`. Use Xcode's plist editor autocomplete |
 | **ITMS-91055** | Invalid API reason | The reason code is not valid for that category — **or is valid but unjustified** — the `SystemBootTime`/`35F9.1` over-declaration that used to sit here was removed 2026-08-07 and is now guarded by CI (`03`) |

@@ -1,9 +1,9 @@
 //
 //  MementoRootScene.swift
-//  MeetMemento
+//  withMemento
 //
 //  App scene, extracted from `@main` so a future journal-only flavor can wrap
-//  the same tree. Reserved: MEMENTO_AI currently always on for MeetMemento.
+//  the same tree. Reserved: MEMENTO_AI currently always on for withMemento.
 //
 
 import SwiftUI

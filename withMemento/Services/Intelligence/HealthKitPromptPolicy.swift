@@ -1,6 +1,6 @@
 //
 //  HealthKitPromptPolicy.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 015 R4 / DEC-006: HealthKit may be read as coarse Z0 metadata on the
 //  entry, but it never enters a Z1 prompt. The model does not see sleep,

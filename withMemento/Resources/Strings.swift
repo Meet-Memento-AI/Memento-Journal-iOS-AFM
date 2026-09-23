@@ -1,6 +1,6 @@
 //
 //  Strings.swift
-//  MeetMemento
+//  withMemento
 //
 
 import Foundation
@@ -9,7 +9,7 @@ struct Strings {
     // Add your localized strings here
     
     struct General {
-        static let appName = "MeetMemento"
+        static let appName = "withMemento"
         static let cancel = "Cancel"
         static let save = "Save"
         static let delete = "Delete"
