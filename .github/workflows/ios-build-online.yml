@@ -14,22 +14,57 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ios-build-online:
     name: iOS build (online)
-    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    # GitHub-hosted macOS with Xcode 27 (runner-images#14404; preview label).
+    # The app cannot compile on the Xcode 26.x images: the intelligence layer
+    # uses iOS 27 FoundationModels APIs. Until 2026-09-23 this job targeted a
+    # self-hosted Mac that was never re-registered, so it queued forever and no
+    # build or test ran. Hosted macOS minutes are free for this public repo.
+    # Override with the IOS_RUNNER repo variable (e.g. a macos-27 GA label).
+    runs-on: ${{ vars.IOS_RUNNER || 'xcode-27' }}
+    timeout-minutes: 90
     env:
       CI_ONLINE: "1"
-      # Compiles the Intelligence boundary (Xcode 26+ / Foundation Models SDK).
+      # On the xcode-27 image /Applications/Xcode.app is Xcode 27.
       # Override IOS_DEVELOPER_DIR / IOS_SIM_DESTINATION as repo variables.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
       IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
     steps:
       - uses: actions/checkout@v6
-        # Model weights are Git LFS (spec 030 R3). Without this the build
-        # receives pointer files and fails at RUNTIME as a model-load error.
+
+      # Model weights are Git LFS (spec 030 R3). Without them the build receives
+      # pointer files and fails at RUNTIME as a model-load error. ~148 MB per
+      # fetch would exhaust the free LFS bandwidth quota in a handful of runs, so
+      # the objects are cached, keyed on the LFS object ids.
+      - name: List LFS objects
+        run: git lfs ls-files --long | cut -d ' ' -f1 | sort > .lfs-assets-id
+
+      - name: Restore LFS cache
+        uses: actions/cache@v6
         with:
-          lfs: true
+          path: .git/lfs
+          key: lfs-${{ hashFiles('.lfs-assets-id') }}
+
+      - name: Fetch LFS objects
+        run: |
+          git lfs pull
+          # Fail here, not at runtime: a pointer file is ~130 bytes of text.
+          if git lfs ls-files | grep -q ' - '; then
+            echo "FAIL: some LFS objects are still pointer files:"
+            git lfs ls-files | grep ' - '
+            exit 1
+          fi
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | grep -i ios || true
 
       - name: Assert iOS build specifications
         run: bash scripts/ci/assert_ios_build_specs.sh
