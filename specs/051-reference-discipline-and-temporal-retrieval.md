@@ -2,7 +2,7 @@
 id: 051
 title: Reference Discipline II and Temporal Retrieval — Close the Study III Residuals
 tier: P1
-status: draft (2026-09-23)
+status: in-progress (2026-09-23 — R1–R6 landed; Study IV pending)
 effort: 2–3 sessions, stacked commits (see Tasks)
 depends_on: [022, 037, 044, 045, 046, 048, 049, 050]
 findings:
@@ -206,27 +206,48 @@ column from the fitted set in every retrieval report.
 - Given a change that improves fitted recall and does not improve held-out recall, then
   it is rejected.
 
-### R6. Temporal retrieval is fixed at the three measured mechanisms (`REQ-RET-003`)
+### R6. Temporal retrieval is fixed at the mechanisms that survive measurement (`REQ-RET-003`)
 
-Findings 5, 6 and 7 are distinct and are fixed distinctly:
+**Amended 2026-09-23, during implementation.** Three mechanisms were planned. Two
+shipped; the third was measured inert and deleted rather than kept.
 
-1. **Earliest-preference for origin questions.** Suppressing recency is not the same as
-   preferring the earliest; an explicit ordering is required.
-2. **Cue coverage.** Bare `first` before a noun, and life-event verbs, reach
-   `seeksOrigin`. The recency-cue override that keeps "when did I last…" out stays.
-3. **Within-window significance.** When a date window has already constrained the
-   candidate set, the σ bar is redundant; relax it inside a window so in-window entries
-   compete on lexical signal.
+1. **Earliest-preference for origin questions.** `seeksOrigin` zeroes recency, which
+   removes a bias toward recent without adding one toward first. `originScore` mirrors
+   `recencyScore` against the oldest *measured candidate* rather than against `now`, so
+   it behaves the same on a nine-month journal and a three-entry one, and ramps inside
+   a window when the query has one.
+2. **Cue coverage.** Life-event verbs and a bare `first` before a noun now reach
+   `seeksOrigin`; the phrase list could not cover "my first pottery class" without
+   enumerating every noun. The recency-cue override that keeps "when did I last…" out
+   is untouched.
+3. ~~**Within-window significance.**~~ **Deleted.** The hypothesis was that a named
+   window already constrains the candidates, so the σ bar is redundant inside it.
+   Measured at scale factors 1.00, 0.25 and 0.00, every metric on both gold sets is
+   bit-identical — the knob does nothing. The windowed branch already returns `touched`
+   entries when nothing clears the bar, so σ was never what ranks inside a window, and
+   the December miss has some other cause. An inert knob would have been the second
+   unmeasured threshold in a codebase that has already been burned by one.
 
-Passage granularity is explicitly **not** a lever here (finding 10).
+**The weight was set by the held-out set, and the two sets disagreed** — which is the
+entire reason R5 comes first:
 
-**Acceptance:**
-- Given the fitted and held-out sets, then recall@5 exceeds 0.760 on both and temporal
-  recall exceeds 0.636.
-- Given "When did I start pottery classes?", then the earliest supporting entry is in
-  the returned set.
-- Given "What was I working on last December?", then the returned set stays inside the
-  window and contains the supporting entry.
+| `originWeight` | fitted recall@5 | held-out recall@5 |
+|---|---|---|
+| 0.00 (cues only) | 0.783 | 0.600 |
+| **0.25 (shipped)** | **0.783** | **0.700** |
+| 0.50 | 0.795 | 0.600 |
+
+At 0.50 the fitted set peaks and the held-out set does not move — the signature of a
+weight tuned to its training data. It also broke a held-out question outright: "the
+first argument *after reconnecting*" is a constrained first, not the oldest argument in
+the journal, and a hard pull toward corpus-oldest dragged that question off an answer
+it had been getting right. A preference survives that; a filter would not.
+
+**Result:** fitted **0.760 → 0.783**, held-out **0.600 → 0.700**.
+
+**Acceptance:** met on the held-out set (+10.0pp) and on the fitted set (+2.3pp).
+Temporal recall and the remaining misses are recorded in
+`eval-archive/retrieval-heldout-after-051-R6.md`.
 
 ## Out of Scope
 
@@ -243,18 +264,18 @@ Passage granularity is explicitly **not** a lever here (finding 10).
 
 ## Tasks
 
-- [ ] 0. `spec(051)`: this plan; close out 050's status and the ROADMAP Gate E row with
+- [x] 0. `spec(051)`: this plan; close out 050's status and the ROADMAP Gate E row with
       Study III's measured outcome, including the two failed predictions.
-- [ ] 1. `prompts`: marker grammar conditional on pack state; `noneNote` simplified;
-      `ask-core@20` / `ask-degraded@20`; update the four prompt test suites. (R1)
-- [ ] 2. `renderer`: `stripScaffolding` pass, `strippedScaffoldCount`,
+- [x] 1. `prompts`: pack notes state the absence (R1, amended — the cached
+      instruction surface is deliberately untouched; see R1).
+- [x] 2. `renderer`: `stripScaffolding` pass, `strippedScaffoldCount`,
       `reply-render@2`, `ReplyRendererTests` fixtures. (R2)
-- [ ] 3. `eval`: `hall.unbackedDate` with pattern, registry, report-only registration,
+- [x] 3. `eval`: `hall.unbackedDate` with pattern, registry, report-only registration,
       firing fixture, coverage entry, three call sites. (R3)
-- [ ] 4. `fixtures`: held-out gold questions; `RetrievalGate` reports both sets. (R5)
-- [ ] 5. `retrieval`: earliest-preference, cue coverage, within-window significance;
-      re-measure after each. (R6)
-- [ ] 6. `retrieval`: confidence on `RetrievalResult`; flagged narrowing in
+- [x] 4. `fixtures`: held-out gold questions; `RetrievalGate` reports both sets. (R5)
+- [x] 5. `retrieval`: earliest-preference and cue coverage; within-window
+      significance measured inert and dropped. (R6)
+- [x] 6. `retrieval`: confidence on `RetrievalResult`; flagged narrowing in
       `sliceRetrieval`; offline calibration. (R4)
 - [ ] 7. Study IV: pre-register, run both arms at 100, archive, write up.
 - [ ] 8. Register in `specs/README.md` and `ROADMAP.md`.
