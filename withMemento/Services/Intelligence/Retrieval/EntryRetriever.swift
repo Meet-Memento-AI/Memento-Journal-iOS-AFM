@@ -48,6 +48,28 @@ struct RetrievalResult: Sendable, Equatable {
     /// direct topical answer — the prompt uses this to converse rather than cite.
     let isAmbient: Bool
 
+    /// How far the top entry outscored the runner-up, as a fraction of the top
+    /// score (051 R4).
+    ///
+    /// Until now no number crossed this boundary: everything downstream — the
+    /// stance, the evidence ladder, the pack — decided on `isEmpty`,
+    /// `isAmbient` and a count. That is why the prompt cap could not narrow
+    /// when one entry obviously won.
+    ///
+    /// Measured on the 2026-09-23 gold set, about 1.1 of 5 slots are the answer
+    /// on a typical question, and Study III measured the model expanding a
+    /// quote marker on 15.6% of matched turns. Four parts noise to one part
+    /// signal is a plausible reason to decline, so this exists to let the slice
+    /// narrow rather than to let retrieval widen.
+    ///
+    /// `nil` when there are fewer than two entries — there is no margin to
+    /// speak of — and never negative.
+    ///
+    /// `var` with a default so the memberwise initializer keeps the twenty-odd
+    /// existing construction sites compiling: a margin is a property of a real
+    /// retrieval, and a hand-built fixture has no opinion about it.
+    var topMargin: Double? = nil
+
     var isEmpty: Bool { entries.isEmpty }
 
     static let empty = RetrievalResult(entries: [], contextBlock: "", isAmbient: false)
@@ -687,7 +709,19 @@ enum EntryRetriever {
                 )
             )
         }
-        return RetrievalResult(entries: retrieved, contextBlock: buildContextBlock(retrieved, ambient: ambient), isAmbient: ambient)
+        // Margin between the two best *selected* entries, in the order they
+        // will be shown. Ambient rows carry no topical claim, so they have no
+        // meaningful margin.
+        let margin: Double? = {
+            guard !ambient, selected.count >= 2 else { return nil }
+            let top = scoredById[selected[0].id]?.score ?? 0
+            let next = scoredById[selected[1].id]?.score ?? 0
+            guard top > 0 else { return nil }
+            return max(0, (top - next) / top)
+        }()
+        return RetrievalResult(entries: retrieved,
+                               contextBlock: buildContextBlock(retrieved, ambient: ambient),
+                               isAmbient: ambient, topMargin: margin)
     }
 
     // MARK: - Passage cosine + excerpt (spec 044 R1)

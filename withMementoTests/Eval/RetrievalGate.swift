@@ -55,6 +55,10 @@ final class RetrievalGate: XCTestCase {
             + Self.renderReport(heldOutScored)
         print(report)
         Self.write(report: report, items: scored, extra: ("heldout.md", Self.renderReport(heldOutScored)))
+        // The held-out items as JSON too, so a threshold can be calibrated
+        // against the set that was never fitted (051 R4/R5).
+        Self.write(report: Self.renderReport(heldOutScored), items: heldOutScored,
+                   extra: nil, jsonName: "heldout.json")
 
         if env["RETRIEVER_GRID"] == "1" {
             let grid = Self.gridSearch(gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID)
@@ -117,6 +121,9 @@ final class RetrievalGate: XCTestCase {
         let reciprocalRank: Double
         let abstainedCorrectly: Bool?
         let hit: Bool
+        /// 051 R4: how decisively the top entry won, so the narrowing
+        /// threshold can be calibrated here rather than guessed.
+        let topMargin: Double?
     }
 
     fileprivate struct Summary {
@@ -205,7 +212,8 @@ final class RetrievalGate: XCTestCase {
             query: question.query, expected: expected, top: top,
             ambient: result.isAmbient, empty: result.isEmpty, ranks: ranks,
             recall: recall, precision: precision, reciprocalRank: rr,
-            abstainedCorrectly: abstainedCorrectly, hit: hit
+            abstainedCorrectly: abstainedCorrectly, hit: hit,
+            topMargin: result.topMargin
         )
     }
 
@@ -349,7 +357,8 @@ final class RetrievalGate: XCTestCase {
         String(format: "%.3f", value)
     }
 
-    private static func write(report: String, items summary: Summary, extra: (String, String)?) {
+    private static func write(report: String, items summary: Summary, extra: (String, String)?,
+                              jsonName: String = "report.json") {
         let dir: URL
         if let path = ProcessInfo.processInfo.environment["RETRIEVAL_GATE_OUT"], !path.isEmpty {
             dir = URL(fileURLWithPath: path)
@@ -362,7 +371,9 @@ final class RetrievalGate: XCTestCase {
                 .appendingPathComponent("retrieval")
         }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try? report.write(to: dir.appendingPathComponent("report.md"), atomically: true, encoding: .utf8)
+        if jsonName == "report.json" {
+            try? report.write(to: dir.appendingPathComponent("report.md"), atomically: true, encoding: .utf8)
+        }
 
         let payload: [String: Any] = [
             "kind": "harness_retrieval",
@@ -389,6 +400,7 @@ final class RetrievalGate: XCTestCase {
                     "ambient": item.ambient,
                     "empty": item.empty,
                     "ranks": item.ranks,
+                    "topMargin": item.topMargin as Any,
                     "recall": item.recall,
                     "precision": item.precision,
                     "mrr": item.reciprocalRank,
@@ -397,7 +409,7 @@ final class RetrievalGate: XCTestCase {
             }
         ]
         if let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]) {
-            try? data.write(to: dir.appendingPathComponent("report.json"))
+            try? data.write(to: dir.appendingPathComponent(jsonName))
         }
 
         var csv = "id,match,hit,recall,precision,mrr,ambient,empty,expected,top,query\n"
@@ -406,7 +418,9 @@ final class RetrievalGate: XCTestCase {
             let top = item.top.joined(separator: ";")
             csv += "\(item.id),\(item.match),\(item.hit),\(pct(item.recall)),\(pct(item.precision)),\(pct(item.reciprocalRank)),\(item.ambient),\(item.empty),\"\(expected)\",\"\(top)\",\"\(item.query.replacingOccurrences(of: "\"", with: "'"))\"\n"
         }
-        try? csv.write(to: dir.appendingPathComponent("items.csv"), atomically: true, encoding: .utf8)
+        if jsonName == "report.json" {
+            try? csv.write(to: dir.appendingPathComponent("items.csv"), atomically: true, encoding: .utf8)
+        }
 
         if let extra {
             try? extra.1.write(to: dir.appendingPathComponent(extra.0), atomically: true, encoding: .utf8)

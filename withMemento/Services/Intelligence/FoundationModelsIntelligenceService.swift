@@ -1226,20 +1226,65 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Spec 037 follow-on: retrieve up to 20, reveal 3–5. Session-scoped denylist
     /// of already-surfaced IDs so follow-ups can rotate evidence.
+    ///
+    /// 051 R4 narrows that reveal when one entry decisively wins. Off by
+    /// default: `k` is product-visible — fewer slots is fewer chips a reader can
+    /// open — and 7 of the 45 fitted gold questions have multi-entry answers,
+    /// so this measures before it ships.
     private func sliceRetrieval(_ retrieval: RetrievalResult, promptCap: Int, resetPool: Bool) -> RetrievalResult {
         poolLock.lock()
         defer { poolLock.unlock() }
         if resetPool { candidatePool.reset() }
         guard !retrieval.isEmpty else { return retrieval }
         candidatePool.ingest(retrieval.entries)
-        let sliced = candidatePool.sliceForPrompt(retrieval.entries, cap: promptCap)
+        let cap = Self.narrowedCap(promptCap, margin: retrieval.topMargin)
+        let sliced = candidatePool.sliceForPrompt(retrieval.entries, cap: cap)
         candidatePool.markSurfaced(sliced.map(\.id))
         return RetrievalResult(
             entries: sliced,
             contextBlock: EntryRetriever.contextBlock(for: sliced, ambient: retrieval.isAmbient),
-            isAmbient: retrieval.isAmbient
+            isAmbient: retrieval.isAmbient,
+            topMargin: retrieval.topMargin
         )
     }
+
+    /// How many slots to reveal, given how decisively the top entry won.
+    ///
+    /// The case for narrowing is that about 1.1 of 5 slots are the answer on a
+    /// typical gold question, and Study III measured the model expanding a
+    /// quote marker on only 15.6% of matched turns — four parts noise to one
+    /// part signal is a plausible reason to decline rather than a fault. The
+    /// case against is that a reader loses chips they could have opened, and
+    /// that multi-entry questions exist.
+    ///
+    /// So it is opt-in and unarmed: without `MEMENTO_NARROW_K` this returns the
+    /// cap unchanged and behaviour is bit-identical. `technology/04-evaluations.md`
+    /// — measure first, threshold after.
+    static func narrowedCap(_ cap: Int, margin: Double?) -> Int {
+        guard ProcessInfo.processInfo.environment["MEMENTO_NARROW_K"] == "1",
+              let margin, margin >= narrowKMargin else { return cap }
+        return min(cap, narrowKCap)
+    }
+
+    /// A top entry scoring 10% clear of the runner-up is treated as decisive.
+    ///
+    /// Calibrated against both gold sets rather than chosen, and the difference
+    /// mattered: the first draft of this constant was 0.40, which is above the
+    /// largest margin either set produces (fitted max 0.317) and would have
+    /// narrowed nothing at all while reading as a working feature.
+    ///
+    /// Measured 2026-09-23, revealing 3 instead of 5 above the threshold:
+    ///
+    ///     threshold   fitted narrowed   held-out narrowed   recall lost
+    ///     0.05        16/42             4/10                none
+    ///     0.10        12/42             3/10                none
+    ///     0.20         6/42             1/10                none
+    ///
+    /// 0.10 narrows roughly three questions in ten on both sets with no recall
+    /// cost on either, and sits well clear of the median margin (0.035), so it
+    /// means "one entry clearly won" rather than "the ordering has an order".
+    static let narrowKMargin = 0.10
+    static let narrowKCap = 3
 
     /// Builds the final `AskResult` from either the whole-answer `respond` or
     /// the last streamed snapshot. The renderer runs first (spec 050): every

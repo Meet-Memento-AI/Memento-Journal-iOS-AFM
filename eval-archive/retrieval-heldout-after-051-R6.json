@@ -1,0 +1,327 @@
+{
+  "items" : [
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-07-1"
+      ],
+      "hit" : true,
+      "id" : "h-01",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "When did I sign up for the pottery class?",
+      "ranks" : {
+        "e-2026-01-07-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-01-07-1",
+        "e-2026-01-08-1",
+        "e-2026-01-22-1",
+        "e-2026-01-29-1",
+        "e-2026-04-16-1"
+      ],
+      "topMargin" : 0.053294031089367297
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-12-1"
+      ],
+      "hit" : true,
+      "id" : "h-02",
+      "match" : "all",
+      "mrr" : 0.33333333333333331,
+      "precision" : 0.20000000000000001,
+      "query" : "When did I first meet Sam?",
+      "ranks" : {
+        "e-2025-12-12-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-04-13-1",
+        "e-2025-11-24-1",
+        "e-2025-12-12-1",
+        "e-2026-01-09-1",
+        "e-2026-01-12-1"
+      ],
+      "topMargin" : 0.19263921593851341
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-05-1"
+      ],
+      "hit" : false,
+      "id" : "h-03",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did the Atlas push begin?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-01-06-1",
+        "e-2026-02-04-1",
+        "e-2026-03-11-1",
+        "e-2026-03-17-1",
+        "e-2025-12-04-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-01-1"
+      ],
+      "hit" : false,
+      "id" : "h-04",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did I start at Meridian?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-04-22-1",
+        "e-2026-05-31-1",
+        "e-2026-06-01-1",
+        "e-2026-06-17-1",
+        "e-2026-06-23-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-07-04-1"
+      ],
+      "hit" : true,
+      "id" : "h-05",
+      "match" : "all",
+      "mrr" : 0.25,
+      "precision" : 0.20000000000000001,
+      "query" : "When did Dario and I first argue after reconnecting?",
+      "ranks" : {
+        "e-2026-07-04-1" : 3
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-08-1",
+        "e-2026-06-05-2",
+        "e-2026-06-30-1",
+        "e-2026-07-04-1",
+        "e-2026-07-05-1"
+      ],
+      "topMargin" : 0.029044179886809435
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-18-1"
+      ],
+      "hit" : false,
+      "id" : "h-06",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did Nonna first come up?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-02-09-1",
+        "e-2026-02-12-1",
+        "e-2026-02-26-1",
+        "e-2026-03-08-1",
+        "e-2026-05-29-1"
+      ],
+      "topMargin" : 0.027711513520536198
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-08-1"
+      ],
+      "hit" : true,
+      "id" : "h-07",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What happened the first time I sat at the pottery wheel?",
+      "ranks" : {
+        "e-2026-01-08-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-01-08-1",
+        "e-2026-01-29-1",
+        "e-2026-02-05-1",
+        "e-2026-02-26-1",
+        "e-2026-07-18-1"
+      ],
+      "topMargin" : 0.00058657128991801291
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-04-1"
+      ],
+      "hit" : true,
+      "id" : "h-08",
+      "match" : "all",
+      "mrr" : 0.33333333333333331,
+      "precision" : 0.20000000000000001,
+      "query" : "What did I tell Priya about my calendar?",
+      "ranks" : {
+        "e-2026-02-04-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-04-07-1",
+        "e-2026-04-13-1",
+        "e-2026-02-04-1",
+        "e-2025-11-03-1",
+        "e-2026-04-14-1"
+      ],
+      "topMargin" : 0.00018739515407679215
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-06-24-1"
+      ],
+      "hit" : true,
+      "id" : "h-09",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "Who suggested I sell pottery at the street market?",
+      "ranks" : {
+        "e-2026-06-24-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-06-24-1",
+        "e-2026-07-12-1",
+        "e-2026-06-25-2",
+        "e-2026-06-27-1",
+        "e-2026-06-26-1"
+      ],
+      "topMargin" : 0.17772879432738536
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2025-11-02-1"
+      ],
+      "hit" : true,
+      "id" : "h-10",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.33333333333333331,
+      "query" : "What did Maya and I do that lazy Sunday in November?",
+      "ranks" : {
+        "e-2025-11-02-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-11-02-1",
+        "e-2025-11-20-1",
+        "e-2025-11-29-1"
+      ],
+      "topMargin" : 0.47071408291577893
+    },
+    {
+      "ambient" : false,
+      "category" : "honesty",
+      "empty" : false,
+      "expected" : [
+
+      ],
+      "hit" : false,
+      "id" : "h-11",
+      "match" : "none",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "What have I written about learning to sail?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-07-06-2",
+        "e-2026-05-01-1",
+        "e-2026-06-18-1",
+        "e-2026-05-12-1",
+        "e-2026-05-16-1"
+      ],
+      "topMargin" : 0.2500626181271704
+    },
+    {
+      "ambient" : false,
+      "category" : "honesty",
+      "empty" : false,
+      "expected" : [
+
+      ],
+      "hit" : false,
+      "id" : "h-12",
+      "match" : "none",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did I move to Lisbon?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2025-12-30-1",
+        "e-2026-05-30-1",
+        "e-2026-06-02-1",
+        "e-2026-06-14-1",
+        "e-2026-06-30-1"
+      ],
+      "topMargin" : 0.025096088307669965
+    }
+  ],
+  "kind" : "harness_retrieval",
+  "metrics" : {
+    "abstentionAccuracy" : 0,
+    "answerable" : 10,
+    "hits" : 7,
+    "mrr" : 0.49166666666666659,
+    "precision@5" : 0.15333333333333332,
+    "recall@5" : 0.69999999999999996,
+    "trapLeaks" : 2,
+    "traps" : 2
+  },
+  "promptCap" : 5,
+  "reportOnly" : true
+}
