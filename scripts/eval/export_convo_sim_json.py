@@ -25,6 +25,18 @@ from pathlib import Path
 # A month-name-plus-day assertion in the reply body. No scorer targets these, so
 # the count has to be derived from the text; on a zero-entry arm every one of
 # them is invented by construction, which is the number that should be zero.
+# Shape of the reply as a reader meets it. Computed from the text rather than
+# from recorded fields, because the fields arrived over three studies and the
+# earliest run has none of them — a shape comparison has to be measured the same
+# way on all three or it is not a comparison.
+SHAPE_PATTERNS = {
+    "heading": re.compile(r"(^|\n)#{1,4}\s"),
+    "italics": re.compile(r"(?<!\*)\*(?!\*)[^*\n]{3,}?(?<!\*)\*(?!\*)"),
+    "bold": re.compile(r"\*\*[^*\n]{2,}?\*\*"),
+    "list": re.compile(r"(^|\n)\s*([-*+]|\d+\.)\s"),
+    "marker_leak": re.compile(r"\{\{|\[Evidence\]|\[Today:|\[ref\s"),
+}
+
 DATE_ASSERTION = re.compile(
     r"\b(January|February|March|April|May|June|July|August|September|October|November|December)"
     r"\s+\d{1,2}\b",
@@ -128,6 +140,17 @@ def arm_block(rows: list[dict], arm: str) -> dict:
         })([r for r in gen if r.get("evidence_pack")]),
         "render_versions": sorted({r["render_version"] for r in gen if r.get("render_version")}),
         "prompt_versions": sorted({r["prompt_version"] for r in gen if r.get("prompt_version")}),
+        "output_shape": (lambda bodies: {
+            "n": len(bodies),
+            "median_words": statistics.median([len(b.split()) for b in bodies]) if bodies else None,
+            "mean_words": (sum(len(b.split()) for b in bodies) / len(bodies)) if bodies else None,
+            "questions_per_reply": (sum(b.count("?") for b in bodies) / len(bodies)) if bodies else None,
+            **{
+                f"pct_{name}": (100 * sum(1 for b in bodies if pattern.search(b)) / len(bodies))
+                if bodies else None
+                for name, pattern in SHAPE_PATTERNS.items()
+            },
+        })([r.get("text") or "" for r in gen]),
         "date_assertions": (lambda dated: {
             "n": len(dated),
             "rate": 100 * len(dated) / total if total else None,
@@ -216,9 +239,34 @@ def run_block(label: str, path: Path) -> dict:
             "rate": 100 * sum(cells.values()) / len(assistant) if assistant else 0,
         })
 
+    def opener_sample(arm: str) -> dict | None:
+        """The first reply of run 000 on this arm.
+
+        Run ids are seeded identically across studies, so this is the same
+        persona answering the same opening question in every study — the only
+        genuinely paired comparison the series has, since every later turn
+        depends on what the assistant said before it.
+        """
+        pool = [r for r in rows if r.get("arm") == arm and r.get("run_id", "").endswith("/000")]
+        user = next((r for r in pool if r.get("role") == "user" and r.get("turn_index") == 0), None)
+        reply = next((r for r in pool if r.get("role") == "assistant" and r.get("turn_index") == 1), None)
+        if not reply:
+            return None
+        return {
+            "arm": arm,
+            "question": (user or {}).get("text", ""),
+            "reply": reply.get("text", ""),
+            "channel": reply.get("channel"),
+            "intent": reply.get("intent_id"),
+            "persona": reply.get("persona_id"),
+            "citations": len(reply.get("citations") or []),
+            "codes": [v["code"] for v in reply.get("violations", [])],
+        }
+
     return {
         "label": label,
         "file": path.name,
+        "openers": [s for s in (opener_sample(a) for a in arms) if s],
         "messages": len(rows),
         "manifest": {
             key: manifest.get(key) for key in (

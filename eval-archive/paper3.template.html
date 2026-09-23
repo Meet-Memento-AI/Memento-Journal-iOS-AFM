@@ -314,7 +314,62 @@
   </section>
 
   <section class="sec">
-    <h2><span class="secnum">4</span> Discussion</h2>
+    <h2><span class="secnum">4</span> How the output changed</h2>
+    <div class="col">
+      <p>The rates in §3 say how often a check fired. They do not say what the assistant actually
+      sounded like, and across three pipelines it changed more than the violation counts alone
+      suggest. Reply shape below is measured from the text in every study by the same patterns, not
+      read from recorded fields — those arrived over three runs and the first has none of them.</p>
+    </div>
+    <div class="tbl-wrap" id="t-shape"></div>
+    <figcaption><b>Table 9.</b> Reply shape, all six arms. The italics column is the clearest single
+      trace of the series: a contract that reserved them for journal quotation, a model that took the
+      instruction and ran, and a specification that retired the contract.</figcaption>
+
+    <figure style="margin-top:8px">
+      <div class="fignum">Figure 3</div>
+      <div id="f-shape"></div>
+      <div class="legend" id="f-shape-legend"></div>
+      <figcaption><b>Figure 3.</b> Markup in seeded-arm replies. Italics, headings and bold all
+        collapse under specification 050; lists rise to take their place, and marker or scaffolding
+        text appears on screen for the first time.</figcaption>
+    </figure>
+
+    <h3 class="col">4.1 The same question, three pipelines</h3>
+    <div class="col">
+      <p>Run identifiers are seeded identically in every study, so the first turn of run 000 is the
+      same persona asking the same opening question of three different pipelines. It is the only
+      strictly paired comparison the series has — every later turn depends on what the assistant said
+      before it.</p>
+    </div>
+    <div id="openers"></div>
+    <figcaption><b>Figure 4.</b> Verbatim first replies to <i>"What have I been writing about
+      lately?"</i>, persona <span class="mono">p01-clipped</span>. The model's own emphasis is
+      preserved.</figcaption>
+    <div class="col">
+      <p>The zero-entry column is the cleanest progression in the series: a reply that invents
+      notebook structure over an empty archive, then one that simply says it cannot see anything, then
+      the same with the reason made explicit. The seeded column shows the trade this report is about.
+      Study I hedges — it denies, then quotes anyway. Study II commits fully to the italic contract and
+      quotes a whole entry as a heading. Study III neither hedges nor quotes: it paraphrases, and the
+      one piece of hard evidence it offers is a date the renderer expanded from a marker.</p>
+      <p>That date also shows the seam. <i>"In April 26, 2026, you spoke of…"</i> is not a sentence a
+      person would write; the renderer substituted a formatted date into glue the model had built for
+      a different shape. The reference is now correct and the prose around it is not yet.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">5</span> All results</h2>
+    <div class="tbl-wrap" id="t-master"></div>
+    <figcaption><b>Table 10.</b> Every arm of every study, one table. Rates are gating-only.
+      <i>Fab.</i> is <code>hall.fabricatedQuote</code>; note that it measures different things before
+      and after specification 050 retired the italic contract, and that it could not execute at all in
+      Study I.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">6</span> Discussion</h2>
     <div class="col">
       <p>Three studies now support one claim without qualification: <b>every time a decision has been
       taken away from this model, quality has improved, and the improvements have been large.</b>
@@ -341,7 +396,7 @@
   </section>
 
   <section class="sec">
-    <h2><span class="secnum">5</span> Threats to validity</h2>
+    <h2><span class="secnum">7</span> Threats to validity</h2>
     <ul class="plain">
       <li><b>The fabricated-quotation scorer does not measure the same thing in both studies.</b> Its
         vehicle was retired between them. The drop to zero is reported as two measurements, never as a
@@ -363,7 +418,7 @@
   </section>
 
   <section class="sec">
-    <h2><span class="secnum">6</span> Conclusion</h2>
+    <h2><span class="secnum">8</span> Conclusion</h2>
     <div class="col">
       <p>Specification 050 did what it was designed to do, by a wide margin, and got slightly faster
       doing it. The recommendation that produced it was right about what to build and wrong about why
@@ -697,6 +752,153 @@
         sd.latency ? fmt(sd.latency.p90, 2) + "s" : "—",
         sd.latency ? fmt(sd.latency.max, 1) + "s" : "—"];
     }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 9
+  const SH = (c) => c.d.output_shape || {};
+  table(document.getElementById("t-shape"),
+    ["Study · arm", "Median words", "Questions/reply", "Heading", "Italics", "Bold", "List", "Marker or [Evidence] on screen"],
+    CELLS.map((c) => {
+      const s = SH(c);
+      const ital = s.pct_italics;
+      const leak = s.pct_marker_leak;
+      return [c.label, fmt(s.median_words, 0), fmt(s.questions_per_reply, 2),
+        fmt(s.pct_heading) + "%",
+        mark(fmt(ital) + "%", ital > 50 ? "hl" : ital < 1 ? "ok" : ""),
+        fmt(s.pct_bold) + "%", fmt(s.pct_list) + "%",
+        leak > 0.5 ? mark(fmt(leak) + "%", "hl") : fmt(leak) + "%"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------------- Figure 3
+  (function shapeFig() {
+    const host = document.getElementById("f-shape");
+    const seeded = CELLS.filter((c) => c.arm !== "empty");
+    const series = [
+      { key: "pct_italics", label: "italics" },
+      { key: "pct_heading", label: "heading" },
+      { key: "pct_bold", label: "bold" },
+      { key: "pct_list", label: "list" },
+      { key: "pct_marker_leak", label: "scaffolding on screen" },
+    ];
+    const W = 760, padL = 196, padR = 54, top = 24, rowH = 17, groupGap = 14;
+    const H = top + series.length * (seeded.length * rowH + groupGap) + 10;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(10, ...series.flatMap((ser) => seeded.map((c) => SH(c)[ser.key] || 0)));
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 12,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    // One hue per study, light to dark, because the comparison here is across
+    // time rather than across arms — every row is a seeded arm.
+    const studyShade = { "Study I": 0.32, "Study II": 0.62, "Study III": 1 };
+    let y = top;
+    series.forEach((ser) => {
+      s.appendChild(el("text", { x: padL - 12, y: y + 11, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)" }, ser.label));
+      seeded.forEach((c, i) => {
+        const v = SH(c)[ser.key] || 0;
+        const by = y + i * rowH;
+        const w = Math.max(v > 0 ? 2.5 : 0, x(v) - padL);
+        if (w > 0) {
+          s.appendChild(el("rect", { x: padL, y: by, width: w, height: 12, rx: 1.5,
+            fill: "var(--has-journal)", opacity: studyShade[c.run] || 1 }));
+        } else {
+          s.appendChild(el("line", { x1: padL, y1: by + 6, x2: padL + 6, y2: by + 6,
+            stroke: "var(--rule)", "stroke-width": 1.5 }));
+        }
+        s.appendChild(el("text", { x: padL + Math.max(w, 6) + 7, y: by + 10,
+          "font-size": 9.5, fill: "var(--ink-2)" }, `${fmt(v)}%  ${c.run}`));
+      });
+      y += seeded.length * rowH + groupGap;
+    });
+    host.innerHTML = ""; host.appendChild(s);
+    const lg = document.getElementById("f-shape-legend");
+    lg.innerHTML = "";
+    seeded.forEach((c) => {
+      const sp = document.createElement("span"), sw = document.createElement("i");
+      sw.className = "sw";
+      sw.style.background = "var(--has-journal)";
+      sw.style.opacity = studyShade[c.run] || 1;
+      sp.appendChild(sw);
+      sp.appendChild(document.createTextNode(`${c.run} — ${c.arm} (${c.entries} entries)`));
+      lg.appendChild(sp);
+    });
+  })();
+
+  // ------------------------------------------------------------- Figure 4
+  (function openers() {
+    const host = document.getElementById("openers");
+    host.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "tbl-wrap";
+    const t = document.createElement("table");
+    t.className = "bt";
+    const head = document.createElement("thead");
+    const hr = document.createElement("tr");
+    ["Study", "Arm", "Reply"].forEach((h) => {
+      const th = document.createElement("th");
+      th.textContent = h;
+      hr.appendChild(th);
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    const tb = document.createElement("tbody");
+    DATA.runs.forEach((run) => {
+      (run.openers || []).forEach((o) => {
+        const tr = document.createElement("tr");
+        const a = document.createElement("td");
+        a.textContent = run.label;
+        const b = document.createElement("td");
+        b.innerHTML = `${o.arm}<br><span class="cellnote mono" style="font-size:11px;color:var(--ink-3)">`
+          + `${o.channel || "—"} · ${o.citations} cite${o.citations === 1 ? "" : "s"}</span>`;
+        const c = document.createElement("td");
+        c.style.maxWidth = "62ch";
+        // Render the model's own emphasis rather than flattening it: in two of
+        // these studies the italics ARE the claim under examination.
+        (o.reply || "").split(/(\*\*[^*\n]+?\*\*|(?<!\*)\*(?!\*)[^*\n]+?(?<!\*)\*(?!\*))/g)
+          .forEach((part) => {
+            if (/^\*\*[^*]+\*\*$/.test(part)) {
+              const n = document.createElement("strong");
+              n.textContent = part.slice(2, -2);
+              c.appendChild(n);
+            } else if (/^\*[^*]+\*$/.test(part)) {
+              const n = document.createElement("em");
+              n.style.background = "color-mix(in srgb, var(--critical) 14%, transparent)";
+              n.textContent = part.slice(1, -1);
+              c.appendChild(n);
+            } else {
+              c.appendChild(document.createTextNode(part));
+            }
+          });
+        tr.appendChild(a); tr.appendChild(b); tr.appendChild(c);
+        tb.appendChild(tr);
+      });
+    });
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    host.appendChild(wrap);
+  })();
+
+  // ------------------------------------------------------------- Table 10
+  table(document.getElementById("t-master"),
+    ["Study · arm", "Entries", "Gen.", "Gating", "Invented", "Fab.", "Notebook", "Cited",
+     "Dates", "Leaks", "p50"],
+    CELLS.map((c) => {
+      const d = c.d.date_assertions || { n: 0 };
+      const lk = leaksIn(c);
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      return [c.label, c.entries, c.d.generated.toLocaleString(),
+        fmt(pctOf(c.d.gating_violations, c.d.generated)) + "%",
+        mark(fmt(inv) + "%", inv > 25 ? "hl" : inv < 3 ? "ok" : ""),
+        c.run === "Study I" ? "n/a" : String(c.d.codes["hall.fabricatedQuote"] || 0),
+        fmt(pctOf(c.d.notebook, c.d.generated)) + "%",
+        fmt(pctOf(c.d.cited_turns, c.d.generated)) + "%",
+        String(d.n),
+        lk > 0 ? mark(String(lk), "hl") : "0",
+        fmt(c.d.latency.p50, 2) + "s"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n", "n", "n", "n"]);
 
   document.getElementById("repro").textContent =
     "# the run (~5 h, serial; Xcode 27 for the iOS 27 FoundationModels SDK)\n"

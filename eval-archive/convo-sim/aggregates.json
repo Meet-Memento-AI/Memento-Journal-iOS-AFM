@@ -3,6 +3,28 @@
   {
    "label": "Study I",
    "file": "full-2026-09-20.jsonl",
+   "openers": [
+    {
+     "arm": "empty",
+     "question": "What have I been writing about lately?",
+     "reply": "I don\u2019t see anything from that stretch\n- The absence of words about the recent stretch holds weight\n1. Nothing appears tied to the period you\u2019ve asked about\nWhat\u2019s the first thing you\u2019re thinking of now?",
+     "channel": "notebook",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 0,
+     "codes": []
+    },
+    {
+     "arm": "cold",
+     "question": "What have I been writing about lately?",
+     "reply": "I don\u2019t see anything in the notebook that answers that directly; the closest thing is *First pottery class tonight* \u2014 the wheel is harder than it looks and everything I touched went lopsided. Still, it\u2019s not the subject of what you\u2019re asking. The pattern of things not quite coming together echoes through the days \u2014 **everything I touched** \u2014 how the effort lingers without clear shape. What\u2019s holding you back from naming it?",
+     "channel": "notebook",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 1,
+     "codes": []
+    }
+   ],
    "messages": 6984,
    "manifest": {
     "label": "full-2026-09-20",
@@ -102,6 +124,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1597,
+      "median_words": 31,
+      "mean_words": 38.096430807764555,
+      "questions_per_reply": 1.1859737006887914,
+      "pct_heading": 8.39073262366938,
+      "pct_italics": 13.27489041953663,
+      "pct_bold": 2.880400751408892,
+      "pct_list": 5.510331872260489,
+      "pct_marker_leak": 0.0
+     },
      "date_assertions": {
       "n": 1,
       "rate": 0.06261740763932373,
@@ -184,6 +217,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1522,
+      "median_words": 41.0,
+      "mean_words": 48.11826544021025,
+      "questions_per_reply": 0.980946123521682,
+      "pct_heading": 3.2851511169513796,
+      "pct_italics": 28.90932982917214,
+      "pct_bold": 6.964520367936925,
+      "pct_list": 0.9198423127463863,
+      "pct_marker_leak": 0.0
+     },
      "date_assertions": {
       "n": 73,
       "rate": 4.7963206307490145,
@@ -613,6 +657,28 @@
   {
    "label": "Study II",
    "file": "full-2026-09-21-persona.jsonl",
+   "openers": [
+    {
+     "arm": "empty",
+     "question": "What have I been writing about lately?",
+     "reply": "I don't have the full picture \u2014 it\u2019s just the surface of what you\u2019ve shared. What\u2019s the one thing you\u2019re trying to hold onto right now?",
+     "channel": "companion",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 0,
+     "codes": []
+    },
+    {
+     "arm": "persona",
+     "question": "What have I been writing about lately?",
+     "reply": "You\u2019ve been tracing what\u2019s shifted \u2014 the way the light shows up each morning, the weight of silence, the letter from the landlord, the quiet ache of not knowing how to hold things together. Two moments stand out, both shaped by what\u2019s been left unsaid. ### *I live somewhere with a window that shows me water and light every morning.* You keep returning to that image, not as escape, but as anchor \u2014 a pattern where the ordinary becomes a mirror for what\u2019s been lost and what\u2019s still here. The rhythm of the days \u2014 the cadence around 4pm, the cluster of out \u00b7 hadn \u2014 it mirrors how you hold space for absence. *Healing just isn't linear or particularly polite about timing.* You\u2019re measuring time not in hours, but in how the past folds into the now. What\u2019s the first thing you notice when the window opens?",
+     "channel": "notebook",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 2,
+     "codes": []
+    }
+   ],
    "messages": 7048,
    "manifest": {
     "label": "full-2026-09-21-persona",
@@ -721,6 +787,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1760,
+      "median_words": 34.0,
+      "mean_words": 35.768181818181816,
+      "questions_per_reply": 1.0340909090909092,
+      "pct_heading": 0.0,
+      "pct_italics": 0.11363636363636363,
+      "pct_bold": 0.0,
+      "pct_list": 3.0681818181818183,
+      "pct_marker_leak": 0.056818181818181816
+     },
      "date_assertions": {
       "n": 9,
       "rate": 0.5113636363636364,
@@ -806,6 +883,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1626,
+      "median_words": 87.0,
+      "mean_words": 91.04551045510455,
+      "questions_per_reply": 1.0535055350553506,
+      "pct_heading": 14.452644526445264,
+      "pct_italics": 85.85485854858548,
+      "pct_bold": 18.26568265682657,
+      "pct_list": 7.134071340713407,
+      "pct_marker_leak": 0.0
+     },
      "date_assertions": {
       "n": 118,
       "rate": 7.2570725707257075,
@@ -1235,6 +1323,28 @@
   {
    "label": "Study III",
    "file": "full-2026-09-23-resim.jsonl",
+   "openers": [
+    {
+     "arm": "empty",
+     "question": "What have I been writing about lately?",
+     "reply": "I don't have a clear view of what you've been writing about lately \u2014 the entries haven't been shared. What would you like to focus on next?",
+     "channel": "companion",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 0,
+     "codes": []
+    },
+    {
+     "arm": "persona",
+     "question": "What have I been writing about lately?",
+     "reply": "You\u2019ve been tracing shifts in what feels stable \u2014 the way things unfold when the weight shifts quietly. In April 26, 2026, you spoke of a gap quietly widening since that off evening a couple weeks ago, the one you noticed and then talked yourself out of noticing. The pattern holds: moments where gray settles in, then a quiet recognition of change. You keep returning to the shape of what\u2019s been, even when it\u2019s hard. What holds you back now, when the relief feels like a small guilt?",
+     "channel": "notebook",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 1,
+     "codes": []
+    }
+   ],
    "messages": 6858,
    "manifest": {
     "label": "full-2026-09-23-resim",
@@ -1344,6 +1454,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1667,
+      "median_words": 33,
+      "mean_words": 35.277744451109776,
+      "questions_per_reply": 1.0287942411517697,
+      "pct_heading": 0.0,
+      "pct_italics": 0.0,
+      "pct_bold": 0.0,
+      "pct_list": 2.1595680863827234,
+      "pct_marker_leak": 0.0
+     },
      "date_assertions": {
       "n": 1,
       "rate": 0.059988002399520096,
@@ -1429,6 +1550,17 @@
       "chat-companion@1",
       "chat-light@4"
      ],
+     "output_shape": {
+      "n": 1661,
+      "median_words": 71,
+      "mean_words": 79.07224563515955,
+      "questions_per_reply": 1.007826610475617,
+      "pct_heading": 1.5653220951234197,
+      "pct_italics": 6.020469596628537,
+      "pct_bold": 0.6622516556291391,
+      "pct_list": 12.161348585189645,
+      "pct_marker_leak": 1.5051173991571343
+     },
      "date_assertions": {
       "n": 290,
       "rate": 17.459361830222758,
