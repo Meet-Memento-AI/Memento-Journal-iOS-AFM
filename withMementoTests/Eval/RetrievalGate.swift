@@ -40,9 +40,21 @@ final class RetrievalGate: XCTestCase {
             gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID,
             tuning: .default
         )
-        let report = Self.renderReport(scored)
+        var report = Self.renderReport(scored)
+
+        // 051 R5. The shipped weights were fitted on `gold` above, so its
+        // numbers describe the training set. The held-out set is the one that
+        // says whether a change improved retrieval, and both are always
+        // printed together so neither can be quoted alone.
+        let heldOut = try ChatEvalCorpus.heldOutQuestions()
+        let heldOutScored = Self.run(
+            gold: heldOut, corpus: corpus, fixtureByUUID: fixtureByUUID,
+            tuning: .default
+        )
+        report += "\n\n## Held-out set (051 R5 — never fitted)\n\n"
+            + Self.renderReport(heldOutScored)
         print(report)
-        Self.write(report: report, items: scored, extra: nil)
+        Self.write(report: report, items: scored, extra: ("heldout.md", Self.renderReport(heldOutScored)))
 
         if env["RETRIEVER_GRID"] == "1" {
             let grid = Self.gridSearch(gold: gold, corpus: corpus, fixtureByUUID: fixtureByUUID)

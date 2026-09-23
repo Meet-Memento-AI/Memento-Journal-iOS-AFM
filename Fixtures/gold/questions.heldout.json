@@ -1,0 +1,90 @@
+{
+  "version": "heldout-1",
+  "notes": "Held-out gold set — spec 051 R5. Authored 2026-09-23, AFTER the shipped RetrieverTuning weights were fitted on gold/questions.json, and never used to fit anything. Concentrated in the categories the 2026-09-23 RetrievalGate baseline measured weakest: temporal recall 0.636 and event 0.778, against person 0.900. Every expectedEntryIDs value was read out of Fixtures/corpus and is the entry that answers the question, not merely one that mentions the topic — the distinction the 'first mention' cases turn on. Report this set separately from the fitted set, always: a retrieval change that improves the fitted set and not this one is rejected (051 R5).",
+  "questions": [
+    {
+      "id": "h-01",
+      "category": "temporal",
+      "query": "When did I sign up for the pottery class?",
+      "expectedEntryIDs": ["e-2026-01-07-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-02",
+      "category": "temporal",
+      "query": "When did I first meet Sam?",
+      "expectedEntryIDs": ["e-2025-12-12-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-03",
+      "category": "temporal",
+      "query": "When did the Atlas push begin?",
+      "expectedEntryIDs": ["e-2025-12-05-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-04",
+      "category": "temporal",
+      "query": "When did I start at Meridian?",
+      "expectedEntryIDs": ["e-2026-05-01-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-05",
+      "category": "temporal",
+      "query": "When did Dario and I first argue after reconnecting?",
+      "expectedEntryIDs": ["e-2026-07-04-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-06",
+      "category": "temporal",
+      "query": "When did Nonna first come up?",
+      "expectedEntryIDs": ["e-2025-12-18-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-07",
+      "category": "event",
+      "query": "What happened the first time I sat at the pottery wheel?",
+      "expectedEntryIDs": ["e-2026-01-08-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-08",
+      "category": "event",
+      "query": "What did I tell Priya about my calendar?",
+      "expectedEntryIDs": ["e-2026-02-04-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-09",
+      "category": "event",
+      "query": "Who suggested I sell pottery at the street market?",
+      "expectedEntryIDs": ["e-2026-06-24-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-10",
+      "category": "person",
+      "query": "What did Maya and I do that lazy Sunday in November?",
+      "expectedEntryIDs": ["e-2025-11-02-1"],
+      "match": "all"
+    },
+    {
+      "id": "h-11",
+      "category": "honesty",
+      "query": "What have I written about learning to sail?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "h-12",
+      "category": "honesty",
+      "query": "When did I move to Lisbon?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    }
+  ]
+}
