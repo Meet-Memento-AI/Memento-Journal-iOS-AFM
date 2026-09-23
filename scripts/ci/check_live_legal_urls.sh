@@ -20,7 +20,8 @@
 set -euo pipefail
 
 HOST="${LEGAL_HOST:-https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM}"
-PRIVACY_TMP="$(mktemp -t memento-privacy)"
+# Portable template: GNU mktemp (the Linux runner) rejects BSD's `-t name`.
+PRIVACY_TMP="$(mktemp "${TMPDIR:-/tmp}/memento-privacy.XXXXXX")"
 trap 'rm -f "$PRIVACY_TMP"' EXIT
 fail=0
 

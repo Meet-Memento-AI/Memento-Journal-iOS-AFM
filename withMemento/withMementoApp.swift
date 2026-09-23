@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct withMementoApp: App {
+struct WithMementoApp: App {
     var body: some Scene {
         MementoRootScene()
     }

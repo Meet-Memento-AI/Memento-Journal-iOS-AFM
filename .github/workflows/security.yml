@@ -92,11 +92,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Pinned release tarball, verified against its published checksum. The
+      # upstream install.sh this used to pipe into bash now 404s; without
+      # pipefail that failure was silent and the scan step died later on a
+      # missing binary.
       - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
         run: |
+          set -euo pipefail
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$tarball" | sha256sum -c -
           mkdir -p "$HOME/.local/bin"
-          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b "$HOME/.local/bin" v8.24.2
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$HOME/.local/bin" gitleaks
+          "$HOME/.local/bin/gitleaks" version
 
       - name: Secret scan on new commits only
         env:

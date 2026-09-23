@@ -44,7 +44,10 @@ enum IdentifierMigration {
         guard keychain.save(legacyValue, forAccount: account) else {
             // Leave the legacy item in place; retry on the next launch rather
             // than deleting the only copy of something we failed to re-store.
-            AppLogger.log("⚠️ [IdentifierMigration] Failed to move Keychain item \(legacyAccount) → \(account); keeping the legacy copy")
+            AppLogger.log(
+                "⚠️ [IdentifierMigration] Failed to move Keychain item \(legacyAccount) → \(account); "
+                    + "keeping the legacy copy"
+            )
             return
         }
 
