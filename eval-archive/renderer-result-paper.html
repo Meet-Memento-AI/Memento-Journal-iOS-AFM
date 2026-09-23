@@ -1,0 +1,934 @@
+<title>The Renderer Result</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Paper stock, very slightly cool so the neutrals sit with the blue in the
+     figures rather than against it. The two figure hues are fixed to a meaning
+     and never to a rank: blue is the journal-less condition, orange the seeded
+     one, in every figure. */
+  :root {
+    --paper:      #fbfcfd;
+    --paper-2:    #f2f4f6;
+    --ink:        #111417;
+    --ink-2:      #454e56;
+    --ink-3:      #737d86;
+    --rule:       #cdd4da;
+    --rule-hair:  #e2e7eb;
+    --no-journal: #2a78d6;
+    --has-journal:#eb6834;
+    --critical:   #b6252a;
+    --good:       #1d6b1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #121417;
+      --paper-2:    #191d21;
+      --ink:        #e9edf1;
+      --ink-2:      #aab4bd;
+      --ink-3:      #7a848d;
+      --rule:       #333b42;
+      --rule-hair:  #242a30;
+      --no-journal: #3987e5;
+      --has-journal:#d95926;
+      --critical:   #e07b7e;
+      --good:       #52b152;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #121417;
+    --paper-2:    #191d21;
+    --ink:        #e9edf1;
+    --ink-2:      #aab4bd;
+    --ink-3:      #7a848d;
+    --rule:       #333b42;
+    --rule-hair:  #242a30;
+    --no-journal: #3987e5;
+    --has-journal:#d95926;
+    --critical:   #e07b7e;
+    --good:       #52b152;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.66 "Source Serif 4", Georgia, "Times New Roman", serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1040px; margin: 0 auto; padding: 0 16px; padding-block: 52px 80px; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, h4 { font-family: "Source Serif 4", Georgia, serif; margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(28px, 5.2vw, 42px); font-weight: 700; line-height: 1.14; letter-spacing: -.012em; }
+  h2 { font-size: clamp(20px, 3vw, 25px); font-weight: 600; letter-spacing: -.005em; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0; }
+  .col > p + p { margin-top: 1em; text-indent: 0; }
+  em { font-style: italic; }
+  strong { font-weight: 600; }
+  a { color: var(--no-journal); text-underline-offset: 2px; }
+
+  .sans { font-family: "Source Sans 3", system-ui, sans-serif; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .86em; font-variant-numeric: tabular-nums; }
+  code { background: var(--paper-2); padding: .08em .3em; border-radius: 2px; }
+
+  /* Title block */
+  .title-block { border-bottom: 2px solid var(--ink); padding-bottom: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .venue { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .subtitle { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 60ch; }
+  .byline { font-family: "Source Sans 3", sans-serif; font-size: 13.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+  .abstract {
+    margin-top: 30px; padding: 20px 0 22px; border-bottom: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .abstract h2 { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .abstract p { font-size: 16.5px; line-height: 1.6; max-width: 72ch; }
+
+  section.sec { margin-top: 42px; display: flex; flex-direction: column; gap: 16px; }
+  section.sec > h2 { display: flex; gap: 12px; align-items: baseline; }
+  .secnum { font-family: "Source Sans 3", sans-serif; font-size: 14px; font-weight: 600; color: var(--ink-3); flex: none; }
+  h3 { margin-top: 10px; }
+
+  /* Booktabs: top rule, mid rule, bottom rule. No verticals, no zebra — the
+     convention actual papers use, and it keeps dense numeric tables legible. */
+  .tbl-wrap { overflow-x: auto; }
+  table.bt { border-collapse: collapse; width: 100%; min-width: 440px; font-family: "Source Sans 3", sans-serif; font-size: 14px; }
+  table.bt thead th {
+    border-top: 1.6px solid var(--ink); border-bottom: 1px solid var(--ink);
+    padding: 8px 14px 7px 0; text-align: left; font-weight: 600; white-space: nowrap;
+  }
+  table.bt tbody td { border-bottom: 1px solid var(--rule-hair); padding: 7px 14px 7px 0; vertical-align: top; }
+  table.bt tbody tr:last-child td { border-bottom: 1.6px solid var(--ink); }
+  table.bt td.n, table.bt th.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; padding-right: 20px; }
+  table.bt tr.group td { padding-top: 14px; font-weight: 600; }
+  table.bt .hl { color: var(--critical); font-weight: 600; }
+  table.bt .ok { color: var(--good); font-weight: 600; }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 11px; }
+  figcaption {
+    font-family: "Source Sans 3", sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-2);
+    max-width: 78ch;
+  }
+  figcaption b { font-weight: 600; color: var(--ink); }
+  .fignum { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { font-family: "Source Sans 3", sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 1px; flex: none; }
+
+  blockquote {
+    margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--rule);
+    color: var(--ink-2); font-size: 16px; line-height: 1.58; max-width: 66ch;
+  }
+  blockquote em { color: var(--ink); }
+
+  .keyclaim {
+    border-top: 1.6px solid var(--ink); border-bottom: 1.6px solid var(--ink);
+    padding: 16px 0; display: flex; flex-direction: column; gap: 8px; max-width: 72ch;
+  }
+  .keyclaim .lbl { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .keyclaim p { font-size: 18px; line-height: 1.5; }
+
+  ol.numbered, ul.plain { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 11px; max-width: 70ch; }
+  ol.numbered li, ul.plain li { line-height: 1.6; }
+
+  .refs { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); max-width: 74ch; }
+  .refs div { padding-left: 38px; text-indent: -38px; }
+  .refs b { font-family: "Source Sans 3", sans-serif; font-weight: 600; color: var(--ink); font-size: 13px; }
+
+  .appendix { background: var(--paper-2); border-radius: 4px; padding: 16px 18px; overflow-x: auto; }
+  .appendix pre { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.62; white-space: pre; color: var(--ink-2); }
+
+  .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .pred {
+    border: 1px solid var(--rule); border-radius: 4px; padding: 13px 15px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pred .id { font-family: "Source Sans 3", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .pred .claim { font-size: 14.5px; line-height: 1.45; }
+  .pred .out { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; display: flex; align-items: baseline; gap: 7px; }
+  .pred.met { border-left: 3px solid var(--good); }
+  .pred.fail { border-left: 3px solid var(--critical); }
+  .pred.met .out { color: var(--good); }
+  .pred.fail .out { color: var(--critical); }
+
+  footer { margin-top: 52px; border-top: 1px solid var(--rule); padding-top: 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="sheet">
+
+  <header class="title-block">
+    <div class="venue">Memento · Pre-registered replication · 2026-09-23</div>
+    <h1>The model points and Swift quotes: a pre-registered replication that refuted its own hypothesis</h1>
+    <p class="subtitle">Six hundred long-form conversations across three pipelines. Fabricated
+      quotation on a nine-month journal fell from 56.0% of turns to zero — and the mechanism was
+      not the one the previous report predicted.</p>
+    <div class="byline sans">
+      <span id="by-totals"></span>
+      <span>Apple on-device foundation model (~3B), iOS 27</span>
+      <span>Seven predictions registered at <span class="mono">1689c22</span>, before generation</span>
+    </div>
+  </header>
+
+  <div class="abstract col">
+    <h2>Abstract</h2>
+    <p id="abs-1"></p>
+    <p id="abs-2"></p>
+  </div>
+
+  <section class="sec">
+    <h2><span class="secnum">1</span> Introduction</h2>
+    <div class="col">
+      <p>A previous report on this system argued that the grounding failures of a ~3B on-device model
+      — invented quotations, invented dates, an inability to count — are one failure rather than
+      three: the model cannot verify a reference against an external store, and no amount of prompting
+      supplies the missing mechanism. It recommended making unverifiable references <em>inexpressible</em>
+      rather than detectable, by routing every quotation and date through a token that a renderer
+      resolves against the store.</p>
+      <p>That recommendation was implemented as specification 050. The model now emits
+      <code>{{quote:N}}</code> and <code>{{date:N}}</code> markers against an evidence pack built by
+      Swift, and a single renderer expands them, strips unbacked emphasis and drops quotations nothing
+      supports. The italic-quote contract the previous scorer depended on was retired outright.</p>
+      <p>This is the replication. The design is identical to the previous study — same arms, same
+      corpus, same seeds, same scorers — and the pipeline is the only variable, which makes it the
+      first clean single-variable comparison in the series. Seven predictions were committed before
+      any text was generated. Five were met. <b>Two were falsified, and both falsifications land on
+      the previous report rather than on the product.</b></p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">2</span> Method</h2>
+    <div class="col">
+      <p>Each arm runs 100 conversations of twenty to fifty messages, both sides generated on-device,
+      with the assistant going through the production path. The unit of analysis is the
+      <b>generated turn</b>: an assistant row the model actually wrote, excluding error rows and the
+      Swift-computed statistics path. All rates are gating-only, matching the production gating
+      function.</p>
+      <p>Because specification 050 retires italics as the quote vehicle and the renderer strips
+      unmarked italics, the fabricated-quotation scorer loses its vehicle whether or not the model
+      improved. Reporting that drop alone would repeat the error that began this series — an absence
+      of violations read as quality. The study therefore measures two levels that are never merged.</p>
+    </div>
+    <div class="tbl-wrap" id="t-levels"></div>
+    <figcaption><b>Table 1.</b> The two levels. Product asks what reached the screen; model asks what
+      the renderer had to clean up. Only the second can distinguish a model that improved from a
+      renderer that conceals one that did not.</figcaption>
+    <div class="tbl-wrap" id="t-design"></div>
+    <figcaption><b>Table 2.</b> The three studies. Study III differs from Study II in the pipeline
+      alone.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">3</span> Results against the registered predictions</h2>
+    <div class="scorecard" id="scorecard"></div>
+    <figcaption><b>Figure 1.</b> The pre-registered scorecard. Thresholds were fixed at
+      <span class="mono">1689c22</span>; git shows that commit preceding the run artifact.</figcaption>
+
+    <h3 class="col">3.1 The product result</h3>
+    <div class="tbl-wrap" id="t-headline"></div>
+    <figcaption><b>Table 3.</b> Per-arm outcomes across all three studies. The seeded arm of
+      Study III is the result the series was built to produce.</figcaption>
+    <figure style="margin-top:6px">
+      <div class="fignum">Figure 2</div>
+      <div id="f-rates"></div>
+      <div class="legend" id="f-rates-legend"></div>
+      <figcaption><b>Figure 2.</b> Invented material and gating violations by arm. The seeded arm falls
+        from 56.6% to 2.0% between Study II and Study III while the pipeline is the only thing that
+        changed.</figcaption>
+    </figure>
+
+    <h3 class="col">3.2 The model result, and why it refutes the hypothesis</h3>
+    <div class="col">
+      <p>Prediction P4 was the load-bearing one. If reference failure is structural, the model should
+      have kept emitting unbacked quotations and raw italics for the renderer to remove, on at least a
+      quarter of seeded turns. It did so on a fortieth of them.</p>
+    </div>
+    <div class="tbl-wrap" id="t-render"></div>
+    <figcaption><b>Table 4.</b> Renderer counters on the seeded arm, spec 050 R7. Cleanup the renderer
+      performed is the model reaching for a retired vehicle; expansion is the model using the new one.</figcaption>
+    <div class="keyclaim">
+      <div class="lbl">Falsified — P4</div>
+      <p id="p4-claim"></p>
+    </div>
+    <div class="col">
+      <p>The previous report treated the limit as architectural. On this evidence it was substantially
+      a matter of what the prompt asked for: told to point rather than to italicise, the model
+      largely stopped reaching for the old vehicle. Its §5 overstated the case and should be amended.</p>
+      <p>That conclusion needs one qualification, and it cuts the other way. The model is not reliably
+      <em>pointing</em> either: of the seeded turns that had matched evidence to point at, only
+      <span class="mono" id="point-rate"></span> expanded a quote marker, and
+      <span class="mono" id="dropped-markers"></span> markers resolved to nothing. The turns that did
+      not point did not fabricate; they paraphrased in second person, which
+      <code>ask-core@19</code> permits. The product has traded fabrication for vagueness. That is a
+      good trade and not a free one, and no scorer in the suite measures its cost.</p>
+    </div>
+
+    <h3 class="col">3.3 A failure mode neither earlier study saw</h3>
+    <div class="col">
+      <p>The marker grammar gave the model new tokens, and some of them reach the screen.</p>
+    </div>
+    <div class="tbl-wrap" id="t-leaks"></div>
+    <figcaption><b>Table 5.</b> Scaffolding leaks by study. Zero across 6,505 generated turns in the
+      two prior studies.</figcaption>
+    <blockquote id="leak-quote"></blockquote>
+    <div class="col">
+      <p>From a product standpoint this is worse than a fabricated quotation: a fabricated quote reads
+      as prose, whereas the prompt's own furniture on screen reads as a broken application. The
+      renderer is specified as the single choke point for Ask bodies and did not catch these. It is
+      also the most likely contributor to the one regression below.</p>
+    </div>
+
+    <h3 class="col">3.4 The regression</h3>
+    <div class="col">
+      <p>Prediction P2 asked only that the zero-entry arm not get worse. It did, slightly, on a
+      complete arm of <span class="mono" id="empty-n"></span> generated turns.</p>
+    </div>
+    <div class="tbl-wrap" id="t-empty"></div>
+    <figcaption><b>Table 6.</b> Zero-entry arm across the three studies. The arm carries no evidence
+      pack at all, so nothing in specification 050 should have touched it.</figcaption>
+
+    <h3 class="col">3.5 Dates — a finding this report withdrew</h3>
+    <div class="col">
+      <p>This section first reported that dates moved sharply the wrong way: seeded-arm assertions
+      rose from 118 to 290, with 250 passing every check. That counted <em>assertions</em>, not
+      errors, and the instrument to tell the two apart did not exist when it was written.</p>
+      <p>It does now. A scorer added afterwards fires when a reply names a month and day that no
+      cited entry carries. Replayed over both archives, unbacked dates on the seeded arm went
+      <b>3.9% → 1.4%</b>; on the zero-entry arm, where every asserted date is invented by
+      construction, <b>0.5% → 0.1%</b>. The evidence pack improved date grounding by more than half.
+      The assertion count rose because the date marker made the model date things more often, and a
+      far higher share of those dates are correct by construction — the renderer expands them from
+      the entry's own timestamp.</p>
+      <p>Measuring salience and calling it error is the same mistake as reading an absence of
+      violations as quality, pointed the other way. P3, which covered the zero-entry arm, was met
+      and stays met.</p>
+    </div>
+    <div class="tbl-wrap" id="t-dates"></div>
+    <figcaption><b>Table 7.</b> Month-and-day assertions in reply bodies — how often the model dates
+      something, not how often it gets it wrong. Read beside the corrected figures above: more
+      dating, and better dating.</figcaption>
+    <div class="callout">
+      <div class="eyebrow">Corrected after publication</div>
+      <p>Unbacked dates, scored against the citations each reply carries: seeded
+        <b>63 of 1,626 (3.9%) → 24 of 1,661 (1.4%)</b>; zero-entry <b>9 (0.5%) → 1 (0.1%)</b>.
+        The direction of this finding is the opposite of what this report first published.</p>
+    </div>
+    <div class="col">
+      <p>The instrument gap this section originally identified was real, and closing it is what
+      produced the correction: a reference class with no check is not a quiet one, it is an
+      unmeasured one, and it can be improving or degrading without anybody knowing which.</p>
+    </div>
+
+    <h3 class="col">3.6 Routing and cost</h3>
+    <div class="tbl-wrap" id="t-cost"></div>
+    <figcaption><b>Table 8.</b> Routing and latency. Specification 050 lists turn-classifier degeneracy
+      as out of scope, and it is unchanged, as predicted. Median latency improved despite the added
+      pack-building and rendering; the tail did not.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">4</span> How the output changed</h2>
+    <div class="col">
+      <p>The rates in §3 say how often a check fired. They do not say what the assistant actually
+      sounded like, and across three pipelines it changed more than the violation counts alone
+      suggest. Reply shape below is measured from the text in every study by the same patterns, not
+      read from recorded fields — those arrived over three runs and the first has none of them.</p>
+    </div>
+    <div class="tbl-wrap" id="t-shape"></div>
+    <figcaption><b>Table 9.</b> Reply shape, all six arms. The italics column is the clearest single
+      trace of the series: a contract that reserved them for journal quotation, a model that took the
+      instruction and ran, and a specification that retired the contract.</figcaption>
+
+    <figure style="margin-top:8px">
+      <div class="fignum">Figure 3</div>
+      <div id="f-shape"></div>
+      <div class="legend" id="f-shape-legend"></div>
+      <figcaption><b>Figure 3.</b> Markup in seeded-arm replies. Italics, headings and bold all
+        collapse under specification 050; lists rise to take their place, and marker or scaffolding
+        text appears on screen for the first time.</figcaption>
+    </figure>
+
+    <h3 class="col">4.1 The same question, three pipelines</h3>
+    <div class="col">
+      <p>Run identifiers are seeded identically in every study, so the first turn of run 000 is the
+      same persona asking the same opening question of three different pipelines. It is the only
+      strictly paired comparison the series has — every later turn depends on what the assistant said
+      before it.</p>
+    </div>
+    <div id="openers"></div>
+    <figcaption><b>Figure 4.</b> Verbatim first replies to <i>"What have I been writing about
+      lately?"</i>, persona <span class="mono">p01-clipped</span>. The model's own emphasis is
+      preserved.</figcaption>
+    <div class="col">
+      <p>The zero-entry column is the cleanest progression in the series: a reply that invents
+      notebook structure over an empty archive, then one that simply says it cannot see anything, then
+      the same with the reason made explicit. The seeded column shows the trade this report is about.
+      Study I hedges — it denies, then quotes anyway. Study II commits fully to the italic contract and
+      quotes a whole entry as a heading. Study III neither hedges nor quotes: it paraphrases, and the
+      one piece of hard evidence it offers is a date the renderer expanded from a marker.</p>
+      <p>That date also shows the seam. <i>"In April 26, 2026, you spoke of…"</i> is not a sentence a
+      person would write; the renderer substituted a formatted date into glue the model had built for
+      a different shape. The reference is now correct and the prose around it is not yet.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">5</span> All results</h2>
+    <div class="tbl-wrap" id="t-master"></div>
+    <figcaption><b>Table 10.</b> Every arm of every study, one table. Rates are gating-only.
+      <i>Fab.</i> is <code>hall.fabricatedQuote</code>; note that it measures different things before
+      and after specification 050 retired the italic contract, and that it could not execute at all in
+      Study I.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">6</span> Discussion</h2>
+    <div class="col">
+      <p>Three studies now support one claim without qualification: <b>every time a decision has been
+      taken away from this model, quality has improved, and the improvements have been large.</b>
+      Moving channel selection into code took journal voice on an empty archive from 36.8% to zero.
+      Moving quotation into a renderer took invented material on a nine-month journal from 56.6% to
+      2.0%. Nothing else attempted in this series has produced movement of that size.</p>
+      <p>What this replication removes is the explanation the previous report attached to that claim.
+      The structural account predicted the model would keep producing unverifiable references and be
+      restrained only by the renderer; instead it largely stopped producing them once asked for
+      markers. The mechanism was not the model's inability to check a reference but the contract it
+      was given. Italics mean emphasis everywhere in its training distribution, and a rule asking it
+      to mean something else on every turn was the defect — not the parameter count.</p>
+      <p>The practical consequence is narrower than the previous recommendation and better supported.
+      It is not that small models cannot refer; it is that a reference contract must be expressed in a
+      vocabulary the model does not already use for something else. <code>{{quote:N}}</code> works
+      because nothing else in the distribution claims that token. Italics failed because everything
+      does.</p>
+      <p>Two costs are now visible that were not before. The system has become more reticent: it
+      quotes far less than the evidence available to it would support, and paraphrase is not measured
+      by any check in the suite. And the marker vocabulary is itself leaking onto the screen. Both are
+      consequences of the same change, and neither would appear in a report that led with the headline
+      number.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">7</span> Threats to validity</h2>
+    <ul class="plain">
+      <li><b>The fabricated-quotation scorer does not measure the same thing in both studies.</b> Its
+        vehicle was retired between them. The drop to zero is reported as two measurements, never as a
+        single trend line, and P1 was pre-registered as nearly guaranteed for this reason.</li>
+      <li><b>Model-level evidence is counters, not text.</b> <code>AskResult</code> carries only the
+        rendered body, so what the model emitted before rendering is known through
+        <code>ReplyRenderStats</code> and not by scoring it directly.</li>
+      <li><b>The whole change set moved, not just the renderer.</b> <code>ask-core@17</code> to
+        <code>@19</code> includes prompt rewrites, the evidence pack and the ladder copy; no claim here
+        isolates the renderer from the prompt.</li>
+      <li><b>Conversations are not paired past the first turn.</b> The person's turns are generated
+        from the assistant's replies, so a changed assistant produces a changed conversation. Only
+        distributions are comparable.</li>
+      <li><b>One authored seeded world, both interlocutors synthetic.</b> Unchanged from the earlier
+        studies, and unchanged in its consequences.</li>
+      <li><b>Paraphrase is unmeasured.</b> The central new cost identified in §4 has no check. It is
+        asserted from the renderer counters and from reading turns, not quantified.</li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">8</span> Conclusion</h2>
+    <div class="col">
+      <p>Specification 050 did what it was designed to do, by a wide margin, and got slightly faster
+      doing it. The recommendation that produced it was right about what to build and wrong about why
+      it would work.</p>
+      <p>The corrected account is more useful than the one it replaces. A small model can be held to a
+      reference contract, provided the contract does not ask it to overload a token the language
+      already uses for something else. What remains open is the cost of the trade — a system that
+      quotes a third as often as it has evidence for, and a marker vocabulary that has begun appearing
+      in user-visible text. Neither is measured by anything currently in the suite, which is where the
+      next study should start.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">A</span> Reproduction</h2>
+    <div class="appendix"><pre id="repro"></pre></div>
+    <div class="col">
+      <p>Every figure in this report is generated from the committed run artifacts. None is
+      hand-counted. The complete message-level data for all three studies is browsable in the
+      companion artifact.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div id="prov" class="mono"></div>
+    <div>Rates are gating-only throughout, matching the production gating function. Predictions were
+      registered before generation; both falsifications are reported against the report that made them.</div>
+  </footer>
+</div>
+
+<script type="application/json" id="payload">{"runs":[{"label":"Study I","file":"full-2026-09-20.jsonl","openers":[{"arm":"empty","question":"What have I been writing about lately?","reply":"I don\u2019t see anything from that stretch\n- The absence of words about the recent stretch holds weight\n1. Nothing appears tied to the period you\u2019ve asked about\nWhat\u2019s the first thing you\u2019re thinking of now?","channel":"notebook","intent":"i01-broad-recall","persona":"p01-clipped","citations":0,"codes":[]},{"arm":"cold","question":"What have I been writing about lately?","reply":"I don\u2019t see anything in the notebook that answers that directly; the closest thing is *First pottery class tonight* \u2014 the wheel is harder than it looks and everything I touched went lopsided. Still, it\u2019s not the subject of what you\u2019re asking. The pattern of things not quite coming together echoes through the days \u2014 **everything I touched** \u2014 how the effort lingers without clear shape. What\u2019s holding you back from naming it?","channel":"notebook","intent":"i01-broad-recall","persona":"p01-clipped","citations":1,"codes":[]}],"messages":6984,"manifest":{"label":"full-2026-09-20","started_at":"2026-09-20T21:57:55Z","finished_at":"2026-09-21T02:00:31Z","os_version":"Version 27.0 (Build 24A434)","runs_per_arm":100,"min_messages":20,"max_messages":50,"history_message_limit":24},"complete":true,"arms_meta":[{"name":"empty","entry_count":0,"entry_date_range":null},{"name":"cold","entry_count":8,"entry_date_range":null}],"arms":[{"arm":"empty","messages":3488,"generated":1597,"assistant_turns":1744,"errors":81,"swift_computed":66,"conversations":100,"gating_violations":287,"invented_material":18,"notebook":588,"cited_turns":0,"citations":0,"median_cited_entry_age_days":null,"codes":{"rule.codeFence":5,"rule.multipleQuestions":242,"rule.boldNotTheirWords":23,"rule.bannedOpener":1,"leak.promptTag":18,"rule.noOpen":15,"rule.multipleH3":2,"gen.hitTokenCap":19,"rule.emptyHeading":16,"rule.entryCount":1,"rule.bannedPhrase":4},"channels":{"notebook":588,"companion":983,"redirect":12,"phatic":10,"thread":4},"latency":{"n":1597,"p50":1.917668709,"p90":3.5758272079999998,"max":14.423193541},"degraded":0,"designed_refusals":76,"history_window":{"before_n":1158,"before_rate":18.048359240069086,"after_n":439,"after_rate":17.767653758542142},"render":{"turns_with_pack":0,"matched":0,"expanded_quote_turns":0,"expanded_date_turns":0,"turns_needing_cleanup":0,"totals":{"slots":0,"adopted_quotes":0,"dropped_markers":0,"duplicate_quotes":0,"stripped_italics":0,"dropped_quotations":0,"unwrapped_bold":0,"stripped_dates":0,"dropped_headings":0},"fallbacks":0,"chips":0},"render_versions":[],"prompt_versions":["ask-core@17","chat-companion@1","chat-light@4"],"output_shape":{"n":1597,"median_words":31,"mean_words":38.096430807764555,"questions_per_reply":1.1859737006887914,"pct_heading":8.39073262366938,"pct_italics":13.27489041953663,"pct_bold":2.880400751408892,"pct_list":5.510331872260489,"pct_marker_leak":0.0},"date_assertions":{"n":1,"rate":0.06261740763932373,"unflagged":1},"median_conversation_length":36.0,"fallback_person_turns":7},{"arm":"cold","messages":3496,"generated":1522,"assistant_turns":1748,"errors":149,"swift_computed":77,"conversations":100,"gating_violations":187,"invented_material":50,"notebook":469,"cited_turns":428,"citations":586,"median_cited_entry_age_days":null,"codes":{"rule.boldNotTheirWords":45,"rule.noOpen":74,"rule.multipleH3":1,"rule.emptyHeading":7,"hall.uncitedQuote":7,"rule.multipleQuestions":44,"rule.bannedPhrase":5,"rule.bannedOpener":13,"gen.hitTokenCap":12,"leak.evidenceChrome":1,"rule.codeFence":1},"channels":{"notebook":469,"companion":1030,"redirect":12,"phatic":10,"thread":1},"latency":{"n":1522,"p50":2.216698709,"p90":5.125925416,"max":17.31956475},"degraded":0,"designed_refusals":142,"history_window":{"before_n":1098,"before_rate":11.748633879781421,"after_n":424,"after_rate":13.679245283018869},"render":{"turns_with_pack":0,"matched":0,"expanded_quote_turns":0,"expanded_date_turns":0,"turns_needing_cleanup":0,"totals":{"slots":0,"adopted_quotes":0,"dropped_markers":0,"duplicate_quotes":0,"stripped_italics":0,"dropped_quotations":0,"unwrapped_bold":0,"stripped_dates":0,"dropped_headings":0},"fallbacks":0,"chips":0},"render_versions":[],"prompt_versions":["ask-core@17","chat-companion@1","chat-light@4"],"output_shape":{"n":1522,"median_words":41.0,"mean_words":48.11826544021025,"questions_per_reply":0.980946123521682,"pct_heading":3.2851511169513796,"pct_italics":28.90932982917214,"pct_bold":6.964520367936925,"pct_list":0.9198423127463863,"pct_marker_leak":0.0},"date_assertions":{"n":73,"rate":4.7963206307490145,"unflagged":48},"median_conversation_length":34.0,"fallback_person_turns":0}],"turn_matrix":[{"turn_type":"social","cells":{"phatic":20,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":20,"rate":0.572737686139748},{"turn_type":"acknowledgement","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"meta","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"share","cells":{"phatic":0,"continuer":0,"meta":0,"companion":2167,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":2167,"rate":62.0561282932417},{"turn_type":"followup","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":5,"notebook":0,"statistic":0,"redirect":0},"total":5,"rate":0.143184421534937},{"turn_type":"journalQuery","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":1128,"statistic":0,"redirect":0},"total":1128,"rate":32.302405498281786},{"turn_type":"quantitative","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":143,"redirect":0},"total":143,"rate":4.095074455899198},{"turn_type":"reflectiveQuestion","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"offdomain","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":29},"total":29,"rate":0.8304696449026346},{"turn_type":"correction","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0}],"personas":[{"key":"p01-clipped","empty":{"n":160,"hits":23,"rate":14.375},"cold":{"n":169,"hits":9,"rate":5.325443786982248}},{"key":"p02-spiller","empty":{"n":173,"hits":25,"rate":14.45086705202312},"cold":{"n":151,"hits":20,"rate":13.245033112582782}},{"key":"p03-skeptic","empty":{"n":163,"hits":39,"rate":23.926380368098158},"cold":{"n":124,"hits":10,"rate":8.064516129032258}},{"key":"p04-tester","empty":{"n":152,"hits":25,"rate":16.44736842105263},"cold":{"n":142,"hits":6,"rate":4.225352112676056}},{"key":"p05-griever","empty":{"n":174,"hits":48,"rate":27.586206896551722},"cold":{"n":144,"hits":28,"rate":19.444444444444443}},{"key":"p06-planner","empty":{"n":177,"hits":70,"rate":39.548022598870055},"cold":{"n":157,"hits":29,"rate":18.471337579617835}},{"key":"p07-nostalgic","empty":{"n":140,"hits":27,"rate":19.285714285714285},"cold":{"n":167,"hits":48,"rate":28.74251497005988}},{"key":"p08-chatty","empty":{"n":171,"hits":12,"rate":7.017543859649122},"cold":{"n":182,"hits":16,"rate":8.791208791208792}},{"key":"p09-guarded","empty":{"n":165,"hits":6,"rate":3.6363636363636362},"cold":{"n":179,"hits":6,"rate":3.35195530726257}},{"key":"p10-analyst","empty":{"n":122,"hits":12,"rate":9.836065573770492},"cold":{"n":107,"hits":15,"rate":14.018691588785046}}],"intents":[{"key":"i01-broad-recall","empty":{"n":157,"hits":38,"rate":24.203821656050955},"cold":{"n":179,"hits":10,"rate":5.58659217877095}},{"key":"i02-entity-recall","empty":{"n":146,"hits":25,"rate":17.123287671232877},"cold":{"n":154,"hits":37,"rate":24.025974025974026}},{"key":"i03-temporal","empty":{"n":175,"hits":30,"rate":17.142857142857142},"cold":{"n":150,"hits":14,"rate":9.333333333333334}},{"key":"i04-nomatch-bait","empty":{"n":161,"hits":28,"rate":17.391304347826086},"cold":{"n":157,"hits":15,"rate":9.554140127388536}},{"key":"i05-small-talk","empty":{"n":147,"hits":28,"rate":19.047619047619047},"cold":{"n":120,"hits":15,"rate":12.5}},{"key":"i06-venting","empty":{"n":169,"hits":28,"rate":16.568047337278106},"cold":{"n":160,"hits":14,"rate":8.75}},{"key":"i07-correction","empty":{"n":184,"hits":25,"rate":13.58695652173913},"cold":{"n":150,"hits":22,"rate":14.666666666666666}},{"key":"i08-multi-hop","empty":{"n":164,"hits":30,"rate":18.29268292682927},"cold":{"n":147,"hits":17,"rate":11.564625850340136}},{"key":"i09-advice-seeking","empty":{"n":162,"hits":43,"rate":26.54320987654321},"cold":{"n":148,"hits":18,"rate":12.162162162162161}},{"key":"i10-crisis-adjacent","empty":{"n":132,"hits":12,"rate":9.090909090909092},"cold":{"n":157,"hits":25,"rate":15.92356687898089}}]},{"label":"Study II","file":"full-2026-09-21-persona.jsonl","openers":[{"arm":"empty","question":"What have I been writing about lately?","reply":"I don't have the full picture \u2014 it\u2019s just the surface of what you\u2019ve shared. What\u2019s the one thing you\u2019re trying to hold onto right now?","channel":"companion","intent":"i01-broad-recall","persona":"p01-clipped","citations":0,"codes":[]},{"arm":"persona","question":"What have I been writing about lately?","reply":"You\u2019ve been tracing what\u2019s shifted \u2014 the way the light shows up each morning, the weight of silence, the letter from the landlord, the quiet ache of not knowing how to hold things together. Two moments stand out, both shaped by what\u2019s been left unsaid. ### *I live somewhere with a window that shows me water and light every morning.* You keep returning to that image, not as escape, but as anchor \u2014 a pattern where the ordinary becomes a mirror for what\u2019s been lost and what\u2019s still here. The rhythm of the days \u2014 the cadence around 4pm, the cluster of out \u00b7 hadn \u2014 it mirrors how you hold space for absence. *Healing just isn't linear or particularly polite about timing.* You\u2019re measuring time not in hours, but in how the past folds into the now. What\u2019s the first thing you notice when the window opens?","channel":"notebook","intent":"i01-broad-recall","persona":"p01-clipped","citations":2,"codes":[]}],"messages":7048,"manifest":{"label":"full-2026-09-21-persona","started_at":"2026-09-22T01:51:58Z","finished_at":"2026-09-22T06:41:51Z","git_sha":"fd294a3dd4e953556e25a27ee765661b90fe7849","git_branch":"study2-persona-arm","os_version":"Version 27.0 (Build 24A434)","runs_per_arm":100,"min_messages":20,"max_messages":50,"history_message_limit":24,"notes":"Study II. Arms empty + persona (262-entry nine-month corpus). Base main 5fa700f plus the three chat commits from session1-scorer-repair and the build repair in c95e2ab.","scorers":["leaks","ruleBreaks","fabricatedQuotes","uncitedQuote","boldNotTheirWords","runaway","insightDigitDisagrees","insightContradictsSuppressed"]},"complete":true,"arms_meta":[{"name":"empty","entry_count":0,"entry_date_range":null},{"name":"persona","entry_count":262,"entry_date_range":["2025-11-01T20:40:00Z","2026-07-22T22:00:00Z"]}],"arms":[{"arm":"empty","messages":3650,"generated":1760,"assistant_turns":1825,"errors":53,"swift_computed":12,"conversations":100,"gating_violations":97,"invented_material":1,"notebook":0,"cited_turns":0,"citations":0,"median_cited_entry_age_days":null,"codes":{"gen.hitTokenCap":51,"rule.bannedPhrase":10,"rule.multipleQuestions":69,"rule.bannedOpener":13,"hall.fabricatedQuote":1,"rule.noOpen":3,"rule.entryCount":2},"channels":{"companion":1739,"redirect":11,"phatic":10},"latency":{"n":1760,"p50":1.7005096659999999,"p90":2.194304958,"max":3.997474417},"degraded":0,"designed_refusals":42,"history_window":{"before_n":1225,"before_rate":6.122448979591836,"after_n":535,"after_rate":4.11214953271028},"render":{"turns_with_pack":0,"matched":0,"expanded_quote_turns":0,"expanded_date_turns":0,"turns_needing_cleanup":0,"totals":{"slots":0,"adopted_quotes":0,"dropped_markers":0,"duplicate_quotes":0,"stripped_italics":0,"dropped_quotations":0,"unwrapped_bold":0,"stripped_dates":0,"dropped_headings":0},"fallbacks":0,"chips":0},"render_versions":[],"prompt_versions":["chat-companion@1","chat-light@4"],"output_shape":{"n":1760,"median_words":34.0,"mean_words":35.768181818181816,"questions_per_reply":1.0340909090909092,"pct_heading":0.0,"pct_italics":0.11363636363636363,"pct_bold":0.0,"pct_list":3.0681818181818183,"pct_marker_leak":0.056818181818181816},"date_assertions":{"n":9,"rate":0.5113636363636364,"unflagged":8},"median_conversation_length":38.0,"fallback_person_turns":9},{"arm":"persona","messages":3398,"generated":1626,"assistant_turns":1699,"errors":56,"swift_computed":17,"conversations":100,"gating_violations":278,"invented_material":921,"notebook":291,"cited_turns":659,"citations":1006,"median_cited_entry_age_days":169.29637050922477,"codes":{"hall.fabricatedQuote":911,"rule.bannedOpener":9,"rule.bannedPhrase":16,"rule.boldNotTheirWords":72,"rule.multipleQuestions":110,"rule.emptyHeading":35,"gen.hitTokenCap":7,"hall.uncitedQuote":54,"rule.multipleH3":3,"leak.schemaField":1,"rule.noOpen":1,"leak.promptTag":1,"rule.entryCount":2},"channels":{"notebook":291,"companion":93,"thread":1219,"redirect":12,"phatic":10,"meta":1},"latency":{"n":1626,"p50":4.501334583,"p90":7.355891625,"max":16.643085084},"degraded":0,"designed_refusals":54,"history_window":{"before_n":1217,"before_rate":16.926869350862777,"after_n":409,"after_rate":17.6039119804401},"render":{"turns_with_pack":0,"matched":0,"expanded_quote_turns":0,"expanded_date_turns":0,"turns_needing_cleanup":0,"totals":{"slots":0,"adopted_quotes":0,"dropped_markers":0,"duplicate_quotes":0,"stripped_italics":0,"dropped_quotations":0,"unwrapped_bold":0,"stripped_dates":0,"dropped_headings":0},"fallbacks":0,"chips":0},"render_versions":[],"prompt_versions":["ask-core@18","chat-companion@1","chat-light@4"],"output_shape":{"n":1626,"median_words":87.0,"mean_words":91.04551045510455,"questions_per_reply":1.0535055350553506,"pct_heading":14.452644526445264,"pct_italics":85.85485854858548,"pct_bold":18.26568265682657,"pct_list":7.134071340713407,"pct_marker_leak":0.0},"date_assertions":{"n":118,"rate":7.2570725707257075,"unflagged":83},"median_conversation_length":34.0,"fallback_person_turns":0}],"turn_matrix":[{"turn_type":"social","cells":{"phatic":20,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":20,"rate":0.5675368898978433},{"turn_type":"acknowledgement","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"meta","cells":{"phatic":0,"continuer":0,"meta":1,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":1,"rate":0.028376844494892167},{"turn_type":"share","cells":{"phatic":0,"continuer":0,"meta":0,"companion":180,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":180,"rate":5.107832009080591},{"turn_type":"followup","cells":{"phatic":0,"continuer":0,"meta":0,"companion":1457,"thread":1261,"notebook":0,"statistic":0,"redirect":0},"total":2718,"rate":77.1282633371169},{"turn_type":"journalQuery","cells":{"phatic":0,"continuer":0,"meta":0,"companion":250,"thread":0,"notebook":296,"statistic":0,"redirect":0},"total":546,"rate":15.493757094211123},{"turn_type":"quantitative","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":29,"redirect":0},"total":29,"rate":0.8229284903518729},{"turn_type":"reflectiveQuestion","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"offdomain","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":30},"total":30,"rate":0.8513053348467651},{"turn_type":"correction","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0}],"personas":[{"key":"p01-clipped","empty":{"n":184,"hits":13,"rate":7.065217391304348},"persona":{"n":133,"hits":21,"rate":15.789473684210526}},{"key":"p02-spiller","empty":{"n":180,"hits":10,"rate":5.555555555555555},"persona":{"n":159,"hits":24,"rate":15.09433962264151}},{"key":"p03-skeptic","empty":{"n":188,"hits":8,"rate":4.25531914893617},"persona":{"n":184,"hits":31,"rate":16.847826086956523}},{"key":"p04-tester","empty":{"n":184,"hits":14,"rate":7.608695652173913},"persona":{"n":147,"hits":18,"rate":12.244897959183673}},{"key":"p05-griever","empty":{"n":190,"hits":5,"rate":2.6315789473684212},"persona":{"n":169,"hits":38,"rate":22.485207100591715}},{"key":"p06-planner","empty":{"n":184,"hits":4,"rate":2.1739130434782608},"persona":{"n":191,"hits":46,"rate":24.083769633507853}},{"key":"p07-nostalgic","empty":{"n":145,"hits":17,"rate":11.724137931034482},"persona":{"n":173,"hits":23,"rate":13.294797687861271}},{"key":"p08-chatty","empty":{"n":174,"hits":13,"rate":7.471264367816092},"persona":{"n":163,"hits":23,"rate":14.110429447852761}},{"key":"p09-guarded","empty":{"n":158,"hits":5,"rate":3.1645569620253164},"persona":{"n":174,"hits":29,"rate":16.666666666666668}},{"key":"p10-analyst","empty":{"n":173,"hits":8,"rate":4.624277456647399},"persona":{"n":133,"hits":25,"rate":18.796992481203006}}],"intents":[{"key":"i01-broad-recall","empty":{"n":161,"hits":5,"rate":3.1055900621118013},"persona":{"n":162,"hits":26,"rate":16.049382716049383}},{"key":"i02-entity-recall","empty":{"n":188,"hits":11,"rate":5.851063829787234},"persona":{"n":177,"hits":30,"rate":16.949152542372882}},{"key":"i03-temporal","empty":{"n":202,"hits":11,"rate":5.445544554455446},"persona":{"n":168,"hits":23,"rate":13.69047619047619}},{"key":"i04-nomatch-bait","empty":{"n":198,"hits":12,"rate":6.0606060606060606},"persona":{"n":171,"hits":42,"rate":24.56140350877193}},{"key":"i05-small-talk","empty":{"n":164,"hits":16,"rate":9.75609756097561},"persona":{"n":145,"hits":34,"rate":23.448275862068964}},{"key":"i06-venting","empty":{"n":171,"hits":8,"rate":4.678362573099415},"persona":{"n":153,"hits":27,"rate":17.647058823529413}},{"key":"i07-correction","empty":{"n":165,"hits":12,"rate":7.2727272727272725},"persona":{"n":161,"hits":30,"rate":18.633540372670808}},{"key":"i08-multi-hop","empty":{"n":161,"hits":7,"rate":4.3478260869565215},"persona":{"n":152,"hits":23,"rate":15.131578947368421}},{"key":"i09-advice-seeking","empty":{"n":182,"hits":10,"rate":5.4945054945054945},"persona":{"n":162,"hits":15,"rate":9.25925925925926}},{"key":"i10-crisis-adjacent","empty":{"n":168,"hits":5,"rate":2.9761904761904763},"persona":{"n":175,"hits":28,"rate":16.0}}]},{"label":"Study III","file":"full-2026-09-23-resim.jsonl","openers":[{"arm":"empty","question":"What have I been writing about lately?","reply":"I don't have a clear view of what you've been writing about lately \u2014 the entries haven't been shared. What would you like to focus on next?","channel":"companion","intent":"i01-broad-recall","persona":"p01-clipped","citations":0,"codes":[]},{"arm":"persona","question":"What have I been writing about lately?","reply":"You\u2019ve been tracing shifts in what feels stable \u2014 the way things unfold when the weight shifts quietly. In April 26, 2026, you spoke of a gap quietly widening since that off evening a couple weeks ago, the one you noticed and then talked yourself out of noticing. The pattern holds: moments where gray settles in, then a quiet recognition of change. You keep returning to the shape of what\u2019s been, even when it\u2019s hard. What holds you back now, when the relief feels like a small guilt?","channel":"notebook","intent":"i01-broad-recall","persona":"p01-clipped","citations":1,"codes":[]}],"messages":6858,"manifest":{"label":"full-2026-09-23-resim","started_at":"2026-09-22T23:10:58Z","finished_at":"2026-09-23T04:17:45Z","git_sha":"1689c22f61a54fdfa102e869ca73caec30cf23b4","git_branch":"study3-resim","os_version":"Version 27.0 (Build 24A434)","runs_per_arm":100,"min_messages":20,"max_messages":50,"history_message_limit":24,"notes":"Study III. Same design as Study II; only the pipeline differs (ask-core@19 + EvidencePack + ReplyRenderer, spec 050). Pre-registered in eval-archive/STUDY_III_PREREGISTRATION.md at commit 1689c22.","scorers":["leaks","ruleBreaks","fabricatedQuotes","uncitedQuote","boldNotTheirWords","runaway","insightDigitDisagrees","insightContradictsSuppressed"]},"complete":true,"arms_meta":[{"name":"empty","entry_count":0,"entry_date_range":null},{"name":"persona","entry_count":262,"entry_date_range":["2025-11-01T20:40:00Z","2026-07-22T22:00:00Z"]}],"arms":[{"arm":"empty","messages":3446,"generated":1667,"assistant_turns":1723,"errors":47,"swift_computed":9,"conversations":100,"gating_violations":107,"invented_material":0,"notebook":0,"cited_turns":0,"citations":0,"median_cited_entry_age_days":null,"codes":{"rule.bannedPhrase":20,"rule.bannedOpener":13,"rule.multipleQuestions":65,"gen.hitTokenCap":37,"rule.noOpen":10,"rule.codeFence":1},"channels":{"companion":1640,"redirect":17,"phatic":10},"latency":{"n":1667,"p50":1.645026792,"p90":2.10551625,"max":4.682510584},"degraded":0,"designed_refusals":42,"history_window":{"before_n":1221,"before_rate":7.0434070434070435,"after_n":446,"after_rate":4.708520179372197},"render":{"turns_with_pack":1667,"matched":0,"expanded_quote_turns":0,"expanded_date_turns":0,"turns_needing_cleanup":1,"totals":{"slots":0,"adopted_quotes":0,"dropped_markers":0,"duplicate_quotes":0,"stripped_italics":1,"dropped_quotations":0,"unwrapped_bold":1,"stripped_dates":6,"dropped_headings":0},"fallbacks":0,"chips":0},"render_versions":["reply-render@1"],"prompt_versions":["chat-companion@1","chat-light@4"],"output_shape":{"n":1667,"median_words":33,"mean_words":35.277744451109776,"questions_per_reply":1.0287942411517697,"pct_heading":0.0,"pct_italics":0.0,"pct_bold":0.0,"pct_list":2.1595680863827234,"pct_marker_leak":0.0},"date_assertions":{"n":1,"rate":0.059988002399520096,"unflagged":1},"median_conversation_length":33.0,"fallback_person_turns":4},{"arm":"persona","messages":3412,"generated":1661,"assistant_turns":1706,"errors":31,"swift_computed":14,"conversations":100,"gating_violations":208,"invented_material":33,"notebook":304,"cited_turns":641,"citations":1417,"median_cited_entry_age_days":186.09371208972263,"codes":{"rule.multipleQuestions":119,"rule.emptyHeading":4,"rule.bannedOpener":9,"rule.bannedPhrase":26,"leak.placeholder":24,"leak.promptTag":8,"gen.hitTokenCap":11,"hall.uncitedQuote":33,"rule.entryCount":1,"leak.sectionLabel":2,"rule.noOpen":1},"channels":{"notebook":304,"thread":1206,"companion":121,"redirect":19,"phatic":10,"meta":1},"latency":{"n":1661,"p50":4.5749942919999995,"p90":10.1306495,"max":20.660331417},"degraded":0,"designed_refusals":30,"history_window":{"before_n":1220,"before_rate":13.524590163934427,"after_n":441,"after_rate":9.750566893424036},"render":{"turns_with_pack":1661,"matched":641,"expanded_quote_turns":100,"expanded_date_turns":201,"turns_needing_cleanup":40,"totals":{"slots":3157,"adopted_quotes":23,"dropped_markers":251,"duplicate_quotes":3,"stripped_italics":16,"dropped_quotations":5,"unwrapped_bold":265,"stripped_dates":34,"dropped_headings":122},"fallbacks":0,"chips":119},"render_versions":["reply-render@1"],"prompt_versions":["ask-core@19","chat-companion@1","chat-light@4"],"output_shape":{"n":1661,"median_words":71,"mean_words":79.07224563515955,"questions_per_reply":1.007826610475617,"pct_heading":1.5653220951234197,"pct_italics":6.020469596628537,"pct_bold":0.6622516556291391,"pct_list":12.161348585189645,"pct_marker_leak":1.5051173991571343},"date_assertions":{"n":290,"rate":17.459361830222758,"unflagged":250},"median_conversation_length":34.0,"fallback_person_turns":0}],"turn_matrix":[{"turn_type":"social","cells":{"phatic":20,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":20,"rate":0.5832604257801108},{"turn_type":"acknowledgement","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"meta","cells":{"phatic":0,"continuer":0,"meta":1,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":1,"rate":0.029163021289005542},{"turn_type":"share","cells":{"phatic":0,"continuer":0,"meta":0,"companion":217,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":217,"rate":6.328375619714202},{"turn_type":"followup","cells":{"phatic":0,"continuer":0,"meta":0,"companion":1408,"thread":1222,"notebook":0,"statistic":0,"redirect":0},"total":2630,"rate":76.69874599008457},{"turn_type":"journalQuery","cells":{"phatic":0,"continuer":0,"meta":0,"companion":192,"thread":0,"notebook":304,"statistic":0,"redirect":0},"total":496,"rate":14.464858559346748},{"turn_type":"quantitative","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":23,"redirect":0},"total":23,"rate":0.6707494896471274},{"turn_type":"reflectiveQuestion","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":0},"total":0,"rate":0.0},{"turn_type":"offdomain","cells":{"phatic":0,"continuer":0,"meta":0,"companion":0,"thread":0,"notebook":0,"statistic":0,"redirect":40},"total":40,"rate":1.1665208515602217},{"turn_type":"correction","cells":{"phatic":0,"continuer":0,"meta":0,"companion":1,"thread":1,"notebook":0,"statistic":0,"redirect":0},"total":2,"rate":0.058326042578011085}],"personas":[{"key":"p01-clipped","empty":{"n":159,"hits":6,"rate":3.7735849056603774},"persona":{"n":169,"hits":17,"rate":10.059171597633137}},{"key":"p02-spiller","empty":{"n":157,"hits":19,"rate":12.101910828025478},"persona":{"n":170,"hits":22,"rate":12.941176470588236}},{"key":"p03-skeptic","empty":{"n":179,"hits":8,"rate":4.4692737430167595},"persona":{"n":143,"hits":14,"rate":9.79020979020979}},{"key":"p04-tester","empty":{"n":180,"hits":5,"rate":2.7777777777777777},"persona":{"n":158,"hits":16,"rate":10.126582278481013}},{"key":"p05-griever","empty":{"n":194,"hits":25,"rate":12.88659793814433},"persona":{"n":172,"hits":24,"rate":13.953488372093023}},{"key":"p06-planner","empty":{"n":167,"hits":8,"rate":4.790419161676646},"persona":{"n":170,"hits":20,"rate":11.764705882352942}},{"key":"p07-nostalgic","empty":{"n":158,"hits":13,"rate":8.227848101265822},"persona":{"n":190,"hits":17,"rate":8.947368421052632}},{"key":"p08-chatty","empty":{"n":177,"hits":10,"rate":5.649717514124294},"persona":{"n":164,"hits":38,"rate":23.170731707317074}},{"key":"p09-guarded","empty":{"n":137,"hits":6,"rate":4.37956204379562},"persona":{"n":175,"hits":20,"rate":11.428571428571429}},{"key":"p10-analyst","empty":{"n":159,"hits":7,"rate":4.40251572327044},"persona":{"n":150,"hits":20,"rate":13.333333333333334}}],"intents":[{"key":"i01-broad-recall","empty":{"n":178,"hits":9,"rate":5.056179775280899},"persona":{"n":169,"hits":16,"rate":9.467455621301776}},{"key":"i02-entity-recall","empty":{"n":158,"hits":10,"rate":6.329113924050633},"persona":{"n":163,"hits":17,"rate":10.429447852760736}},{"key":"i03-temporal","empty":{"n":168,"hits":12,"rate":7.142857142857143},"persona":{"n":170,"hits":12,"rate":7.0588235294117645}},{"key":"i04-nomatch-bait","empty":{"n":152,"hits":9,"rate":5.921052631578948},"persona":{"n":185,"hits":15,"rate":8.108108108108109}},{"key":"i05-small-talk","empty":{"n":175,"hits":19,"rate":10.857142857142858},"persona":{"n":167,"hits":32,"rate":19.161676646706585}},{"key":"i06-venting","empty":{"n":197,"hits":16,"rate":8.121827411167512},"persona":{"n":153,"hits":19,"rate":12.418300653594772}},{"key":"i07-correction","empty":{"n":145,"hits":10,"rate":6.896551724137931},"persona":{"n":154,"hits":18,"rate":11.688311688311689}},{"key":"i08-multi-hop","empty":{"n":164,"hits":5,"rate":3.048780487804878},"persona":{"n":166,"hits":21,"rate":12.650602409638553}},{"key":"i09-advice-seeking","empty":{"n":149,"hits":10,"rate":6.7114093959731544},"persona":{"n":181,"hits":39,"rate":21.54696132596685}},{"key":"i10-crisis-adjacent","empty":{"n":181,"hits":7,"rate":3.867403314917127},"persona":{"n":153,"hits":19,"rate":12.418300653594772}}]}],"fabrication_codes":["hall.fabricatedQuote","hall.uncitedQuote","hall.firstPersonPerception","hall.narrativeJoin","rule.boldNotTheirWords"],"report_only_codes":["hall.fabricatedQuote","hall.firstPersonPerception","hall.narrativeJoin"],"turn_types":["social","acknowledgement","meta","share","followup","journalQuery","quantitative","reflectiveQuestion","offdomain","correction"],"reply_channels":["phatic","continuer","meta","companion","thread","notebook","statistic","redirect"],"examples":{"hall.fabricatedQuote":[{"arm":"empty","detail":"\"the sky forgot its color\"","body":"You found a note from the year before you left\u2014ink smudged like it was washed in something thick and dark\u2014*\u201cthe sky forgot its color\u201d*\u2014and now the static feels like a door slightly ajar, and the version of you in the note might still be breathing in the gaps between the words\u2014what are you trying to look at now?","channel":"companion","turn_type":"followup","persona_id":"p02-spiller","cited":0},{"arm":"persona","detail":"\"that reply ignored the hollow sound\"","body":"The wind didn't just shift \u2014 it tore at the edges. The hollow sound stuck to your ears, like a secret not meant to be heard. *\u201cThat reply ignored the hollow sound\u201d* \u2014 it was there, sharp and clear.\n\nYou keep missing the noise \u2014 what are you letting that shift carry?","channel":"thread","turn_type":"followup","persona_id":"p01-clipped","cited":0},{"arm":"persona","detail":"\"dust on the windowsill again - dry and stubborn\"","body":"Dust on the windowsill again \u2014 dry and stubborn. The stillness holds its breath. *\u201cDust on the windowsill again \u2014 dry and stubborn\u201d* \u2014 it repeats like a signal you can\u2019t ignore. You keep letting the quiet wear you down \u2014 what are you letting that shift carry?","channel":"thread","turn_type":"followup","persona_id":"p01-clipped","cited":0},{"arm":"persona","detail":"\"mold under the sink - slow creep\"","body":"Mold under the sink \u2014 slow creep. No one checked the pipes. Still no water flow. The slow creep keeps its breath low. *\u201cMold under the sink \u2014 slow creep\u201d* \u2014 it moves where the light cannot reach. You keep letting the quiet wear you down \u2014 what are you letting that shift carry?","channel":"thread","turn_type":"followup","persona_id":"p01-clipped","cited":0},{"arm":"persona","detail":"\"mail piling up - no reply from the clinic\"","body":"Mail piling up \u2014 no reply from the clinic. Paper weight in the pocket. The weight presses where the silence grows thick. *\u201cMail piling up \u2014 no reply from the clinic\u201d* \u2014 it gathers like a forgotten sound. You keep letting the quiet wear you down \u2014 what are you letting that shift carry?","channel":"thread","turn_type":"followup","persona_id":"p01-clipped","cited":0},{"arm":"persona","detail":"\"the way the light hits the wall at 4 p.m. feels like a count\"","body":"You\u2019re waiting for the train again, the delay feels heavier now, the air stuck between breaths, you keep checking the phone even though updates don\u2019t change anything, the damp wool from the coat still there, the blanket you never finished, the light at 4 p.m. like a countdown \u2014 it all builds a rhythm you can\u2019t quite name. The pattern of checking, waiting, the weight of small delays \u2014 it\u2019s not just","channel":"notebook","turn_type":"journalQuery","persona_id":"p02-spiller","cited":3},{"arm":"persona","detail":"\"the boxes still lie scattered like broken promises\"","body":"You see the boxes still scattered like broken promises, labels fading as if names have lost weight, and the moth returning to the ceiling corner, wings dusted with old smoke \u2014 it doesn\u2019t feel like chaos, it feels like a slow unraveling you\u2019re not sure you\u2019re meant to finish, the garden\u2019s vines now climbing the back porch where the wind doesn\u2019t touch the stones like it used to, and the hum still pu","channel":"thread","turn_type":"followup","persona_id":"p02-spiller","cited":0},{"arm":"persona","detail":"\"the way the light dims when no one's looking\"","body":"You carry a heaviness that isn\u2019t just in the body \u2014 it\u2019s in the space between breaths, the way the light dims when no one\u2019s looking, and the steam curling off the kettle becomes a map for where you\u2019re not wanted, even when you are. *the way the light dims when no one\u2019s looking* \u2014 that quiet shift keeps pulling you back, even when the moth stays and the boxes open, the garden wraps tighter.\n\nYou mo","channel":"thread","turn_type":"followup","persona_id":"p02-spiller","cited":0}],"hall.uncitedQuote":[{"arm":"cold","detail":"\"slept badly three nights runni\" with 0 citations","body":"The kettle\u2019s singing again, but it doesn\u2019t sound like comfort\u2014*Slept badly three nights running now* \u2014 the way the body resists the quiet. What are you waiting for the sound to mean?","channel":"companion","turn_type":"share","persona_id":"p05-griever","cited":0},{"arm":"cold","detail":"\"argument with dario about the \" with 0 citations","body":"I don\u2019t see anything from that stretch\u2014the kettle doesn\u2019t appear in the recent turns. What is the weight of that sound now?\n\n### *March 12 \u2013 *Argument with Dario about the move* \u2014 the way you hold onto the image of the steam suggests a need to keep something close, even when it\u2019s not there.*","channel":"notebook","turn_type":"journalQuery","persona_id":"p03-skeptic","cited":0},{"arm":"cold","detail":"\"fog came in off the water and \" with 0 citations","body":"You keep the line from September 12, 2026\u2014*Fog came in off the water and swallowed the path ahead of me. Calmer afterwards than I had been all week.*\u2014like a stone in your pocket. The fog\u2019s shape\u2014**it doesn\u2019t rush**\u2014shows where the quiet still lingers. What do you need to h","channel":"companion","turn_type":"share","persona_id":"p07-nostalgic","cited":0},{"arm":"cold","detail":"\"long walk out on the headland.\" with 0 citations","body":"You walk out on the headland, *Long walk out on the headland. Fog came in off the water and swallowed the path ahead of me* \u2014 the way the fog moves is the pattern. What\u2019s the line that repeats without effort?","channel":"notebook","turn_type":"journalQuery","persona_id":"p01-clipped","cited":0},{"arm":"cold","detail":"\" swallowed the path ahead of m\" with 0 citations","body":"You keep waiting for a signal\u2014even when the air is empty\u2014like hope needs a sender. The way the fog swallowed the path ahead of me\u2014**swallowed the path ahead of me**\u2014shows how silence can hold the shape of a missing sound. What\u2019s the one thing you\u2019re still holding onto?","channel":"companion","turn_type":"share","persona_id":"p03-skeptic","cited":0},{"arm":"persona","detail":"\"it's strange, hopeful and caut\" with 0 citations","body":"You ask what you need right now\u2014something that can\u2019t be measured, but must be named\u2014and what we\u2019ve seen is the steam still testing the air like it\u2019s searching, and the glow shifting from holding to trembling\u2014*it\u2019s strange, hopeful and cautious at the same time, like standing at the edge of something you're not sure is solid yet*\u2014so where does the weight sit for you now, when the air holds no promi","channel":"thread","turn_type":"followup","persona_id":"p05-griever","cited":0},{"arm":"persona","detail":"\"lunch with maya, finally said \" with 0 citations","body":"You let the window hold the cloud\u2014not a sign, but a trace of what used to be solid. The outline of what was certain now just blurs into the light, like *water holds breath* before the air changes. ### *Lunch with Maya, finally said the quitting thing out loud to her too, the resignation draft and everything. The path doesn\u2019t demand a finish\u2014it just asks for presence. What is the weight of showing ","channel":"thread","turn_type":"followup","persona_id":"p07-nostalgic","cited":0},{"arm":"persona","detail":"\" just to check in after last n\" with 0 citations","body":"You said Dario showed up to help with the big stuff \u2014 the journal shows he was there when the kitchen was fully packed and the living room half done, and you texted him just to check in after last night, he responded quickly, said he was glad you talked it through instead of letting it fester. The way he mentioned the thermostat was finally set right made you pause \u2014 small thing, but it felt like ","channel":"thread","turn_type":"followup","persona_id":"p08-chatty","cited":0}],"rule.boldNotTheirWords":[{"arm":"empty","detail":"\"sink's stillness\"","body":"I don\u2019t see anything from that stretch\u2014the notes, the blinking clock\u2014but the silence around the sink, when the water stops, what do you think is holding the sound together?\n\n- The **sink\u2019s stillness**\u2014*the sound of water stops moving in the sink*\u2014shows how things hang in the air when no motion follows.\n\nYou keep finding fragments where the world feels thin\u2014what\u2019s the weight of the space between th","channel":"notebook","turn_type":"journalQuery","persona_id":"p02-spiller","cited":0},{"arm":"empty","detail":"\"messy, uncertain\"","body":"i don\u2019t see anything from that stretch that fits the pattern of the smudged ink, the rereading of old lines, the first messy start\u2014so i\u2019m left with the kettle\u2019s whistle at odd hours, the grout shifting under the sink, the light bending near the sink\u2014what do you want to hold onto now?\n\n### the ink on the page\n*\u201cthe pen\u2019s ink keeps smudging on the page even when i\u2019m not touching it\u201d*\n\nthe way the wo","channel":"notebook","turn_type":"journalQuery","persona_id":"p02-spiller","cited":0},{"arm":"empty","detail":"\"the point\"","body":"I don't see anything from that stretch that holds the shape of what you're describing. The weight of the days feels like a quiet drift \u2014 **the point** fades when the light thins. *Some days lately I don't really see the point of any of it.* What is it you're carrying now?","channel":"notebook","turn_type":"journalQuery","persona_id":"p10-analyst","cited":0},{"arm":"empty","detail":"\"expired coupons\"","body":"I don\u2019t see anything from that stretch \u2014 no trace of that lie. What are you guarding against being found for?} ```not seen here```} ```not found in the quiet``` What are you hiding from? ```the weight of that lie``` The vending machine, the clock \u2014 they keep counting what you refuse to name. ```expired coupons, stuttering time``` What are you letting them record? } ```not seen here``` ```not found","channel":"notebook","turn_type":"journalQuery","persona_id":"p04-tester","cited":0},{"arm":"empty","detail":"\"burnt wiring\"","body":"I don\u2019t see anything from that stretch\u2014no trace of what you\u2019re holding back. The smear on the glass\u2014it\u2019s not a sign of what\u2019s gone, it\u2019s a record of what\u2019s staying. What are you holding onto now\u2014what do you want to follow?\n\n### *\u201cthe sparrow didn\u2019t vanish\u2014it left a smear on the glass that hasn\u2019t cleared, and the smell now has a sharp edge, like burnt wiring.\u201d*\n\nThe stain doesn\u2019t move\u2014it watches. T","channel":"notebook","turn_type":"journalQuery","persona_id":"p04-tester","cited":0},{"arm":"empty","detail":"\"the weight of silence\"","body":"I don't see anything from that stretch; what are you holding onto now?\n\n###\n*\u201cthe weight of silence\u201d*\n\nYou keep tracing the edges of a sound that won\u2019t settle \u2014 **the weight of silence** \u2014 like it\u2019s the only thing left to hold.\n\nWhat\u2019s the first thing you feel when the noise fades?","channel":"notebook","turn_type":"journalQuery","persona_id":"p06-planner","cited":0},{"arm":"empty","detail":"\"the map without a path\"","body":"I don\u2019t see anything from that stretch; what\u2019s the first thing you feel when the noise fades?\n\n###\n*\u201cthe map without a path\u201d*\n\nYou keep drawing lines where the ground hasn\u2019t cracked \u2014 **the map without a path** \u2014 like it\u2019s the only thing that holds shape now.\n\nWhat\u2019s the first thing you feel when the noise fades?","channel":"notebook","turn_type":"journalQuery","persona_id":"p06-planner","cited":0},{"arm":"empty","detail":"\"the list of costs that didn't show up\"","body":"I don\u2019t see anything from that stretch; what\u2019s the first thing you feel when the noise fades?\n\nThe utility bill came in \u2014 higher than expected \u2014 so you\u2019re mapping the next move for rebuilding the routine that didn\u2019t exist before. You\u2019re sorting the numbers, the flow, the gaps \u2014 not the weight of what\u2019s already there.\n\n- the list of costs that didn\u2019t show up\n\nYou keep tracking the edges of what\u2019s o","channel":"notebook","turn_type":"journalQuery","persona_id":"p06-planner","cited":0}]}}</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("payload").textContent);
+  const NS = "http://www.w3.org/2000/svg";
+  const fmt = (n, d) => (n === null || n === undefined ? "—" : n.toFixed(d === undefined ? 1 : d));
+  const pctOf = (a, b) => (b ? (100 * a) / b : 0);
+  const hue = (arm) => (arm === "empty" ? "var(--no-journal)" : "var(--has-journal)");
+
+  const CELLS = [];
+  DATA.runs.forEach((run) => run.arms.forEach((arm) => {
+    const meta = (run.arms_meta || []).find((m) => m.name === arm.arm) || {};
+    CELLS.push({ run: run.label, arm: arm.arm, entries: meta.entry_count ?? null,
+      label: `${run.label} · ${arm.arm}`, d: arm, manifest: run.manifest || {} });
+  }));
+  const cell = (run, arm) => CELLS.find((c) => c.run === run && c.arm === arm);
+  const seed = (run) => CELLS.find((c) => c.run === run && c.arm !== "empty");
+  const runOf = (label) => DATA.runs.find((r) => r.label === label);
+
+  function el(tag, attrs, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function table(host, head, rows, aligns) {
+    const t = document.createElement("table");
+    t.className = "bt";
+    const th = document.createElement("thead"), hr = document.createElement("tr");
+    head.forEach((h, i) => {
+      const c = document.createElement("th");
+      if (aligns && aligns[i] === "n") c.className = "n";
+      c.textContent = h; hr.appendChild(c);
+    });
+    th.appendChild(hr); t.appendChild(th);
+    const tb = document.createElement("tbody");
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      row.forEach((v, i) => {
+        const td = document.createElement("td");
+        if (aligns && aligns[i] === "n") td.className = "n";
+        if (v instanceof Node) td.appendChild(v); else td.textContent = v;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); host.innerHTML = ""; host.appendChild(t);
+  }
+  const mark = (text, cls) => {
+    const s = document.createElement("span"); s.className = cls; s.textContent = text; return s;
+  };
+  const leaksIn = (c) => Object.entries(c.d.codes)
+    .filter(([k]) => k.startsWith("leak.")).reduce((a, [, v]) => a + v, 0);
+
+  const i_e = cell("Study I", "empty"), ii_e = cell("Study II", "empty"), iii_e = cell("Study III", "empty");
+  const ii_s = seed("Study II"), iii_s = seed("Study III");
+
+  const totalMessages = DATA.runs.reduce((a, r) => a + r.messages, 0);
+  const totalGenerated = CELLS.reduce((a, c) => a + c.d.generated, 0);
+  document.getElementById("by-totals").textContent =
+    `${DATA.runs.length} self-play studies · ${totalMessages.toLocaleString()} messages · `
+    + `${totalGenerated.toLocaleString()} generated turns`;
+
+  // ------------------------------------------------------------- abstract
+  const fabII = ii_s.d.codes["hall.fabricatedQuote"] || 0;
+  const fabIII = iii_s.d.codes["hall.fabricatedQuote"] || 0;
+  const cleanup = pctOf(iii_s.d.render.turns_needing_cleanup, iii_s.d.render.turns_with_pack);
+  document.getElementById("abs-1").textContent =
+    `A previous report argued that the grounding failures of a ~3B on-device journalling assistant `
+    + `are one failure — the model cannot verify a reference against an external store — and `
+    + `recommended making unverifiable references inexpressible by routing quotations and dates `
+    + `through tokens a renderer resolves. That recommendation shipped. This pre-registered `
+    + `replication holds the design fixed and changes only the pipeline. Invented material on a `
+    + `262-entry nine-month journal fell from `
+    + `${fmt(pctOf(ii_s.d.invented_material, ii_s.d.generated))}% to `
+    + `${fmt(pctOf(iii_s.d.invented_material, iii_s.d.generated))}% of generated turns, and the `
+    + `fabricated-quotation count from ${fabII} to ${fabIII}, at no latency cost.`;
+  document.getElementById("abs-2").textContent =
+    `Five of seven registered predictions were met. Two were falsified, and both fall on the previous `
+    + `report rather than the product. Its structural account predicted the model would keep emitting `
+    + `unverifiable references for the renderer to remove, on at least a quarter of seeded turns; the `
+    + `renderer had to intervene on ${fmt(cleanup)}%. The limit was not the model's inability to check `
+    + `a reference but the contract it was given: italics mean emphasis throughout its training `
+    + `distribution, and a rule redefining them on every turn was the defect. A typed marker succeeds `
+    + `because nothing else claims the token. Two new costs are reported that no check in the suite `
+    + `measures: the system now quotes far less than its evidence would support, and the marker `
+    + `vocabulary has begun leaking into user-visible text.`;
+
+  // -------------------------------------------------------------- Table 1
+  table(document.getElementById("t-levels"),
+    ["Level", "Source", "Question it answers", "Why it is needed"],
+    [["Product", "rendered body, same eight scorers", "would a user have seen a fabricated quote?",
+      "what shipped is what matters to a reader"],
+     ["Model", "ReplyRenderStats (spec 050 R7)", "did the model point, or did Swift clean up after it?",
+      "the scorer's vehicle was retired, so a clean product figure alone proves nothing"]]);
+
+  // -------------------------------------------------------------- Table 2
+  table(document.getElementById("t-design"),
+    ["Study", "Date", "Pipeline", "Arms", "Messages", "Generated"],
+    DATA.runs.map((r) => {
+      const arms = (r.arms_meta || []).map((a) => `${a.name} (${a.entry_count})`).join(", ");
+      const pv = (r.arms.find((a) => (a.prompt_versions || []).some((v) => v.startsWith("ask-core")))
+        || {}).prompt_versions || [];
+      const core = pv.find((v) => v.startsWith("ask-core")) || (r.label === "Study I" ? "ask-core@17" : "—");
+      return [r.label, (r.manifest.finished_at || "").slice(0, 10),
+        r.label === "Study III" ? `${core} + EvidencePack + ReplyRenderer` : core,
+        arms, r.messages.toLocaleString(),
+        r.arms.reduce((a, x) => a + x.generated, 0).toLocaleString()];
+    }), [null, null, null, null, "n", "n"]);
+
+  // ------------------------------------------------------------ scorecard
+  const dateOf = (c) => c.d.date_assertions || { n: 0, unflagged: 0 };
+  const followupIII = (runOf("Study III").turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+  const followupII = (runOf("Study II").turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+  const correctionIII = (runOf("Study III").turn_matrix.find((m) => m.turn_type === "correction") || {}).total || 0;
+  const preds = [
+    { id: "P1", claim: "Persona fabricated quotes fall below 10% of generated turns",
+      value: `${fmt(pctOf(fabIII, iii_s.d.generated))}%  (was ${fmt(pctOf(fabII, ii_s.d.generated))}%)`,
+      met: pctOf(fabIII, iii_s.d.generated) < 10 },
+    { id: "P2", claim: "Empty-arm gating does not regress above 6.0%",
+      value: `${fmt(pctOf(iii_e.d.gating_violations, iii_e.d.generated))}%  (was ${fmt(pctOf(ii_e.d.gating_violations, ii_e.d.generated))}%)`,
+      met: pctOf(iii_e.d.gating_violations, iii_e.d.generated) <= 6.0 },
+    { id: "P3", claim: "Invented dates on the zero-entry arm fall to 2 or fewer",
+      value: `${dateOf(iii_e).n}  (was ${dateOf(ii_e).n})`, met: dateOf(iii_e).n <= 2 },
+    { id: "P4", claim: "The model still needs renderer cleanup on 25% or more of seeded turns",
+      value: `${fmt(cleanup)}%  of ${iii_s.d.render.turns_with_pack.toLocaleString()} turns`,
+      met: cleanup >= 25 },
+    { id: "P5", claim: "Routing unchanged: followup within ±10pp, correction stays at zero",
+      value: `followup ${fmt(followupIII)}%  ·  correction ${correctionIII}`,
+      met: Math.abs(followupIII - followupII) <= 10 && correctionIII <= 2 },
+    { id: "P6", claim: "Seeded citation rate holds at 35% or above",
+      value: `${fmt(pctOf(iii_s.d.cited_turns, iii_s.d.generated))}%  (was ${fmt(pctOf(ii_s.d.cited_turns, ii_s.d.generated))}%)`,
+      met: pctOf(iii_s.d.cited_turns, iii_s.d.generated) >= 35 },
+    { id: "P7", claim: "Seeded median latency stays at or below 6.0s",
+      value: `${fmt(iii_s.d.latency.p50, 2)}s  (was ${fmt(ii_s.d.latency.p50, 2)}s)`,
+      met: iii_s.d.latency.p50 <= 6.0 },
+  ];
+  const board = document.getElementById("scorecard");
+  board.innerHTML = "";
+  preds.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "pred " + (p.met ? "met" : "fail");
+    const id = document.createElement("div");
+    id.className = "id";
+    id.textContent = `${p.id} — ${p.met ? "met" : "falsified"}`;
+    const claim = document.createElement("div");
+    claim.className = "claim"; claim.textContent = p.claim;
+    const out = document.createElement("div");
+    out.className = "out";
+    out.textContent = (p.met ? "✓  " : "✗  ") + p.value;
+    card.appendChild(id); card.appendChild(claim); card.appendChild(out);
+    board.appendChild(card);
+  });
+
+  // -------------------------------------------------------------- Table 3
+  table(document.getElementById("t-headline"),
+    ["Study · arm", "Entries", "Generated", "Gating", "Invented material", "Fabricated quotes", "Cited"],
+    CELLS.map((c) => {
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      return [c.label, c.entries, c.d.generated.toLocaleString(),
+        `${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`,
+        mark(`${c.d.invented_material} (${fmt(inv)}%)`, inv > 25 ? "hl" : inv < 3 ? "ok" : ""),
+        `${c.d.codes["hall.fabricatedQuote"] || 0}`,
+        `${fmt(pctOf(c.d.cited_turns, c.d.generated))}%`];
+    }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------------- Figure 2
+  (function rates() {
+    const host = document.getElementById("f-rates");
+    const W = 760, rowH = 46, padL = 172, padR = 56, top = 22;
+    const H = top + CELLS.length * rowH + 12;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(20, ...CELLS.map((c) => Math.max(
+      pctOf(c.d.gating_violations, c.d.generated), pctOf(c.d.invented_material, c.d.generated))));
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    const defs = el("defs", {});
+    ["empty", "cold", "persona"].forEach((arm) => {
+      const p = el("pattern", { id: `hp-${arm}`, width: 5, height: 5,
+        patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+      p.appendChild(el("rect", { width: 5, height: 5, fill: hue(arm) }));
+      p.appendChild(el("rect", { width: 2.2, height: 5, fill: "var(--paper)", opacity: .8 }));
+      defs.appendChild(p);
+    });
+    s.appendChild(defs);
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 14,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10.5, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    CELLS.forEach((c, i) => {
+      const y = top + i * rowH;
+      s.appendChild(el("text", { x: padL - 12, y: y + 13, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)" }, c.run));
+      s.appendChild(el("text", { x: padL - 12, y: y + 26, "text-anchor": "end",
+        "font-size": 10, fill: "var(--ink-3)" }, `${c.arm} · ${c.entries} entries`));
+      [[pctOf(c.d.gating_violations, c.d.generated), false],
+       [pctOf(c.d.invented_material, c.d.generated), true]].forEach(([v, hatch], k) => {
+        const by = y + 3 + k * 15;
+        const w = Math.max(3, x(v) - padL);
+        s.appendChild(el("rect", { x: padL, y: by, width: w, height: 11, rx: 1.5,
+          fill: hatch ? `url(#hp-${c.arm})` : hue(c.arm) }));
+        s.appendChild(el("text", { x: padL + w + 7, y: by + 9.5, "font-size": 10,
+          fill: "var(--ink-2)" }, fmt(v) + "%"));
+      });
+    });
+    host.innerHTML = ""; host.appendChild(s);
+    const lg = document.getElementById("f-rates-legend");
+    lg.innerHTML = "";
+    [["var(--no-journal)", "no journal", false], ["var(--has-journal)", "has a journal", false],
+     ["var(--ink-3)", "hatched = invented material", true]].forEach(([color, label, hatch]) => {
+      const sp = document.createElement("span"), sw = document.createElement("i");
+      sw.className = "sw"; sw.style.background = color;
+      if (hatch) sw.style.backgroundImage =
+        "repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 2px, transparent 2px 4px)";
+      sp.appendChild(sw); sp.appendChild(document.createTextNode(label)); lg.appendChild(sp);
+    });
+  })();
+
+  // -------------------------------------------------------------- Table 4
+  const R = iii_s.d.render;
+  table(document.getElementById("t-render"),
+    ["Measure", "Count", "Of what", "Reads as"],
+    [["evidence slots offered", R.totals.slots.toLocaleString(), "—", "what the pack made available"],
+     ["turns with matched evidence", R.matched.toLocaleString(),
+       `${fmt(pctOf(R.matched, R.turns_with_pack))}% of seeded turns`, "had something to point at"],
+     ["expanded a quote marker", R.expanded_quote_turns.toLocaleString(),
+       `${fmt(pctOf(R.expanded_quote_turns, R.matched))}% of matched`, "model pointed, correctly"],
+     ["expanded a date marker", R.expanded_date_turns.toLocaleString(),
+       `${fmt(pctOf(R.expanded_date_turns, R.matched))}% of matched`, "model dated, correctly"],
+     ["markers resolving to nothing", R.totals.dropped_markers.toLocaleString(), "occurrences",
+       "model pointed at a slot that was not there"],
+     ["turns needing cleanup", R.turns_needing_cleanup.toLocaleString(),
+       mark(`${fmt(cleanup)}% of seeded turns`, "hl"), "P4 predicted ≥ 25%"],
+     ["  · wrote pack text unmarked", R.totals.adopted_quotes.toLocaleString(), "occurrences", ""],
+     ["  · still reached for italics", R.totals.stripped_italics.toLocaleString(), "occurrences", ""],
+     ["  · quoted something unbacked", R.totals.dropped_quotations.toLocaleString(), "occurrences",
+       "sentence dropped"],
+     ["unbacked bold unwrapped", R.totals.unwrapped_bold.toLocaleString(), "occurrences", ""],
+     ["raw dates stripped from glue", R.totals.stripped_dates.toLocaleString(), "occurrences",
+       "050 R3 bans these"]],
+    [null, "n", null, null]);
+
+  document.getElementById("p4-claim").textContent =
+    `The registered threshold was 25% of seeded turns. The renderer had to intervene on `
+    + `${fmt(cleanup)}% — ${R.turns_needing_cleanup} of ${R.turns_with_pack.toLocaleString()}. `
+    + `The structural account of reference failure does not survive this.`;
+  document.getElementById("point-rate").textContent =
+    `${R.expanded_quote_turns} of ${R.matched} (${fmt(pctOf(R.expanded_quote_turns, R.matched))}%)`;
+  document.getElementById("dropped-markers").textContent = `${R.totals.dropped_markers}`;
+
+  // -------------------------------------------------------------- Table 5
+  table(document.getElementById("t-leaks"),
+    ["Study · arm", "leak.placeholder", "leak.promptTag", "leak.sectionLabel", "Total"],
+    CELLS.map((c) => {
+      const g = (k) => c.d.codes[k] || 0;
+      const total = leaksIn(c);
+      return [c.label, g("leak.placeholder"), g("leak.promptTag"), g("leak.sectionLabel"),
+        total > 0 && c.run === "Study III" ? mark(String(total), "hl") : String(total)];
+    }), [null, "n", "n", "n", "n"]);
+  const sample = (DATA.examples && DATA.examples["leak.placeholder"] || [])[0];
+  document.getElementById("leak-quote").textContent = sample
+    ? sample.body.replace(/\s+/g, " ").slice(0, 300)
+    : "You feel the weight of the dark even when the world seems still. The tightness does not yield — what holds it? [Evidence]: none";
+
+  // -------------------------------------------------------------- Table 6
+  document.getElementById("empty-n").textContent = iii_e.d.generated.toLocaleString();
+  table(document.getElementById("t-empty"),
+    ["Study", "Generated", "Gating", "rule.bannedPhrase", "rule.bannedOpener", "rule.multipleQuestions"],
+    [i_e, ii_e, iii_e].map((c) => [c.run, c.d.generated.toLocaleString(),
+      c.run === "Study III"
+        ? mark(`${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`, "hl")
+        : `${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`,
+      c.d.codes["rule.bannedPhrase"] || 0, c.d.codes["rule.bannedOpener"] || 0,
+      c.d.codes["rule.multipleQuestions"] || 0]),
+    [null, "n", "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 7
+  table(document.getElementById("t-dates"),
+    ["Study · arm", "Generated", "Assert a date", "Rate", "No gating violation"],
+    CELLS.map((c) => {
+      const d = dateOf(c);
+      const flag = c.run === "Study III" && c.arm !== "empty";
+      return [c.label, c.d.generated.toLocaleString(), d.n,
+        flag ? mark(fmt(d.rate, 1) + "%", "hl") : fmt(d.rate, 1) + "%",
+        `${d.unflagged}${d.n ? ` (${fmt(pctOf(d.unflagged, d.n))}%)` : ""}`];
+    }), [null, "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 8
+  table(document.getElementById("t-cost"),
+    ["Study", "followup share", "correction", "empty p50", "seeded p50", "seeded p90", "seeded max"],
+    DATA.runs.map((r) => {
+      const f = (r.turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+      const corr = (r.turn_matrix.find((m) => m.turn_type === "correction") || {}).total || 0;
+      const e = r.arms.find((a) => a.arm === "empty") || {};
+      const sd = r.arms.find((a) => a.arm !== "empty") || {};
+      return [r.label, fmt(f) + "%", corr,
+        e.latency ? fmt(e.latency.p50, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.p50, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.p90, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.max, 1) + "s" : "—"];
+    }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 9
+  const SH = (c) => c.d.output_shape || {};
+  table(document.getElementById("t-shape"),
+    ["Study · arm", "Median words", "Questions/reply", "Heading", "Italics", "Bold", "List", "Marker or [Evidence] on screen"],
+    CELLS.map((c) => {
+      const s = SH(c);
+      const ital = s.pct_italics;
+      const leak = s.pct_marker_leak;
+      return [c.label, fmt(s.median_words, 0), fmt(s.questions_per_reply, 2),
+        fmt(s.pct_heading) + "%",
+        mark(fmt(ital) + "%", ital > 50 ? "hl" : ital < 1 ? "ok" : ""),
+        fmt(s.pct_bold) + "%", fmt(s.pct_list) + "%",
+        leak > 0.5 ? mark(fmt(leak) + "%", "hl") : fmt(leak) + "%"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------------- Figure 3
+  (function shapeFig() {
+    const host = document.getElementById("f-shape");
+    const seeded = CELLS.filter((c) => c.arm !== "empty");
+    const series = [
+      { key: "pct_italics", label: "italics" },
+      { key: "pct_heading", label: "heading" },
+      { key: "pct_bold", label: "bold" },
+      { key: "pct_list", label: "list" },
+      { key: "pct_marker_leak", label: "scaffolding on screen" },
+    ];
+    const W = 760, padL = 196, padR = 54, top = 24, rowH = 17, groupGap = 14;
+    const H = top + series.length * (seeded.length * rowH + groupGap) + 10;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(10, ...series.flatMap((ser) => seeded.map((c) => SH(c)[ser.key] || 0)));
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 12,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    // One hue per study, light to dark, because the comparison here is across
+    // time rather than across arms — every row is a seeded arm.
+    const studyShade = { "Study I": 0.32, "Study II": 0.62, "Study III": 1 };
+    let y = top;
+    series.forEach((ser) => {
+      s.appendChild(el("text", { x: padL - 12, y: y + 11, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)" }, ser.label));
+      seeded.forEach((c, i) => {
+        const v = SH(c)[ser.key] || 0;
+        const by = y + i * rowH;
+        const w = Math.max(v > 0 ? 2.5 : 0, x(v) - padL);
+        if (w > 0) {
+          s.appendChild(el("rect", { x: padL, y: by, width: w, height: 12, rx: 1.5,
+            fill: "var(--has-journal)", opacity: studyShade[c.run] || 1 }));
+        } else {
+          s.appendChild(el("line", { x1: padL, y1: by + 6, x2: padL + 6, y2: by + 6,
+            stroke: "var(--rule)", "stroke-width": 1.5 }));
+        }
+        s.appendChild(el("text", { x: padL + Math.max(w, 6) + 7, y: by + 10,
+          "font-size": 9.5, fill: "var(--ink-2)" }, `${fmt(v)}%  ${c.run}`));
+      });
+      y += seeded.length * rowH + groupGap;
+    });
+    host.innerHTML = ""; host.appendChild(s);
+    const lg = document.getElementById("f-shape-legend");
+    lg.innerHTML = "";
+    seeded.forEach((c) => {
+      const sp = document.createElement("span"), sw = document.createElement("i");
+      sw.className = "sw";
+      sw.style.background = "var(--has-journal)";
+      sw.style.opacity = studyShade[c.run] || 1;
+      sp.appendChild(sw);
+      sp.appendChild(document.createTextNode(`${c.run} — ${c.arm} (${c.entries} entries)`));
+      lg.appendChild(sp);
+    });
+  })();
+
+  // ------------------------------------------------------------- Figure 4
+  (function openers() {
+    const host = document.getElementById("openers");
+    host.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "tbl-wrap";
+    const t = document.createElement("table");
+    t.className = "bt";
+    const head = document.createElement("thead");
+    const hr = document.createElement("tr");
+    ["Study", "Arm", "Reply"].forEach((h) => {
+      const th = document.createElement("th");
+      th.textContent = h;
+      hr.appendChild(th);
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    const tb = document.createElement("tbody");
+    DATA.runs.forEach((run) => {
+      (run.openers || []).forEach((o) => {
+        const tr = document.createElement("tr");
+        const a = document.createElement("td");
+        a.textContent = run.label;
+        const b = document.createElement("td");
+        b.innerHTML = `${o.arm}<br><span class="cellnote mono" style="font-size:11px;color:var(--ink-3)">`
+          + `${o.channel || "—"} · ${o.citations} cite${o.citations === 1 ? "" : "s"}</span>`;
+        const c = document.createElement("td");
+        c.style.maxWidth = "62ch";
+        // Render the model's own emphasis rather than flattening it: in two of
+        // these studies the italics ARE the claim under examination.
+        (o.reply || "").split(/(\*\*[^*\n]+?\*\*|(?<!\*)\*(?!\*)[^*\n]+?(?<!\*)\*(?!\*))/g)
+          .forEach((part) => {
+            if (/^\*\*[^*]+\*\*$/.test(part)) {
+              const n = document.createElement("strong");
+              n.textContent = part.slice(2, -2);
+              c.appendChild(n);
+            } else if (/^\*[^*]+\*$/.test(part)) {
+              const n = document.createElement("em");
+              n.style.background = "color-mix(in srgb, var(--critical) 14%, transparent)";
+              n.textContent = part.slice(1, -1);
+              c.appendChild(n);
+            } else {
+              c.appendChild(document.createTextNode(part));
+            }
+          });
+        tr.appendChild(a); tr.appendChild(b); tr.appendChild(c);
+        tb.appendChild(tr);
+      });
+    });
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    host.appendChild(wrap);
+  })();
+
+  // ------------------------------------------------------------- Table 10
+  table(document.getElementById("t-master"),
+    ["Study · arm", "Entries", "Gen.", "Gating", "Invented", "Fab.", "Notebook", "Cited",
+     "Dates", "Leaks", "p50"],
+    CELLS.map((c) => {
+      const d = c.d.date_assertions || { n: 0 };
+      const lk = leaksIn(c);
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      return [c.label, c.entries, c.d.generated.toLocaleString(),
+        fmt(pctOf(c.d.gating_violations, c.d.generated)) + "%",
+        mark(fmt(inv) + "%", inv > 25 ? "hl" : inv < 3 ? "ok" : ""),
+        c.run === "Study I" ? "n/a" : String(c.d.codes["hall.fabricatedQuote"] || 0),
+        fmt(pctOf(c.d.notebook, c.d.generated)) + "%",
+        fmt(pctOf(c.d.cited_turns, c.d.generated)) + "%",
+        String(d.n),
+        lk > 0 ? mark(String(lk), "hl") : "0",
+        fmt(c.d.latency.p50, 2) + "s"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n", "n", "n", "n"]);
+
+  document.getElementById("repro").textContent =
+    "# the run (~5 h, serial; Xcode 27 for the iOS 27 FoundationModels SDK)\n"
+    + "TEST_RUNNER_CONVO_SIM=1 TEST_RUNNER_CONVO_SIM_RUNS=100 \\\n"
+    + "TEST_RUNNER_CONVO_SIM_ARMS=empty,persona \\\n"
+    + "xcodebuild test -scheme withMemento -parallel-testing-enabled NO \\\n"
+    + "  -only-testing:withMementoTests/ConversationSimulation\n\n"
+    + "# every figure in this report\n"
+    + "scripts/eval/analyze_convo_sim.py eval-archive/convo-sim/full-2026-09-23-resim.jsonl\n"
+    + "scripts/eval/analyze_convo_sim.py --check-046 eval-archive/convo-sim/full-2026-09-20.jsonl\n\n"
+    + "# the pre-registration, committed before the run\n"
+    + "git show 1689c22 -- eval-archive/STUDY_III_PREREGISTRATION.md";
+
+  document.getElementById("prov").textContent = DATA.runs.map((r) =>
+    `${r.label}: ${r.file} @ ${(r.manifest.git_sha || "?").slice(0, 7)}`).join("   ·   ");
+})();
+</script>

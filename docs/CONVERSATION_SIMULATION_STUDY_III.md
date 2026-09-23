@@ -88,11 +88,29 @@ product standpoint this is worse than a fabricated quote: a fabricated quote rea
 prose, the prompt's own furniture reads as a broken app. This is also the most likely
 contributor to P2's miss.
 
-**Dates went the wrong way on the seeded arm.** P3 covered the zero-entry arm and was
-met (9 → 1). Unpredicted, the seeded arm went **118 → 290** date assertions (7.3% →
-17.5%), with **250 passing the suite clean**. The plain reading is that
-`{{date:N}}` made dating salient; whether the extra dates are *correct* is not
-measurable with the current instrument, which is itself the finding.
+**~~Dates went the wrong way on the seeded arm.~~ Withdrawn 2026-09-23.** This section
+read: seeded-arm date assertions went 118 → 290 with 250 passing clean, so dating got
+worse. That counted *assertions*, not errors, and it was the wrong measurement — the
+instrument to distinguish them did not exist when this was written.
+
+It does now. Spec 051 R3 added `hall.unbackedDate`, which fires when a reply names a
+month and day no cited entry carries. Replayed over both archives:
+
+| | unbacked dates | rate |
+|---|---|---|
+| Study II persona | 63 / 1,626 | 3.9% |
+| **Study III persona** | **24 / 1,661** | **1.4%** |
+| Study II empty | 9 / 1,760 | 0.5% |
+| Study III empty | 1 / 1,667 | 0.1% |
+
+**Spec 050 improved date grounding by more than half.** The assertion count rose
+because `{{date:N}}` made the model date things more often, and a far higher share of
+those dates are correct by construction, because the renderer expands the marker from
+the entry's own timestamp. Measuring salience and calling it error is the same mistake
+as reading zero violations as a clean run, pointed the other way.
+
+P3, which covered the zero-entry arm where every asserted date is invented by
+construction, was met and stays met (9 → 1).
 
 ## Threats
 
@@ -114,6 +132,6 @@ measurable with the current instrument, which is itself the finding.
    bracketed prompt furniture from the body. This is the only outright regression.
 2. **Measure paraphrase.** A turn with matched evidence that neither points nor
    quotes is currently invisible. It is the cost of the fix and should be a scorer.
-3. **Score dates against the pack**, now that dates are markered — a date not
-   expanded from `{{date:N}}` on a seeded arm is checkable and currently unchecked.
+3. ~~**Score dates against the pack.**~~ Done — `hall.unbackedDate`, spec 051 R3. It
+   immediately withdrew this document's own date finding; see above.
 4. **Amend spec 046 §5 / the prior paper** to the narrower contract claim.
