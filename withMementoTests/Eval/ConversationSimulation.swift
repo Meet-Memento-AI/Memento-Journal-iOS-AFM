@@ -274,6 +274,7 @@ final class ConversationSimulation: XCTestCase {
                     + ChatEvalScoring.fabricatedQuotes(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations,
                                                    index: arm.quoteIndex)
+                    + ChatEvalScoring.unbackedDate(result.body, citations: result.citations)
                     + ChatEvalScoring.boldNotTheirWords(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.runaway(result.body, capTokens: cap)
                     + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)

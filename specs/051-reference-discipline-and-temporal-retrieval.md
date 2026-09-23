@@ -86,24 +86,50 @@ first-mention and within-window ranking, not in passage granularity.
 **Traceability:** R1 → `REQ-REF-008`; R2 → `REQ-REF-009`; R3 → `REQ-EVD-007`;
 R4 → `REQ-RET-001`; R5 → `REQ-RET-002`; R6 → `REQ-RET-003`.
 
-### R1. Do not teach a grammar that cannot apply (`REQ-REF-008`)
+### R1. Do not prohibit a grammar; state the absence (`REQ-REF-008`)
 
-Spec 050's own lesson, applied to 050. When the evidence pack is `none`, the marker
-grammar is **absent from the prompt**, not present-and-forbidden. A token the model was
-never shown cannot be emitted; a token shown and prohibited was emitted 237 times.
+**Amended 2026-09-23, during implementation.** The requirement first read "when the
+pack is `none`, the marker grammar is absent from the prompt". Reading the code showed
+that is the wrong trade, and the amendment is recorded rather than the requirement
+quietly reshaped.
 
-The marker sentences move out of the static core and its degraded twin into a fragment
-`buildAskPrompt` appends only when `pack.state != .none`. `noneNote` states the absence
-rather than prohibiting a grammar that is no longer introduced. Versions become
-`ask-core@20` / `ask-degraded@20`.
+Three facts moved it:
+
+1. **The harm is not user-visible.** The 237 phantom markers are dropped by
+   `ReplyRenderer` and `RenderText.tidy` closes the gap. Inspecting the rendered
+   bodies from Study III, none carries a hole or a damaged sentence. The cost is
+   wasted tokens and a model ignoring an instruction — real, but not a defect a
+   reader meets.
+2. **The grammar is taught in eight places, not two** — `askCore`,
+   `askCoreDegraded`, four channel suffixes, `TurnStance` prompt lines, and the
+   `AskAnswer` `@Guide` schema description, which is structural and always present.
+3. **The instructions are speculatively prefilled** (`PromptRegistry.swift:567`) and
+   `PromptStanceSyncTests` exists to assert they stay aware of *every* stance a
+   channel can produce — the notebook suffix already carries its own
+   `[Turn: journal question, no matches]` branch. Alternating two instruction
+   variants per turn would thrash the prefill cache on every turn, to fix something
+   the renderer already absorbs.
+
+So the requirement narrows to the part that is turn-local and free: the pack notes
+**state the absence and stop**, rather than prohibiting a grammar the instructions
+have already taught. `noneNote` becomes `[Evidence: none.]`; `ambientNote` keeps its
+positive direction and drops its prohibitions. The guarantee is not weakened, it is
+relocated to where it actually holds — `ReplyRenderer` drops an unbacked marker
+whatever the prompt said.
+
+The general lesson survives intact and is the one 050 established: a negative
+instruction is not a mechanism. What changed is where the mechanism belongs.
 
 **Acceptance:**
-- Given a turn whose pack state is `none`, when the prompt is built, then it contains
-  no `{{` and no sentence defining a marker.
-- Given a turn whose pack state is `matched`, then the marker grammar is present and
-  unchanged in meaning.
-- Given a warehoused run, then seeded-arm `dropped_markers` falls from 237 toward zero.
-- `AskPromptSizeTests` stays green; the core shrinks rather than grows.
+- Given any pack state, the note states what evidence exists and asks for nothing.
+- Given an unbacked marker, the renderer drops it regardless of prompt wording —
+  already pinned by `test_markersOnANonePack_areAllDropped`.
+- `AskPromptContractTests` and `EvidencePackBuilderTests` reference the constants by
+  name and stay green without edits.
+
+**Deliberately not done:** removing the grammar from the cached instruction surface.
+Recorded here so the next session does not re-propose it without the prefill cost and
+`PromptStanceSyncTests` in view.
 
 ### R2. The renderer strips its own scaffolding (`REQ-REF-009`)
 

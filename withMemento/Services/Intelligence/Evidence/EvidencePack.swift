@@ -94,10 +94,18 @@ extension EvidencePack {
     static let legendHeader = "[Evidence]\nMarkers only: the app swaps each for that entry's exact words or date. "
         + "Never type a journal quote or date yourself, never change a number, never use italics."
     static let legendFooter = "If none fits, use no markers."
-    static let ambientNote = "[Evidence: background only — no quote or date markers this turn. "
-        + "Speak about these entries in your own words; never quote them, never use italics.]"
-    static let noneNote = "[Evidence: none — no quote or date markers this turn. "
-        + "Never write a journal quote, a journal date, or italics.]"
+    // 051 R1. These two said "no markers this turn. Never write a journal quote,
+    // a journal date, or italics" — a prohibition on a grammar the instructions
+    // had already taught. Study III measured the model emitting markers against
+    // an empty pack on 184 turns, while mis-resolving 2 markers in 3,157 slots
+    // when a pack existed: the model can address a slot, it just does not honour
+    // a negative. So these now state the absence and stop there. The prohibition
+    // is not weakened, it is relocated — `ReplyRenderer` drops an unbacked
+    // marker whatever the prompt said, which is the guarantee that actually
+    // holds.
+    static let ambientNote = "[Evidence: background only. Speak about these entries in "
+        + "your own words.]"
+    static let noneNote = "[Evidence: none.]"
 
     /// What the journal recipe is told about markers this turn. The matched
     /// legend lists each slot's exact words beside its markers, so the model
