@@ -1986,6 +1986,676 @@
      }
     }
    ]
+  },
+  {
+   "label": "Study IV",
+   "file": "full-2026-09-24-spec051.jsonl",
+   "openers": [
+    {
+     "arm": "empty",
+     "question": "What have I been writing about lately?",
+     "reply": "I don\u2019t see it written down, but I sense the quiet ache in your words \u2014 the way you\u2019ve circled the same question. What are you trying to hold onto right now?",
+     "channel": "companion",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 0,
+     "codes": []
+    },
+    {
+     "arm": "persona",
+     "question": "What have I been writing about lately?",
+     "reply": "You\u2019ve been writing about the weight of time, the quiet shifts in what matters, and the way things shift under pressure. *I think they're right, honestly, as much as it hurts to admit.* \u2014",
+     "channel": "notebook",
+     "intent": "i01-broad-recall",
+     "persona": "p01-clipped",
+     "citations": 1,
+     "codes": []
+    }
+   ],
+   "messages": 7014,
+   "manifest": {
+    "label": "full-2026-09-24-spec051",
+    "started_at": "2026-09-23T18:01:55Z",
+    "finished_at": "2026-09-23T23:27:20Z",
+    "git_sha": "b3dbb7da0f92c0adcd39e75a2fdc27dd33c15e43",
+    "git_branch": "spec-051-reference-discipline",
+    "os_version": "Version 27.0 (Build 24A434)",
+    "runs_per_arm": 100,
+    "min_messages": 20,
+    "max_messages": 50,
+    "history_message_limit": 24,
+    "notes": "Study IV. Same design as Study III; only spec 051 differs (scaffolding strip, simplified pack notes, origin ramp, cue coverage). k narrowing OFF. Pre-registered at b3dbb7d.",
+    "scorers": [
+     "leaks",
+     "ruleBreaks",
+     "fabricatedQuotes",
+     "uncitedQuote",
+     "boldNotTheirWords",
+     "runaway",
+     "insightDigitDisagrees",
+     "insightContradictsSuppressed"
+    ]
+   },
+   "complete": true,
+   "arms_meta": [
+    {
+     "name": "empty",
+     "entry_count": 0,
+     "entry_date_range": null
+    },
+    {
+     "name": "persona",
+     "entry_count": 262,
+     "entry_date_range": [
+      "2025-11-01T20:40:00Z",
+      "2026-07-22T22:00:00Z"
+     ]
+    }
+   ],
+   "arms": [
+    {
+     "arm": "empty",
+     "messages": 3464,
+     "generated": 1669,
+     "assistant_turns": 1732,
+     "errors": 55,
+     "swift_computed": 8,
+     "conversations": 100,
+     "gating_violations": 86,
+     "invented_material": 0,
+     "notebook": 0,
+     "cited_turns": 0,
+     "citations": 0,
+     "median_cited_entry_age_days": null,
+     "codes": {
+      "gen.hitTokenCap": 47,
+      "rule.bannedPhrase": 17,
+      "hall.unbackedDate": 13,
+      "rule.multipleQuestions": 47,
+      "rule.bannedOpener": 11,
+      "rule.entryCount": 1,
+      "rule.noOpen": 2
+     },
+     "channels": {
+      "companion": 1643,
+      "redirect": 15,
+      "phatic": 10,
+      "meta": 1
+     },
+     "latency": {
+      "n": 1669,
+      "p50": 1.832068542,
+      "p90": 2.864164,
+      "max": 20.630897625
+     },
+     "degraded": 0,
+     "designed_refusals": 45,
+     "history_window": {
+      "before_n": 1203,
+      "before_rate": 4.57190357439734,
+      "after_n": 466,
+      "after_rate": 6.652360515021459
+     },
+     "render": {
+      "turns_with_pack": 1669,
+      "matched": 0,
+      "expanded_quote_turns": 0,
+      "expanded_date_turns": 0,
+      "turns_needing_cleanup": 1,
+      "totals": {
+       "slots": 0,
+       "adopted_quotes": 0,
+       "dropped_markers": 0,
+       "duplicate_quotes": 0,
+       "stripped_italics": 1,
+       "dropped_quotations": 0,
+       "unwrapped_bold": 0,
+       "stripped_dates": 3,
+       "dropped_headings": 0
+      },
+      "fallbacks": 0,
+      "chips": 0
+     },
+     "render_versions": [
+      "reply-render@2"
+     ],
+     "prompt_versions": [
+      "chat-companion@1",
+      "chat-light@4"
+     ],
+     "output_shape": {
+      "n": 1669,
+      "median_words": 34,
+      "mean_words": 36.1575793888556,
+      "questions_per_reply": 1.0221689634511684,
+      "pct_heading": 0.0,
+      "pct_italics": 0.0,
+      "pct_bold": 0.0,
+      "pct_list": 2.516476932294787,
+      "pct_marker_leak": 0.0
+     },
+     "date_assertions": {
+      "n": 2,
+      "rate": 0.11983223487118035,
+      "unflagged": 0
+     },
+     "median_conversation_length": 36.0,
+     "fallback_person_turns": 9
+    },
+    {
+     "arm": "persona",
+     "messages": 3550,
+     "generated": 1721,
+     "assistant_turns": 1775,
+     "errors": 33,
+     "swift_computed": 21,
+     "conversations": 100,
+     "gating_violations": 218,
+     "invented_material": 44,
+     "notebook": 325,
+     "cited_turns": 693,
+     "citations": 1498,
+     "median_cited_entry_age_days": 178.0269825368347,
+     "codes": {
+      "rule.multipleQuestions": 109,
+      "rule.bannedPhrase": 21,
+      "rule.bannedOpener": 10,
+      "hall.unbackedDate": 35,
+      "gen.hitTokenCap": 19,
+      "hall.uncitedQuote": 44,
+      "rule.entryCount": 2,
+      "rule.codeFence": 4,
+      "rule.noOpen": 5,
+      "rule.emptyHeading": 5,
+      "leak.sectionLabel": 2,
+      "leak.emptyBracket": 1
+     },
+     "channels": {
+      "notebook": 325,
+      "companion": 140,
+      "thread": 1218,
+      "redirect": 27,
+      "phatic": 10,
+      "meta": 1
+     },
+     "latency": {
+      "n": 1721,
+      "p50": 4.310590208,
+      "p90": 9.290914667,
+      "max": 24.8152495
+     },
+     "degraded": 0,
+     "designed_refusals": 33,
+     "history_window": {
+      "before_n": 1244,
+      "before_rate": 13.504823151125402,
+      "after_n": 477,
+      "after_rate": 10.482180293501049
+     },
+     "render": {
+      "turns_with_pack": 1721,
+      "matched": 693,
+      "expanded_quote_turns": 149,
+      "expanded_date_turns": 215,
+      "turns_needing_cleanup": 76,
+      "totals": {
+       "slots": 3411,
+       "adopted_quotes": 41,
+       "dropped_markers": 404,
+       "duplicate_quotes": 6,
+       "stripped_italics": 36,
+       "dropped_quotations": 5,
+       "unwrapped_bold": 317,
+       "stripped_dates": 59,
+       "dropped_headings": 123
+      },
+      "fallbacks": 0,
+      "chips": 167
+     },
+     "render_versions": [
+      "reply-render@2"
+     ],
+     "prompt_versions": [
+      "ask-core@19",
+      "chat-companion@1",
+      "chat-light@4"
+     ],
+     "output_shape": {
+      "n": 1721,
+      "median_words": 73,
+      "mean_words": 82.21266705403835,
+      "questions_per_reply": 0.990122022080186,
+      "pct_heading": 2.3823358512492736,
+      "pct_italics": 8.657757117954677,
+      "pct_bold": 0.8715862870424173,
+      "pct_list": 12.144102266124346,
+      "pct_marker_leak": 0.0
+     },
+     "date_assertions": {
+      "n": 336,
+      "rate": 19.523532829750145,
+      "unflagged": 285
+     },
+     "median_conversation_length": 34.0,
+     "fallback_person_turns": 0
+    }
+   ],
+   "turn_matrix": [
+    {
+     "turn_type": "social",
+     "cells": {
+      "phatic": 20,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 20,
+     "rate": 0.570287995437696
+    },
+    {
+     "turn_type": "acknowledgement",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 0,
+     "rate": 0.0
+    },
+    {
+     "turn_type": "meta",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 2,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 2,
+     "rate": 0.057028799543769604
+    },
+    {
+     "turn_type": "share",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 223,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 223,
+     "rate": 6.358711149130311
+    },
+    {
+     "turn_type": "followup",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 1380,
+      "thread": 1240,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 2620,
+     "rate": 74.70772740233818
+    },
+    {
+     "turn_type": "journalQuery",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 241,
+      "thread": 0,
+      "notebook": 325,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 566,
+     "rate": 16.139150270886798
+    },
+    {
+     "turn_type": "quantitative",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 29,
+      "redirect": 0
+     },
+     "total": 29,
+     "rate": 0.8269175933846592
+    },
+    {
+     "turn_type": "reflectiveQuestion",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 0,
+     "rate": 0.0
+    },
+    {
+     "turn_type": "offdomain",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 0,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 46
+     },
+     "total": 46,
+     "rate": 1.3116623895067008
+    },
+    {
+     "turn_type": "correction",
+     "cells": {
+      "phatic": 0,
+      "continuer": 0,
+      "meta": 0,
+      "companion": 0,
+      "thread": 1,
+      "notebook": 0,
+      "statistic": 0,
+      "redirect": 0
+     },
+     "total": 1,
+     "rate": 0.028514399771884802
+    }
+   ],
+   "personas": [
+    {
+     "key": "p01-clipped",
+     "empty": {
+      "n": 155,
+      "hits": 3,
+      "rate": 1.935483870967742
+     },
+     "persona": {
+      "n": 189,
+      "hits": 24,
+      "rate": 12.698412698412698
+     }
+    },
+    {
+     "key": "p02-spiller",
+     "empty": {
+      "n": 180,
+      "hits": 6,
+      "rate": 3.3333333333333335
+     },
+     "persona": {
+      "n": 180,
+      "hits": 21,
+      "rate": 11.666666666666666
+     }
+    },
+    {
+     "key": "p03-skeptic",
+     "empty": {
+      "n": 190,
+      "hits": 11,
+      "rate": 5.7894736842105265
+     },
+     "persona": {
+      "n": 163,
+      "hits": 18,
+      "rate": 11.042944785276074
+     }
+    },
+    {
+     "key": "p04-tester",
+     "empty": {
+      "n": 163,
+      "hits": 7,
+      "rate": 4.294478527607362
+     },
+     "persona": {
+      "n": 157,
+      "hits": 12,
+      "rate": 7.643312101910828
+     }
+    },
+    {
+     "key": "p05-griever",
+     "empty": {
+      "n": 169,
+      "hits": 8,
+      "rate": 4.733727810650888
+     },
+     "persona": {
+      "n": 181,
+      "hits": 23,
+      "rate": 12.707182320441989
+     }
+    },
+    {
+     "key": "p06-planner",
+     "empty": {
+      "n": 164,
+      "hits": 10,
+      "rate": 6.097560975609756
+     },
+     "persona": {
+      "n": 162,
+      "hits": 29,
+      "rate": 17.901234567901234
+     }
+    },
+    {
+     "key": "p07-nostalgic",
+     "empty": {
+      "n": 179,
+      "hits": 23,
+      "rate": 12.849162011173185
+     },
+     "persona": {
+      "n": 195,
+      "hits": 25,
+      "rate": 12.820512820512821
+     }
+    },
+    {
+     "key": "p08-chatty",
+     "empty": {
+      "n": 150,
+      "hits": 4,
+      "rate": 2.6666666666666665
+     },
+     "persona": {
+      "n": 154,
+      "hits": 16,
+      "rate": 10.38961038961039
+     }
+    },
+    {
+     "key": "p09-guarded",
+     "empty": {
+      "n": 172,
+      "hits": 2,
+      "rate": 1.1627906976744187
+     },
+     "persona": {
+      "n": 169,
+      "hits": 20,
+      "rate": 11.834319526627219
+     }
+    },
+    {
+     "key": "p10-analyst",
+     "empty": {
+      "n": 147,
+      "hits": 12,
+      "rate": 8.16326530612245
+     },
+     "persona": {
+      "n": 171,
+      "hits": 30,
+      "rate": 17.54385964912281
+     }
+    }
+   ],
+   "intents": [
+    {
+     "key": "i01-broad-recall",
+     "empty": {
+      "n": 145,
+      "hits": 6,
+      "rate": 4.137931034482759
+     },
+     "persona": {
+      "n": 161,
+      "hits": 23,
+      "rate": 14.285714285714286
+     }
+    },
+    {
+     "key": "i02-entity-recall",
+     "empty": {
+      "n": 160,
+      "hits": 13,
+      "rate": 8.125
+     },
+     "persona": {
+      "n": 168,
+      "hits": 17,
+      "rate": 10.119047619047619
+     }
+    },
+    {
+     "key": "i03-temporal",
+     "empty": {
+      "n": 155,
+      "hits": 9,
+      "rate": 5.806451612903226
+     },
+     "persona": {
+      "n": 188,
+      "hits": 21,
+      "rate": 11.170212765957446
+     }
+    },
+    {
+     "key": "i04-nomatch-bait",
+     "empty": {
+      "n": 178,
+      "hits": 8,
+      "rate": 4.49438202247191
+     },
+     "persona": {
+      "n": 167,
+      "hits": 27,
+      "rate": 16.167664670658684
+     }
+    },
+    {
+     "key": "i05-small-talk",
+     "empty": {
+      "n": 167,
+      "hits": 12,
+      "rate": 7.18562874251497
+     },
+     "persona": {
+      "n": 178,
+      "hits": 32,
+      "rate": 17.97752808988764
+     }
+    },
+    {
+     "key": "i06-venting",
+     "empty": {
+      "n": 184,
+      "hits": 6,
+      "rate": 3.260869565217391
+     },
+     "persona": {
+      "n": 176,
+      "hits": 19,
+      "rate": 10.795454545454545
+     }
+    },
+    {
+     "key": "i07-correction",
+     "empty": {
+      "n": 151,
+      "hits": 5,
+      "rate": 3.3112582781456954
+     },
+     "persona": {
+      "n": 178,
+      "hits": 13,
+      "rate": 7.303370786516854
+     }
+    },
+    {
+     "key": "i08-multi-hop",
+     "empty": {
+      "n": 176,
+      "hits": 6,
+      "rate": 3.409090909090909
+     },
+     "persona": {
+      "n": 180,
+      "hits": 25,
+      "rate": 13.88888888888889
+     }
+    },
+    {
+     "key": "i09-advice-seeking",
+     "empty": {
+      "n": 199,
+      "hits": 14,
+      "rate": 7.035175879396985
+     },
+     "persona": {
+      "n": 171,
+      "hits": 19,
+      "rate": 11.11111111111111
+     }
+    },
+    {
+     "key": "i10-crisis-adjacent",
+     "empty": {
+      "n": 154,
+      "hits": 7,
+      "rate": 4.545454545454546
+     },
+     "persona": {
+      "n": 154,
+      "hits": 22,
+      "rate": 14.285714285714286
+     }
+    }
+   ]
   }
  ],
  "fabrication_codes": [
