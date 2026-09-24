@@ -43,6 +43,10 @@ specs/
 ├── 050-*.md           ← evidence pack and reply renderer (the model places
 │                        {{quote:n}} / {{date:n}} markers, Swift inserts the words;
 │                        ask-core@19); REQ-REF- — in progress
+├── 051-*.md           ← reference discipline II and temporal retrieval (do not
+│                     teach a grammar where it cannot apply; the renderer strips
+│                     its own scaffolding; asserted dates get a scorer; retrieval
+│                     fixed at the three misses RetrievalGate measured)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

@@ -33,9 +33,15 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
     static let weeklyIdentifier = "memento.weeklyReflectionReady"
     static let allIdentifiers = [dailyIdentifier, weeklyIdentifier]
 
-    static let kindKey = "kind"
-    static let dailyKind = "daily"
-    static let weeklyKind = "weekly"
+    /// The `userInfo` keys and values, `nonisolated` because
+    /// `userNotificationCenter(_:didReceive:withCompletionHandler:)` is a
+    /// nonisolated delegate callback and reads `kindKey` there. They are
+    /// compile-time string constants with no isolation to protect, so the
+    /// main-actor isolation this type carries was accidental rather than
+    /// meaningful.
+    nonisolated static let kindKey = "kind"
+    nonisolated static let dailyKind = "daily"
+    nonisolated static let weeklyKind = "weekly"
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 

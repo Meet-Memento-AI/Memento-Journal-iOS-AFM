@@ -1,0 +1,1358 @@
+<title>Grounding Study II</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Cool, instrument-grade neutrals biased toward the blue accent. The two
+     series are fixed to a meaning, not to a rank: blue is always "no journal",
+     orange is always "has a journal", in every chart on the page. */
+  :root {
+    --surface:        #f7f8f9;
+    --surface-raised: #ffffff;
+    --surface-sunk:   #eceff2;
+    --rule:           #d5dae0;
+    --rule-strong:    #b3bcc6;
+    --ink:            #12161a;
+    --ink-2:          #4a5560;
+    --ink-3:          #76828d;
+    --no-journal:     #2a78d6;
+    --has-journal:    #eb6834;
+    --critical:       #e34948;
+    --good:           #008300;
+    --warn:           #eda100;
+    --ramp-0:         #eceff2;
+    --ramp-1:         #cfe0f5;
+    --ramp-2:         #9dc2ea;
+    --ramp-3:         #5f9ade;
+    --ramp-4:         #2a78d6;
+    --ramp-5:         #1b539a;
+    --shadow:         0 1px 2px rgba(18, 22, 26, .06), 0 4px 16px rgba(18, 22, 26, .04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface:        #14171a;
+      --surface-raised: #1c2024;
+      --surface-sunk:   #0e1113;
+      --rule:           #2d343a;
+      --rule-strong:    #454f57;
+      --ink:            #eef1f4;
+      --ink-2:          #a9b4bd;
+      --ink-3:          #77828b;
+      --no-journal:     #3987e5;
+      --has-journal:    #d95926;
+      --critical:       #e66767;
+      --good:           #35a935;
+      --warn:           #c98500;
+      --ramp-0:         #1c2024;
+      --ramp-1:         #1d3450;
+      --ramp-2:         #24507e;
+      --ramp-3:         #2c6cae;
+      --ramp-4:         #3987e5;
+      --ramp-5:         #74adee;
+      --shadow:         0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface:        #14171a;
+    --surface-raised: #1c2024;
+    --surface-sunk:   #0e1113;
+    --rule:           #2d343a;
+    --rule-strong:    #454f57;
+    --ink:            #eef1f4;
+    --ink-2:          #a9b4bd;
+    --ink-3:          #77828b;
+    --no-journal:     #3987e5;
+    --has-journal:    #d95926;
+    --critical:       #e66767;
+    --good:           #35a935;
+    --warn:           #c98500;
+    --ramp-0:         #1c2024;
+    --ramp-1:         #1d3450;
+    --ramp-2:         #24507e;
+    --ramp-3:         #2c6cae;
+    --ramp-4:         #3987e5;
+    --ramp-5:         #74adee;
+    --shadow:         0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .25);
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--ink);
+    font: 400 15px/1.6 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; padding-block: 40px 72px; }
+  h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 6vw, 46px); font-weight: 700; letter-spacing: -.015em; line-height: 1.08; }
+  h2 { font-size: clamp(20px, 3.4vw, 26px); font-weight: 700; letter-spacing: -.01em; }
+  h3 { font-size: 16px; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  a { color: var(--no-journal); }
+  code, .mono, .num { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+  code { font-size: .88em; background: var(--surface-sunk); padding: .1em .35em; border-radius: 3px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+  }
+  header.masthead { display: flex; flex-direction: column; gap: 14px; }
+  .lede { font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 62ch; }
+  .runbar {
+    display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 6px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--ink-3);
+  }
+
+  section { margin-top: 56px; display: flex; flex-direction: column; gap: 18px; }
+  .sechead { display: flex; flex-direction: column; gap: 7px; border-top: 2px solid var(--ink); padding-top: 13px; }
+
+  /* A callout is spent only where the page has to stop the reader. */
+  .callout {
+    border-left: 3px solid var(--critical); background: var(--surface-raised);
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; border-radius: 0 6px 6px 0;
+  }
+  .callout.neutral { border-left-color: var(--rule-strong); }
+  .callout .eyebrow { color: var(--critical); }
+  .callout.neutral .eyebrow { color: var(--ink-3); }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .tile {
+    background: var(--surface-raised); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 5px; box-shadow: var(--shadow);
+  }
+  .tile .figure { font-family: "IBM Plex Mono", monospace; font-size: 33px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
+  .tile .label { font-size: 13px; font-weight: 500; color: var(--ink); }
+  .tile .sub { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+  .tile.down .figure { color: var(--good); }
+  .tile.up .figure { color: var(--critical); }
+
+  /* The validity grid: which comparisons the data can actually support.
+     Rows are journal worlds, columns are pipelines. It is a real 2-by-3
+     with two holes in it, and the holes are the point. */
+  .grid-scroll { overflow-x: auto; }
+  table.matrix { border-collapse: collapse; width: 100%; min-width: 520px; }
+  table.matrix th, table.matrix td { border: 1px solid var(--rule); padding: 11px 13px; text-align: left; vertical-align: top; }
+  table.matrix thead th { background: var(--surface-sunk); font-size: 12px; font-weight: 600; font-family: "IBM Plex Sans Condensed", sans-serif; letter-spacing: .02em; }
+  table.matrix tbody th { background: var(--surface-sunk); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  td.filled { background: var(--surface-raised); }
+  td.empty { background: repeating-linear-gradient(135deg, transparent, transparent 5px, var(--surface-sunk) 5px, var(--surface-sunk) 10px); color: var(--ink-3); font-size: 12.5px; }
+  .cellrun { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500; }
+  .cellfig { font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 600; margin-top: 3px; }
+  .cellnote { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+
+  .chartcard {
+    background: var(--surface-raised); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px;
+  }
+  .charthead { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; justify-content: space-between; }
+  .charthead p { font-size: 13px; color: var(--ink-3); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+
+  details.tableview { border-top: 1px dashed var(--rule); padding-top: 10px; }
+  details.tableview summary { font-size: 12.5px; color: var(--ink-2); cursor: pointer; font-weight: 500; }
+  details.tableview summary:focus-visible { outline: 2px solid var(--no-journal); outline-offset: 2px; border-radius: 3px; }
+  .datatable-scroll { overflow-x: auto; margin-top: 10px; }
+  table.data { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+  table.data th, table.data td { border-bottom: 1px solid var(--rule); padding: 6px 12px 6px 0; text-align: left; white-space: nowrap; }
+  table.data th { font-weight: 600; color: var(--ink-2); font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; }
+  table.data td.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  /* Direction is carried by a word and a glyph, never by hue alone. */
+  .dir { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .dir.worse { color: var(--critical); }
+  .dir.better { color: var(--good); }
+  .dir.noise { color: var(--ink-3); }
+
+  .spans { display: flex; flex-direction: column; gap: 12px; }
+  .span {
+    background: var(--surface-raised); border: 1px solid var(--rule); border-radius: 8px; padding: 15px 17px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .span .meta { display: flex; flex-wrap: wrap; gap: 5px 12px; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+  .span .quoted { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; color: var(--critical); word-break: break-word; }
+  .span .body { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+  .span .body em { color: var(--ink); font-style: italic; background: color-mix(in srgb, var(--critical) 13%, transparent); padding: 0 2px; border-radius: 2px; }
+
+  ul.notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; max-width: 72ch; }
+  ul.notes li { line-height: 1.55; }
+  ul.notes li strong { font-weight: 600; }
+
+  /* Raw browser. Rows are dense and scanned, so the type drops to mono and the
+     row itself is the hit target; nothing here is a card. */
+  .rawbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+  .rawbar select, .rawbar input {
+    font: 400 12.5px/1.4 "IBM Plex Mono", monospace; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+    padding: 6px 8px; min-width: 0;
+  }
+  .rawbar input[type="search"] { flex: 1 1 200px; }
+  .rawbar select:focus-visible, .rawbar input:focus-visible,
+  .rawbtn:focus-visible, .rawrow:focus-visible {
+    outline: 2px solid var(--no-journal); outline-offset: 1px;
+  }
+  .rawbtn {
+    font: 500 12.5px/1.4 "IBM Plex Sans", sans-serif; color: var(--surface-raised);
+    background: var(--ink); border: 0; border-radius: 5px; padding: 7px 13px; cursor: pointer;
+  }
+  .rawbtn[disabled] { opacity: .4; cursor: default; }
+  .rawbtn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--rule); }
+  .rawcount { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-3); }
+  .rawlist { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .rawrow {
+    display: grid; grid-template-columns: 116px 74px 1fr; gap: 10px; align-items: start;
+    border-bottom: 1px solid var(--rule); padding: 9px 4px; cursor: pointer; background: none;
+    border-left: 0; border-right: 0; border-top: 0; text-align: left; width: 100%; font: inherit; color: inherit;
+  }
+  .rawrow:hover { background: var(--surface-sunk); }
+  .rawrow .who { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--ink-3); line-height: 1.45; }
+  .rawrow .role { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600; }
+  .rawrow .role.user { color: var(--ink-3); }
+  .rawrow .role.assistant { color: var(--no-journal); }
+  .rawrow[data-arm="persona"] .role.assistant, .rawrow[data-arm="cold"] .role.assistant { color: var(--has-journal); }
+  .rawrow .snippet { font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+  .rawrow .codes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .rawrow .codes b {
+    font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 500;
+    background: color-mix(in srgb, var(--critical) 15%, transparent); color: var(--critical);
+    padding: 1px 5px; border-radius: 3px;
+  }
+  .rawrow .codes b.quiet { background: var(--surface-sunk); color: var(--ink-3); }
+  .rawjson {
+    background: var(--surface-sunk); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 12px 14px; margin: 0 0 10px; overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.55;
+    white-space: pre; color: var(--ink-2);
+  }
+  @media (max-width: 620px) {
+    .rawrow { grid-template-columns: 1fr; gap: 4px; }
+  }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 30; opacity: 0; transition: opacity .08s;
+    background: var(--ink); color: var(--surface); padding: 7px 10px; border-radius: 5px;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.5; max-width: 260px; box-shadow: 0 4px 14px rgba(0,0,0,.28);
+  }
+  .tooltip strong { color: var(--surface); font-weight: 600; }
+
+  footer { margin-top: 60px; border-top: 1px solid var(--rule); padding-top: 16px; font-size: 12.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Memento · specs 046 / 047 / 048 · on-device Ask pipeline</div>
+    <h1>What a journal does to the model</h1>
+    <p class="lede">Four hundred self-play conversations, twenty to fifty messages each, against journals
+      holding zero, eight and two hundred and sixty-two entries. Both sides of every conversation were
+      generated on-device; every assistant turn went through the production Ask path, so retrieval,
+      turn classification, channel selection and citation reconciliation were all live.</p>
+    <div class="runbar" id="runbar"></div>
+  </header>
+
+  <section id="finding">
+    <div class="sechead">
+      <div class="eyebrow">The result</div>
+      <h2>The fabrication defect did not close. It moved.</h2>
+    </div>
+    <p>Spec 046 was written about a model that invented journal entries when it had no journal to draw on.
+      The evidence-first pipeline fixed that, comprehensively. But the same scorer, pointed at a
+      nine-month archive for the first time, fires on roughly half of all turns — and the spans it
+      catches are a different failure: the model italicising the person's own words back at them.
+      Under the output contract, italics mean a verbatim journal quote.</p>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section id="validity">
+    <div class="sechead">
+      <div class="eyebrow">Read this before the charts</div>
+      <h2>Which comparisons the data supports</h2>
+    </div>
+    <p>Study II changed two things at once: the journal <em>and</em> the pipeline. So the headline
+      arm-to-arm difference is confounded, and only two comparisons here hold one variable still.
+      The hatched cells were never run.</p>
+    <div class="grid-scroll"><table class="matrix" id="matrix"></table></div>
+    <div class="callout neutral">
+      <div class="eyebrow">Valid comparisons</div>
+      <p><strong>Pipeline effect</strong> — zero-entry arm, Study&nbsp;I against Study&nbsp;II: same empty
+        world, different pipeline. <strong>World effect</strong> — Study&nbsp;II's two arms: same
+        pipeline, 0 entries against 262. Everything else crosses both axes and cannot separate cause.</p>
+    </div>
+  </section>
+
+  <section id="rates">
+    <div class="sechead">
+      <div class="eyebrow">Per arm</div>
+      <h2>Violation rates</h2>
+    </div>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Gating violations and invented material</h3>
+          <p>Share of generated turns. Gating excludes <code>gen.*</code> shape telemetry and the three unarmed <code>hall.*</code> codes, matching <code>ChatEvalScoring.gating</code>.</p></div>
+        <div class="legend" id="legend-rates"></div>
+      </div>
+      <div id="chart-rates"></div>
+      <details class="tableview"><summary>Table view</summary><div class="datatable-scroll" id="table-rates"></div></details>
+    </div>
+  </section>
+
+  <section id="codes">
+    <div class="sechead">
+      <div class="eyebrow">Per scorer</div>
+      <h2>Which checks fire, and where</h2>
+    </div>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Occurrences per 100 generated turns</h3>
+          <p>Normalised, because the arms differ in size. A code at zero in one arm and not the other is the interesting shape.</p></div>
+        <div class="legend" id="legend-codes"></div>
+      </div>
+      <div id="chart-codes"></div>
+      <details class="tableview"><summary>Table view</summary><div class="datatable-scroll" id="table-codes"></div></details>
+    </div>
+  </section>
+
+  <section id="routing">
+    <div class="sechead">
+      <div class="eyebrow">Spec 048 R2</div>
+      <h2>Turn type against reply channel</h2>
+    </div>
+    <p>Every enum case gets a row, including the ones at zero — a turn type that stops firing has to be
+      a visible result rather than a missing row. That is how 047's <code>followup</code> defect stayed
+      invisible for as long as it did.</p>
+    <div class="two" id="matrices"></div>
+  </section>
+
+  <section id="personas">
+    <div class="sechead">
+      <div class="eyebrow">Who the journal helps</div>
+      <h2>Violation rate, with a journal minus without</h2>
+    </div>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Per persona, per study</h3>
+          <p>Bars right of the axis mean the model did worse <em>with</em> a journal than without one.</p></div>
+        <div class="legend" id="legend-personas"></div>
+      </div>
+      <div id="chart-personas"></div>
+      <details class="tableview"><summary>Table view</summary><div class="datatable-scroll" id="table-personas"></div></details>
+    </div>
+  </section>
+
+  <section id="evidence">
+    <div class="sechead">
+      <div class="eyebrow">The spans themselves</div>
+      <h2>What the scorer actually caught</h2>
+    </div>
+    <p>A rate is not evidence. <code>hall.fabricatedQuote</code> at roughly half of all seeded turns is
+      either a model inventing entries or a scorer whose definition does not survive a real conversation,
+      and only the text settles which. These are verbatim, with the offending span highlighted.</p>
+    <div class="spans" id="spans"></div>
+  </section>
+
+  <section id="dates">
+    <div class="sechead">
+      <div class="eyebrow">An unscored failure mode</div>
+      <h2>Nothing checks an asserted date</h2>
+    </div>
+    <p>A reply can name a date no entry carries and pass every check. On a seeded arm a date
+      can legitimately be right, so those counts are not error counts — but on a zero-entry arm
+      every asserted date is invented by construction, and that column should read zero.</p>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Replies asserting a month-and-day, and how many pass clean</h3>
+          <p>Derived from the reply text, because no scorer emits a code for it.</p></div>
+        <div class="legend" id="legend-dates"></div>
+      </div>
+      <div class="datatable-scroll" id="table-dates"></div>
+    </div>
+    <div class="callout">
+      <div class="eyebrow">Why this is not just a missing check</div>
+      <p>Spec 046's own motivating example is one of these turns — <em>"I don't see anything from
+        that stretch — the entry from March 12 shows a spike in missed classes"</em>, on the arm with
+        no journal at all — and its <code>violations</code> array is empty. Elsewhere the model quotes
+        a real entry verbatim and attaches a date that entry does not have; the only code that fires
+        is <code>hall.uncitedQuote</code>, which names the attribution and not the invention.
+        Two different defects are reaching one code again.</p>
+    </div>
+  </section>
+
+  <section id="cost">
+    <div class="sechead">
+      <div class="eyebrow">Throughput</div>
+      <h2>What a run costs</h2>
+    </div>
+    <div class="chartcard">
+      <div class="charthead">
+        <div><h3>Seconds per generated turn</h3>
+          <p>Generation is strictly serial — <code>ModelRuntimeGate</code> holds a lock around every call — so this is the hard constraint on study size.</p></div>
+        <div class="legend" id="legend-latency"></div>
+      </div>
+      <div id="chart-latency"></div>
+      <details class="tableview"><summary>Table view</summary><div class="datatable-scroll" id="table-latency"></div></details>
+    </div>
+  </section>
+
+  <section id="raw">
+    <div class="sechead">
+      <div class="eyebrow">Every message, both runs</div>
+      <h2>The raw data</h2>
+    </div>
+    <p>14,032 messages as the harness wrote them — every user turn, every reply, with the routing
+      decision, the scorer output, the citations and the timings attached. Nothing here is
+      aggregated. The files load only when you ask for them, because they are 10&nbsp;MB.</p>
+    <div class="chartcard">
+      <div class="rawbar" id="rawload"></div>
+      <div id="rawui" hidden>
+        <div class="rawbar" style="margin-bottom:12px">
+          <select id="f-run" aria-label="Study"></select>
+          <select id="f-arm" aria-label="Arm"></select>
+          <select id="f-role" aria-label="Role"></select>
+          <select id="f-code" aria-label="Violation code"></select>
+          <select id="f-persona" aria-label="Persona"></select>
+          <input type="search" id="f-text" placeholder="search message text…" aria-label="Search message text">
+          <button class="rawbtn ghost" id="f-reset" type="button">Reset</button>
+        </div>
+        <div class="rawcount" id="rawcount"></div>
+        <div class="rawlist" id="rawlist"></div>
+        <div class="rawbar" style="margin-top:12px">
+          <button class="rawbtn ghost" id="rawmore" type="button">Show 100 more</button>
+          <span class="rawcount" id="rawshown"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="caveats">
+    <div class="sechead">
+      <div class="eyebrow">Corrections and limits</div>
+      <h2>What you cannot conclude from this</h2>
+    </div>
+    <ul class="notes" id="caveats-list"></ul>
+  </section>
+
+  <footer>
+    <div>Every figure on this page is produced by <code>scripts/eval/analyze_convo_sim.py</code> and
+      <code>scripts/eval/export_convo_sim_json.py</code> from the committed JSONL in
+      <code>eval-archive/convo-sim/</code>. None of it is hand-counted.</div>
+    <div id="provenance" class="mono"></div>
+  </footer>
+</div>
+
+<div class="tooltip" id="tip" role="status" aria-live="polite"></div>
+
+<script type="application/json" id="payload">/*__DATA__*/</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("payload").textContent);
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const tip = document.getElementById("tip");
+
+  // Blue is "no journal" and orange is "has a journal", everywhere on the page.
+  // Colour follows the world, never the bar's rank or the arm's position.
+  const hueFor = (arm) => (arm === "empty" ? "var(--no-journal)" : "var(--has-journal)");
+  const fmt = (n, d) => (n === null || n === undefined ? "—" : n.toFixed(d === undefined ? 1 : d));
+  const pct = (part, whole) => (whole ? (100 * part) / whole : 0);
+
+  function el(tag, attrs, text) {
+    const node = document.createElementNS(SVGNS, tag);
+    for (const key in attrs) node.setAttribute(key, attrs[key]);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function svg(width, height) {
+    const node = el("svg", { viewBox: `0 0 ${width} ${height}`, role: "img" });
+    node.style.maxWidth = "100%";
+    return node;
+  }
+  function showTip(event, html) {
+    tip.innerHTML = html;
+    tip.style.opacity = "1";
+    const box = tip.getBoundingClientRect();
+    let x = event.clientX + 14;
+    let y = event.clientY - box.height - 10;
+    if (x + box.width > window.innerWidth - 8) x = event.clientX - box.width - 14;
+    if (y < 8) y = event.clientY + 16;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip() { tip.style.opacity = "0"; }
+  function hoverable(node, html) {
+    node.addEventListener("mousemove", (e) => showTip(e, html));
+    node.addEventListener("mouseleave", hideTip);
+    node.style.cursor = "default";
+  }
+  function legend(host, items) {
+    host.innerHTML = "";
+    items.forEach((item) => {
+      const span = document.createElement("span");
+      const sw = document.createElement("i");
+      sw.className = "swatch";
+      sw.style.background = item.color;
+      if (item.hatch) sw.style.backgroundImage =
+        "repeating-linear-gradient(45deg, rgba(255,255,255,.55) 0 2px, transparent 2px 4px)";
+      span.appendChild(sw);
+      span.appendChild(document.createTextNode(item.label));
+      host.appendChild(span);
+    });
+  }
+  function dataTable(host, head, rows) {
+    const table = document.createElement("table");
+    table.className = "data";
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    head.forEach((h) => { const th = document.createElement("th"); th.textContent = h; hr.appendChild(th); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      row.forEach((cell, i) => {
+        const td = document.createElement("td");
+        if (i > 0) td.className = "n";
+        if (cell instanceof Node) td.appendChild(cell); else td.textContent = cell;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    host.innerHTML = "";
+    host.appendChild(table);
+  }
+
+  // --- Flatten the runs into the page's unit of comparison: one arm of one study.
+  const CELLS = [];
+  DATA.runs.forEach((run) => {
+    run.arms.forEach((arm) => {
+      const meta = (run.arms_meta || []).find((m) => m.name === arm.arm) || {};
+      CELLS.push({
+        run: run.label,
+        complete: run.complete,
+        arm: arm.arm,
+        entries: meta.entry_count === undefined ? null : meta.entry_count,
+        label: `${run.label} · ${arm.arm}`,
+        short: `${arm.arm} (${meta.entry_count === undefined ? "?" : meta.entry_count})`,
+        d: arm,
+      });
+    });
+  });
+  const findCell = (run, arm) => CELLS.find((c) => c.run === run && c.arm === arm);
+
+  // ---------------------------------------------------------------- run bar
+  const runbar = document.getElementById("runbar");
+  DATA.runs.forEach((run) => {
+    const m = run.manifest || {};
+    const div = document.createElement("div");
+    const arms = (run.arms_meta || []).map((a) => `${a.name} ${a.entry_count}e`).join(" + ");
+    div.textContent = `${run.label}: ${run.messages.toLocaleString()} messages · ${arms}`
+      + (run.complete ? "" : " · PARTIAL RUN");
+    runbar.appendChild(div);
+  });
+  const prov = DATA.runs.map((r) => {
+    const m = r.manifest || {};
+    return `${r.label} = ${r.file} @ ${(m.git_sha || "unknown").slice(0, 7)}`;
+  }).join("   ·   ");
+  document.getElementById("provenance").textContent = prov;
+
+  // ----------------------------------------------------------------- tiles
+  (function tiles() {
+    const host = document.getElementById("tiles");
+    const i_empty = findCell("Study I", "empty");
+    const ii_empty = findCell("Study II", "empty");
+    const ii_seed = findCell("Study II", "persona") || findCell("Study II", "cold");
+    const items = [];
+
+    if (i_empty && ii_empty) {
+      const before = i_empty.d.codes["hall.fabricatedQuote"] || 0;
+      const after = ii_empty.d.codes["hall.fabricatedQuote"] || 0;
+      items.push({
+        cls: "down",
+        figure: `${before} → ${after}`,
+        label: "Fabricated quotes, no journal",
+        sub: `Occurrences across ${i_empty.d.generated.toLocaleString()} then `
+          + `${ii_empty.d.generated.toLocaleString()} generated turns. Study I's count is a replay `
+          + `with the repaired regex; the run itself recorded zero.`,
+      });
+      items.push({
+        cls: "down",
+        figure: `${fmt(pct(i_empty.d.notebook, i_empty.d.generated))}% → ${fmt(pct(ii_empty.d.notebook, ii_empty.d.generated))}%`,
+        label: "Notebook voice with an empty archive",
+        sub: "The channel that authorises headings and journal quotation. 046's second finding.",
+      });
+    }
+    if (ii_seed) {
+      items.push({
+        cls: "up",
+        figure: fmt(pct(ii_seed.d.invented_material, ii_seed.d.generated)) + "%",
+        label: `Invented material, ${ii_seed.entries}-entry journal`,
+        sub: `${ii_seed.d.invented_material} of ${ii_seed.d.generated.toLocaleString()} generated turns `
+          + `carry a span the corpus does not support.`,
+      });
+      items.push({
+        cls: "",
+        figure: fmt(pct(ii_seed.d.cited_turns, ii_seed.d.generated)) + "%",
+        label: "Turns carrying a citation",
+        sub: ii_seed.d.median_cited_entry_age_days === null
+          ? `${ii_seed.d.citations} citations in total.`
+          : `${ii_seed.d.citations} citations; median cited entry `
+            + `${Math.round(ii_seed.d.median_cited_entry_age_days)} days old.`,
+      });
+    }
+    host.innerHTML = "";
+    items.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "tile " + item.cls;
+      card.innerHTML = `<div class="figure">${item.figure}</div>`
+        + `<div class="label">${item.label}</div><div class="sub">${item.sub}</div>`;
+      host.appendChild(card);
+    });
+  })();
+
+  // -------------------------------------------------------- validity matrix
+  (function matrix() {
+    const table = document.getElementById("matrix");
+    const worlds = [];
+    CELLS.forEach((c) => {
+      if (!worlds.some((w) => w.entries === c.entries)) {
+        worlds.push({ entries: c.entries, arm: c.arm });
+      }
+    });
+    worlds.sort((a, b) => a.entries - b.entries);
+    const pipelines = DATA.runs.map((r) => r.label);
+
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    hr.appendChild(Object.assign(document.createElement("th"), { textContent: "Journal world" }));
+    pipelines.forEach((p, i) => {
+      const th = document.createElement("th");
+      th.textContent = i === 0 ? `${p} — pipeline before #32` : `${p} — evidence-first pipeline`;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.innerHTML = "";
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    worlds.forEach((world) => {
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.innerHTML = `${world.entries} entries<br><span class="cellnote">${
+        world.entries === 0 ? "brand-new install" : world.entries === 8 ? "Fixtures/cold-start" : "Fixtures/corpus, 9 months"
+      }</span>`;
+      tr.appendChild(th);
+      pipelines.forEach((p) => {
+        const cell = CELLS.find((c) => c.run === p && c.entries === world.entries);
+        const td = document.createElement("td");
+        if (cell) {
+          td.className = "filled";
+          const rate = fmt(pct(cell.d.gating_violations, cell.d.generated));
+          const inv = fmt(pct(cell.d.invented_material, cell.d.generated));
+          td.innerHTML = `<div class="cellrun">arm <strong>${cell.arm}</strong>`
+            + `${cell.complete ? "" : " · partial"}</div>`
+            + `<div class="cellfig">${rate}%</div>`
+            + `<div class="cellnote">gating · ${inv}% invented · `
+            + `${cell.d.generated.toLocaleString()} turns</div>`;
+        } else {
+          td.className = "empty";
+          td.textContent = "not run";
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  })();
+
+  // ------------------------------------------------------------ rates chart
+  (function rates() {
+    const host = document.getElementById("chart-rates");
+    const W = 780, rowH = 56, padL = 152, padR = 58, top = 26;
+    const H = top + CELLS.length * rowH + 16;
+    const s = svg(W, H);
+    const max = Math.max(20, ...CELLS.map((c) =>
+      Math.max(pct(c.d.gating_violations, c.d.generated), pct(c.d.invented_material, c.d.generated))));
+    const plotW = W - padL - padR;
+    const x = (v) => padL + (v / max) * plotW;
+
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 8, x2: x(v), y2: H - 18,
+        stroke: "var(--rule)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 14, "text-anchor": "middle",
+        "font-size": 10.5, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+
+    CELLS.forEach((c, i) => {
+      const y = top + i * rowH;
+      s.appendChild(el("text", { x: padL - 12, y: y + 15, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)", "font-weight": 500 }, c.run));
+      s.appendChild(el("text", { x: padL - 12, y: y + 30, "text-anchor": "end",
+        "font-size": 10.5, fill: "var(--ink-3)" },
+        `${c.arm} · ${c.entries} entries`));
+
+      const bars = [
+        { v: pct(c.d.gating_violations, c.d.generated), n: c.d.gating_violations, hatch: false, name: "gating violation" },
+        { v: pct(c.d.invented_material, c.d.generated), n: c.d.invented_material, hatch: true, name: "invented material" },
+      ];
+      bars.forEach((bar, k) => {
+        const by = y + 4 + k * 17;
+        const w = Math.max(2, x(bar.v) - padL);
+        // 4px rounded data-end anchored to the baseline; 2px surface gap
+        // between the pair keeps them readable as two marks, not one block.
+        const rect = el("path", {
+          d: `M${padL},${by} H${padL + w - 4} a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 H${padL} Z`,
+          fill: hueFor(c.arm),
+        });
+        if (bar.hatch) rect.setAttribute("fill", `url(#hatch-${c.arm})`);
+        s.appendChild(rect);
+        s.appendChild(el("text", { x: padL + w + 8, y: by + 11, "font-size": 11,
+          fill: "var(--ink-2)", "font-weight": 500 }, fmt(bar.v) + "%"));
+        hoverable(rect, `<strong>${c.label}</strong><br>${bar.name}<br>`
+          + `${bar.n} of ${c.d.generated.toLocaleString()} turns · ${fmt(bar.v)}%`);
+      });
+    });
+
+    const defs = el("defs", {});
+    ["empty", "persona", "cold"].forEach((arm) => {
+      const pat = el("pattern", { id: `hatch-${arm}`, width: 5, height: 5,
+        patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+      pat.appendChild(el("rect", { width: 5, height: 5, fill: hueFor(arm) }));
+      pat.appendChild(el("rect", { width: 2.1, height: 5, fill: "var(--surface-raised)", opacity: .78 }));
+      defs.appendChild(pat);
+    });
+    s.insertBefore(defs, s.firstChild);
+    host.innerHTML = "";
+    host.appendChild(s);
+
+    legend(document.getElementById("legend-rates"), [
+      { color: "var(--no-journal)", label: "no journal (0 entries)" },
+      { color: "var(--has-journal)", label: "has a journal" },
+      { color: "var(--ink-3)", label: "hatched = invented material", hatch: true },
+    ]);
+    dataTable(document.getElementById("table-rates"),
+      ["Study · arm", "Entries", "Generated", "Gating", "Gating %", "Invented", "Invented %", "Notebook %", "Cited %"],
+      CELLS.map((c) => [c.label, c.entries, c.d.generated, c.d.gating_violations,
+        fmt(pct(c.d.gating_violations, c.d.generated)), c.d.invented_material,
+        fmt(pct(c.d.invented_material, c.d.generated)),
+        fmt(pct(c.d.notebook, c.d.generated)), fmt(pct(c.d.cited_turns, c.d.generated))]));
+  })();
+
+  // ------------------------------------------------------------ codes chart
+  (function codes() {
+    const host = document.getElementById("chart-codes");
+    const all = new Set();
+    CELLS.forEach((c) => Object.keys(c.d.codes).forEach((k) => all.add(k)));
+    const codeList = [...all].sort((a, b) => {
+      const total = (code) => CELLS.reduce((sum, c) => sum + (c.d.codes[code] || 0) / c.d.generated, 0);
+      return total(b) - total(a);
+    });
+    const perHundred = (c, code) => (100 * (c.d.codes[code] || 0)) / c.d.generated;
+    const max = Math.max(1, ...codeList.map((code) => Math.max(...CELLS.map((c) => perHundred(c, code)))));
+
+    const rowH = 15, groupGap = 13, padL = 196, padR = 52, top = 24;
+    const W = 780, plotW = W - padL - padR;
+    const H = top + codeList.length * (CELLS.length * rowH + groupGap) + 10;
+    const s = svg(W, H);
+    const x = (v) => padL + (v / max) * plotW;
+
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 8, x2: x(v), y2: H - 14,
+        stroke: "var(--rule)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 13, "text-anchor": "middle",
+        "font-size": 10, fill: "var(--ink-3)" }, fmt(v, 0)));
+    });
+
+    let y = top;
+    codeList.forEach((code) => {
+      const isReportOnly = DATA.report_only_codes.indexOf(code) >= 0;
+      const isFab = DATA.fabrication_codes.indexOf(code) >= 0;
+      s.appendChild(el("text", { x: padL - 12, y: y + 11, "text-anchor": "end", "font-size": 11,
+        fill: isFab ? "var(--critical)" : "var(--ink)", "font-weight": isFab ? 600 : 400 }, code));
+      if (isReportOnly) {
+        s.appendChild(el("text", { x: padL - 12, y: y + 23, "text-anchor": "end",
+          "font-size": 9.5, fill: "var(--ink-3)" }, "report-only, does not gate"));
+      }
+      CELLS.forEach((c, i) => {
+        const v = perHundred(c, code);
+        const by = y + i * rowH;
+        const w = Math.max(v > 0 ? 2.5 : 0, x(v) - padL);
+        if (w > 0) {
+          const bar = el("path", {
+            d: `M${padL},${by} H${padL + Math.max(4, w) - 4} a4,4 0 0 1 4,4 v4 a4,4 0 0 1 -4,4 H${padL} Z`,
+            fill: hueFor(c.arm), opacity: c.run === "Study I" ? 0.45 : 1,
+          });
+          s.appendChild(bar);
+          hoverable(bar, `<strong>${code}</strong><br>${c.label}<br>`
+            + `${c.d.codes[code] || 0} occurrences · ${fmt(v)} per 100 turns`);
+        } else {
+          s.appendChild(el("line", { x1: padL, y1: by + 6, x2: padL + 7, y2: by + 6,
+            stroke: "var(--rule-strong)", "stroke-width": 1.5 }));
+        }
+      });
+      y += CELLS.length * rowH + groupGap;
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
+
+    legend(document.getElementById("legend-codes"), [
+      { color: "var(--no-journal)", label: "no journal" },
+      { color: "var(--has-journal)", label: "has a journal" },
+      { color: "var(--rule-strong)", label: "a dash means zero" },
+    ]);
+    dataTable(document.getElementById("table-codes"),
+      ["Code", ...CELLS.map((c) => c.label + " /100")],
+      codeList.map((code) => [code, ...CELLS.map((c) => fmt(perHundred(c, code), 2))]));
+  })();
+
+  // ------------------------------------------------- turn × channel matrices
+  (function routing() {
+    const host = document.getElementById("matrices");
+    host.innerHTML = "";
+    DATA.runs.forEach((run) => {
+      const card = document.createElement("div");
+      card.className = "chartcard";
+      const total = run.turn_matrix.reduce((s, r) => s + r.total, 0);
+      card.innerHTML = `<div class="charthead"><div><h3>${run.label}</h3>`
+        + `<p>${total.toLocaleString()} assistant turns${run.complete ? "" : " · partial run"}</p></div></div>`;
+
+      const channels = DATA.reply_channels;
+      const cellW = 40, cellH = 21, padL = 128, top = 62;
+      const W = padL + channels.length * cellW + 46;
+      const H = top + run.turn_matrix.length * cellH + 14;
+      const s = svg(W, H);
+      const maxCell = Math.max(1, ...run.turn_matrix.flatMap((r) => Object.values(r.cells)));
+      // Sequential, one hue light→dark. Zero gets the empty step, so "no
+      // traffic" is visually distinct from "a little traffic".
+      const ramp = ["var(--ramp-0)", "var(--ramp-1)", "var(--ramp-2)", "var(--ramp-3)", "var(--ramp-4)", "var(--ramp-5)"];
+      const step = (v) => (v === 0 ? 0 : Math.min(5, 1 + Math.floor((v / maxCell) * 4.999)));
+
+      channels.forEach((ch, j) => {
+        const cx = padL + j * cellW + cellW / 2;
+        s.appendChild(el("text", { x: cx, y: top - 8, "font-size": 10, fill: "var(--ink-2)",
+          transform: `rotate(-45 ${cx} ${top - 8})`, "text-anchor": "start" }, ch));
+      });
+      run.turn_matrix.forEach((row, i) => {
+        const y = top + i * cellH;
+        const silent = row.total === 0;
+        s.appendChild(el("text", { x: padL - 10, y: y + 14, "text-anchor": "end", "font-size": 10.5,
+          fill: silent ? "var(--ink-3)" : "var(--ink)", "font-weight": silent ? 400 : 500 },
+          row.turn_type + (silent ? " ·0" : "")));
+        channels.forEach((ch, j) => {
+          const v = row.cells[ch] || 0;
+          // 2px surface gap between fills keeps adjacent cells separate marks.
+          const rect = el("rect", { x: padL + j * cellW + 1, y: y + 1, width: cellW - 2,
+            height: cellH - 2, rx: 2, fill: ramp[step(v)] });
+          s.appendChild(rect);
+          if (v > 0) {
+            s.appendChild(el("text", { x: padL + j * cellW + cellW / 2, y: y + 14,
+              "text-anchor": "middle", "font-size": 9.5,
+              fill: step(v) >= 4 ? "var(--surface-raised)" : "var(--ink)" }, v));
+          }
+          hoverable(rect, `<strong>${row.turn_type} → ${ch}</strong><br>${v} turns`);
+        });
+        s.appendChild(el("text", { x: W - 40, y: y + 14, "font-size": 10,
+          fill: silent ? "var(--ink-3)" : "var(--ink-2)" }, fmt(row.rate) + "%"));
+      });
+      card.appendChild(s);
+
+      const det = document.createElement("details");
+      det.className = "tableview";
+      det.innerHTML = "<summary>Table view</summary>";
+      const box = document.createElement("div");
+      box.className = "datatable-scroll";
+      det.appendChild(box);
+      dataTable(box, ["Turn type", ...channels, "Total", "Rate %"],
+        run.turn_matrix.map((r) => [r.turn_type, ...channels.map((c) => r.cells[c] || 0),
+          r.total, fmt(r.rate)]));
+      card.appendChild(det);
+      host.appendChild(card);
+    });
+  })();
+
+  // --------------------------------------------------------- persona deltas
+  (function personas() {
+    const host = document.getElementById("chart-personas");
+    const series = DATA.runs.map((run) => {
+      const arms = run.arms.map((a) => a.arm);
+      const base = arms.indexOf("empty") >= 0 ? "empty" : arms[0];
+      const seeded = arms.find((a) => a !== base);
+      return { run: run.label, base, seeded, rows: run.personas, complete: run.complete };
+    }).filter((s) => s.seeded);
+
+    const keys = [...new Set(series.flatMap((s) => s.rows.map((r) => r.key)))];
+    const deltaOf = (s, key) => {
+      const row = s.rows.find((r) => r.key === key);
+      if (!row || !row[s.base] || !row[s.seeded]) return null;
+      if (row[s.base].rate === null || row[s.seeded].rate === null) return null;
+      return row[s.seeded].rate - row[s.base].rate;
+    };
+    // Ordered by the most complete run's delta, so the sign flip is the shape
+    // of the chart rather than something the reader has to hunt for.
+    const primary = series[series.length - 1];
+    keys.sort((a, b) => (deltaOf(primary, b) ?? -999) - (deltaOf(primary, a) ?? -999));
+
+    const bound = Math.max(5, ...series.flatMap((s) => keys.map((k) => Math.abs(deltaOf(s, k) ?? 0))));
+    const rowH = 17, groupGap = 12, padL = 124, top = 30;
+    const W = 780, plotW = W - padL - 64, mid = padL + plotW / 2;
+    const H = top + keys.length * (series.length * rowH + groupGap) + 12;
+    const s = svg(W, H);
+    const x = (v) => mid + (v / bound) * (plotW / 2);
+
+    s.appendChild(el("line", { x1: mid, y1: top - 10, x2: mid, y2: H - 14,
+      stroke: "var(--rule-strong)", "stroke-width": 1.5 }));
+    s.appendChild(el("text", { x: mid, y: top - 16, "text-anchor": "middle", "font-size": 10,
+      fill: "var(--ink-3)" }, "no change"));
+    s.appendChild(el("text", { x: x(bound), y: top - 16, "text-anchor": "end", "font-size": 10,
+      fill: "var(--critical)" }, `worse with a journal +${fmt(bound, 0)}pp`));
+    s.appendChild(el("text", { x: x(-bound), y: top - 16, "text-anchor": "start", "font-size": 10,
+      fill: "var(--good)" }, `helped −${fmt(bound, 0)}pp`));
+
+    let y = top;
+    keys.forEach((key) => {
+      s.appendChild(el("text", { x: 0, y: y + 12, "font-size": 11, fill: "var(--ink)" }, key));
+      series.forEach((ser, i) => {
+        const d = deltaOf(ser, key);
+        const by = y + i * rowH;
+        if (d === null) {
+          s.appendChild(el("text", { x: mid + 6, y: by + 11, "font-size": 9.5,
+            fill: "var(--ink-3)" }, "no data"));
+          return;
+        }
+        const from = Math.min(mid, x(d)), to = Math.max(mid, x(d));
+        const bar = el("rect", { x: from, y: by + 2, width: Math.max(2, to - from), height: 11,
+          rx: 2, fill: d > 0 ? "var(--critical)" : d < -0.5 ? "var(--good)" : "var(--rule-strong)",
+          opacity: ser.complete ? 1 : 0.5 });
+        s.appendChild(bar);
+        const row = ser.rows.find((r) => r.key === key);
+        hoverable(bar, `<strong>${key}</strong> · ${ser.run}<br>`
+          + `${ser.base}: ${fmt(row[ser.base].rate)}% of ${row[ser.base].n}<br>`
+          + `${ser.seeded}: ${fmt(row[ser.seeded].rate)}% of ${row[ser.seeded].n}<br>`
+          + `delta ${d > 0 ? "+" : ""}${fmt(d)}pp`);
+        s.appendChild(el("text", { x: d > 0 ? to + 6 : from - 6, y: by + 11,
+          "text-anchor": d > 0 ? "start" : "end", "font-size": 9.5, fill: "var(--ink-2)" },
+          (d > 0 ? "+" : "") + fmt(d)));
+      });
+      y += series.length * rowH + groupGap;
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
+
+    legend(document.getElementById("legend-personas"), [
+      { color: "var(--critical)", label: "worse with a journal" },
+      { color: "var(--good)", label: "helped by a journal" },
+      { color: "var(--rule-strong)", label: "inside the noise" },
+    ]);
+    const dirCell = (d) => {
+      const span = document.createElement("span");
+      if (d === null) { span.className = "dir noise"; span.textContent = "— no data"; return span; }
+      if (d > 0.5) { span.className = "dir worse"; span.textContent = "▲ worse with a journal"; }
+      else if (d < -0.5) { span.className = "dir better"; span.textContent = "▼ helped by a journal"; }
+      else { span.className = "dir noise"; span.textContent = "• inside the noise"; }
+      return span;
+    };
+    dataTable(document.getElementById("table-personas"),
+      ["Persona", ...series.flatMap((s) => [`${s.run} ${s.base} %`, `${s.run} ${s.seeded} %`, `${s.run} delta`]), "Direction"],
+      keys.map((key) => [key,
+        ...series.flatMap((ser) => {
+          const row = ser.rows.find((r) => r.key === key) || {};
+          const d = deltaOf(ser, key);
+          return [row[ser.base] ? fmt(row[ser.base].rate) : "—",
+            row[ser.seeded] ? fmt(row[ser.seeded].rate) : "—",
+            d === null ? "—" : (d > 0 ? "+" : "") + fmt(d)];
+        }),
+        dirCell(deltaOf(primary, key))]));
+  })();
+
+  // --------------------------------------------------------------- evidence
+  (function spans() {
+    const host = document.getElementById("spans");
+    host.innerHTML = "";
+    const picked = [];
+    ["hall.fabricatedQuote", "rule.boldNotTheirWords", "hall.uncitedQuote"].forEach((code) => {
+      (DATA.examples[code] || []).filter((e) => e.arm !== "empty").slice(0, 3)
+        .forEach((e) => picked.push({ code, ...e }));
+    });
+    if (!picked.length) {
+      (DATA.examples["hall.fabricatedQuote"] || []).slice(0, 4)
+        .forEach((e) => picked.push({ code: "hall.fabricatedQuote", ...e }));
+    }
+    picked.forEach((e) => {
+      const card = document.createElement("div");
+      card.className = "span";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      [e.code, `arm ${e.arm}`, e.channel || "—", e.turn_type || "—", e.persona_id || "—",
+        `${e.cited} citation${e.cited === 1 ? "" : "s"}`]
+        .forEach((bit) => {
+          const chip = document.createElement("span");
+          chip.textContent = bit;
+          meta.appendChild(chip);
+        });
+      const quoted = document.createElement("div");
+      quoted.className = "quoted";
+      quoted.textContent = "flagged span: " + (e.detail || "—");
+      const body = document.createElement("div");
+      body.className = "body";
+      // Italics are the whole claim here, so render the model's own emphasis
+      // rather than flattening it — but build it as nodes, never innerHTML,
+      // because this is generated text.
+      const parts = (e.body || "").split(/(\*[^*\n]{3,200}?\*)/g);
+      parts.forEach((part) => {
+        if (/^\*[^*\n]+\*$/.test(part)) {
+          const em = document.createElement("em");
+          em.textContent = part.slice(1, -1);
+          body.appendChild(em);
+        } else {
+          body.appendChild(document.createTextNode(part));
+        }
+      });
+      card.appendChild(meta);
+      card.appendChild(quoted);
+      card.appendChild(body);
+      host.appendChild(card);
+    });
+  })();
+
+  // ------------------------------------------------------------------ dates
+  (function dates() {
+    const host = document.getElementById("table-dates");
+    if (!CELLS.some((c) => c.d.date_assertions)) {
+      host.textContent = "Not available — re-export the aggregates to include this.";
+      return;
+    }
+    // A table, not a chart: four rows of three related counts, where the
+    // interesting comparison is "of those, how many were caught" rather than
+    // any magnitude. A bar chart of 1, 73, 9, 118 would say less.
+    dataTable(host,
+      ["Study · arm", "Entries", "Generated", "Assert a date", "Rate %", "Passed clean", "Caught"],
+      CELLS.map((c) => {
+        const d = c.d.date_assertions;
+        const caught = d.n - d.unflagged;
+        const flag = document.createElement("span");
+        if (c.entries === 0 && d.unflagged > 0) {
+          flag.className = "dir worse";
+          flag.textContent = `\u25b2 ${caught} of ${d.n}`;
+        } else {
+          flag.className = d.n === 0 ? "dir noise" : "dir";
+          flag.textContent = d.n === 0 ? "—" : `${caught} of ${d.n}`;
+        }
+        return [c.label, c.entries, c.d.generated, d.n, fmt(d.rate, 1), d.unflagged, flag];
+      }));
+    legend(document.getElementById("legend-dates"), [
+      { color: "var(--critical)", label: "zero-entry arm: every asserted date is invented" },
+      { color: "var(--rule-strong)", label: "seeded arm: a date may be correct" },
+    ]);
+  })();
+
+  // ---------------------------------------------------------------- latency
+  (function latency() {
+    const host = document.getElementById("chart-latency");
+    const W = 780, rowH = 40, padL = 152, padR = 64, top = 26;
+    const H = top + CELLS.length * rowH + 14;
+    const s = svg(W, H);
+    const max = Math.max(1, ...CELLS.map((c) => c.d.latency.p90 || 0)) * 1.12;
+    const plotW = W - padL - padR;
+    const x = (v) => padL + (v / max) * plotW;
+
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 8, x2: x(v), y2: H - 16,
+        stroke: "var(--rule)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 13, "text-anchor": "middle",
+        "font-size": 10, fill: "var(--ink-3)" }, fmt(v, 1) + "s"));
+    });
+    CELLS.forEach((c, i) => {
+      const y = top + i * rowH;
+      const L = c.d.latency;
+      s.appendChild(el("text", { x: padL - 12, y: y + 13, "text-anchor": "end", "font-size": 11.5,
+        fill: "var(--ink)", "font-weight": 500 }, c.run));
+      s.appendChild(el("text", { x: padL - 12, y: y + 26, "text-anchor": "end", "font-size": 10.5,
+        fill: "var(--ink-3)" }, `${c.arm} · ${c.entries} entries`));
+      if (L.p50 === null) return;
+      // The bar runs to p50; the whisker to p90, with a 2px surface ring where
+      // it overlaps the fill so the two marks stay separable.
+      const w = Math.max(3, x(L.p50) - padL);
+      const bar = el("path", { d: `M${padL},${y + 5} H${padL + w - 4} a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 H${padL} Z`,
+        fill: hueFor(c.arm) });
+      s.appendChild(bar);
+      s.appendChild(el("line", { x1: x(L.p50), y1: y + 11, x2: x(L.p90), y2: y + 11,
+        stroke: "var(--surface-raised)", "stroke-width": 5 }));
+      s.appendChild(el("line", { x1: x(L.p50), y1: y + 11, x2: x(L.p90), y2: y + 11,
+        stroke: "var(--ink-3)", "stroke-width": 2 }));
+      s.appendChild(el("line", { x1: x(L.p90), y1: y + 5, x2: x(L.p90), y2: y + 17,
+        stroke: "var(--ink-3)", "stroke-width": 2 }));
+      s.appendChild(el("text", { x: x(L.p90) + 9, y: y + 15, "font-size": 10.5,
+        fill: "var(--ink-2)" }, `${fmt(L.p50, 2)}s p50`));
+      hoverable(bar, `<strong>${c.label}</strong><br>p50 ${fmt(L.p50, 2)}s · p90 ${fmt(L.p90, 2)}s`
+        + `<br>max ${fmt(L.max, 1)}s · n=${L.n.toLocaleString()}`);
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
+
+    legend(document.getElementById("legend-latency"), [
+      { color: "var(--no-journal)", label: "no journal — bar to p50" },
+      { color: "var(--has-journal)", label: "has a journal — bar to p50" },
+      { color: "var(--ink-3)", label: "whisker to p90" },
+    ]);
+    dataTable(document.getElementById("table-latency"),
+      ["Study · arm", "n", "p50 s", "p90 s", "max s", "Degraded", "Designed refusals", "Median conversation"],
+      CELLS.map((c) => [c.label, c.d.latency.n, fmt(c.d.latency.p50, 2), fmt(c.d.latency.p90, 2),
+        fmt(c.d.latency.max, 1), c.d.degraded, c.d.designed_refusals,
+        c.d.median_conversation_length ?? "—"]));
+  })();
+
+  // ---------------------------------------------------------------- caveats
+  (function caveats() {
+    const host = document.getElementById("caveats-list");
+    const ii = DATA.runs.find((r) => r.label === "Study II");
+    const i = DATA.runs.find((r) => r.label === "Study I");
+    const seeded = findCell("Study II", "persona") || findCell("Study II", "cold");
+    const items = [];
+
+    if (ii && !ii.complete) {
+      items.push(`<strong>Study II is a partial run.</strong> Its manifest carries no `
+        + `<code>finished_at</code>, so the arms are unequal in size and the seeded arm's rates will `
+        + `move. Treat every Study II figure as provisional.`);
+    }
+    items.push(`<strong>The headline comparison is confounded.</strong> Study II changed the journal `
+      + `and the pipeline together. Only the zero-entry arm across the two studies isolates the `
+      + `pipeline, and only Study II's two arms isolate the journal.`);
+    items.push(`<strong>Spec 046's "212 zero-entry turns present invented journal material" is a `
+      + `replay figure.</strong> The 2026-09-20 run was scored with a regex that could not compile, `
+      + `so <code>hall.fabricatedQuote</code> appears in that artifact `
+      + `${(i && i.arms.reduce((s, a) => s + (a.codes["hall.fabricatedQuote"] || 0), 0)) || 0} times. `
+      + `It cannot be recomputed from the recorded violations; the count shown here for Study I comes `
+      + `from re-running the repaired scorer over the archived bodies.`);
+    items.push(`<strong>046's 38.3%-versus-6.8% pair is not measured the same way on both sides.</strong> `
+      + `38.3% counts gating codes; 6.8% only lands with the report-only <code>gen.hitTokenCap</code> `
+      + `counted in. No <code>gen.*</code> code ever fired in notebook voice, which is why only the `
+      + `companion figure moves. Gating-only throughout, the contrast is 38.3% against 5.6% — wider `
+      + `than published, not narrower. Every rate on this page is gating-only.`);
+    if (seeded) {
+      items.push(`<strong>The ${seeded.entries}-entry journal is one world, not journals in general.</strong> `
+        + `It is a single authored persona. Spec 048 R3's counterfactual pairs — two worlds differing `
+        + `in exactly one property, with ground truth attached — are what would let a cause be `
+        + `isolated, and they are not in this run.`);
+    }
+    items.push(`<strong>A code at zero can mean two different things.</strong> Either the scorer did not `
+      + `fire, or it was not run. Study II's manifest names the scorers it used; Study I's does not, `
+      + `which is exactly the ambiguity that hid the dead fabrication scorer for as long as it lived.`);
+    items.push(`<strong>Both sides of every conversation are synthetic.</strong> The person is a `
+      + `persona-briefed session of the same on-device model, and the journals are checked-in `
+      + `fixtures. A simulated person is not a user, and a fallback line in the data is the `
+      + `harness's own guardrail refusing to write a turn, not a fact about the app.`);
+
+    host.innerHTML = "";
+    items.forEach((html) => {
+      const li = document.createElement("li");
+      li.innerHTML = html;
+      host.appendChild(li);
+    });
+  })();
+
+  // ------------------------------------------------------------ raw browser
+  (function raw() {
+    const manifest = DATA.row_files || [];
+    const loadHost = document.getElementById("rawload");
+    const ui = document.getElementById("rawui");
+    if (!manifest.length) {
+      loadHost.innerHTML = '<span class="rawcount">Row files were not published with this version.</span>';
+      return;
+    }
+
+    const totalRows = manifest.reduce((sum, f) => sum + f.rows, 0);
+    const totalMB = manifest.reduce((sum, f) => sum + f.bytes, 0) / 1048576;
+    const button = document.createElement("button");
+    button.className = "rawbtn";
+    button.type = "button";
+    button.textContent = `Load ${totalRows.toLocaleString()} messages (${totalMB.toFixed(1)} MB)`;
+    const status = document.createElement("span");
+    status.className = "rawcount";
+    status.textContent = manifest.map((f) => `${f.label} ${f.rows.toLocaleString()}`).join(" · ");
+    loadHost.appendChild(button);
+    loadHost.appendChild(status);
+
+    // A same-origin <script> rather than fetch: the artifact CSP blocks XHR
+    // broadly, and a script tag beside the page is the load path that holds.
+    function loadOne(entry) {
+      return new Promise((resolve, reject) => {
+        const tag = document.createElement("script");
+        tag.src = entry.file;
+        tag.onload = () => resolve();
+        tag.onerror = () => reject(new Error(entry.file));
+        document.head.appendChild(tag);
+      });
+    }
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      button.textContent = "Loading…";
+      try {
+        await Promise.all(manifest.map(loadOne));
+      } catch (error) {
+        button.textContent = "Load failed";
+        status.textContent = `Could not load ${error.message}. The JSONL is in `
+          + `eval-archive/convo-sim/ in the repository.`;
+        return;
+      }
+      loadHost.hidden = true;
+      ui.hidden = false;
+      start();
+    });
+
+    function start() {
+      const store = window.__CONVO_RAW || {};
+      const labels = manifest.map((f) => f.label).filter((l) => store[l]);
+      const els = {
+        run: document.getElementById("f-run"), arm: document.getElementById("f-arm"),
+        role: document.getElementById("f-role"), code: document.getElementById("f-code"),
+        persona: document.getElementById("f-persona"), text: document.getElementById("f-text"),
+        reset: document.getElementById("f-reset"), list: document.getElementById("rawlist"),
+        count: document.getElementById("rawcount"), more: document.getElementById("rawmore"),
+        shown: document.getElementById("rawshown"),
+      };
+      let limit = 100;
+
+      function fill(select, values, allLabel) {
+        select.innerHTML = "";
+        const first = document.createElement("option");
+        first.value = "";
+        first.textContent = allLabel;
+        select.appendChild(first);
+        values.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+      }
+
+      function rowsFor(label) { return label ? (store[label] || []) : labels.flatMap((l) => store[l]); }
+
+      function refreshFacets() {
+        const rows = rowsFor(els.run.value);
+        const uniq = (key) => [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort();
+        const keepArm = els.arm.value, keepRole = els.role.value;
+        const keepCode = els.code.value, keepPersona = els.persona.value;
+        fill(els.arm, uniq("arm"), "all arms");
+        fill(els.role, ["user", "assistant"], "both roles");
+        fill(els.code, [...new Set(rows.flatMap((r) =>
+          (r.violations || []).map((v) => v.code)))].sort(), "any violation code");
+        fill(els.persona, uniq("persona_id"), "all personas");
+        els.arm.value = keepArm; els.role.value = keepRole;
+        els.code.value = keepCode; els.persona.value = keepPersona;
+      }
+
+      function filtered() {
+        const needle = els.text.value.trim().toLowerCase();
+        return rowsFor(els.run.value).filter((r) => {
+          if (els.arm.value && r.arm !== els.arm.value) return false;
+          if (els.role.value && r.role !== els.role.value) return false;
+          if (els.persona.value && r.persona_id !== els.persona.value) return false;
+          if (els.code.value && !(r.violations || []).some((v) => v.code === els.code.value)) return false;
+          if (needle && !(r.text || "").toLowerCase().includes(needle)) return false;
+          return true;
+        });
+      }
+
+      function render() {
+        const rows = filtered();
+        els.count.textContent = `${rows.length.toLocaleString()} of `
+          + `${rowsFor(els.run.value).length.toLocaleString()} messages match`;
+        els.list.innerHTML = "";
+        rows.slice(0, limit).forEach((r) => {
+          const row = document.createElement("button");
+          row.className = "rawrow";
+          row.type = "button";
+          row.setAttribute("data-arm", r.arm || "");
+
+          const who = document.createElement("div");
+          who.className = "who";
+          who.textContent = `${r.run_id || ""}\n#${r.turn_index}`;
+          who.style.whiteSpace = "pre-line";
+
+          const role = document.createElement("div");
+          role.className = "role " + (r.role || "");
+          role.textContent = r.role === "assistant"
+            ? (r.channel || "assistant") : (r.move ? "user" : "opener");
+
+          const main = document.createElement("div");
+          const snippet = document.createElement("div");
+          snippet.className = "snippet";
+          const text = (r.text || "").replace(/\s+/g, " ");
+          snippet.textContent = text.length > 260 ? text.slice(0, 260) + "…" : (text || "(empty)");
+          main.appendChild(snippet);
+
+          const codes = document.createElement("div");
+          codes.className = "codes";
+          (r.violations || []).forEach((v) => {
+            const chip = document.createElement("b");
+            // gen.* and the unarmed hall.* codes are measured but do not gate,
+            // so they read quiet — the same distinction every rate here uses.
+            if (v.code.startsWith("gen.") || DATA.report_only_codes.indexOf(v.code) >= 0) {
+              chip.className = "quiet";
+            }
+            chip.textContent = v.code;
+            codes.appendChild(chip);
+          });
+          if (r.citations && r.citations.length) {
+            const chip = document.createElement("b");
+            chip.className = "quiet";
+            chip.textContent = `${r.citations.length} citation${r.citations.length === 1 ? "" : "s"}`;
+            codes.appendChild(chip);
+          }
+          if (r.error) {
+            const chip = document.createElement("b");
+            chip.textContent = r.designed_refusal ? "designed refusal" : "error";
+            if (r.designed_refusal) chip.className = "quiet";
+            codes.appendChild(chip);
+          }
+          if (codes.children.length) main.appendChild(codes);
+
+          row.appendChild(who);
+          row.appendChild(role);
+          row.appendChild(main);
+          row.addEventListener("click", () => {
+            const open = row.nextElementSibling;
+            if (open && open.classList.contains("rawjson")) { open.remove(); return; }
+            const pre = document.createElement("pre");
+            pre.className = "rawjson";
+            pre.textContent = JSON.stringify(r, null, 1);
+            row.after(pre);
+          });
+          els.list.appendChild(row);
+        });
+        els.more.hidden = rows.length <= limit;
+        els.shown.textContent = rows.length
+          ? `showing ${Math.min(limit, rows.length).toLocaleString()} — click any row for its full JSON`
+          : "nothing matches these filters";
+      }
+
+      fill(els.run, labels, "both studies");
+      refreshFacets();
+      [els.arm, els.role, els.code, els.persona].forEach((select) =>
+        select.addEventListener("change", () => { limit = 100; render(); }));
+      els.run.addEventListener("change", () => { limit = 100; refreshFacets(); render(); });
+      let timer;
+      els.text.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { limit = 100; render(); }, 180);
+      });
+      els.reset.addEventListener("click", () => {
+        els.run.value = ""; els.text.value = "";
+        refreshFacets();
+        els.arm.value = els.role.value = els.code.value = els.persona.value = "";
+        limit = 100;
+        render();
+      });
+      els.more.addEventListener("click", () => { limit += 100; render(); });
+      render();
+    }
+  })();
+
+  window.addEventListener("scroll", hideTip, { passive: true });
+})();
+</script>

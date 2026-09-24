@@ -461,13 +461,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = withMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Memento needs camera access to add a photo to your journal entries.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Memento uses Face ID to protect your private journal entries.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Memento uses your location to attach a place name to a new journal entry. It does not store your coordinates.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Memento needs microphone access to transcribe your voice into journal entries.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Memento uses speech recognition to convert your voice to text for journaling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -504,13 +498,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = withMemento/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Memento;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Memento needs camera access to add a photo to your journal entries.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Memento uses Face ID to protect your private journal entries.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Memento uses your location to attach a place name to a new journal entry. It does not store your coordinates.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Memento needs microphone access to transcribe your voice into journal entries.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Memento uses speech recognition to convert your voice to text for journaling.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

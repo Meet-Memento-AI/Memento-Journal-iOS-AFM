@@ -38,6 +38,8 @@ struct ReplyRenderStats: Sendable, Equatable {
     var droppedQuotationCount = 0
     var unwrappedBoldCount = 0
     var strippedDateCount = 0
+    /// Bracketed prompt furniture the model echoed back (051 R2).
+    var strippedScaffoldCount = 0
     var droppedHeadingCount = 0
     var usedFallback = false
 
@@ -47,7 +49,8 @@ struct ReplyRenderStats: Sendable, Equatable {
             + "dropped_markers=\(droppedMarkerCount) duplicates=\(droppedDuplicateQuoteCount) "
             + "italics=\(strippedItalicCount) quotations=\(droppedQuotationCount) "
             + "bold=\(unwrappedBoldCount) raw_dates=\(strippedDateCount) "
-            + "headings=\(droppedHeadingCount) fallback=\(usedFallback ? 1 : 0)"
+            + "headings=\(droppedHeadingCount) scaffold=\(strippedScaffoldCount) "
+            + "fallback=\(usedFallback ? 1 : 0)"
     }
 }
 
@@ -82,7 +85,7 @@ struct RenderContext: Sendable, Equatable {
 }
 
 enum ReplyRenderer {
-    static let version = "reply-render@1"
+    static let version = "reply-render@2"
 
     /// Used only when a reply that had words renders to none.
     static let emptyFallback = "Say a little more about that. What's on your mind?"
@@ -97,6 +100,7 @@ enum ReplyRenderer {
         var text = OutputSafetyScanner.strippingHarnessMarkup(raw)
         text = pass.placeMarkers(in: text)
         text = CitationReconciliation.strippingReferenceMarkers(text)
+        text = pass.stripScaffolding(in: text)
         text = pass.resolveQuoteShapedSpans(in: text)
         text = pass.verifyBold(in: text)
         text = pass.banUnbackedDates(in: text)

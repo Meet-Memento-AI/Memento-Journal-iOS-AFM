@@ -48,6 +48,28 @@ struct RetrievalResult: Sendable, Equatable {
     /// direct topical answer — the prompt uses this to converse rather than cite.
     let isAmbient: Bool
 
+    /// How far the top entry outscored the runner-up, as a fraction of the top
+    /// score (051 R4).
+    ///
+    /// Until now no number crossed this boundary: everything downstream — the
+    /// stance, the evidence ladder, the pack — decided on `isEmpty`,
+    /// `isAmbient` and a count. That is why the prompt cap could not narrow
+    /// when one entry obviously won.
+    ///
+    /// Measured on the 2026-09-23 gold set, about 1.1 of 5 slots are the answer
+    /// on a typical question, and Study III measured the model expanding a
+    /// quote marker on 15.6% of matched turns. Four parts noise to one part
+    /// signal is a plausible reason to decline, so this exists to let the slice
+    /// narrow rather than to let retrieval widen.
+    ///
+    /// `nil` when there are fewer than two entries — there is no margin to
+    /// speak of — and never negative.
+    ///
+    /// `var` with a default so the memberwise initializer keeps the twenty-odd
+    /// existing construction sites compiling: a margin is a property of a real
+    /// retrieval, and a hand-built fixture has no opinion about it.
+    var topMargin: Double?
+
     var isEmpty: Bool { entries.isEmpty }
 
     static let empty = RetrievalResult(entries: [], contextBlock: "", isAmbient: false)
@@ -67,6 +89,27 @@ struct RetrieverTuning: Sendable {
     /// or two distinct body terms). Replaces the old `keyword > 0`.
     var keywordSignalMin = 2.0
     var keywordSignalHigh = 3.0
+    /// How hard an origin question pulls toward the earliest entry (051 R6).
+    ///
+    /// `seeksOrigin` already zeroes `recencyWeight`, which removes the bias
+    /// toward recent without adding one toward first. Measured on the
+    /// 2026-09-23 baseline, that is not enough: "When did I start pottery
+    /// classes?" returns 01-29, 04-16, 04-30, 05-14, 07-02 and the answer is
+    /// 01-08. Embedding similarity has no signal for firstness — every pottery
+    /// entry looks alike — so the ordering has to be stated.
+    ///
+    /// Half of `recencyWeight`, chosen by the held-out set rather than by
+    /// symmetry. At 0.5 the fitted set scores best — recall@5 0.795 — and the
+    /// held-out set does not move at all, which is the signature of a weight
+    /// tuned to its training data and exactly what 051 R5 exists to catch. At
+    /// 0.25 fitted gives a little back (0.783) and held-out rises 0.600 → 0.700.
+    ///
+    /// It is a preference, not a filter: a late entry that answers on words
+    /// still outranks an early one that does not. That matters for a
+    /// *constrained* first — "the first argument after reconnecting" is not the
+    /// oldest argument in the journal, and at 0.5 the ramp pulled that question
+    /// off its answer.
+    var originWeight = 0.25
     /// Current message dominates the semantic query; history only assists.
     var currentWeight = 0.75
     var historyWeight = 0.25
@@ -478,10 +521,18 @@ enum EntryRetriever {
             .map { termWeight(documentFrequency: $0, corpus: entries.count) }
             .reduce(0, +)
 
+        // The corpus floor for the origin ramp. Computed once, from the
+        // candidates actually measured, so a windowed query ramps inside its
+        // window rather than against the whole journal.
+        let oldestDate = measured.map(\.entry.createdAt).min() ?? now
         let scored: [Scored] = measured.map { m in
             let semantic = m.cosine ?? 0.0
             let recency = origin ? 0.0 : recencyScore(entry: m.entry, now: now)
-            var score = semantic * tuning.semanticWeight + m.keyword + recency * tuning.recencyWeight
+            // 051 R6. Suppressing recency is not the same as preferring the
+            // earliest, and an origin question wants the earliest.
+            let earliest = origin ? originScore(entry: m.entry, oldest: oldestDate, now: now) : 0.0
+            var score = semantic * tuning.semanticWeight + m.keyword
+                + recency * tuning.recencyWeight + earliest * tuning.originWeight
             score -= PassageDownrankStore.penalty(entryID: m.entry.id)
             // A named date range is a hard constraint, not a preference: an
             // entry outside the window cannot be the answer to "what did I
@@ -658,7 +709,20 @@ enum EntryRetriever {
                 )
             )
         }
-        return RetrievalResult(entries: retrieved, contextBlock: buildContextBlock(retrieved, ambient: ambient), isAmbient: ambient)
+        // Margin between the two best *selected* entries, in the order they
+        // will be shown. Ambient rows carry no topical claim, so they have no
+        // meaningful margin.
+        let margin: Double? = {
+            guard !ambient, selected.count >= 2 else { return nil }
+            let top = scoredById[selected[0].id]?.score ?? 0
+            let next = scoredById[selected[1].id]?.score ?? 0
+            guard top > 0 else { return nil }
+            return max(0, (top - next) / top)
+        }()
+        return RetrievalResult(entries: retrieved,
+                               contextBlock: buildContextBlock(retrieved, ambient: ambient),
+                               isAmbient: ambient,
+                               topMargin: margin)
     }
 
     // MARK: - Passage cosine + excerpt (spec 044 R1)
@@ -774,7 +838,11 @@ enum EntryRetriever {
     /// The cosine a match must clear to count as a real topical signal for THIS
     /// corpus: max(absolute floor, μ + k·σ) once the corpus is big enough for
     /// the statistics to mean anything. Pure — tests feed synthetic arrays.
-    static func semanticThreshold(cosines: [Double], highBar: Bool, tuning: RetrieverTuning = .default) -> Double {
+    static func semanticThreshold(
+        cosines: [Double],
+        highBar: Bool,
+        tuning: RetrieverTuning = .default
+    ) -> Double {
         let floorAbs = highBar ? tuning.semanticFloorHigh : tuning.semanticFloorAbs
         guard cosines.count >= tuning.minCorpusForSigma else {
             // Too few points for μ/σ — a slightly raised absolute floor.
@@ -986,10 +1054,30 @@ enum EntryRetriever {
         for cue in ["first said", "first say", "first time", "first mention",
                     "first wrote", "first write", "start", "started", "starting",
                     "begin", "began", "beginning", "get back into", "got back into",
-                    "take up", "took up", "originally", "at the beginning"] {
-            if lower.contains(cue) { return true }
+                    "take up", "took up", "originally", "at the beginning",
+                    // 051 R6. Life events that are origins without saying
+                    // "first": all measured misses on the 2026-09-23 baseline.
+                    "break up", "broke up", "meet", "met ", "move to", "moved to",
+                    "quit", "join", "joined", "sign up", "signed up"]
+        where lower.contains(cue) {
+            return true
         }
+        // Bare "first" before a noun — "my first pottery class", "our first
+        // argument" — which the phrase list above cannot cover without
+        // enumerating every noun.
+        if lower.range(of: #"\bfirst\s+[a-z]"#, options: .regularExpression) != nil { return true }
         return false
+    }
+
+    /// Mirror of `recencyScore` for origin questions: 1.0 at the oldest
+    /// measured entry, falling to 0.0 over the same 180-day span.
+    ///
+    /// Anchored to the oldest *candidate* rather than to `now` so the ramp
+    /// works on a nine-month journal and on a three-entry one, and so a
+    /// windowed origin question ranks inside its window.
+    private static func originScore(entry: Entry, oldest: Date, now: Date) -> Double {
+        let ageFromOldest = max(0, entry.createdAt.timeIntervalSince(oldest) / 86_400)
+        return max(0.0, 1.0 - ageFromOldest / 180.0)
     }
 
     private static func recencyScore(entry: Entry, now: Date) -> Double {

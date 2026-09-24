@@ -1,0 +1,934 @@
+<title>The Renderer Result</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Paper stock, very slightly cool so the neutrals sit with the blue in the
+     figures rather than against it. The two figure hues are fixed to a meaning
+     and never to a rank: blue is the journal-less condition, orange the seeded
+     one, in every figure. */
+  :root {
+    --paper:      #fbfcfd;
+    --paper-2:    #f2f4f6;
+    --ink:        #111417;
+    --ink-2:      #454e56;
+    --ink-3:      #737d86;
+    --rule:       #cdd4da;
+    --rule-hair:  #e2e7eb;
+    --no-journal: #2a78d6;
+    --has-journal:#eb6834;
+    --critical:   #b6252a;
+    --good:       #1d6b1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #121417;
+      --paper-2:    #191d21;
+      --ink:        #e9edf1;
+      --ink-2:      #aab4bd;
+      --ink-3:      #7a848d;
+      --rule:       #333b42;
+      --rule-hair:  #242a30;
+      --no-journal: #3987e5;
+      --has-journal:#d95926;
+      --critical:   #e07b7e;
+      --good:       #52b152;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #121417;
+    --paper-2:    #191d21;
+    --ink:        #e9edf1;
+    --ink-2:      #aab4bd;
+    --ink-3:      #7a848d;
+    --rule:       #333b42;
+    --rule-hair:  #242a30;
+    --no-journal: #3987e5;
+    --has-journal:#d95926;
+    --critical:   #e07b7e;
+    --good:       #52b152;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.66 "Source Serif 4", Georgia, "Times New Roman", serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1040px; margin: 0 auto; padding: 0 16px; padding-block: 52px 80px; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, h4 { font-family: "Source Serif 4", Georgia, serif; margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(28px, 5.2vw, 42px); font-weight: 700; line-height: 1.14; letter-spacing: -.012em; }
+  h2 { font-size: clamp(20px, 3vw, 25px); font-weight: 600; letter-spacing: -.005em; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0; }
+  .col > p + p { margin-top: 1em; text-indent: 0; }
+  em { font-style: italic; }
+  strong { font-weight: 600; }
+  a { color: var(--no-journal); text-underline-offset: 2px; }
+
+  .sans { font-family: "Source Sans 3", system-ui, sans-serif; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .86em; font-variant-numeric: tabular-nums; }
+  code { background: var(--paper-2); padding: .08em .3em; border-radius: 2px; }
+
+  /* Title block */
+  .title-block { border-bottom: 2px solid var(--ink); padding-bottom: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .venue { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .subtitle { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 60ch; }
+  .byline { font-family: "Source Sans 3", sans-serif; font-size: 13.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+  .abstract {
+    margin-top: 30px; padding: 20px 0 22px; border-bottom: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .abstract h2 { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .abstract p { font-size: 16.5px; line-height: 1.6; max-width: 72ch; }
+
+  section.sec { margin-top: 42px; display: flex; flex-direction: column; gap: 16px; }
+  section.sec > h2 { display: flex; gap: 12px; align-items: baseline; }
+  .secnum { font-family: "Source Sans 3", sans-serif; font-size: 14px; font-weight: 600; color: var(--ink-3); flex: none; }
+  h3 { margin-top: 10px; }
+
+  /* Booktabs: top rule, mid rule, bottom rule. No verticals, no zebra — the
+     convention actual papers use, and it keeps dense numeric tables legible. */
+  .tbl-wrap { overflow-x: auto; }
+  table.bt { border-collapse: collapse; width: 100%; min-width: 440px; font-family: "Source Sans 3", sans-serif; font-size: 14px; }
+  table.bt thead th {
+    border-top: 1.6px solid var(--ink); border-bottom: 1px solid var(--ink);
+    padding: 8px 14px 7px 0; text-align: left; font-weight: 600; white-space: nowrap;
+  }
+  table.bt tbody td { border-bottom: 1px solid var(--rule-hair); padding: 7px 14px 7px 0; vertical-align: top; }
+  table.bt tbody tr:last-child td { border-bottom: 1.6px solid var(--ink); }
+  table.bt td.n, table.bt th.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; padding-right: 20px; }
+  table.bt tr.group td { padding-top: 14px; font-weight: 600; }
+  table.bt .hl { color: var(--critical); font-weight: 600; }
+  table.bt .ok { color: var(--good); font-weight: 600; }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 11px; }
+  figcaption {
+    font-family: "Source Sans 3", sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-2);
+    max-width: 78ch;
+  }
+  figcaption b { font-weight: 600; color: var(--ink); }
+  .fignum { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { font-family: "Source Sans 3", sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 1px; flex: none; }
+
+  blockquote {
+    margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--rule);
+    color: var(--ink-2); font-size: 16px; line-height: 1.58; max-width: 66ch;
+  }
+  blockquote em { color: var(--ink); }
+
+  .keyclaim {
+    border-top: 1.6px solid var(--ink); border-bottom: 1.6px solid var(--ink);
+    padding: 16px 0; display: flex; flex-direction: column; gap: 8px; max-width: 72ch;
+  }
+  .keyclaim .lbl { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .keyclaim p { font-size: 18px; line-height: 1.5; }
+
+  ol.numbered, ul.plain { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 11px; max-width: 70ch; }
+  ol.numbered li, ul.plain li { line-height: 1.6; }
+
+  .refs { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); max-width: 74ch; }
+  .refs div { padding-left: 38px; text-indent: -38px; }
+  .refs b { font-family: "Source Sans 3", sans-serif; font-weight: 600; color: var(--ink); font-size: 13px; }
+
+  .appendix { background: var(--paper-2); border-radius: 4px; padding: 16px 18px; overflow-x: auto; }
+  .appendix pre { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.62; white-space: pre; color: var(--ink-2); }
+
+  .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .pred {
+    border: 1px solid var(--rule); border-radius: 4px; padding: 13px 15px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pred .id { font-family: "Source Sans 3", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .pred .claim { font-size: 14.5px; line-height: 1.45; }
+  .pred .out { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; display: flex; align-items: baseline; gap: 7px; }
+  .pred.met { border-left: 3px solid var(--good); }
+  .pred.fail { border-left: 3px solid var(--critical); }
+  .pred.met .out { color: var(--good); }
+  .pred.fail .out { color: var(--critical); }
+
+  footer { margin-top: 52px; border-top: 1px solid var(--rule); padding-top: 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="sheet">
+
+  <header class="title-block">
+    <div class="venue">Memento · Pre-registered replication · 2026-09-23</div>
+    <h1>The model points and Swift quotes: a pre-registered replication that refuted its own hypothesis</h1>
+    <p class="subtitle">Six hundred long-form conversations across three pipelines. Fabricated
+      quotation on a nine-month journal fell from 56.0% of turns to zero — and the mechanism was
+      not the one the previous report predicted.</p>
+    <div class="byline sans">
+      <span id="by-totals"></span>
+      <span>Apple on-device foundation model (~3B), iOS 27</span>
+      <span>Seven predictions registered at <span class="mono">1689c22</span>, before generation</span>
+    </div>
+  </header>
+
+  <div class="abstract col">
+    <h2>Abstract</h2>
+    <p id="abs-1"></p>
+    <p id="abs-2"></p>
+  </div>
+
+  <section class="sec">
+    <h2><span class="secnum">1</span> Introduction</h2>
+    <div class="col">
+      <p>A previous report on this system argued that the grounding failures of a ~3B on-device model
+      — invented quotations, invented dates, an inability to count — are one failure rather than
+      three: the model cannot verify a reference against an external store, and no amount of prompting
+      supplies the missing mechanism. It recommended making unverifiable references <em>inexpressible</em>
+      rather than detectable, by routing every quotation and date through a token that a renderer
+      resolves against the store.</p>
+      <p>That recommendation was implemented as specification 050. The model now emits
+      <code>{{quote:N}}</code> and <code>{{date:N}}</code> markers against an evidence pack built by
+      Swift, and a single renderer expands them, strips unbacked emphasis and drops quotations nothing
+      supports. The italic-quote contract the previous scorer depended on was retired outright.</p>
+      <p>This is the replication. The design is identical to the previous study — same arms, same
+      corpus, same seeds, same scorers — and the pipeline is the only variable, which makes it the
+      first clean single-variable comparison in the series. Seven predictions were committed before
+      any text was generated. Five were met. <b>Two were falsified, and both falsifications land on
+      the previous report rather than on the product.</b></p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">2</span> Method</h2>
+    <div class="col">
+      <p>Each arm runs 100 conversations of twenty to fifty messages, both sides generated on-device,
+      with the assistant going through the production path. The unit of analysis is the
+      <b>generated turn</b>: an assistant row the model actually wrote, excluding error rows and the
+      Swift-computed statistics path. All rates are gating-only, matching the production gating
+      function.</p>
+      <p>Because specification 050 retires italics as the quote vehicle and the renderer strips
+      unmarked italics, the fabricated-quotation scorer loses its vehicle whether or not the model
+      improved. Reporting that drop alone would repeat the error that began this series — an absence
+      of violations read as quality. The study therefore measures two levels that are never merged.</p>
+    </div>
+    <div class="tbl-wrap" id="t-levels"></div>
+    <figcaption><b>Table 1.</b> The two levels. Product asks what reached the screen; model asks what
+      the renderer had to clean up. Only the second can distinguish a model that improved from a
+      renderer that conceals one that did not.</figcaption>
+    <div class="tbl-wrap" id="t-design"></div>
+    <figcaption><b>Table 2.</b> The three studies. Study III differs from Study II in the pipeline
+      alone.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">3</span> Results against the registered predictions</h2>
+    <div class="scorecard" id="scorecard"></div>
+    <figcaption><b>Figure 1.</b> The pre-registered scorecard. Thresholds were fixed at
+      <span class="mono">1689c22</span>; git shows that commit preceding the run artifact.</figcaption>
+
+    <h3 class="col">3.1 The product result</h3>
+    <div class="tbl-wrap" id="t-headline"></div>
+    <figcaption><b>Table 3.</b> Per-arm outcomes across all three studies. The seeded arm of
+      Study III is the result the series was built to produce.</figcaption>
+    <figure style="margin-top:6px">
+      <div class="fignum">Figure 2</div>
+      <div id="f-rates"></div>
+      <div class="legend" id="f-rates-legend"></div>
+      <figcaption><b>Figure 2.</b> Invented material and gating violations by arm. The seeded arm falls
+        from 56.6% to 2.0% between Study II and Study III while the pipeline is the only thing that
+        changed.</figcaption>
+    </figure>
+
+    <h3 class="col">3.2 The model result, and why it refutes the hypothesis</h3>
+    <div class="col">
+      <p>Prediction P4 was the load-bearing one. If reference failure is structural, the model should
+      have kept emitting unbacked quotations and raw italics for the renderer to remove, on at least a
+      quarter of seeded turns. It did so on a fortieth of them.</p>
+    </div>
+    <div class="tbl-wrap" id="t-render"></div>
+    <figcaption><b>Table 4.</b> Renderer counters on the seeded arm, spec 050 R7. Cleanup the renderer
+      performed is the model reaching for a retired vehicle; expansion is the model using the new one.</figcaption>
+    <div class="keyclaim">
+      <div class="lbl">Falsified — P4</div>
+      <p id="p4-claim"></p>
+    </div>
+    <div class="col">
+      <p>The previous report treated the limit as architectural. On this evidence it was substantially
+      a matter of what the prompt asked for: told to point rather than to italicise, the model
+      largely stopped reaching for the old vehicle. Its §5 overstated the case and should be amended.</p>
+      <p>That conclusion needs one qualification, and it cuts the other way. The model is not reliably
+      <em>pointing</em> either: of the seeded turns that had matched evidence to point at, only
+      <span class="mono" id="point-rate"></span> expanded a quote marker, and
+      <span class="mono" id="dropped-markers"></span> markers resolved to nothing. The turns that did
+      not point did not fabricate; they paraphrased in second person, which
+      <code>ask-core@19</code> permits. The product has traded fabrication for vagueness. That is a
+      good trade and not a free one, and no scorer in the suite measures its cost.</p>
+    </div>
+
+    <h3 class="col">3.3 A failure mode neither earlier study saw</h3>
+    <div class="col">
+      <p>The marker grammar gave the model new tokens, and some of them reach the screen.</p>
+    </div>
+    <div class="tbl-wrap" id="t-leaks"></div>
+    <figcaption><b>Table 5.</b> Scaffolding leaks by study. Zero across 6,505 generated turns in the
+      two prior studies.</figcaption>
+    <blockquote id="leak-quote"></blockquote>
+    <div class="col">
+      <p>From a product standpoint this is worse than a fabricated quotation: a fabricated quote reads
+      as prose, whereas the prompt's own furniture on screen reads as a broken application. The
+      renderer is specified as the single choke point for Ask bodies and did not catch these. It is
+      also the most likely contributor to the one regression below.</p>
+    </div>
+
+    <h3 class="col">3.4 The regression</h3>
+    <div class="col">
+      <p>Prediction P2 asked only that the zero-entry arm not get worse. It did, slightly, on a
+      complete arm of <span class="mono" id="empty-n"></span> generated turns.</p>
+    </div>
+    <div class="tbl-wrap" id="t-empty"></div>
+    <figcaption><b>Table 6.</b> Zero-entry arm across the three studies. The arm carries no evidence
+      pack at all, so nothing in specification 050 should have touched it.</figcaption>
+
+    <h3 class="col">3.5 Dates — a finding this report withdrew</h3>
+    <div class="col">
+      <p>This section first reported that dates moved sharply the wrong way: seeded-arm assertions
+      rose from 118 to 290, with 250 passing every check. That counted <em>assertions</em>, not
+      errors, and the instrument to tell the two apart did not exist when it was written.</p>
+      <p>It does now. A scorer added afterwards fires when a reply names a month and day that no
+      cited entry carries. Replayed over both archives, unbacked dates on the seeded arm went
+      <b>3.9% → 1.4%</b>; on the zero-entry arm, where every asserted date is invented by
+      construction, <b>0.5% → 0.1%</b>. The evidence pack improved date grounding by more than half.
+      The assertion count rose because the date marker made the model date things more often, and a
+      far higher share of those dates are correct by construction — the renderer expands them from
+      the entry's own timestamp.</p>
+      <p>Measuring salience and calling it error is the same mistake as reading an absence of
+      violations as quality, pointed the other way. P3, which covered the zero-entry arm, was met
+      and stays met.</p>
+    </div>
+    <div class="tbl-wrap" id="t-dates"></div>
+    <figcaption><b>Table 7.</b> Month-and-day assertions in reply bodies — how often the model dates
+      something, not how often it gets it wrong. Read beside the corrected figures above: more
+      dating, and better dating.</figcaption>
+    <div class="callout">
+      <div class="eyebrow">Corrected after publication</div>
+      <p>Unbacked dates, scored against the citations each reply carries: seeded
+        <b>63 of 1,626 (3.9%) → 24 of 1,661 (1.4%)</b>; zero-entry <b>9 (0.5%) → 1 (0.1%)</b>.
+        The direction of this finding is the opposite of what this report first published.</p>
+    </div>
+    <div class="col">
+      <p>The instrument gap this section originally identified was real, and closing it is what
+      produced the correction: a reference class with no check is not a quiet one, it is an
+      unmeasured one, and it can be improving or degrading without anybody knowing which.</p>
+    </div>
+
+    <h3 class="col">3.6 Routing and cost</h3>
+    <div class="tbl-wrap" id="t-cost"></div>
+    <figcaption><b>Table 8.</b> Routing and latency. Specification 050 lists turn-classifier degeneracy
+      as out of scope, and it is unchanged, as predicted. Median latency improved despite the added
+      pack-building and rendering; the tail did not.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">4</span> How the output changed</h2>
+    <div class="col">
+      <p>The rates in §3 say how often a check fired. They do not say what the assistant actually
+      sounded like, and across three pipelines it changed more than the violation counts alone
+      suggest. Reply shape below is measured from the text in every study by the same patterns, not
+      read from recorded fields — those arrived over three runs and the first has none of them.</p>
+    </div>
+    <div class="tbl-wrap" id="t-shape"></div>
+    <figcaption><b>Table 9.</b> Reply shape, all six arms. The italics column is the clearest single
+      trace of the series: a contract that reserved them for journal quotation, a model that took the
+      instruction and ran, and a specification that retired the contract.</figcaption>
+
+    <figure style="margin-top:8px">
+      <div class="fignum">Figure 3</div>
+      <div id="f-shape"></div>
+      <div class="legend" id="f-shape-legend"></div>
+      <figcaption><b>Figure 3.</b> Markup in seeded-arm replies. Italics, headings and bold all
+        collapse under specification 050; lists rise to take their place, and marker or scaffolding
+        text appears on screen for the first time.</figcaption>
+    </figure>
+
+    <h3 class="col">4.1 The same question, three pipelines</h3>
+    <div class="col">
+      <p>Run identifiers are seeded identically in every study, so the first turn of run 000 is the
+      same persona asking the same opening question of three different pipelines. It is the only
+      strictly paired comparison the series has — every later turn depends on what the assistant said
+      before it.</p>
+    </div>
+    <div id="openers"></div>
+    <figcaption><b>Figure 4.</b> Verbatim first replies to <i>"What have I been writing about
+      lately?"</i>, persona <span class="mono">p01-clipped</span>. The model's own emphasis is
+      preserved.</figcaption>
+    <div class="col">
+      <p>The zero-entry column is the cleanest progression in the series: a reply that invents
+      notebook structure over an empty archive, then one that simply says it cannot see anything, then
+      the same with the reason made explicit. The seeded column shows the trade this report is about.
+      Study I hedges — it denies, then quotes anyway. Study II commits fully to the italic contract and
+      quotes a whole entry as a heading. Study III neither hedges nor quotes: it paraphrases, and the
+      one piece of hard evidence it offers is a date the renderer expanded from a marker.</p>
+      <p>That date also shows the seam. <i>"In April 26, 2026, you spoke of…"</i> is not a sentence a
+      person would write; the renderer substituted a formatted date into glue the model had built for
+      a different shape. The reference is now correct and the prose around it is not yet.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">5</span> All results</h2>
+    <div class="tbl-wrap" id="t-master"></div>
+    <figcaption><b>Table 10.</b> Every arm of every study, one table. Rates are gating-only.
+      <i>Fab.</i> is <code>hall.fabricatedQuote</code>; note that it measures different things before
+      and after specification 050 retired the italic contract, and that it could not execute at all in
+      Study I.</figcaption>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">6</span> Discussion</h2>
+    <div class="col">
+      <p>Three studies now support one claim without qualification: <b>every time a decision has been
+      taken away from this model, quality has improved, and the improvements have been large.</b>
+      Moving channel selection into code took journal voice on an empty archive from 36.8% to zero.
+      Moving quotation into a renderer took invented material on a nine-month journal from 56.6% to
+      2.0%. Nothing else attempted in this series has produced movement of that size.</p>
+      <p>What this replication removes is the explanation the previous report attached to that claim.
+      The structural account predicted the model would keep producing unverifiable references and be
+      restrained only by the renderer; instead it largely stopped producing them once asked for
+      markers. The mechanism was not the model's inability to check a reference but the contract it
+      was given. Italics mean emphasis everywhere in its training distribution, and a rule asking it
+      to mean something else on every turn was the defect — not the parameter count.</p>
+      <p>The practical consequence is narrower than the previous recommendation and better supported.
+      It is not that small models cannot refer; it is that a reference contract must be expressed in a
+      vocabulary the model does not already use for something else. <code>{{quote:N}}</code> works
+      because nothing else in the distribution claims that token. Italics failed because everything
+      does.</p>
+      <p>Two costs are now visible that were not before. The system has become more reticent: it
+      quotes far less than the evidence available to it would support, and paraphrase is not measured
+      by any check in the suite. And the marker vocabulary is itself leaking onto the screen. Both are
+      consequences of the same change, and neither would appear in a report that led with the headline
+      number.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">7</span> Threats to validity</h2>
+    <ul class="plain">
+      <li><b>The fabricated-quotation scorer does not measure the same thing in both studies.</b> Its
+        vehicle was retired between them. The drop to zero is reported as two measurements, never as a
+        single trend line, and P1 was pre-registered as nearly guaranteed for this reason.</li>
+      <li><b>Model-level evidence is counters, not text.</b> <code>AskResult</code> carries only the
+        rendered body, so what the model emitted before rendering is known through
+        <code>ReplyRenderStats</code> and not by scoring it directly.</li>
+      <li><b>The whole change set moved, not just the renderer.</b> <code>ask-core@17</code> to
+        <code>@19</code> includes prompt rewrites, the evidence pack and the ladder copy; no claim here
+        isolates the renderer from the prompt.</li>
+      <li><b>Conversations are not paired past the first turn.</b> The person's turns are generated
+        from the assistant's replies, so a changed assistant produces a changed conversation. Only
+        distributions are comparable.</li>
+      <li><b>One authored seeded world, both interlocutors synthetic.</b> Unchanged from the earlier
+        studies, and unchanged in its consequences.</li>
+      <li><b>Paraphrase is unmeasured.</b> The central new cost identified in §4 has no check. It is
+        asserted from the renderer counters and from reading turns, not quantified.</li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">8</span> Conclusion</h2>
+    <div class="col">
+      <p>Specification 050 did what it was designed to do, by a wide margin, and got slightly faster
+      doing it. The recommendation that produced it was right about what to build and wrong about why
+      it would work.</p>
+      <p>The corrected account is more useful than the one it replaces. A small model can be held to a
+      reference contract, provided the contract does not ask it to overload a token the language
+      already uses for something else. What remains open is the cost of the trade — a system that
+      quotes a third as often as it has evidence for, and a marker vocabulary that has begun appearing
+      in user-visible text. Neither is measured by anything currently in the suite, which is where the
+      next study should start.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">A</span> Reproduction</h2>
+    <div class="appendix"><pre id="repro"></pre></div>
+    <div class="col">
+      <p>Every figure in this report is generated from the committed run artifacts. None is
+      hand-counted. The complete message-level data for all three studies is browsable in the
+      companion artifact.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div id="prov" class="mono"></div>
+    <div>Rates are gating-only throughout, matching the production gating function. Predictions were
+      registered before generation; both falsifications are reported against the report that made them.</div>
+  </footer>
+</div>
+
+<script type="application/json" id="payload">/*__DATA__*/</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("payload").textContent);
+  const NS = "http://www.w3.org/2000/svg";
+  const fmt = (n, d) => (n === null || n === undefined ? "—" : n.toFixed(d === undefined ? 1 : d));
+  const pctOf = (a, b) => (b ? (100 * a) / b : 0);
+  const hue = (arm) => (arm === "empty" ? "var(--no-journal)" : "var(--has-journal)");
+
+  const CELLS = [];
+  DATA.runs.forEach((run) => run.arms.forEach((arm) => {
+    const meta = (run.arms_meta || []).find((m) => m.name === arm.arm) || {};
+    CELLS.push({ run: run.label, arm: arm.arm, entries: meta.entry_count ?? null,
+      label: `${run.label} · ${arm.arm}`, d: arm, manifest: run.manifest || {} });
+  }));
+  const cell = (run, arm) => CELLS.find((c) => c.run === run && c.arm === arm);
+  const seed = (run) => CELLS.find((c) => c.run === run && c.arm !== "empty");
+  const runOf = (label) => DATA.runs.find((r) => r.label === label);
+
+  function el(tag, attrs, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function table(host, head, rows, aligns) {
+    const t = document.createElement("table");
+    t.className = "bt";
+    const th = document.createElement("thead"), hr = document.createElement("tr");
+    head.forEach((h, i) => {
+      const c = document.createElement("th");
+      if (aligns && aligns[i] === "n") c.className = "n";
+      c.textContent = h; hr.appendChild(c);
+    });
+    th.appendChild(hr); t.appendChild(th);
+    const tb = document.createElement("tbody");
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      row.forEach((v, i) => {
+        const td = document.createElement("td");
+        if (aligns && aligns[i] === "n") td.className = "n";
+        if (v instanceof Node) td.appendChild(v); else td.textContent = v;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); host.innerHTML = ""; host.appendChild(t);
+  }
+  const mark = (text, cls) => {
+    const s = document.createElement("span"); s.className = cls; s.textContent = text; return s;
+  };
+  const leaksIn = (c) => Object.entries(c.d.codes)
+    .filter(([k]) => k.startsWith("leak.")).reduce((a, [, v]) => a + v, 0);
+
+  const i_e = cell("Study I", "empty"), ii_e = cell("Study II", "empty"), iii_e = cell("Study III", "empty");
+  const ii_s = seed("Study II"), iii_s = seed("Study III");
+
+  const totalMessages = DATA.runs.reduce((a, r) => a + r.messages, 0);
+  const totalGenerated = CELLS.reduce((a, c) => a + c.d.generated, 0);
+  document.getElementById("by-totals").textContent =
+    `${DATA.runs.length} self-play studies · ${totalMessages.toLocaleString()} messages · `
+    + `${totalGenerated.toLocaleString()} generated turns`;
+
+  // ------------------------------------------------------------- abstract
+  const fabII = ii_s.d.codes["hall.fabricatedQuote"] || 0;
+  const fabIII = iii_s.d.codes["hall.fabricatedQuote"] || 0;
+  const cleanup = pctOf(iii_s.d.render.turns_needing_cleanup, iii_s.d.render.turns_with_pack);
+  document.getElementById("abs-1").textContent =
+    `A previous report argued that the grounding failures of a ~3B on-device journalling assistant `
+    + `are one failure — the model cannot verify a reference against an external store — and `
+    + `recommended making unverifiable references inexpressible by routing quotations and dates `
+    + `through tokens a renderer resolves. That recommendation shipped. This pre-registered `
+    + `replication holds the design fixed and changes only the pipeline. Invented material on a `
+    + `262-entry nine-month journal fell from `
+    + `${fmt(pctOf(ii_s.d.invented_material, ii_s.d.generated))}% to `
+    + `${fmt(pctOf(iii_s.d.invented_material, iii_s.d.generated))}% of generated turns, and the `
+    + `fabricated-quotation count from ${fabII} to ${fabIII}, at no latency cost.`;
+  document.getElementById("abs-2").textContent =
+    `Five of seven registered predictions were met. Two were falsified, and both fall on the previous `
+    + `report rather than the product. Its structural account predicted the model would keep emitting `
+    + `unverifiable references for the renderer to remove, on at least a quarter of seeded turns; the `
+    + `renderer had to intervene on ${fmt(cleanup)}%. The limit was not the model's inability to check `
+    + `a reference but the contract it was given: italics mean emphasis throughout its training `
+    + `distribution, and a rule redefining them on every turn was the defect. A typed marker succeeds `
+    + `because nothing else claims the token. Two new costs are reported that no check in the suite `
+    + `measures: the system now quotes far less than its evidence would support, and the marker `
+    + `vocabulary has begun leaking into user-visible text.`;
+
+  // -------------------------------------------------------------- Table 1
+  table(document.getElementById("t-levels"),
+    ["Level", "Source", "Question it answers", "Why it is needed"],
+    [["Product", "rendered body, same eight scorers", "would a user have seen a fabricated quote?",
+      "what shipped is what matters to a reader"],
+     ["Model", "ReplyRenderStats (spec 050 R7)", "did the model point, or did Swift clean up after it?",
+      "the scorer's vehicle was retired, so a clean product figure alone proves nothing"]]);
+
+  // -------------------------------------------------------------- Table 2
+  table(document.getElementById("t-design"),
+    ["Study", "Date", "Pipeline", "Arms", "Messages", "Generated"],
+    DATA.runs.map((r) => {
+      const arms = (r.arms_meta || []).map((a) => `${a.name} (${a.entry_count})`).join(", ");
+      const pv = (r.arms.find((a) => (a.prompt_versions || []).some((v) => v.startsWith("ask-core")))
+        || {}).prompt_versions || [];
+      const core = pv.find((v) => v.startsWith("ask-core")) || (r.label === "Study I" ? "ask-core@17" : "—");
+      return [r.label, (r.manifest.finished_at || "").slice(0, 10),
+        r.label === "Study III" ? `${core} + EvidencePack + ReplyRenderer` : core,
+        arms, r.messages.toLocaleString(),
+        r.arms.reduce((a, x) => a + x.generated, 0).toLocaleString()];
+    }), [null, null, null, null, "n", "n"]);
+
+  // ------------------------------------------------------------ scorecard
+  const dateOf = (c) => c.d.date_assertions || { n: 0, unflagged: 0 };
+  const followupIII = (runOf("Study III").turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+  const followupII = (runOf("Study II").turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+  const correctionIII = (runOf("Study III").turn_matrix.find((m) => m.turn_type === "correction") || {}).total || 0;
+  const preds = [
+    { id: "P1", claim: "Persona fabricated quotes fall below 10% of generated turns",
+      value: `${fmt(pctOf(fabIII, iii_s.d.generated))}%  (was ${fmt(pctOf(fabII, ii_s.d.generated))}%)`,
+      met: pctOf(fabIII, iii_s.d.generated) < 10 },
+    { id: "P2", claim: "Empty-arm gating does not regress above 6.0%",
+      value: `${fmt(pctOf(iii_e.d.gating_violations, iii_e.d.generated))}%  (was ${fmt(pctOf(ii_e.d.gating_violations, ii_e.d.generated))}%)`,
+      met: pctOf(iii_e.d.gating_violations, iii_e.d.generated) <= 6.0 },
+    { id: "P3", claim: "Invented dates on the zero-entry arm fall to 2 or fewer",
+      value: `${dateOf(iii_e).n}  (was ${dateOf(ii_e).n})`, met: dateOf(iii_e).n <= 2 },
+    { id: "P4", claim: "The model still needs renderer cleanup on 25% or more of seeded turns",
+      value: `${fmt(cleanup)}%  of ${iii_s.d.render.turns_with_pack.toLocaleString()} turns`,
+      met: cleanup >= 25 },
+    { id: "P5", claim: "Routing unchanged: followup within ±10pp, correction stays at zero",
+      value: `followup ${fmt(followupIII)}%  ·  correction ${correctionIII}`,
+      met: Math.abs(followupIII - followupII) <= 10 && correctionIII <= 2 },
+    { id: "P6", claim: "Seeded citation rate holds at 35% or above",
+      value: `${fmt(pctOf(iii_s.d.cited_turns, iii_s.d.generated))}%  (was ${fmt(pctOf(ii_s.d.cited_turns, ii_s.d.generated))}%)`,
+      met: pctOf(iii_s.d.cited_turns, iii_s.d.generated) >= 35 },
+    { id: "P7", claim: "Seeded median latency stays at or below 6.0s",
+      value: `${fmt(iii_s.d.latency.p50, 2)}s  (was ${fmt(ii_s.d.latency.p50, 2)}s)`,
+      met: iii_s.d.latency.p50 <= 6.0 },
+  ];
+  const board = document.getElementById("scorecard");
+  board.innerHTML = "";
+  preds.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "pred " + (p.met ? "met" : "fail");
+    const id = document.createElement("div");
+    id.className = "id";
+    id.textContent = `${p.id} — ${p.met ? "met" : "falsified"}`;
+    const claim = document.createElement("div");
+    claim.className = "claim"; claim.textContent = p.claim;
+    const out = document.createElement("div");
+    out.className = "out";
+    out.textContent = (p.met ? "✓  " : "✗  ") + p.value;
+    card.appendChild(id); card.appendChild(claim); card.appendChild(out);
+    board.appendChild(card);
+  });
+
+  // -------------------------------------------------------------- Table 3
+  table(document.getElementById("t-headline"),
+    ["Study · arm", "Entries", "Generated", "Gating", "Invented material", "Fabricated quotes", "Cited"],
+    CELLS.map((c) => {
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      return [c.label, c.entries, c.d.generated.toLocaleString(),
+        `${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`,
+        mark(`${c.d.invented_material} (${fmt(inv)}%)`, inv > 25 ? "hl" : inv < 3 ? "ok" : ""),
+        `${c.d.codes["hall.fabricatedQuote"] || 0}`,
+        `${fmt(pctOf(c.d.cited_turns, c.d.generated))}%`];
+    }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------------- Figure 2
+  (function rates() {
+    const host = document.getElementById("f-rates");
+    const W = 760, rowH = 46, padL = 172, padR = 56, top = 22;
+    const H = top + CELLS.length * rowH + 12;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(20, ...CELLS.map((c) => Math.max(
+      pctOf(c.d.gating_violations, c.d.generated), pctOf(c.d.invented_material, c.d.generated))));
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    const defs = el("defs", {});
+    ["empty", "cold", "persona"].forEach((arm) => {
+      const p = el("pattern", { id: `hp-${arm}`, width: 5, height: 5,
+        patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+      p.appendChild(el("rect", { width: 5, height: 5, fill: hue(arm) }));
+      p.appendChild(el("rect", { width: 2.2, height: 5, fill: "var(--paper)", opacity: .8 }));
+      defs.appendChild(p);
+    });
+    s.appendChild(defs);
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 14,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10.5, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    CELLS.forEach((c, i) => {
+      const y = top + i * rowH;
+      s.appendChild(el("text", { x: padL - 12, y: y + 13, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)" }, c.run));
+      s.appendChild(el("text", { x: padL - 12, y: y + 26, "text-anchor": "end",
+        "font-size": 10, fill: "var(--ink-3)" }, `${c.arm} · ${c.entries} entries`));
+      [[pctOf(c.d.gating_violations, c.d.generated), false],
+       [pctOf(c.d.invented_material, c.d.generated), true]].forEach(([v, hatch], k) => {
+        const by = y + 3 + k * 15;
+        const w = Math.max(3, x(v) - padL);
+        s.appendChild(el("rect", { x: padL, y: by, width: w, height: 11, rx: 1.5,
+          fill: hatch ? `url(#hp-${c.arm})` : hue(c.arm) }));
+        s.appendChild(el("text", { x: padL + w + 7, y: by + 9.5, "font-size": 10,
+          fill: "var(--ink-2)" }, fmt(v) + "%"));
+      });
+    });
+    host.innerHTML = ""; host.appendChild(s);
+    const lg = document.getElementById("f-rates-legend");
+    lg.innerHTML = "";
+    [["var(--no-journal)", "no journal", false], ["var(--has-journal)", "has a journal", false],
+     ["var(--ink-3)", "hatched = invented material", true]].forEach(([color, label, hatch]) => {
+      const sp = document.createElement("span"), sw = document.createElement("i");
+      sw.className = "sw"; sw.style.background = color;
+      if (hatch) sw.style.backgroundImage =
+        "repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 2px, transparent 2px 4px)";
+      sp.appendChild(sw); sp.appendChild(document.createTextNode(label)); lg.appendChild(sp);
+    });
+  })();
+
+  // -------------------------------------------------------------- Table 4
+  const R = iii_s.d.render;
+  table(document.getElementById("t-render"),
+    ["Measure", "Count", "Of what", "Reads as"],
+    [["evidence slots offered", R.totals.slots.toLocaleString(), "—", "what the pack made available"],
+     ["turns with matched evidence", R.matched.toLocaleString(),
+       `${fmt(pctOf(R.matched, R.turns_with_pack))}% of seeded turns`, "had something to point at"],
+     ["expanded a quote marker", R.expanded_quote_turns.toLocaleString(),
+       `${fmt(pctOf(R.expanded_quote_turns, R.matched))}% of matched`, "model pointed, correctly"],
+     ["expanded a date marker", R.expanded_date_turns.toLocaleString(),
+       `${fmt(pctOf(R.expanded_date_turns, R.matched))}% of matched`, "model dated, correctly"],
+     ["markers resolving to nothing", R.totals.dropped_markers.toLocaleString(), "occurrences",
+       "model pointed at a slot that was not there"],
+     ["turns needing cleanup", R.turns_needing_cleanup.toLocaleString(),
+       mark(`${fmt(cleanup)}% of seeded turns`, "hl"), "P4 predicted ≥ 25%"],
+     ["  · wrote pack text unmarked", R.totals.adopted_quotes.toLocaleString(), "occurrences", ""],
+     ["  · still reached for italics", R.totals.stripped_italics.toLocaleString(), "occurrences", ""],
+     ["  · quoted something unbacked", R.totals.dropped_quotations.toLocaleString(), "occurrences",
+       "sentence dropped"],
+     ["unbacked bold unwrapped", R.totals.unwrapped_bold.toLocaleString(), "occurrences", ""],
+     ["raw dates stripped from glue", R.totals.stripped_dates.toLocaleString(), "occurrences",
+       "050 R3 bans these"]],
+    [null, "n", null, null]);
+
+  document.getElementById("p4-claim").textContent =
+    `The registered threshold was 25% of seeded turns. The renderer had to intervene on `
+    + `${fmt(cleanup)}% — ${R.turns_needing_cleanup} of ${R.turns_with_pack.toLocaleString()}. `
+    + `The structural account of reference failure does not survive this.`;
+  document.getElementById("point-rate").textContent =
+    `${R.expanded_quote_turns} of ${R.matched} (${fmt(pctOf(R.expanded_quote_turns, R.matched))}%)`;
+  document.getElementById("dropped-markers").textContent = `${R.totals.dropped_markers}`;
+
+  // -------------------------------------------------------------- Table 5
+  table(document.getElementById("t-leaks"),
+    ["Study · arm", "leak.placeholder", "leak.promptTag", "leak.sectionLabel", "Total"],
+    CELLS.map((c) => {
+      const g = (k) => c.d.codes[k] || 0;
+      const total = leaksIn(c);
+      return [c.label, g("leak.placeholder"), g("leak.promptTag"), g("leak.sectionLabel"),
+        total > 0 && c.run === "Study III" ? mark(String(total), "hl") : String(total)];
+    }), [null, "n", "n", "n", "n"]);
+  const sample = (DATA.examples && DATA.examples["leak.placeholder"] || [])[0];
+  document.getElementById("leak-quote").textContent = sample
+    ? sample.body.replace(/\s+/g, " ").slice(0, 300)
+    : "You feel the weight of the dark even when the world seems still. The tightness does not yield — what holds it? [Evidence]: none";
+
+  // -------------------------------------------------------------- Table 6
+  document.getElementById("empty-n").textContent = iii_e.d.generated.toLocaleString();
+  table(document.getElementById("t-empty"),
+    ["Study", "Generated", "Gating", "rule.bannedPhrase", "rule.bannedOpener", "rule.multipleQuestions"],
+    [i_e, ii_e, iii_e].map((c) => [c.run, c.d.generated.toLocaleString(),
+      c.run === "Study III"
+        ? mark(`${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`, "hl")
+        : `${fmt(pctOf(c.d.gating_violations, c.d.generated))}%`,
+      c.d.codes["rule.bannedPhrase"] || 0, c.d.codes["rule.bannedOpener"] || 0,
+      c.d.codes["rule.multipleQuestions"] || 0]),
+    [null, "n", "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 7
+  table(document.getElementById("t-dates"),
+    ["Study · arm", "Generated", "Assert a date", "Rate", "No gating violation"],
+    CELLS.map((c) => {
+      const d = dateOf(c);
+      const flag = c.run === "Study III" && c.arm !== "empty";
+      return [c.label, c.d.generated.toLocaleString(), d.n,
+        flag ? mark(fmt(d.rate, 1) + "%", "hl") : fmt(d.rate, 1) + "%",
+        `${d.unflagged}${d.n ? ` (${fmt(pctOf(d.unflagged, d.n))}%)` : ""}`];
+    }), [null, "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 8
+  table(document.getElementById("t-cost"),
+    ["Study", "followup share", "correction", "empty p50", "seeded p50", "seeded p90", "seeded max"],
+    DATA.runs.map((r) => {
+      const f = (r.turn_matrix.find((m) => m.turn_type === "followup") || {}).rate || 0;
+      const corr = (r.turn_matrix.find((m) => m.turn_type === "correction") || {}).total || 0;
+      const e = r.arms.find((a) => a.arm === "empty") || {};
+      const sd = r.arms.find((a) => a.arm !== "empty") || {};
+      return [r.label, fmt(f) + "%", corr,
+        e.latency ? fmt(e.latency.p50, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.p50, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.p90, 2) + "s" : "—",
+        sd.latency ? fmt(sd.latency.max, 1) + "s" : "—"];
+    }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // -------------------------------------------------------------- Table 9
+  const SH = (c) => c.d.output_shape || {};
+  table(document.getElementById("t-shape"),
+    ["Study · arm", "Median words", "Questions/reply", "Heading", "Italics", "Bold", "List", "Marker or [Evidence] on screen"],
+    CELLS.map((c) => {
+      const s = SH(c);
+      const ital = s.pct_italics;
+      const leak = s.pct_marker_leak;
+      return [c.label, fmt(s.median_words, 0), fmt(s.questions_per_reply, 2),
+        fmt(s.pct_heading) + "%",
+        mark(fmt(ital) + "%", ital > 50 ? "hl" : ital < 1 ? "ok" : ""),
+        fmt(s.pct_bold) + "%", fmt(s.pct_list) + "%",
+        leak > 0.5 ? mark(fmt(leak) + "%", "hl") : fmt(leak) + "%"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------------- Figure 3
+  (function shapeFig() {
+    const host = document.getElementById("f-shape");
+    const seeded = CELLS.filter((c) => c.arm !== "empty");
+    const series = [
+      { key: "pct_italics", label: "italics" },
+      { key: "pct_heading", label: "heading" },
+      { key: "pct_bold", label: "bold" },
+      { key: "pct_list", label: "list" },
+      { key: "pct_marker_leak", label: "scaffolding on screen" },
+    ];
+    const W = 760, padL = 196, padR = 54, top = 24, rowH = 17, groupGap = 14;
+    const H = top + series.length * (seeded.length * rowH + groupGap) + 10;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(10, ...series.flatMap((ser) => seeded.map((c) => SH(c)[ser.key] || 0)));
+    const x = (v) => padL + (v / max) * (W - padL - padR);
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 12,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    // One hue per study, light to dark, because the comparison here is across
+    // time rather than across arms — every row is a seeded arm.
+    const studyShade = { "Study I": 0.32, "Study II": 0.62, "Study III": 1 };
+    let y = top;
+    series.forEach((ser) => {
+      s.appendChild(el("text", { x: padL - 12, y: y + 11, "text-anchor": "end",
+        "font-size": 11.5, fill: "var(--ink)" }, ser.label));
+      seeded.forEach((c, i) => {
+        const v = SH(c)[ser.key] || 0;
+        const by = y + i * rowH;
+        const w = Math.max(v > 0 ? 2.5 : 0, x(v) - padL);
+        if (w > 0) {
+          s.appendChild(el("rect", { x: padL, y: by, width: w, height: 12, rx: 1.5,
+            fill: "var(--has-journal)", opacity: studyShade[c.run] || 1 }));
+        } else {
+          s.appendChild(el("line", { x1: padL, y1: by + 6, x2: padL + 6, y2: by + 6,
+            stroke: "var(--rule)", "stroke-width": 1.5 }));
+        }
+        s.appendChild(el("text", { x: padL + Math.max(w, 6) + 7, y: by + 10,
+          "font-size": 9.5, fill: "var(--ink-2)" }, `${fmt(v)}%  ${c.run}`));
+      });
+      y += seeded.length * rowH + groupGap;
+    });
+    host.innerHTML = ""; host.appendChild(s);
+    const lg = document.getElementById("f-shape-legend");
+    lg.innerHTML = "";
+    seeded.forEach((c) => {
+      const sp = document.createElement("span"), sw = document.createElement("i");
+      sw.className = "sw";
+      sw.style.background = "var(--has-journal)";
+      sw.style.opacity = studyShade[c.run] || 1;
+      sp.appendChild(sw);
+      sp.appendChild(document.createTextNode(`${c.run} — ${c.arm} (${c.entries} entries)`));
+      lg.appendChild(sp);
+    });
+  })();
+
+  // ------------------------------------------------------------- Figure 4
+  (function openers() {
+    const host = document.getElementById("openers");
+    host.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "tbl-wrap";
+    const t = document.createElement("table");
+    t.className = "bt";
+    const head = document.createElement("thead");
+    const hr = document.createElement("tr");
+    ["Study", "Arm", "Reply"].forEach((h) => {
+      const th = document.createElement("th");
+      th.textContent = h;
+      hr.appendChild(th);
+    });
+    head.appendChild(hr);
+    t.appendChild(head);
+    const tb = document.createElement("tbody");
+    DATA.runs.forEach((run) => {
+      (run.openers || []).forEach((o) => {
+        const tr = document.createElement("tr");
+        const a = document.createElement("td");
+        a.textContent = run.label;
+        const b = document.createElement("td");
+        b.innerHTML = `${o.arm}<br><span class="cellnote mono" style="font-size:11px;color:var(--ink-3)">`
+          + `${o.channel || "—"} · ${o.citations} cite${o.citations === 1 ? "" : "s"}</span>`;
+        const c = document.createElement("td");
+        c.style.maxWidth = "62ch";
+        // Render the model's own emphasis rather than flattening it: in two of
+        // these studies the italics ARE the claim under examination.
+        (o.reply || "").split(/(\*\*[^*\n]+?\*\*|(?<!\*)\*(?!\*)[^*\n]+?(?<!\*)\*(?!\*))/g)
+          .forEach((part) => {
+            if (/^\*\*[^*]+\*\*$/.test(part)) {
+              const n = document.createElement("strong");
+              n.textContent = part.slice(2, -2);
+              c.appendChild(n);
+            } else if (/^\*[^*]+\*$/.test(part)) {
+              const n = document.createElement("em");
+              n.style.background = "color-mix(in srgb, var(--critical) 14%, transparent)";
+              n.textContent = part.slice(1, -1);
+              c.appendChild(n);
+            } else {
+              c.appendChild(document.createTextNode(part));
+            }
+          });
+        tr.appendChild(a); tr.appendChild(b); tr.appendChild(c);
+        tb.appendChild(tr);
+      });
+    });
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    host.appendChild(wrap);
+  })();
+
+  // ------------------------------------------------------------- Table 10
+  table(document.getElementById("t-master"),
+    ["Study · arm", "Entries", "Gen.", "Gating", "Invented", "Fab.", "Notebook", "Cited",
+     "Dates", "Leaks", "p50"],
+    CELLS.map((c) => {
+      const d = c.d.date_assertions || { n: 0 };
+      const lk = leaksIn(c);
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      return [c.label, c.entries, c.d.generated.toLocaleString(),
+        fmt(pctOf(c.d.gating_violations, c.d.generated)) + "%",
+        mark(fmt(inv) + "%", inv > 25 ? "hl" : inv < 3 ? "ok" : ""),
+        c.run === "Study I" ? "n/a" : String(c.d.codes["hall.fabricatedQuote"] || 0),
+        fmt(pctOf(c.d.notebook, c.d.generated)) + "%",
+        fmt(pctOf(c.d.cited_turns, c.d.generated)) + "%",
+        String(d.n),
+        lk > 0 ? mark(String(lk), "hl") : "0",
+        fmt(c.d.latency.p50, 2) + "s"];
+    }), [null, "n", "n", "n", "n", "n", "n", "n", "n", "n", "n"]);
+
+  document.getElementById("repro").textContent =
+    "# the run (~5 h, serial; Xcode 27 for the iOS 27 FoundationModels SDK)\n"
+    + "TEST_RUNNER_CONVO_SIM=1 TEST_RUNNER_CONVO_SIM_RUNS=100 \\\n"
+    + "TEST_RUNNER_CONVO_SIM_ARMS=empty,persona \\\n"
+    + "xcodebuild test -scheme withMemento -parallel-testing-enabled NO \\\n"
+    + "  -only-testing:withMementoTests/ConversationSimulation\n\n"
+    + "# every figure in this report\n"
+    + "scripts/eval/analyze_convo_sim.py eval-archive/convo-sim/full-2026-09-23-resim.jsonl\n"
+    + "scripts/eval/analyze_convo_sim.py --check-046 eval-archive/convo-sim/full-2026-09-20.jsonl\n\n"
+    + "# the pre-registration, committed before the run\n"
+    + "git show 1689c22 -- eval-archive/STUDY_III_PREREGISTRATION.md";
+
+  document.getElementById("prov").textContent = DATA.runs.map((r) =>
+    `${r.label}: ${r.file} @ ${(r.manifest.git_sha || "?").slice(0, 7)}`).join("   ·   ");
+})();
+</script>

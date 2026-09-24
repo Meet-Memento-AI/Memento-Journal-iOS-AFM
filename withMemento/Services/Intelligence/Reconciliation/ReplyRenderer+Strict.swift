@@ -449,3 +449,79 @@ extension RenderText {
         return String(characters)
     }
 }
+
+// MARK: - Prompt scaffolding (051 R2)
+
+extension RenderPass {
+
+    /// Bracketed furniture the prompt puts in front of the model, which the
+    /// model sometimes copies back out.
+    ///
+    /// Study III measured 34 of these reaching user-visible text on the seeded
+    /// arm — `[Evidence]: none` among them — against zero across 6,505
+    /// generated turns in the two studies before the marker grammar existed.
+    /// Giving the model new vocabulary gave it new things to echo.
+    ///
+    /// This runs after markers have become private-use placeholders, so a
+    /// bracket pattern cannot eat an expansion, and after reference-marker
+    /// stripping, which already removes `[ref N]` and short empty pairs. It
+    /// runs *before* quote-shaped resolution, because the none-note is
+    /// quotation-shaped and would otherwise take a neighbouring sentence with
+    /// it, and before the date ban, because `[Today: …]` holds a date the pack
+    /// cannot back and would score as one the model invented.
+    ///
+    /// Patterns are built through `RenderText.regex`, so a bad pattern degrades
+    /// to a no-op rather than throwing — the `spans()` lesson from 046 R1,
+    /// where a pattern that could not compile read as a clean run for the
+    /// lifetime of the check.
+    ///
+    /// Checked for false positives across both warehoused runs — 6,715
+    /// generated turns — before shipping: on bodies that no `leak.*` scorer
+    /// flagged, `[]` and the section labels match **zero** times and the tag
+    /// pattern matches once. A strip that eats a reader's sentence is worse
+    /// than the leak it prevents, so the set is deliberately narrow: literals
+    /// the prompt actually contains, anchored where the prompt puts them.
+    private static let scaffolding: [NSRegularExpression?] = [
+        // `[Evidence]`, `[Evidence: none — …]`, `[Evidence: background only — …]`.
+        // Non-greedy to the first `]`, so it cannot swallow a following sentence.
+        RenderText.regex(#"\[\s*Evidence\b[^\]]*\]:?"#, options: [.caseInsensitive]),
+        // The date anchor the prompt carries so the model can resolve "last Tuesday".
+        RenderText.regex(#"\[\s*Today:[^\]]*\]"#, options: [.caseInsensitive]),
+        // The Swift-computed facts block header (045).
+        RenderText.regex(#"\[\s*Computed\s*\]"#, options: [.caseInsensitive]),
+        // Turn and shape tags from the per-turn prompt line.
+        // Turn and shape tags from the per-turn prompt line.
+        //
+        // The closing bracket is optional and the body match stops at a
+        // newline: Study IV produced "[shape: Meet them — how the envelope…"
+        // with no closing bracket at all, which a `[^\]]*\]` pattern cannot
+        // see. An unterminated tag is still a tag.
+        RenderText.regex(#"\[\s*(Turn|Shape|Name|Safety|Evidence|Today|Computed)\s*:[^\]\n]*\]?"#,
+                         options: [.caseInsensitive]),
+        // A bare empty bracket the citation bank left behind.
+        RenderText.regex(#"\[\s*\]"#),
+        // Recipe section names from the prompt's "how a reply is built" list,
+        // echoed as headings — at a line start or straight after a code fence,
+        // which is how Study IV's survivors appeared.
+        RenderText.regex(#"(?m)(^|```|\n)\s*(Meet them|Meet|Notebook|Sit|Open)\s*[—–-]\s*"#),
+        // A bare legend line the model reproduced verbatim.
+        RenderText.regex(#"(?m)^\s*Markers only:.*$"#),
+        RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#)
+    ]
+
+    /// Removes prompt scaffolding from the body and counts it.
+    ///
+    /// Each removal leaves a `RenderToken.removal` rather than an empty string
+    /// so that a sentence the scaffolding opened is recapitalised by the pass
+    /// that already handles removals, the same way `banUnbackedDates` does.
+    mutating func stripScaffolding(in text: String) -> String {
+        var out = text
+        for pattern in Self.scaffolding {
+            out = RenderText.replacing(pattern, in: out) { _ in
+                self.stats.strippedScaffoldCount += 1
+                return String(RenderToken.removal)
+            }
+        }
+        return out
+    }
+}

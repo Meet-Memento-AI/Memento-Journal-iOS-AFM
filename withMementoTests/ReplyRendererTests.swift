@@ -175,6 +175,90 @@ final class ReplyRendererTests: XCTestCase {
         XCTAssertEqual(rendered.stats.unwrappedBoldCount, 0)
     }
 
+    // MARK: - Prompt scaffolding (051 R2)
+
+    /// Every literal the prompt puts in front of the model, echoed back.
+    ///
+    /// Study III measured 34 of these reaching user-visible text on the seeded
+    /// arm, against zero in the two studies before the marker grammar existed.
+    func test_promptScaffolding_neverReachesTheBody() {
+        let cases: [(String, String)] = [
+            ("[Evidence]", "[Evidence]\nYou slept better. What now?"),
+            ("[Evidence: none]", "[Evidence: none — no quote or date markers this turn.] You slept better. What now?"),
+            ("[Evidence]: none", "You slept better.\n\n[Evidence]: none\n\nWhat now?"),
+            ("[Evidence: background]", "[Evidence: background only — no quote or date markers this turn.] Still here. What now?"),
+            ("[Today:]", "[Today: Thursday, March 12, 2026] You slept better. What now?"),
+            ("[Computed]", "[Computed] You slept better. What now?"),
+            ("[Turn:]", "[Turn: journal question] You slept better. What now?"),
+            ("legend header", "Markers only: the app swaps each for that entry's exact words or date.\nYou slept better. What now?"),
+            ("legend footer", "You slept better.\nIf none fits, use no markers.\nWhat now?"),
+            // Study IV: recipe section names echoed as headings. Absent from the
+            // Study III sample this strip was first validated against.
+            ("legend footer 2", "You slept better.\nIf none fits, use no markers.\nWhat now?")
+        ]
+        for (label, raw) in cases {
+            let rendered = render(raw, matchedPack())
+            XCTAssertFalse(rendered.body.contains("[Evidence"), label)
+            XCTAssertFalse(rendered.body.contains("[Today"), label)
+            XCTAssertFalse(rendered.body.contains("[Computed"), label)
+            XCTAssertFalse(rendered.body.contains("[Turn"), label)
+            XCTAssertFalse(rendered.body.contains("Markers only"), label)
+            XCTAssertFalse(rendered.body.contains("use no markers"), label)
+            XCTAssertGreaterThan(rendered.stats.strippedScaffoldCount, 0, label)
+            XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                           "\(label) left an empty body")
+        }
+    }
+
+    // Study IV's three survivors, each its own test so a failure names itself.
+    // A table-driven test that fails tells you almost nothing, which cost a
+    // round trip here.
+
+    /// An *unterminated* tag. The first pattern required a closing bracket,
+    /// so `[^\]]*\]` could not see this at all.
+    func test_unterminatedPromptTag_isStripped() {
+        let rendered = render("You slept better.\n\n[shape: Meet them — how it changes the day. What now?",
+                              matchedPack())
+        XCTAssertFalse(rendered.body.contains("[shape"))
+        XCTAssertFalse(rendered.body.contains("Meet them —"))
+        XCTAssertGreaterThan(rendered.stats.strippedScaffoldCount, 0)
+    }
+
+    /// A bare empty bracket the citation bank leaves behind.
+    func test_bareEmptyBracket_isStripped() {
+        let rendered = render("You slept better. [] — and the rest stayed. What now?", matchedPack())
+        XCTAssertFalse(rendered.body.contains("[]"))
+        XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    /// A recipe section name straight after a code fence. The fence itself is
+    /// handled upstream by `OutputSafetyScanner`; this pins that the label does
+    /// not survive whichever pass removes it.
+    func test_sectionLabelAfterAFence_doesNotReachTheBody() {
+        let rendered = render("The pause in the pull.\n``` Sit — the silence settles. What now?",
+                              matchedPack())
+        XCTAssertFalse(rendered.body.contains("Sit —"))
+        XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    /// The date anchor holds a date the pack cannot back. It must be removed as
+    /// scaffolding, not counted as a date the model invented.
+    func test_todayAnchor_isScaffoldingNotAnUnbackedDate() {
+        let rendered = render("[Today: Thursday, March 12, 2026] You slept better. What now?", matchedPack())
+        XCTAssertEqual(rendered.stats.strippedDateCount, 0)
+        XCTAssertGreaterThan(rendered.stats.strippedScaffoldCount, 0)
+    }
+
+    /// The none-note is quotation-shaped. If it survived to the quote pass it
+    /// would take a neighbouring sentence with it.
+    func test_noneNote_doesNotTakeASentenceWithIt() {
+        let raw = "[Evidence: none — no quote or date markers this turn. Never write a journal "
+            + "quote, a journal date, or italics.] You sat with it a while. What now?"
+        let rendered = render(raw, EvidencePack.empty)
+        XCTAssertTrue(rendered.body.contains("You sat with it"))
+        XCTAssertEqual(rendered.stats.droppedQuotationCount, 0)
+    }
+
     func test_referenceMarkersAndBraceJunk_neverReachTheBody() {
         let rendered = render("You slept better [ref 1]. {{ }} Then } { it rained. citedRefs: [1]", matchedPack())
         XCTAssertFalse(rendered.body.contains("ref 1"))

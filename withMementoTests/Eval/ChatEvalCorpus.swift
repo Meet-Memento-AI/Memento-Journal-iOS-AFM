@@ -140,6 +140,21 @@ enum ChatEvalCorpus {
         return try JSONDecoder().decode(GoldFile.self, from: Data(contentsOf: url)).questions
     }
 
+    /// The held-out gold set (051 R5).
+    ///
+    /// Authored after `RetrieverTuning` was fitted on `questions.json`, and
+    /// never used to fit anything. It exists because the shipped weights were
+    /// tuned on the only gold set there was, and `RETRIEVER_GRID=1` will tune
+    /// them further on the same 45 questions — so a gain measured there says
+    /// nothing about whether retrieval improved.
+    ///
+    /// No `.resolved` twin: none of these is a derived question, so there is
+    /// nothing for the validator to materialise.
+    static func heldOutQuestions() throws -> [GoldQuestion] {
+        let url = try fixturesURL().appendingPathComponent("gold/questions.heldout.json")
+        return try JSONDecoder().decode(GoldFile.self, from: Data(contentsOf: url)).questions
+    }
+
     /// FNV-1a over the fixture id, widened to 16 bytes. Stable across runs and
     /// processes, so a citation's `entryId` maps back to a fixture id.
     static func deterministicUUID(for fixtureID: String) -> UUID {

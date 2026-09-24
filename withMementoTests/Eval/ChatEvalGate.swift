@@ -202,6 +202,7 @@ final class ChatEvalGate: XCTestCase {
             + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: index)
             + ChatEvalScoring.fabricatedQuotes(result.body, index: index)
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
+            + ChatEvalScoring.unbackedDate(result.body, citations: result.citations)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
             + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)

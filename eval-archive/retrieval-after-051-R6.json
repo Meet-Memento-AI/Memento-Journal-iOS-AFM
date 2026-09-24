@@ -1,0 +1,1229 @@
+{
+  "items" : [
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-12-1"
+      ],
+      "hit" : true,
+      "id" : "q-01",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.33333333333333331,
+      "query" : "When did I first say I was burnt out?",
+      "ranks" : {
+        "e-2026-01-12-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-01-12-1",
+        "e-2026-04-07-1",
+        "e-2026-07-18-1"
+      ],
+      "topMargin" : 0.025164139508483511
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-08-1"
+      ],
+      "hit" : false,
+      "id" : "q-02",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did I start pottery classes?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-01-15-1",
+        "e-2026-01-29-1",
+        "e-2026-04-16-1",
+        "e-2026-04-30-1",
+        "e-2026-07-02-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-09-1"
+      ],
+      "hit" : true,
+      "id" : "q-03",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.5,
+      "query" : "When did my grandmother die?",
+      "ranks" : {
+        "e-2026-02-09-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-02-09-1",
+        "e-2026-06-28-1"
+      ],
+      "topMargin" : 0.24632995251895265
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-13-1"
+      ],
+      "hit" : true,
+      "id" : "q-04",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "When was Nonna's funeral?",
+      "ranks" : {
+        "e-2026-02-13-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-02-13-1",
+        "e-2026-02-28-1",
+        "e-2026-02-11-1",
+        "e-2026-03-08-1",
+        "e-2026-05-10-1"
+      ],
+      "topMargin" : 0.099993820305088341
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-06-14-1"
+      ],
+      "hit" : true,
+      "id" : "q-05",
+      "match" : "all",
+      "mrr" : 0.25,
+      "precision" : 0.20000000000000001,
+      "query" : "When did I move to the new apartment?",
+      "ranks" : {
+        "e-2026-06-14-1" : 3
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-17-1",
+        "e-2026-05-30-1",
+        "e-2026-06-10-1",
+        "e-2026-06-14-1",
+        "e-2026-06-30-1"
+      ],
+      "topMargin" : 0.049728204889237224
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2025-11-09-1"
+      ],
+      "hit" : false,
+      "id" : "q-06",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did I get back into running?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2025-11-08-1",
+        "e-2025-11-16-1",
+        "e-2025-11-23-1",
+        "e-2025-12-08-1",
+        "e-2026-01-12-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-04-26-1"
+      ],
+      "hit" : false,
+      "id" : "q-07",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did Sam and I break up?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2025-12-12-1",
+        "e-2026-01-06-1",
+        "e-2026-01-12-1",
+        "e-2026-05-02-1",
+        "e-2026-06-03-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-04-14-1"
+      ],
+      "hit" : true,
+      "id" : "q-08",
+      "match" : "all",
+      "mrr" : 0.25,
+      "precision" : 0.20000000000000001,
+      "query" : "When did I switch teams at work?",
+      "ranks" : {
+        "e-2026-04-14-1" : 3
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-01-1",
+        "e-2025-11-07-1",
+        "e-2026-04-22-1",
+        "e-2026-04-14-1",
+        "e-2026-07-16-1"
+      ],
+      "topMargin" : 0.03002022839227898
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-02-1"
+      ],
+      "hit" : true,
+      "id" : "q-09",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "When did I buy the blackout curtains?",
+      "ranks" : {
+        "e-2026-03-02-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-02-1",
+        "e-2026-03-03-1",
+        "e-2026-03-01-1",
+        "e-2026-03-31-1",
+        "e-2026-04-08-1"
+      ],
+      "topMargin" : 0.31693685558877677
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-08-1"
+      ],
+      "hit" : true,
+      "id" : "q-10",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "When did Dario and I start talking again?",
+      "ranks" : {
+        "e-2026-03-08-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-02-02-1",
+        "e-2026-03-08-1",
+        "e-2026-04-05-1",
+        "e-2026-07-04-1",
+        "e-2026-07-20-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-08-1",
+        "e-2026-04-05-1",
+        "e-2026-05-17-1",
+        "e-2026-06-21-1",
+        "e-2026-07-04-1"
+      ],
+      "hit" : true,
+      "id" : "q-11",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.66666666666666663,
+      "query" : "What have I written about my brother?",
+      "ranks" : {
+        "e-2026-03-08-1" : 0,
+        "e-2026-05-17-1" : 2
+      },
+      "recall" : 0.40000000000000002,
+      "top" : [
+        "e-2026-03-08-1",
+        "e-2026-07-18-1",
+        "e-2026-05-17-1"
+      ],
+      "topMargin" : 0.22123177137638314
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-12-1"
+      ],
+      "hit" : true,
+      "id" : "q-12",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What did I write about Sam when we first met?",
+      "ranks" : {
+        "e-2025-12-12-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-11-03-1",
+        "e-2025-12-12-1",
+        "e-2026-03-21-1",
+        "e-2026-04-24-1",
+        "e-2026-05-29-1"
+      ],
+      "topMargin" : 0.10064087784082648
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2026-06-21-1"
+      ],
+      "hit" : true,
+      "id" : "q-13",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What happened at Dario's birthday dinner?",
+      "ranks" : {
+        "e-2026-06-21-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-06-20-1",
+        "e-2026-06-21-1",
+        "e-2026-07-03-1",
+        "e-2026-07-07-1",
+        "e-2026-06-30-1"
+      ],
+      "topMargin" : 0.0088418366186371351
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-24-1"
+      ],
+      "hit" : true,
+      "id" : "q-14",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "Who was there when I finished the half marathon?",
+      "ranks" : {
+        "e-2026-05-24-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-24-1",
+        "e-2026-05-21-1",
+        "e-2026-05-12-1",
+        "e-2026-07-16-1",
+        "e-2026-06-14-1"
+      ],
+      "topMargin" : 0.14934127648605222
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2025-11-03-1"
+      ],
+      "hit" : true,
+      "id" : "q-15",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What was my first impression of Priya?",
+      "ranks" : {
+        "e-2025-11-03-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-11-03-1",
+        "e-2025-11-18-1",
+        "e-2025-12-05-1",
+        "e-2026-02-04-1",
+        "e-2026-04-07-1"
+      ],
+      "topMargin" : 0.20320560095225809
+    },
+    {
+      "ambient" : false,
+      "category" : "honesty",
+      "empty" : true,
+      "expected" : [
+
+      ],
+      "hit" : true,
+      "id" : "q-16",
+      "match" : "none",
+      "mrr" : 1,
+      "precision" : 1,
+      "query" : "What did I write about my brother in 2025?",
+      "ranks" : {
+
+      },
+      "recall" : 1,
+      "top" : [
+
+      ],
+      "topMargin" : null
+    },
+    {
+      "ambient" : false,
+      "category" : "honesty",
+      "empty" : false,
+      "expected" : [
+
+      ],
+      "hit" : false,
+      "id" : "q-17",
+      "match" : "none",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "What have I said about my dog?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-06-14-1",
+        "e-2026-07-12-2"
+      ],
+      "topMargin" : 0.007876786988947837
+    },
+    {
+      "ambient" : false,
+      "category" : "honesty",
+      "empty" : true,
+      "expected" : [
+
+      ],
+      "hit" : true,
+      "id" : "q-18",
+      "match" : "none",
+      "mrr" : 1,
+      "precision" : 1,
+      "query" : "When did I go skiing last winter?",
+      "ranks" : {
+
+      },
+      "recall" : 1,
+      "top" : [
+
+      ],
+      "topMargin" : null
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-08-1"
+      ],
+      "hit" : true,
+      "id" : "q-19",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "How did my first pottery class go?",
+      "ranks" : {
+        "e-2026-01-08-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-01-08-1",
+        "e-2026-01-15-1",
+        "e-2026-01-22-1",
+        "e-2026-01-29-1",
+        "e-2026-04-16-1"
+      ],
+      "topMargin" : 0.0054150226161272727
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-24-1"
+      ],
+      "hit" : true,
+      "id" : "q-20",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What was my half marathon time?",
+      "ranks" : {
+        "e-2026-05-24-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-12-1",
+        "e-2026-05-24-1",
+        "e-2026-05-21-1",
+        "e-2026-07-18-2",
+        "e-2026-06-05-2"
+      ],
+      "topMargin" : 0.039888459598992031
+    },
+    {
+      "ambient" : true,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-25-1"
+      ],
+      "hit" : false,
+      "id" : "q-21",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "How did my first 10k go?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-07-22-1",
+        "e-2026-07-21-1",
+        "e-2026-07-21-2",
+        "e-2026-07-20-1",
+        "e-2026-07-19-1"
+      ],
+      "topMargin" : null
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-20-1"
+      ],
+      "hit" : true,
+      "id" : "q-22",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What happened with the resignation letter I wrote?",
+      "ranks" : {
+        "e-2026-03-20-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-20-1",
+        "e-2026-04-21-1",
+        "e-2026-03-21-1",
+        "e-2026-04-14-1",
+        "e-2026-03-24-1"
+      ],
+      "topMargin" : 0.29868990131219381
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-04-14-1"
+      ],
+      "hit" : true,
+      "id" : "q-23",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "How did I feel after finally telling Priya everything?",
+      "ranks" : {
+        "e-2026-04-14-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-04-07-1",
+        "e-2026-04-14-1",
+        "e-2025-12-18-1",
+        "e-2026-01-20-1",
+        "e-2026-02-27-1"
+      ],
+      "topMargin" : 0.085627231330763942
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-06-28-1"
+      ],
+      "hit" : false,
+      "id" : "q-24",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "What did I sell at the street market?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-06-24-1",
+        "e-2026-07-12-1",
+        "e-2026-06-25-2",
+        "e-2026-06-27-1",
+        "e-2026-07-19-1"
+      ],
+      "topMargin" : 0.12080969092231944
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-10-1"
+      ],
+      "hit" : true,
+      "id" : "q-25",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.33333333333333331,
+      "query" : "What was Mother's Day like this year?",
+      "ranks" : {
+        "e-2026-05-10-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-10-1",
+        "e-2026-05-11-1",
+        "e-2026-05-31-1"
+      ],
+      "topMargin" : 0.021430754724615121
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-07-04-1"
+      ],
+      "hit" : true,
+      "id" : "q-26",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "Tell me about the fight with Dario in July.",
+      "ranks" : {
+        "e-2026-07-04-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-07-04-1",
+        "e-2026-07-05-1",
+        "e-2026-07-18-1",
+        "e-2026-07-03-1",
+        "e-2026-07-04-2"
+      ],
+      "topMargin" : 0.0098982700488414836
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-17-1"
+      ],
+      "hit" : true,
+      "id" : "q-27",
+      "match" : "all",
+      "mrr" : 0.33333333333333331,
+      "precision" : 0.20000000000000001,
+      "query" : "What did we do when my brother moved apartments?",
+      "ranks" : {
+        "e-2026-05-17-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-08-1",
+        "e-2026-06-14-1",
+        "e-2026-05-17-1",
+        "e-2026-04-21-1",
+        "e-2026-06-10-1"
+      ],
+      "topMargin" : 0.008252502224778047
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-06-14-1"
+      ],
+      "hit" : true,
+      "id" : "q-28",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What can I see from my new kitchen window?",
+      "ranks" : {
+        "e-2026-06-14-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-06-14-1",
+        "e-2026-06-10-1",
+        "e-2026-06-05-2",
+        "e-2026-07-02-1",
+        "e-2026-07-22-1"
+      ],
+      "topMargin" : 0.00091489234652819996
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-09-1"
+      ],
+      "hit" : true,
+      "id" : "q-29",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.5,
+      "query" : "What did I write the day my grandmother died?",
+      "ranks" : {
+        "e-2026-02-09-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-02-09-1",
+        "e-2026-06-28-1"
+      ],
+      "topMargin" : 0.24025540687154978
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-14-1"
+      ],
+      "hit" : true,
+      "id" : "q-30",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What happened with my knee in March?",
+      "ranks" : {
+        "e-2026-03-14-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-27-1",
+        "e-2026-03-14-1",
+        "e-2026-03-15-1",
+        "e-2026-03-28-1",
+        "e-2026-03-16-1"
+      ],
+      "topMargin" : 0.003596913394990648
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-12-1"
+      ],
+      "hit" : true,
+      "id" : "q-31",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "How did the first date with Sam go?",
+      "ranks" : {
+        "e-2025-12-12-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-12-12-1",
+        "e-2025-12-13-1",
+        "e-2025-12-16-1",
+        "e-2026-01-09-1",
+        "e-2026-02-06-1"
+      ],
+      "topMargin" : 0.11979082240698519
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-05-1"
+      ],
+      "hit" : false,
+      "id" : "q-32",
+      "match" : "all",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "When did the crunch on Atlas start?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2025-12-07-1",
+        "e-2026-02-01-1",
+        "e-2026-02-02-1",
+        "e-2026-04-01-1",
+        "e-2026-06-01-1"
+      ],
+      "topMargin" : 0.042996896797767192
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-26-1"
+      ],
+      "hit" : true,
+      "id" : "q-33",
+      "match" : "all",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What was the first thing I made in pottery that I actually liked?",
+      "ranks" : {
+        "e-2026-02-26-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-01-22-1",
+        "e-2026-02-26-1",
+        "e-2026-07-02-1",
+        "e-2026-07-09-1",
+        "e-2026-07-16-1"
+      ],
+      "topMargin" : 0.0006861524867077958
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-18-1"
+      ],
+      "hit" : true,
+      "id" : "q-34",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What did I hear about Nonna's health in December?",
+      "ranks" : {
+        "e-2025-12-18-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-12-18-1",
+        "e-2025-12-05-1",
+        "e-2025-12-30-1",
+        "e-2025-12-21-1",
+        "e-2025-12-19-1"
+      ],
+      "topMargin" : 0.14339902811492167
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-04-05-1"
+      ],
+      "hit" : true,
+      "id" : "q-35",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.25,
+      "query" : "How was coffee with my brother in April?",
+      "ranks" : {
+        "e-2026-04-05-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-04-05-1",
+        "e-2026-04-03-1",
+        "e-2026-04-04-1",
+        "e-2026-04-06-1"
+      ],
+      "topMargin" : 0.0010038577134256774
+    },
+    {
+      "ambient" : false,
+      "category" : "synthesis",
+      "empty" : false,
+      "expected" : [
+        "e-2026-01-12-1",
+        "e-2026-07-18-1"
+      ],
+      "hit" : true,
+      "id" : "q-36",
+      "match" : "all",
+      "mrr" : 0.20000000000000001,
+      "precision" : 0.20000000000000001,
+      "query" : "How have I changed since the start of the year?",
+      "ranks" : {
+        "e-2026-07-18-1" : 4
+      },
+      "recall" : 0.5,
+      "top" : [
+        "e-2025-11-08-1",
+        "e-2026-01-04-1",
+        "e-2026-05-31-1",
+        "e-2026-07-04-1",
+        "e-2026-07-18-1"
+      ],
+      "topMargin" : 0
+    },
+    {
+      "ambient" : false,
+      "category" : "synthesis",
+      "empty" : false,
+      "expected" : [
+        "e-2026-07-18-1"
+      ],
+      "hit" : true,
+      "id" : "q-37",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What did six months of distance from burnout look like?",
+      "ranks" : {
+        "e-2026-07-18-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-07-18-1",
+        "e-2026-01-31-1",
+        "e-2026-07-10-2",
+        "e-2026-04-14-1",
+        "e-2026-05-31-1"
+      ],
+      "topMargin" : 0.18445234286752615
+    },
+    {
+      "ambient" : false,
+      "category" : "pattern",
+      "empty" : false,
+      "expected" : [
+        "e-2025-11-03-1",
+        "e-2025-11-10-1",
+        "e-2025-11-17-1",
+        "e-2025-11-24-1",
+        "e-2025-12-01-1",
+        "e-2025-12-08-1",
+        "e-2026-01-05-1",
+        "e-2026-01-12-1",
+        "e-2026-01-19-1",
+        "e-2026-02-02-1",
+        "e-2026-02-16-1",
+        "e-2026-02-23-1",
+        "e-2026-03-09-1",
+        "e-2026-04-20-1"
+      ],
+      "hit" : true,
+      "id" : "q-38",
+      "match" : "any",
+      "mrr" : 1,
+      "precision" : 0.80000000000000004,
+      "query" : "How do I usually feel on overcast Mondays?",
+      "ranks" : {
+        "e-2025-11-10-1" : 3,
+        "e-2025-11-24-1" : 0,
+        "e-2026-01-12-1" : 4,
+        "e-2026-04-20-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-11-24-1",
+        "e-2026-07-18-1",
+        "e-2026-04-20-1",
+        "e-2025-11-10-1",
+        "e-2026-01-12-1"
+      ],
+      "topMargin" : 0.035630213537117511
+    },
+    {
+      "ambient" : false,
+      "category" : "pattern",
+      "empty" : false,
+      "expected" : [
+        "e-2025-11-13-1",
+        "e-2025-12-18-1",
+        "e-2026-02-09-1",
+        "e-2026-02-10-1",
+        "e-2026-02-13-1",
+        "e-2026-02-15-1",
+        "e-2026-02-20-1",
+        "e-2026-03-22-1",
+        "e-2026-04-26-1",
+        "e-2026-05-10-1"
+      ],
+      "hit" : false,
+      "id" : "q-39",
+      "match" : "any",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "What were my hardest weeks in the last year?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2026-07-22-1",
+        "e-2026-07-19-1",
+        "e-2026-06-08-1",
+        "e-2026-06-25-2",
+        "e-2026-07-17-1"
+      ],
+      "topMargin" : 0.0059349110705298079
+    },
+    {
+      "ambient" : false,
+      "category" : "pattern",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-08-1",
+        "e-2025-12-10-1",
+        "e-2025-12-15-1",
+        "e-2025-12-17-1",
+        "e-2026-01-12-1",
+        "e-2026-02-03-1",
+        "e-2026-02-12-1",
+        "e-2026-02-18-1",
+        "e-2026-03-01-1",
+        "e-2026-03-02-1",
+        "e-2026-03-03-1",
+        "e-2026-04-08-1",
+        "e-2026-07-10-1",
+        "e-2026-07-13-1"
+      ],
+      "hit" : true,
+      "id" : "q-40",
+      "match" : "any",
+      "mrr" : 0.5,
+      "precision" : 0.80000000000000004,
+      "query" : "When was I sleeping badly?",
+      "ranks" : {
+        "e-2025-12-08-1" : 1,
+        "e-2025-12-15-1" : 3,
+        "e-2026-03-01-1" : 4,
+        "e-2026-04-08-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-06-13-1",
+        "e-2025-12-08-1",
+        "e-2026-04-08-1",
+        "e-2025-12-15-1",
+        "e-2026-03-01-1"
+      ],
+      "topMargin" : 0.034957294829664705
+    },
+    {
+      "ambient" : false,
+      "category" : "pattern",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-07-1",
+        "e-2026-03-14-1",
+        "e-2026-03-15-1",
+        "e-2026-03-17-1",
+        "e-2026-03-27-1",
+        "e-2026-03-28-1",
+        "e-2026-04-04-1",
+        "e-2026-04-12-1",
+        "e-2026-05-12-1",
+        "e-2026-05-16-1",
+        "e-2026-05-21-1",
+        "e-2026-05-22-1",
+        "e-2026-05-23-1",
+        "e-2026-05-24-1",
+        "e-2026-05-25-1",
+        "e-2026-05-26-2"
+      ],
+      "hit" : true,
+      "id" : "q-41",
+      "match" : "any",
+      "mrr" : 0.5,
+      "precision" : 0.59999999999999998,
+      "query" : "How often did I write about running this spring?",
+      "ranks" : {
+        "e-2026-03-14-1" : 1,
+        "e-2026-03-15-1" : 3,
+        "e-2026-05-22-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-03-08-1",
+        "e-2026-03-14-1",
+        "e-2026-05-22-1",
+        "e-2026-03-15-1",
+        "e-2026-03-04-1"
+      ],
+      "topMargin" : 0.0076025046721714569
+    },
+    {
+      "ambient" : false,
+      "category" : "temporal",
+      "empty" : false,
+      "expected" : [
+        "e-2025-12-05-1"
+      ],
+      "hit" : false,
+      "id" : "q-42",
+      "match" : "any",
+      "mrr" : 0,
+      "precision" : 0,
+      "query" : "What was I working on last December?",
+      "ranks" : {
+
+      },
+      "recall" : 0,
+      "top" : [
+        "e-2025-12-04-1",
+        "e-2025-12-02-1",
+        "e-2025-12-10-1",
+        "e-2025-12-16-1",
+        "e-2025-12-01-1"
+      ],
+      "topMargin" : 0.020960532359297936
+    },
+    {
+      "ambient" : false,
+      "category" : "person",
+      "empty" : false,
+      "expected" : [
+        "e-2026-05-10-1"
+      ],
+      "hit" : true,
+      "id" : "q-43",
+      "match" : "all",
+      "mrr" : 1,
+      "precision" : 0.20000000000000001,
+      "query" : "What did Mom and I talk about on Mother's Day?",
+      "ranks" : {
+        "e-2026-05-10-1" : 0
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-10-1",
+        "e-2026-07-20-1",
+        "e-2026-05-11-1",
+        "e-2026-03-08-1",
+        "e-2026-04-29-1"
+      ],
+      "topMargin" : 0.078078245297525453
+    },
+    {
+      "ambient" : false,
+      "category" : "synthesis",
+      "empty" : false,
+      "expected" : [
+        "e-2026-02-09-1",
+        "e-2026-02-13-1",
+        "e-2026-05-10-1"
+      ],
+      "hit" : true,
+      "id" : "q-44",
+      "match" : "any",
+      "mrr" : 0.5,
+      "precision" : 0.20000000000000001,
+      "query" : "What has grief looked like for me this year?",
+      "ranks" : {
+        "e-2026-02-13-1" : 1
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2026-05-31-1",
+        "e-2026-02-13-1",
+        "e-2026-03-22-1",
+        "e-2026-02-15-1",
+        "e-2026-02-20-1"
+      ],
+      "topMargin" : 0.06739868533578855
+    },
+    {
+      "ambient" : false,
+      "category" : "event",
+      "empty" : false,
+      "expected" : [
+        "e-2026-03-08-1"
+      ],
+      "hit" : true,
+      "id" : "q-45",
+      "match" : "all",
+      "mrr" : 0.33333333333333331,
+      "precision" : 0.20000000000000001,
+      "query" : "Why did Dario and I stop talking in the first place?",
+      "ranks" : {
+        "e-2026-03-08-1" : 2
+      },
+      "recall" : 1,
+      "top" : [
+        "e-2025-11-07-1",
+        "e-2025-11-20-1",
+        "e-2026-03-08-1",
+        "e-2026-03-14-1",
+        "e-2026-06-21-1"
+      ],
+      "topMargin" : 0
+    }
+  ],
+  "kind" : "harness_retrieval",
+  "metrics" : {
+    "abstentionAccuracy" : 0.66666666666666663,
+    "answerable" : 42,
+    "hits" : 34,
+    "mrr" : 0.60396825396825393,
+    "precision@5" : 0.23293650793650794,
+    "recall@5" : 0.78333333333333333,
+    "trapLeaks" : 1,
+    "traps" : 3
+  },
+  "promptCap" : 5,
+  "reportOnly" : true
+}

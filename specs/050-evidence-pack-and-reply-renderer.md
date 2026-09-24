@@ -2,7 +2,7 @@
 id: 050
 title: Evidence Pack and Reply Renderer — The Model Points, Swift Quotes
 tier: P1
-status: in-progress (2026-09-22 — implementation landed; Mac lane verification and the re-sim are pending)
+status: done (2026-09-23 — re-sim complete; see Study III and spec 051 for the residuals)
 effort: 1 session, landed as stacked commits (see Tasks)
 depends_on: [017, 037, 039, 044, 046, 049]
 findings:
@@ -60,6 +60,35 @@ quote-shaped the pack cannot back, and hands the UI chips that come from the
 pack, never from the model's italics. The statistic channel already works
 this way (`InsightEngine`, `modelIdentifier: "swift"`); quotes and dates now
 follow the same template.
+
+## Outcome (re-sim, 2026-09-23)
+
+The re-sim this spec listed as pending is Study III:
+`eval-archive/convo-sim/full-2026-09-23-resim.jsonl`, 6,858 messages, 200
+conversations, pre-registered at `1689c22` before it ran. Write-up:
+[`docs/CONVERSATION_SIMULATION_STUDY_III.md`](../docs/CONVERSATION_SIMULATION_STUDY_III.md).
+
+**The spec did what it was built to do.** On the 262-entry nine-month journal,
+invented material fell **56.6% → 2.0%** and `hall.fabricatedQuote` **911 → 0**, with
+seeded median latency unchanged (4.50s → 4.57s) and the citation rate holding
+(40.5% → 38.6%). Against R7's acceptance table: empty-arm gating landed at 6.4%
+against a "must not regress above ~6%" bar — a small miss, attributable to finding 2
+below; the persona fabrication drop is the "sharp drop" R7 asked for.
+
+**Two registered predictions failed, and both fall on the report that made them, not
+on this spec.** The 2026-09-22 report predicted the model would keep emitting
+unverifiable references for the renderer to remove, on ≥25% of seeded turns. The
+renderer intervened on **2.4%**. The limit was the contract, not the parameter count:
+told to point rather than to italicise, the model largely stopped reaching for the old
+vehicle. That report's §5 overstates the case and is superseded by
+[`051`](051-reference-discipline-and-temporal-retrieval.md)'s Why.
+
+**Three residuals, all owned by 051.** The model does not reliably *point* — 100 of
+641 matched turns expanded a quote marker, and it paraphrases instead, trading
+fabrication for vagueness that nothing measures. Markers were emitted against an empty
+pack on 184 turns, because `ask-core@19` teaches the grammar unconditionally and
+`noneNote` then forbids it. And prompt scaffolding reached user-visible text 34 times,
+against zero in the two prior studies — the only outright regression.
 
 ## Current State (evidence)
 
