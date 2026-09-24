@@ -55,6 +55,11 @@ REPLY_CHANNELS = (
 # measured but do not gate until 046 R1's two warehoused runs have happened.
 REPORT_ONLY_CODES = (
     "hall.fabricatedQuote", "hall.firstPersonPerception", "hall.narrativeJoin",
+    # Added with the scorer in spec 051. `ChatEvalScoring.reportOnlyCodes` has
+    # carried four entries since then; this tuple had three, so a turn whose
+    # only fault was an unbacked date counted as gated here and did not in
+    # Swift. Kept in sync by hand, which is why the mismatch lasted.
+    "hall.unbackedDate",
 )
 
 
