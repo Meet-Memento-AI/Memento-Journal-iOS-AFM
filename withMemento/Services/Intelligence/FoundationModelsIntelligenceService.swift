@@ -1029,10 +1029,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             channel: core.channel, provided: core.entries, loadEntries: loadEntries
         )
         var filled = applyingEvidence(entries.isEmpty ? .none : .matched, to: core.replacingEntries(entries))
+        // `filled` is mutated below (the ambient downgrade after `wideTask`),
+        // and an `async let` captures it by reference — a data race Swift 6
+        // rejects outright. The two tasks only ever read the state as it is
+        // *now*, so the values they need are frozen into immutable locals
+        // first and `filled` stays local to this function.
+        let prepared = filled
+        let visionImages = filled.images
+        let visionHistory = filled.history
         async let visionTask: String? = Self.visionBlockIfNeeded(
-            current: filled.images, history: filled.history
+            current: visionImages, history: visionHistory
         )
-        async let wideTask: RetrievalResult = retrieveIfNeeded(filled)
+        async let wideTask: RetrievalResult = retrieveIfNeeded(prepared)
         let attachOnMiss = SearchJournalPolicy.shouldAttach(channel: filled.channel)
             && Self.canAttachSearchTool
             && !entries.isEmpty
@@ -1897,7 +1905,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                         options: prep.generationOptions
                                     )
                                     for try await snapshot in stream {
-                                        cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
+                                        // The token count is read out *before*
+                                        // the lock, so the closure captures an
+                                        // Int? rather than the snapshot. The
+                                        // snapshot is not Sendable and a
+                                        // `withLock` body is `@Sendable`, which
+                                        // is a Swift 6 error and was only ever
+                                        // incidental: the lock protects the
+                                        // cached count, not the snapshot.
+                                        let cached: Int? = Self.cachedTokens(from: snapshot)
+                                        cachedLock.withLock { $0 = $0 ?? cached }
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
                                     }
                                 } else {
@@ -1907,7 +1924,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                         options: prep.generationOptions
                                     )
                                     for try await snapshot in stream {
-                                        cachedLock.withLock { $0 = $0 ?? Self.cachedTokens(from: snapshot) }
+                                        let cached: Int? = Self.cachedTokens(from: snapshot)
+                                        cachedLock.withLock { $0 = $0 ?? cached }
                                         let refs = snapshot.content.citedRefs ?? nil
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
                                     }
