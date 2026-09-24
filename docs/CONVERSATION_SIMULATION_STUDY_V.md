@@ -9,6 +9,7 @@ generated** (42 `guardrailRefusal`, 18 `insight-fact@1`, 3 `unavailable` exclude
 before generation
 **Raw data:** `eval-archive/convo-sim/full-2026-09-23-sizesweep.jsonl`
 **Full output:** `eval-archive/STUDY_V_RESULTS.md`
+**Paper:** https://claude.ai/artifact/QVGiymZQaxFW1aJbyPShWH
 
 Studies II–IV compared two worlds: a journal with nothing in it and a journal
 with 262 entries. Every real user starts between them. This sweeps the gap.

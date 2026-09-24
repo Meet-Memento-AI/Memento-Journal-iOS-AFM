@@ -1,0 +1,905 @@
+<title>How Big Does a Journal Have to Be?</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f6f7f9;
+    --raise: #ffffff;
+    --ink: #151a20;
+    --muted: #5c6672;
+    --faint: #8b95a1;
+    --rule: #dce1e7;
+    --rule-soft: #e9edf1;
+    --data: #2a6fbd;
+    --data-soft: #2a6fbd22;
+    --bad: #c1502a;
+    --bad-soft: #c1502a1f;
+    --good: #2c8a5c;
+    --good-soft: #2c8a5c1f;
+    --display: "Fraunces", Georgia, serif;
+    --body: "Spectral", Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101418;
+      --raise: #171c22;
+      --ink: #e8ecf0;
+      --muted: #98a3b0;
+      --faint: #6e7986;
+      --rule: #252c34;
+      --rule-soft: #1d232a;
+      --data: #2a6fbd;
+      --data-soft: #2a6fbd33;
+      --bad-soft: #c1502a2e;
+      --good-soft: #2c8a5c2e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101418;
+    --raise: #171c22;
+    --ink: #e8ecf0;
+    --muted: #98a3b0;
+    --faint: #6e7986;
+    --rule: #252c34;
+    --rule-soft: #1d232a;
+    --data: #2a6fbd;
+    --data-soft: #2a6fbd33;
+    --bad-soft: #c1502a2e;
+    --good-soft: #2c8a5c2e;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    display: grid;
+    grid-template-columns:
+      minmax(16px, 1fr)
+      minmax(0, 66ch)
+      minmax(16px, 1fr);
+    padding-block: clamp(2rem, 6vw, 4.5rem);
+    column-gap: 0;
+  }
+  .page > * { grid-column: 2; }
+  .page > .wide {
+    grid-column: 1 / -1;
+    width: min(100% - 32px, 116ch);
+    margin-inline: auto;
+  }
+  .stack > * + * { margin-top: 1.05em; }
+
+  /* ---- masthead ---- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .6875rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(2rem, 6.2vw, 3.1rem);
+    line-height: 1.06;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    margin: .5rem 0 0;
+  }
+  .standfirst {
+    font-size: 1.1875rem;
+    color: var(--muted);
+    text-wrap: pretty;
+    margin-top: .9rem;
+  }
+  .byline {
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--faint);
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding-block: .7rem;
+    margin-top: 1.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem 1.35rem;
+  }
+  .byline b { color: var(--muted); font-weight: 500; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 3.2rem 0 .2rem;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: .75rem;
+    font-weight: 400;
+    letter-spacing: .1em;
+    color: var(--data);
+    display: block;
+    margin-bottom: .45rem;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 1.0625rem;
+    margin: 1.9rem 0 .1rem;
+  }
+  p { margin: 0; }
+  a { color: var(--data); text-underline-offset: 2px; }
+  code, .m { font-family: var(--mono); font-size: .875em; }
+  code {
+    background: var(--rule-soft);
+    padding: .1em .32em;
+    border-radius: 3px;
+  }
+  strong { font-weight: 600; }
+
+  /* ---- the one big claim ---- */
+  .claim {
+    margin-top: 2.4rem;
+    border-left: 3px solid var(--data);
+    padding: .1rem 0 .1rem 1.15rem;
+  }
+  .claim .rho {
+    font-family: var(--mono);
+    font-size: clamp(2.1rem, 7vw, 3rem);
+    font-weight: 500;
+    letter-spacing: -.03em;
+    color: var(--data);
+    display: block;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .claim p { margin-top: .6rem; color: var(--muted); }
+
+  /* ---- figures ---- */
+  figure {
+    margin: 2.2rem 0 0;
+    background: var(--raise);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.15rem 1.15rem 1rem;
+  }
+  figcaption {
+    font-family: var(--mono);
+    font-size: .75rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-top: .85rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--rule-soft);
+  }
+  figcaption b { color: var(--ink); font-weight: 500; }
+  .fig-title {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: .9375rem;
+    margin-bottom: .1rem;
+  }
+  .fig-sub {
+    font-family: var(--mono);
+    font-size: .6875rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: .9rem;
+  }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  /* Charts are the one thing allowed past the gutter: below this width the
+     900-unit viewBox scales the axis labels down to illegibility, so the
+     container scrolls instead. The page body never scrolls sideways. */
+  .chart-scroll { overflow-x: auto; }
+  .chart-scroll svg { min-width: 600px; }
+
+  /* ---- scorecard ---- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 1.5rem;
+  }
+  .card {
+    background: var(--raise);
+    padding: .95rem 1rem 1.05rem;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+  }
+  .card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+  }
+  .pid {
+    font-family: var(--mono);
+    font-size: .8125rem;
+    font-weight: 500;
+    color: var(--faint);
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: .625rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .18em .5em;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .tag.held { color: var(--good); background: var(--good-soft); }
+  .tag.fals { color: var(--bad); background: var(--bad-soft); }
+  .card-claim { font-size: .9375rem; line-height: 1.45; }
+  .card-ev {
+    font-family: var(--mono);
+    font-size: .6875rem;
+    line-height: 1.5;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-top: auto;
+  }
+
+  /* ---- tables ---- */
+  .t-wrap { overflow-x: auto; margin-top: 1.5rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: .8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: right;
+    padding: .5rem .7rem;
+    border-bottom: 1px solid var(--rule-soft);
+    white-space: nowrap;
+  }
+  th {
+    font-weight: 500;
+    font-size: .6875rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+    border-bottom: 1px solid var(--rule);
+  }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.edge td { color: var(--muted); font-style: italic; }
+  td .hi { color: var(--bad); font-weight: 500; }
+  caption {
+    caption-side: bottom;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .6875rem;
+    color: var(--muted);
+    padding-top: .8rem;
+    line-height: 1.5;
+  }
+
+  /* ---- misc ---- */
+  .note {
+    border-left: 2px solid var(--rule);
+    padding-left: 1rem;
+    color: var(--muted);
+    font-size: 1rem;
+    margin-top: 1.4rem;
+  }
+  .note .lab {
+    font-family: var(--mono);
+    font-size: .6875rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: block;
+    margin-bottom: .3rem;
+  }
+  ol.steps { margin: 1.3rem 0 0; padding-left: 1.3rem; }
+  ol.steps li { margin-bottom: .7rem; padding-left: .2rem; }
+  ul.plain { margin: 1.1rem 0 0; padding-left: 1.2rem; }
+  ul.plain li { margin-bottom: .55rem; }
+  footer {
+    margin-top: 3.6rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--faint);
+    line-height: 1.7;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Conversation Simulation · Study V</p>
+  <h1>How big does a journal have to be?</h1>
+  <p class="standfirst">Four studies compared an empty journal with a 262-entry
+  one. Every real user starts between them. This sweeps all one hundred sizes in
+  the gap — and finds that the retriever does not care about size at all, which
+  turns out to be both the design working and the thing that hides the harm.</p>
+
+  <div class="byline">
+    <span><b>200</b> sessions</span>
+    <span><b>100</b> journal sizes</span>
+    <span><b>6,790</b> messages</span>
+    <span><b>3,332</b> scored turns</span>
+    <span>Apple Foundation Models, ~3B on-device</span>
+    <span><b>de642b5</b></span>
+    <span>2026-09-24</span>
+  </div>
+
+  <div class="claim">
+    <span class="rho">ρ = +0.028</span>
+    <p>Spearman rank correlation between journal size and citation rate, across
+    96 sizes from five entries to a hundred. On the turns where a citation is
+    the right answer it is <span class="m">+0.003</span>. Corpus size does not
+    move the rate.</p>
+  </div>
+
+  <h2><span class="num">01 · The mechanism</span>An entry has to stand out from its own corpus</h2>
+  <div class="stack">
+    <p><code>EntryRetriever.semanticThreshold</code> is relative, not absolute.
+    Above a five-entry corpus it returns <code>max(floor, μ + 1.0σ)</code> over
+    the cosine similarities of the corpus being searched; below five it returns
+    a flat <code>floor + 0.05</code> = <span class="m">0.35</span>, because μ and
+    σ over four points mean nothing.</p>
+    <p>The consequence was pre-registered before the run, because it follows from
+    the arithmetic rather than the data: under any roughly bell-shaped similarity
+    distribution, a fixed share of entries sits above one standard deviation
+    <em>however many there are</em>. So the retriever should fire at a
+    near-constant rate whether the journal holds five entries or a hundred.</p>
+    <p>It does. That is prediction P2, and it held more tightly than the
+    threshold asked for.</p>
+  </div>
+
+  <figure class="wide">
+    <p class="fig-title">Citation rate at every journal size</p>
+    <p class="fig-sub">One point per size · two sessions each · n ≥ 5 fitted</p>
+    <div class="chart-scroll"><svg id="c-scatter" viewBox="0 0 900 340" role="img"
+      aria-label="Scatter of citation rate against journal size, showing no trend across 96 sizes."></svg></div>
+    <figcaption>Each point is one journal size. The flat line is the median
+      across sizes 5–100. <b>No trend is visible because there is none</b> —
+      the scatter is sampling noise from two sessions per size, not a curve.
+      Points below five entries are drawn in rust: that is the regime where the
+      threshold goes flat.</figcaption>
+  </figure>
+
+  <h2><span class="num">02 · What the flat rate hides</span>Split by what was actually asked</h2>
+  <div class="stack">
+    <p>A citation rate over <em>every</em> turn mixes in the turn types where a
+    citation would be wrong. <code>share</code>, <code>social</code> and
+    <code>offdomain</code> turns cite 0% at every single size, by design — they
+    are someone talking, not someone asking. They dilute everything.</p>
+    <p>Restricted to <code>journalQuery</code> — a person asking the app about
+    their own journal — the picture is not flat at all.</p>
+  </div>
+
+  <figure class="wide">
+    <p class="fig-title">When asked about the journal, does it answer from the journal?</p>
+    <p class="fig-sub"><code>journalQuery</code> turns that carry a citation</p>
+    <div class="chart-scroll"><svg id="c-jq" viewBox="0 0 900 360" role="img"
+      aria-label="Citation rate on journal-query turns rising from 0% at zero entries to about 74% and plateauing after roughly ten entries."></svg></div>
+    <figcaption>Filled marks are Study V's bands. The two open marks are
+      <b>endpoints from Study IV, not part of this sweep</b> — 0 entries and 262
+      entries — drawn hollow because that study walks the full cast matrix while
+      this one draws questions by hashing the run id, so the question mix
+      differs and the comparison is suggestive rather than settled.</figcaption>
+  </figure>
+
+  <div class="note">
+    <span class="lab">The product answer</span>
+    <p>Citation on journal questions climbs <span class="m">46.2%</span> (≤4
+    entries) → <span class="m">71.4%</span> (5–7) → <span class="m">80.0%</span>
+    (11–15), then sits in the seventies for the remaining eighty-five sizes.
+    <strong>The journal becomes useful at about ten entries.</strong> Onboarding
+    that reaches ten is buying the feature the app is named for.</p>
+  </div>
+
+  <h2><span class="num">03 · The harm</span>A nearly-empty journal is not quiet — it is wrong</h2>
+  <div class="stack">
+    <p>The obvious worry about a small journal is that the app says nothing
+    useful. The measurement says the opposite. Below five entries the app keeps
+    answering, and <code>hall.uncitedQuote</code> — a quoted span that nothing in
+    the journal actually contains — fires at more than four times its rate
+    everywhere else.</p>
+  </div>
+
+  <figure class="wide">
+    <p class="fig-title">Unbacked quotation by journal size</p>
+    <p class="fig-sub"><code>hall.uncitedQuote</code> · share of all scored turns · 95% Wilson intervals</p>
+    <div class="chart-scroll"><svg id="c-unc" viewBox="0 0 900 330" role="img"
+      aria-label="Unbacked quotation rate spikes to 7.9 percent below five entries and sits between 1 and 4 percent at all larger sizes."></svg></div>
+    <figcaption>This is <b>a spike in the smallest band, not a decline</b>.
+      Above five entries the rate wanders between 1.1% and 4.1% with no trend;
+      the first draft of this paper called it monotone and the numbers do not
+      support that. The spike itself is solid: 10/126 = 7.9% against 60/3,206 =
+      1.9%, non-overlapping Wilson intervals, two-proportion z = 4.66, one-sided
+      Poisson p = 4.3 × 10⁻⁴ for ten events where the pooled rate predicts 2.6.</figcaption>
+  </figure>
+
+  <div class="t-wrap wide">
+    <table>
+      <caption>Study IV's arms are the endpoints this sweep sits between; they ran
+        the same pipeline but a different question draw.</caption>
+      <thead>
+        <tr>
+          <th>Journal size</th>
+          <th><code>journalQuery</code> cites</th>
+          <th>rate</th>
+          <th>Unbacked quotes</th>
+          <th>rate</th>
+        </tr>
+      </thead>
+      <tbody id="t-body"></tbody>
+    </table>
+  </div>
+
+  <h2><span class="num">04 · Scorecard</span>Seven predictions, committed before generation</h2>
+  <div class="stack">
+    <p>The pre-registration was written and committed before a single message was
+    generated. Four held, three were falsified — and two of those three are facts
+    about the predictions rather than about the product.</p>
+  </div>
+
+  <div class="cards wide" id="cards"></div>
+
+  <h2><span class="num">05 · My own errors</span>Two thresholds anchored to the wrong baseline</h2>
+  <div class="stack">
+    <p><strong>P1</strong> predicted a ≥10pp citation gap below five entries and
+    measured <span class="m">+8.1pp</span>, so it fails. But the same comparison
+    on the turns where a citation is the right answer is
+    <span class="m">+28.1pp</span> — 46.2% against 74.3%. The cliff is real and
+    <em>larger</em> than predicted; I anchored the threshold to a denominator
+    diluted by turn types that never cite.</p>
+    <p><strong>P4</strong> predicted gating ≤6% in every bin, citing the empty
+    arm's 5.5%. That was the wrong anchor and I knew it before the results
+    landed: no seeded arm in four studies has ever gated below 11%. An empty
+    journal gates low because nothing retrieves and most turns are social. P4
+    duly failed at 17.5% and says nothing whatever about corpus size. It was
+    recorded as mis-anchored in the repository <em>before</em> the run finished,
+    rather than reinterpreted afterwards.</p>
+    <p class="note"><span class="lab">Why this is in the paper</span>
+    A pre-registration you are allowed to quietly reinterpret afterwards is not
+    a pre-registration. Two of three falsifications being my own aim rather than
+    the product's behaviour is the system working: the errors are visible and
+    dated, which is the only property that makes the four surviving predictions
+    worth anything.</p>
+  </div>
+
+  <h2><span class="num">06 · P3</span>The pack really is starved, and it changes almost nothing</h2>
+  <div class="stack">
+    <p>P3 predicted that phantom markers — <code>{{quote:4}}</code> pointing at a
+    slot that does not exist — would at least double below five entries, because
+    <code>maxEntries = 5</code> means a four-entry journal cannot fill the
+    evidence pack. The premise was correct and measurable.</p>
+  </div>
+
+  <figure>
+    <p class="fig-title">Evidence slots filled, when a pack was built</p>
+    <p class="fig-sub">Mean slot count · cap is 5</p>
+    <svg id="c-slots" viewBox="0 0 560 190" role="img"
+      aria-label="Mean filled evidence slots rises from 1.62 below five entries to 4.96 above seventy."></svg>
+    <figcaption>Below five entries the pack averages <b>1.62</b> of five slots.
+      Above seventy it averages <b>4.96</b>. The starvation is real.</figcaption>
+  </figure>
+
+  <div class="stack">
+    <p>The consequence did not follow. Phantom markers run at
+    <span class="m">0.198</span> per turn below five entries and
+    <span class="m">0.160</span> above twenty — a 1.24× difference against a
+    predicted 2×. They are, to a good approximation,
+    <strong>size-independent at about 0.16 per turn</strong>.</p>
+    <p>That matters beyond this study. Studies III and IV concluded that the
+    app's reference failures come from the <em>contract</em> being imperfectly
+    followed, not from the model being too small or the evidence too thin. Study
+    V had a clean opportunity to attribute marker failure to corpus size —
+    one-slot packs against five-slot packs, same model, same prompt — and found
+    it cannot. The model misuses markers at the same rate whether it has one
+    slot or five.</p>
+  </div>
+
+  <h2><span class="num">07 · The strongest number</span>Zero fabricated quotes, at every size</h2>
+  <div class="stack">
+    <p>Study II's seeded arm invented quotations in <span class="m">911</span> of
+    1,626 generated turns — 56.0%. Spec 050 replaced italics-as-quotation with
+    typed markers the renderer resolves against an evidence pack, and Study III
+    measured that at zero.</p>
+    <p>Study V extends the claim in the direction that could most plausibly have
+    broken it: <strong>0 fabricated quotes in 3,332 turns across all one hundred
+    journal sizes</strong>, including the regime where the pack holds a single
+    slot and the model has least to work with. The contract is not just
+    effective, it is invariant to how much evidence exists.</p>
+    <p>Latency is the other clean result: p50 <span class="m">3.65s</span> at ten
+    entries or fewer against <span class="m">3.98s</span> at ninety or more —
+    1.09×. Retrieval cost is nothing against generation, so nothing here argues
+    for capping journal size.</p>
+  </div>
+
+  <h2><span class="num">08 · What to change</span>A size-aware floor, not a prompt</h2>
+  <div class="stack">
+    <p>The study points at one change, and it is small.</p>
+    <ol class="steps">
+      <li><strong>Raise the sub-five-entry floor, or suppress quotation below
+      roughly ten entries.</strong> The flat <span class="m">0.35</span> is the
+      one place the retriever already knows the corpus is too small to reason
+      about statistically, and it is exactly where unbacked quotation
+      concentrates. Then re-measure <code>hall.uncitedQuote</code> in the 1–4
+      band with this same harness.</li>
+      <li><strong>Extend the sweep past 100</strong> with an identical
+      question-draw rule on both sides, to settle whether 74% → 90.5% between
+      100 and 262 entries is size or question mix.</li>
+      <li><strong>Separate size from recency.</strong> Arms here are the most
+      recent n entries, so a small journal also spans a short window. An arm of
+      n entries sampled across the whole nine months, against the same n taken
+      as a suffix, would tell these apart.</li>
+    </ol>
+  </div>
+
+  <h2><span class="num">09 · Threats</span>What this design cannot tell you</h2>
+  <ul class="plain">
+    <li><strong>Size and recency are confounded by construction.</strong> Arms
+    are the most recent n entries — a one-entry arm is a single day, a
+    hundred-entry arm spans five months. Any size effect here could be a recency
+    effect and this design cannot separate them. This is the study's main
+    threat and it was named in the pre-registration, not discovered afterwards.</li>
+    <li><strong>Two sessions per size.</strong> The sweep is wide, not deep. No
+    per-size point is a result; every verdict is read off the pre-registered
+    bins. The smallest bins are genuinely thin — 13 <code>journalQuery</code>
+    turns below five entries.</li>
+    <li><strong>No relevance labels.</strong> "Cited" is never "cited aptly".
+    The harness can prove a quote is unbacked; it cannot prove a correctly
+    backed citation was the <em>right</em> entry to reach for. This is the
+    single biggest gap between what was measured and what a user cares about.</li>
+    <li><strong>P7 passed on a thin denominator.</strong> A one-entry journal
+    cited on 6/33 turns, inside the 20% line — but it drew only one
+    <code>journalQuery</code> turn in two sessions. P7 should not be read as
+    evidence that a one-entry journal behaves well; the 1–4 band's 46.2%
+    citation and 7.9% unbacked quotation are the better guide, and they point
+    the other way.</li>
+    <li><strong>One authored persona, both interlocutors synthetic</strong> — as
+    in every study in this series. A self-play harness measures the app against
+    a model's idea of a person.</li>
+    <li><strong>100 is not a large journal.</strong> The fixture corpus caps at
+    262 entries and the sweep stops at 100 by design.</li>
+    <li>42 turns ended in <code>guardrailRefusal</code>, which is specified
+    behaviour, and 3 in an <code>unavailable</code> runtime fault, out of 3,395
+    assistant turns.</li>
+  </ul>
+
+  <footer>
+    Study V of the Memento conversation-simulation series · run
+    <span class="m">full-2026-09-23-sizesweep</span> on <span class="m">de642b5</span>
+    (clean) · <span class="m">ChatDiag27</span>, iOS 27.0 (24A434), Xcode 27.0 GA
+    (27A266a) · 2026-09-24 04:47–10:52 UTC<br>
+    Pre-registration <span class="m">eval-archive/STUDY_V_PREREGISTRATION.md</span> ·
+    raw data <span class="m">eval-archive/convo-sim/full-2026-09-23-sizesweep.jsonl</span> ·
+    paper <span class="m">docs/CONVERSATION_SIMULATION_STUDY_V.md</span><br>
+    All 6,790 messages are committed to the repository. Every rate in this paper
+    carries its numerator and denominator.
+  </footer>
+</div>
+
+<script>
+const DATA = {"persize":[{"n":1,"turns":33,"cited":6,"rate":18.18},{"n":2,"turns":34,"cited":7,"rate":20.59},{"n":3,"turns":26,"cited":7,"rate":26.92},{"n":4,"turns":33,"cited":9,"rate":27.27},{"n":5,"turns":24,"cited":8,"rate":33.33},{"n":6,"turns":36,"cited":10,"rate":27.78},{"n":7,"turns":33,"cited":7,"rate":21.21},{"n":8,"turns":38,"cited":19,"rate":50.0},{"n":9,"turns":28,"cited":1,"rate":3.57},{"n":10,"turns":29,"cited":11,"rate":37.93},{"n":11,"turns":31,"cited":6,"rate":19.35},{"n":12,"turns":34,"cited":4,"rate":11.76},{"n":13,"turns":40,"cited":9,"rate":22.5},{"n":14,"turns":28,"cited":9,"rate":32.14},{"n":15,"turns":39,"cited":6,"rate":15.38},{"n":16,"turns":27,"cited":8,"rate":29.63},{"n":17,"turns":41,"cited":16,"rate":39.02},{"n":18,"turns":35,"cited":17,"rate":48.57},{"n":19,"turns":31,"cited":7,"rate":22.58},{"n":20,"turns":24,"cited":8,"rate":33.33},{"n":21,"turns":37,"cited":5,"rate":13.51},{"n":22,"turns":28,"cited":8,"rate":28.57},{"n":23,"turns":28,"cited":15,"rate":53.57},{"n":24,"turns":26,"cited":13,"rate":50.0},{"n":25,"turns":38,"cited":20,"rate":52.63},{"n":26,"turns":33,"cited":11,"rate":33.33},{"n":27,"turns":31,"cited":7,"rate":22.58},{"n":28,"turns":37,"cited":12,"rate":32.43},{"n":29,"turns":33,"cited":7,"rate":21.21},{"n":30,"turns":23,"cited":6,"rate":26.09},{"n":31,"turns":27,"cited":9,"rate":33.33},{"n":32,"turns":39,"cited":18,"rate":46.15},{"n":33,"turns":38,"cited":10,"rate":26.32},{"n":34,"turns":28,"cited":14,"rate":50.0},{"n":35,"turns":34,"cited":14,"rate":41.18},{"n":36,"turns":28,"cited":15,"rate":53.57},{"n":37,"turns":30,"cited":7,"rate":23.33},{"n":38,"turns":34,"cited":8,"rate":23.53},{"n":39,"turns":36,"cited":1,"rate":2.78},{"n":40,"turns":34,"cited":13,"rate":38.24},{"n":41,"turns":40,"cited":19,"rate":47.5},{"n":42,"turns":38,"cited":15,"rate":39.47},{"n":43,"turns":36,"cited":14,"rate":38.89},{"n":44,"turns":34,"cited":9,"rate":26.47},{"n":45,"turns":24,"cited":4,"rate":16.67},{"n":46,"turns":29,"cited":5,"rate":17.24},{"n":47,"turns":40,"cited":22,"rate":55.0},{"n":48,"turns":35,"cited":6,"rate":17.14},{"n":49,"turns":39,"cited":9,"rate":23.08},{"n":50,"turns":30,"cited":8,"rate":26.67},{"n":51,"turns":33,"cited":17,"rate":51.52},{"n":52,"turns":39,"cited":14,"rate":35.9},{"n":53,"turns":24,"cited":13,"rate":54.17},{"n":54,"turns":31,"cited":13,"rate":41.94},{"n":55,"turns":39,"cited":21,"rate":53.85},{"n":56,"turns":41,"cited":3,"rate":7.32},{"n":57,"turns":29,"cited":13,"rate":44.83},{"n":58,"turns":34,"cited":19,"rate":55.88},{"n":59,"turns":29,"cited":10,"rate":34.48},{"n":60,"turns":30,"cited":10,"rate":33.33},{"n":61,"turns":39,"cited":8,"rate":20.51},{"n":62,"turns":38,"cited":12,"rate":31.58},{"n":63,"turns":30,"cited":3,"rate":10.0},{"n":64,"turns":42,"cited":6,"rate":14.29},{"n":65,"turns":38,"cited":11,"rate":28.95},{"n":66,"turns":30,"cited":11,"rate":36.67},{"n":67,"turns":41,"cited":12,"rate":29.27},{"n":68,"turns":25,"cited":7,"rate":28.0},{"n":69,"turns":31,"cited":7,"rate":22.58},{"n":70,"turns":37,"cited":11,"rate":29.73},{"n":71,"turns":31,"cited":5,"rate":16.13},{"n":72,"turns":38,"cited":9,"rate":23.68},{"n":73,"turns":35,"cited":11,"rate":31.43},{"n":74,"turns":36,"cited":12,"rate":33.33},{"n":75,"turns":25,"cited":10,"rate":40.0},{"n":76,"turns":20,"cited":11,"rate":55.0},{"n":77,"turns":26,"cited":7,"rate":26.92},{"n":78,"turns":30,"cited":5,"rate":16.67},{"n":79,"turns":34,"cited":7,"rate":20.59},{"n":80,"turns":42,"cited":7,"rate":16.67},{"n":81,"turns":37,"cited":0,"rate":0.0},{"n":82,"turns":42,"cited":12,"rate":28.57},{"n":83,"turns":39,"cited":12,"rate":30.77},{"n":84,"turns":29,"cited":14,"rate":48.28},{"n":85,"turns":43,"cited":9,"rate":20.93},{"n":86,"turns":40,"cited":16,"rate":40.0},{"n":87,"turns":32,"cited":9,"rate":28.12},{"n":88,"turns":32,"cited":14,"rate":43.75},{"n":89,"turns":43,"cited":15,"rate":34.88},{"n":90,"turns":32,"cited":8,"rate":25.0},{"n":91,"turns":36,"cited":17,"rate":47.22},{"n":92,"turns":29,"cited":4,"rate":13.79},{"n":93,"turns":40,"cited":16,"rate":40.0},{"n":94,"turns":24,"cited":10,"rate":41.67},{"n":95,"turns":28,"cited":10,"rate":35.71},{"n":96,"turns":37,"cited":20,"rate":54.05},{"n":97,"turns":35,"cited":9,"rate":25.71},{"n":98,"turns":39,"cited":5,"rate":12.82},{"n":99,"turns":35,"cited":14,"rate":40.0},{"n":100,"turns":32,"cited":10,"rate":31.25}],"band":[{"lo":1,"hi":4,"turns":126,"jq":13,"jq_cited":6,"jq_rate":46.2,"unc":10,"unc_rate":7.94},{"lo":5,"hi":7,"turns":93,"jq":14,"jq_cited":10,"jq_rate":71.4,"unc":1,"unc_rate":1.08},{"lo":8,"hi":10,"turns":95,"jq":14,"jq_cited":9,"jq_rate":64.3,"unc":2,"unc_rate":2.11},{"lo":11,"hi":15,"turns":172,"jq":25,"jq_cited":20,"jq_rate":80.0,"unc":7,"unc_rate":4.07},{"lo":16,"hi":25,"turns":315,"jq":58,"jq_cited":47,"jq_rate":81.0,"unc":7,"unc_rate":2.22},{"lo":26,"hi":50,"turns":830,"jq":133,"jq_cited":97,"jq_rate":72.9,"unc":11,"unc_rate":1.33},{"lo":51,"hi":75,"turns":845,"jq":138,"jq_cited":103,"jq_rate":74.6,"unc":18,"unc_rate":2.13},{"lo":76,"hi":100,"turns":856,"jq":152,"jq_cited":111,"jq_rate":73.0,"unc":12,"unc_rate":1.4}],"slots":[{"lo":1,"hi":4,"mean":1.62},{"lo":5,"hi":9,"mean":3.87},{"lo":10,"hi":19,"mean":4.69},{"lo":20,"hi":39,"mean":4.72},{"lo":40,"hi":69,"mean":4.99},{"lo":70,"hi":100,"mean":4.96}]};
+
+const css = (k) => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(name, attrs, text) {
+  const n = document.createElementNS(SVGNS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  return n;
+}
+function label(x, y, text, opts = {}) {
+  return el("text", {
+    x, y,
+    fill: opts.fill || css("--muted"),
+    "font-family": css("--mono") || "monospace",
+    "font-size": opts.size || 11,
+    "text-anchor": opts.anchor || "middle",
+    "dominant-baseline": opts.baseline || "auto",
+    "font-weight": opts.weight || 400
+  }, text);
+}
+
+/* ---------- 1. per-size scatter ---------- */
+function scatter() {
+  const svg = document.getElementById("c-scatter");
+  if (!svg) return;
+  svg.textContent = "";
+  const W = 900, H = 340, L = 52, R = 16, T = 18, B = 44;
+  const pts = DATA.persize.filter(d => d.rate != null);
+  const yMax = 60;
+  const x = n => L + (n - 1) / 99 * (W - L - R);
+  const y = v => H - B - (v / yMax) * (H - T - B);
+
+  for (let v = 0; v <= yMax; v += 15) {
+    svg.appendChild(el("line", {
+      x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule-soft"), "stroke-width": 1
+    }));
+    svg.appendChild(label(L - 10, y(v) + 4, v + "%", { anchor: "end" }));
+  }
+  for (const n of [1, 5, 20, 40, 60, 80, 100]) {
+    svg.appendChild(label(x(n), H - B + 20, String(n)));
+  }
+  svg.appendChild(label((L + W - R) / 2, H - B + 38, "journal size (entries)", { fill: css("--faint") }));
+
+  // the fitted flat line over n >= 5
+  const above = pts.filter(d => d.n >= 5).map(d => d.rate).sort((a, b) => a - b);
+  const med = above[Math.floor(above.length / 2)];
+  svg.appendChild(el("line", {
+    x1: x(5), x2: x(100), y1: y(med), y2: y(med),
+    stroke: css("--data"), "stroke-width": 2, "stroke-dasharray": "6 4"
+  }));
+  svg.appendChild(label(x(100), y(med) - 10, "median " + med.toFixed(1) + "%",
+    { anchor: "end", fill: css("--data"), weight: 500 }));
+
+  // the n<5 boundary
+  svg.appendChild(el("line", {
+    x1: x(4.5), x2: x(4.5), y1: T, y2: H - B,
+    stroke: css("--bad"), "stroke-width": 1, "stroke-dasharray": "3 3"
+  }));
+  svg.appendChild(label(x(4.5) + 6, T + 10, "flat 0.35 floor below 5",
+    { anchor: "start", fill: css("--bad"), size: 10 }));
+
+  for (const d of pts) {
+    svg.appendChild(el("circle", {
+      cx: x(d.n), cy: y(d.rate), r: 4,
+      fill: d.n < 5 ? css("--bad") : css("--data"),
+      "fill-opacity": .62,
+      stroke: css("--raise"), "stroke-width": 1
+    }));
+  }
+  svg.appendChild(el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css("--rule"), "stroke-width": 1 }));
+}
+
+/* ---------- 2. journalQuery rate by band ---------- */
+function jqChart() {
+  const svg = document.getElementById("c-jq");
+  if (!svg) return;
+  svg.textContent = "";
+  const W = 900, H = 360, L = 52, R = 20, T = 22, B = 74;
+  const bands = DATA.band;
+  const series = [
+    { key: "zero", name: "0", rate: 0.0, note: "0/232", edge: true },
+    ...bands.map(b => ({
+      key: b.lo + "-" + b.hi,
+      name: b.lo === b.hi ? String(b.lo) : b.lo + "–" + b.hi,
+      rate: b.jq_rate, note: b.jq_cited + "/" + b.jq
+    })),
+    { key: "262", name: "262", rate: 90.5, note: "294/325", edge: true }
+  ];
+  const yMax = 100;
+  const step = (W - L - R) / series.length;
+  const x = i => L + step * (i + .5);
+  const y = v => H - B - (v / yMax) * (H - T - B);
+
+  for (let v = 0; v <= 100; v += 25) {
+    svg.appendChild(el("line", {
+      x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule-soft"), "stroke-width": 1
+    }));
+    svg.appendChild(label(L - 10, y(v) + 4, v + "%", { anchor: "end" }));
+  }
+
+  // connect only the sweep's own bands
+  const inner = series.filter(s => !s.edge);
+  const d = inner.map((s, k) => {
+    const i = series.indexOf(s);
+    return (k ? "L" : "M") + x(i) + " " + y(s.rate);
+  }).join(" ");
+  svg.appendChild(el("path", { d, fill: "none", stroke: css("--data"), "stroke-width": 2.5, "stroke-linejoin": "round" }));
+
+  // the ten-entry marker
+  const tenIdx = series.findIndex(s => s.key === "11-15");
+  if (tenIdx > 0) {
+    const bx = (x(tenIdx - 1) + x(tenIdx)) / 2;
+    svg.appendChild(el("line", {
+      x1: bx, x2: bx, y1: T, y2: H - B,
+      stroke: css("--good"), "stroke-width": 1, "stroke-dasharray": "3 3"
+    }));
+    svg.appendChild(label(bx + 6, T + 10, "useful from ~10 entries",
+      { anchor: "start", fill: css("--good"), size: 10, weight: 500 }));
+  }
+
+  series.forEach((s, i) => {
+    const cx = x(i), cy = y(s.rate);
+    if (s.edge) {
+      svg.appendChild(el("circle", {
+        cx, cy, r: 5.5, fill: css("--raise"),
+        stroke: css("--faint"), "stroke-width": 2, "stroke-dasharray": "2.5 2"
+      }));
+    } else {
+      svg.appendChild(el("circle", { cx, cy, r: 5.5, fill: css("--data"), stroke: css("--raise"), "stroke-width": 1.5 }));
+    }
+    svg.appendChild(label(cx, cy - 13, s.rate.toFixed(1) + "%",
+      { fill: s.edge ? css("--faint") : css("--ink"), weight: 500, size: 11 }));
+    svg.appendChild(label(cx, H - B + 20, s.name, { fill: s.edge ? css("--faint") : css("--muted") }));
+    svg.appendChild(label(cx, H - B + 35, s.note, { size: 9.5, fill: css("--faint") }));
+    if (s.edge) svg.appendChild(label(cx, H - B + 50, "Study IV", { size: 9, fill: css("--faint") }));
+  });
+  svg.appendChild(label((L + W - R) / 2, H - B + 68, "journal size (entries)", { fill: css("--faint") }));
+  svg.appendChild(el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css("--rule"), "stroke-width": 1 }));
+}
+
+/* ---------- 3. unbacked quotation, with Wilson bars ---------- */
+function wilson(k, n, z = 1.96) {
+  if (!n) return [0, 0];
+  const p = k / n, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d;
+  const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, (c - h) * 100), (c + h) * 100];
+}
+function uncChart() {
+  const svg = document.getElementById("c-unc");
+  if (!svg) return;
+  svg.textContent = "";
+  const W = 900, H = 330, L = 52, R = 20, T = 26, B = 66;
+  const bands = DATA.band;
+  const yMax = 15;
+  const step = (W - L - R) / bands.length;
+  const x = i => L + step * (i + .5);
+  const y = v => H - B - (Math.min(v, yMax) / yMax) * (H - T - B);
+
+  for (let v = 0; v <= yMax; v += 5) {
+    svg.appendChild(el("line", {
+      x1: L, x2: W - R, y1: y(v), y2: y(v),
+      stroke: css("--rule-soft"), "stroke-width": 1
+    }));
+    svg.appendChild(label(L - 10, y(v) + 4, v + "%", { anchor: "end" }));
+  }
+
+  // reference: the pooled rate above five entries
+  svg.appendChild(el("line", {
+    x1: L, x2: W - R, y1: y(1.9), y2: y(1.9),
+    stroke: css("--data"), "stroke-width": 1.5, "stroke-dasharray": "6 4"
+  }));
+  svg.appendChild(label(W - R, y(1.9) - 8, "1.9% above 5 entries",
+    { anchor: "end", fill: css("--data"), size: 10, weight: 500 }));
+
+  bands.forEach((b, i) => {
+    const [lo, hi] = wilson(b.unc, b.turns);
+    const small = b.lo < 5;
+    const col = small ? css("--bad") : css("--data");
+    const bw = Math.min(46, step * .42);
+    // interval
+    svg.appendChild(el("line", { x1: x(i), x2: x(i), y1: y(lo), y2: y(hi), stroke: col, "stroke-width": 1.5, "stroke-opacity": .55 }));
+    svg.appendChild(el("line", { x1: x(i) - 5, x2: x(i) + 5, y1: y(hi), y2: y(hi), stroke: col, "stroke-width": 1.5, "stroke-opacity": .55 }));
+    svg.appendChild(el("line", { x1: x(i) - 5, x2: x(i) + 5, y1: y(lo), y2: y(lo), stroke: col, "stroke-width": 1.5, "stroke-opacity": .55 }));
+    // bar to the point estimate
+    svg.appendChild(el("rect", {
+      x: x(i) - bw / 2, y: y(b.unc_rate), width: bw, height: Math.max(1, (H - B) - y(b.unc_rate)),
+      fill: col, "fill-opacity": small ? .9 : .45, rx: 2
+    }));
+    svg.appendChild(label(x(i), y(hi) - 9, b.unc_rate.toFixed(1) + "%",
+      { fill: small ? css("--bad") : css("--ink"), weight: 500, size: 11 }));
+    svg.appendChild(label(x(i), H - B + 20, b.lo + "–" + b.hi, { fill: css("--muted") }));
+    svg.appendChild(label(x(i), H - B + 35, b.unc + "/" + b.turns, { size: 9.5, fill: css("--faint") }));
+  });
+  svg.appendChild(label((L + W - R) / 2, H - B + 56, "journal size (entries)", { fill: css("--faint") }));
+  svg.appendChild(el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css("--rule"), "stroke-width": 1 }));
+}
+
+/* ---------- 4. slots ---------- */
+function slotChart() {
+  const svg = document.getElementById("c-slots");
+  if (!svg) return;
+  svg.textContent = "";
+  const W = 560, H = 190, L = 34, R = 14, T = 22, B = 44;
+  const rows = DATA.slots;
+  const yMax = 5;
+  const step = (W - L - R) / rows.length;
+  const x = i => L + step * (i + .5);
+  const y = v => H - B - (v / yMax) * (H - T - B);
+
+  for (let v = 0; v <= 5; v += 1) {
+    svg.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css("--rule-soft"), "stroke-width": 1 }));
+    svg.appendChild(label(L - 8, y(v) + 4, String(v), { anchor: "end", size: 10 }));
+  }
+  svg.appendChild(el("line", {
+    x1: L, x2: W - R, y1: y(5), y2: y(5),
+    stroke: css("--faint"), "stroke-width": 1, "stroke-dasharray": "4 3"
+  }));
+  rows.forEach((r, i) => {
+    const bw = Math.min(40, step * .5);
+    const small = r.lo < 5;
+    svg.appendChild(el("rect", {
+      x: x(i) - bw / 2, y: y(r.mean), width: bw, height: Math.max(1, (H - B) - y(r.mean)),
+      fill: small ? css("--bad") : css("--data"), "fill-opacity": small ? .9 : .45, rx: 2
+    }));
+    svg.appendChild(label(x(i), y(r.mean) - 7, r.mean.toFixed(2),
+      { size: 10, weight: 500, fill: small ? css("--bad") : css("--ink") }));
+    svg.appendChild(label(x(i), H - B + 18, r.lo + "–" + r.hi, { size: 10 }));
+  });
+  svg.appendChild(el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css("--rule"), "stroke-width": 1 }));
+}
+
+/* ---------- table ---------- */
+function buildTable() {
+  const tb = document.getElementById("t-body");
+  if (!tb) return;
+  const rows = [
+    { name: "0", edge: "Study IV", jq: "0/232", jqr: "0.0%", u: "0/1,669", ur: "0.0%" },
+    ...DATA.band.map(b => ({
+      name: b.lo + "–" + b.hi,
+      jq: b.jq_cited + "/" + b.jq,
+      jqr: b.jq_rate.toFixed(1) + "%",
+      u: b.unc + "/" + b.turns,
+      ur: b.unc_rate.toFixed(1) + "%",
+      flag: b.lo < 5
+    })),
+    { name: "262", edge: "Study IV", jq: "294/325", jqr: "90.5%", u: "44/1,721", ur: "2.6%" }
+  ];
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    if (r.edge) tr.className = "edge";
+    tr.innerHTML =
+      "<td>" + r.name + (r.edge ? " <span style='opacity:.7'>(" + r.edge + ")</span>" : "") + "</td>" +
+      "<td>" + r.jq + "</td><td>" + r.jqr + "</td>" +
+      "<td>" + r.u + "</td>" +
+      "<td>" + (r.flag ? "<span class='hi'>" + r.ur + "</span>" : r.ur) + "</td>";
+    tb.appendChild(tr);
+  }
+}
+
+/* ---------- scorecard ---------- */
+const PREDICTIONS = [
+  { id: "P1", held: false, claim: "A small-journal citation cliff of at least 10 percentage points.",
+    ev: "n≤4 29/126 = 23.0% vs n≥5 999/3,206 = 31.2% — gap +8.1pp. On eligible turns only: +28.1pp." },
+  { id: "P2", held: true, claim: "Above five entries, citation rate is size-invariant (|ρ| < 0.4).",
+    ev: "ρ = +0.028 over 96 sizes. Eligible turns only: ρ = +0.003." },
+  { id: "P3", held: false, claim: "Phantom markers at least double below five entries, where the pack cannot fill.",
+    ev: "0.198/turn vs 0.160/turn above 20 — 1.24×, not 2×. Pack really is starved: 1.62 of 5 slots." },
+  { id: "P4", held: false, claim: "Gating stays at or below 6% in every size bin.",
+    ev: "Worst bin 1–4: 22/126 = 17.5%. Mis-anchored to the empty arm; recorded as such before the run." },
+  { id: "P5", held: true, claim: "Fabricated quotes stay at or below 3% of turns at every size.",
+    ev: "0/3,332 — zero, at every one of 100 sizes. Study II's seeded arm: 911/1,626 = 56.0%." },
+  { id: "P6", held: true, claim: "Latency grows less than 2× from the smallest journals to the largest.",
+    ev: "p50 3.65s (n 1–10, 314 turns) → 3.98s (n 90–100, 367 turns) — 1.09×." },
+  { id: "P7", held: true, claim: "A one-entry journal cites on fewer than 20% of turns.",
+    ev: "6/33 = 18.2%. Thin: only 1 journalQuery turn drawn at n=1. See threats." }
+];
+function buildCards() {
+  const host = document.getElementById("cards");
+  if (!host) return;
+  for (const p of PREDICTIONS) {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.innerHTML =
+      "<div class='card-top'><span class='pid'>" + p.id + "</span>" +
+      "<span class='tag " + (p.held ? "held" : "fals") + "'>" + (p.held ? "Held" : "Falsified") + "</span></div>" +
+      "<div class='card-claim'>" + p.claim + "</div>" +
+      "<div class='card-ev'>" + p.ev + "</div>";
+    host.appendChild(d);
+  }
+}
+
+function drawAll() {
+  scatter(); jqChart(); uncChart(); slotChart();
+}
+buildCards();
+buildTable();
+drawAll();
+// redraw so chart text follows a theme change
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener && mq.addEventListener("change", drawAll);
+}
+new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>
