@@ -53,9 +53,16 @@ final class ConversationSimulation: XCTestCase {
     }
 
     /// Comma-separated subset, e.g. `CONVO_SIM_ARMS=cold`. Defaults to both.
+    /// `sweep` is not a single arm: it expands to one arm per corpus size,
+    /// `size-001` through `size-<CONVO_SIM_SWEEP_MAX>` (study V).
     private static var armNames: [String] {
         let raw = env["CONVO_SIM_ARMS"] ?? "empty,cold"
         return raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Largest journal in the study V sweep. 100 arms x 2 runs = 200 sessions.
+    private static var sweepMax: Int {
+        Int(env["CONVO_SIM_SWEEP_MAX"] ?? "") ?? 100
     }
 
     /// Total messages per conversation, sampled per run inside this range.
@@ -114,8 +121,19 @@ final class ConversationSimulation: XCTestCase {
         var messagesWritten = 0
         for arm in arms {
             for runIndex in 0..<Self.runsPerArm {
-                let cell = ConvoSimCast.matrix[runIndex % ConvoSimCast.matrix.count]
                 let runID = "\(Self.label)/\(arm.name)/\(String(format: "%03d", runIndex))"
+                // Studies II-IV walk the 10x10 cast matrix in order, because
+                // runsPerArm is 100 and the walk covers it exactly once. The
+                // study V sweep runs 2 conversations per arm, so an in-order
+                // walk would ask every journal size the same two questions and
+                // any trend across sizes could just as well be a property of
+                // those two. Drawing the cell from the run id instead
+                // decorrelates question type from corpus size while staying
+                // reproducible: the id is fixed, so the draw replays exactly.
+                let cellIndex = Self.armNames.contains("sweep")
+                    ? Int(Self.seed(for: runID) % UInt64(ConvoSimCast.matrix.count))
+                    : runIndex % ConvoSimCast.matrix.count
+                let cell = ConvoSimCast.matrix[cellIndex]
                 messagesWritten += await runConversation(
                     runID: runID, arm: arm, persona: cell.persona, intent: cell.intent,
                     service: service
@@ -436,8 +454,9 @@ final class ConversationSimulation: XCTestCase {
         // Loaded once, outside the map: `QuoteIndex` hashes every 30-char gram,
         // which on the 262-entry persona journal is not free enough to repeat.
         let cold = armNames.contains("cold") ? try ChatEvalCorpus.coldStartCorpus() : nil
-        let persona = armNames.contains("persona") ? try ChatEvalCorpus.personaCorpus() : nil
-        return armNames.compactMap { name in
+        let wantsPersonaCorpus = armNames.contains("persona") || armNames.contains("sweep")
+        let persona = wantsPersonaCorpus ? try ChatEvalCorpus.personaCorpus() : nil
+        let arms: [Arm] = armNames.compactMap { name in
             switch name {
             case "empty":
                 return Arm(name: "empty", entries: [], fixtureIDs: [:],
@@ -456,6 +475,34 @@ final class ConversationSimulation: XCTestCase {
             default:
                 return nil
             }
+        }
+        return arms + sweepArms(persona: persona)
+    }
+
+    /// Study V. One arm per journal size n, holding everything else fixed.
+    ///
+    /// The n entries are the **most recent** n of the persona corpus, not a
+    /// random sample and not the oldest n. A person with seven entries wrote
+    /// them over the last few weeks and the newest is today's; taking the
+    /// oldest seven would instead model someone who journalled for a fortnight
+    /// nine months ago and then stopped, which is a different question. The
+    /// cost of this choice is that a small arm also has a short date span, so
+    /// size and recency move together — `entry_date_range` is written per arm
+    /// so the confound is measurable rather than hidden.
+    private static func sweepArms(
+        persona: (entries: [Entry], idByUUID: [UUID: String])?
+    ) -> [Arm] {
+        guard armNames.contains("sweep"), let persona else { return [] }
+        let available = persona.entries.count
+        return (1...max(1, min(sweepMax, available))).map { n in
+            let slice = Array(persona.entries.suffix(n))
+            let ids = Dictionary(uniqueKeysWithValues: slice.compactMap { entry in
+                persona.idByUUID[entry.id].map { (entry.id, $0) }
+            })
+            return Arm(name: String(format: "size-%03d", n),
+                       entries: slice,
+                       fixtureIDs: ids,
+                       quoteIndex: ChatEvalScoring.QuoteIndex(slice))
         }
     }
 
@@ -521,6 +568,7 @@ final class ConversationSimulation: XCTestCase {
         var row: [String: Any] = [
             "run_id": runID,
             "arm": arm.name,
+            "arm_entry_count": arm.entries.count,
             "persona_id": persona.id,
             "intent_id": intent.id,
             "planned_messages": plannedMessages,
@@ -605,8 +653,9 @@ final class ConversationSimulation: XCTestCase {
             "max_messages": maxMessages,
             "history_message_limit": ChatService.historyMessageLimit,
             "scorers": [
-                "leaks", "ruleBreaks", "fabricatedQuotes", "uncitedQuote", "boldNotTheirWords",
-                "runaway", "insightDigitDisagrees", "insightContradictsSuppressed"
+                "leaks", "ruleBreaks", "fabricatedQuotes", "uncitedQuote", "unbackedDate",
+                "boldNotTheirWords", "runaway", "insightDigitDisagrees",
+                "insightContradictsSuppressed"
             ],
             "arms": arms.map { ["name": $0.name, "entry_count": $0.entries.count,
                                 "entry_date_range": $0.entryDateRange,
@@ -615,6 +664,14 @@ final class ConversationSimulation: XCTestCase {
             "intents": ConvoSimCast.intents.map { ["id": $0.id, "opener": $0.opener] },
             "os_version": ProcessInfo.processInfo.operatingSystemVersionString
         ]
+        if armNames.contains("sweep") {
+            manifest["sweep"] = [
+                "max": sweepMax,
+                "entry_selection": "most-recent-n of the persona corpus (suffix)",
+                "cell_draw": "FNV-1a(run_id) % 100 — decorrelates question type from size",
+                "sessions": min(sweepMax, 262) * runsPerArm
+            ]
+        }
         // A test process on a simulator has no git, so build identity is passed
         // in. Without it an archived run cannot be tied to the code that made it.
         for (key, variable) in [("git_sha", "CONVO_SIM_GIT_SHA"),
