@@ -145,3 +145,4 @@ ExportOptions.local.plist
 
 # Release build product used only by the app-size gate (scripts/ci/check_app_size.sh)
 .build-size/
+__pycache__/
