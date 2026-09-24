@@ -474,6 +474,13 @@ extension RenderPass {
     /// to a no-op rather than throwing — the `spans()` lesson from 046 R1,
     /// where a pattern that could not compile read as a clean run for the
     /// lifetime of the check.
+    ///
+    /// Checked for false positives across both warehoused runs — 6,715
+    /// generated turns — before shipping: on bodies that no `leak.*` scorer
+    /// flagged, `[]` and the section labels match **zero** times and the tag
+    /// pattern matches once. A strip that eats a reader's sentence is worse
+    /// than the leak it prevents, so the set is deliberately narrow: literals
+    /// the prompt actually contains, anchored where the prompt puts them.
     private static let scaffolding: [NSRegularExpression?] = [
         // `[Evidence]`, `[Evidence: none — …]`, `[Evidence: background only — …]`.
         // Non-greedy to the first `]`, so it cannot swallow a following sentence.
@@ -483,7 +490,20 @@ extension RenderPass {
         // The Swift-computed facts block header (045).
         RenderText.regex(#"\[\s*Computed\s*\]"#, options: [.caseInsensitive]),
         // Turn and shape tags from the per-turn prompt line.
-        RenderText.regex(#"\[\s*(Turn|Shape|Name|Safety)\s*:[^\]]*\]"#, options: [.caseInsensitive]),
+        // Turn and shape tags from the per-turn prompt line.
+        //
+        // The closing bracket is optional and the body match stops at a
+        // newline: Study IV produced "[shape: Meet them — how the envelope…"
+        // with no closing bracket at all, which a `[^\]]*\]` pattern cannot
+        // see. An unterminated tag is still a tag.
+        RenderText.regex(#"\[\s*(Turn|Shape|Name|Safety|Evidence|Today|Computed)\s*:[^\]\n]*\]?"#,
+                         options: [.caseInsensitive]),
+        // A bare empty bracket the citation bank left behind.
+        RenderText.regex(#"\[\s*\]"#),
+        // Recipe section names from the prompt's "how a reply is built" list,
+        // echoed as headings — at a line start or straight after a code fence,
+        // which is how Study IV's survivors appeared.
+        RenderText.regex(#"(?m)(^|```|\n)\s*(Meet them|Meet|Notebook|Sit|Open)\s*[—–-]\s*"#),
         // A bare legend line the model reproduced verbatim.
         RenderText.regex(#"(?m)^\s*Markers only:.*$"#),
         RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#),

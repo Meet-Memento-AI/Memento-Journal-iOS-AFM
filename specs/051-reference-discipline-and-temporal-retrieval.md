@@ -127,9 +127,21 @@ instruction is not a mechanism. What changed is where the mechanism belongs.
 - `AskPromptContractTests` and `EvidencePackBuilderTests` reference the constants by
   name and stay green without edits.
 
-**Deliberately not done:** removing the grammar from the cached instruction surface.
-Recorded here so the next session does not re-propose it without the prefill cost and
-`PromptStanceSyncTests` in view.
+**Reverted 2026-09-24 by Study IV.** The amendment above was wrong, and the run says
+so: markers emitted against an empty pack went from 18.4% of `none`-state turns to
+**25.7%** once the prohibition was removed. It is a weak mechanism, not a null one,
+suppressing roughly a third of what appears without it. `noneNote` and `ambientNote`
+are restored.
+
+The over-reading was of spec 050. 050 replaced an *overloaded* token with an
+unambiguous one; that is not the same act as deleting a rule, and "a negative
+instruction is not a mechanism" does not follow from it.
+
+**The original R1 is therefore back on the table, and now has the better case.**
+Omitting the grammar where it cannot apply still costs what it cost — eight teaching
+sites, speculative prefill, `PromptStanceSyncTests` — but 25.7% of turns reaching for a
+grammar they cannot use is a larger number than the one that trade was judged against,
+and the renderer-absorbs-it argument never addressed the tokens spent. Next session.
 
 ### R2. The renderer strips its own scaffolding (`REQ-REF-009`)
 
@@ -277,8 +289,11 @@ Temporal recall and the remaining misses are recorded in
       significance measured inert and dropped. (R6)
 - [x] 6. `retrieval`: confidence on `RetrievalResult`; flagged narrowing in
       `sliceRetrieval`; offline calibration. (R4)
-- [ ] 7. Study IV: pre-register, run both arms at 100, archive, write up.
-- [ ] 8. Register in `specs/README.md` and `ROADMAP.md`.
+- [x] 7. Study IV: pre-registered at `b3dbb7d`, 7,014 messages, 3 of 8 predictions
+      met. Write-up in `docs/CONVERSATION_SIMULATION_STUDY_IV.md`.
+- [x] 8. Registered in `specs/README.md` and `ROADMAP.md`.
+- [ ] 9. Follow-ups Study IV opened: do R1 properly (withhold the grammar), and
+      measure `k` narrowing against the 21.5% pointing rate.
 
 ## Verification
 

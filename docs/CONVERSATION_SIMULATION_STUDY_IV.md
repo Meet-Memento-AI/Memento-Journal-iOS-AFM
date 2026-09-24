@@ -109,10 +109,40 @@ scorer folds text before matching and is more sensitive. **All date comparisons 
 replay-to-replay**, so the divergence does not affect them — but the earlier figures I
 published from replay are under-counts on the empty arm.
 
-## Next
+## Acted on, same session
 
-1. **Decide Q8.** Either revert `noneNote` or do R1 properly. Doing nothing leaves a
-   defect I made worse.
-2. **Add recipe section names to the scaffolding strip.** Two lines, closes Q1.
-3. **Measure `k` narrowing against pointing.** Q6 says slot relevance matters; R4 is
-   built and calibrated and unarmed.
+**Q8 — reverted.** `noneNote` and `ambientNote` are restored to their prohibiting form.
+The reasoning that removed them is recorded at the constants and in the spec's R1, along
+with why the original R1 — withholding the grammar itself — now has the better case.
+
+**Q1 — closed, after getting it wrong once.** The first fix matched section labels at
+line start and caught **zero** of the three survivors, because none of them is at a line
+start. Their real shapes:
+
+| survivor | shape | why the first pattern missed it |
+|---|---|---|
+| `[shape: Meet them — how the envelope…` | **unterminated** tag | `[^\]]*\]` requires a closing bracket |
+| `[]` | bare empty bracket | shorter than the citation bank's floor |
+| `` ``` Sit — `` | label after a code fence | not at a line start |
+
+Each now has a pattern verified against the actual body, and the three fixtures were
+split out of the table-driven test so a failure names itself — the table cost a round
+trip by failing anonymously.
+
+Checked for false positives across both warehoused runs, 6,715 generated turns: on
+bodies no `leak.*` scorer flagged, `[]` and the section labels match **zero** times and
+the tag pattern matches **once**. A strip that eats a reader's sentence is worse than
+the leak it prevents.
+
+One fixture assertion was wrong rather than the code: the fence case is handled upstream
+by `OutputSafetyScanner`, so `strippedScaffoldCount` never increments for it. That test
+now asserts the label does not reach the body, which is the claim that matters.
+
+## Still open
+
+1. **Do R1 properly** — withhold the marker grammar where it cannot apply. Q8 says the
+   prohibition is load-bearing, so the alternative is to stop teaching the grammar.
+2. **Measure `k` narrowing against pointing.** Q6 says slot relevance matters; R4 is
+   built, calibrated and unarmed, and 21.5% is its bar.
+3. **The December miss.** Still returns five December entries and ranks the answer
+   sixth. The window works; something else ranks.

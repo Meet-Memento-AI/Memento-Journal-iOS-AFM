@@ -94,18 +94,25 @@ extension EvidencePack {
     static let legendHeader = "[Evidence]\nMarkers only: the app swaps each for that entry's exact words or date. "
         + "Never type a journal quote or date yourself, never change a number, never use italics."
     static let legendFooter = "If none fits, use no markers."
-    // 051 R1. These two said "no markers this turn. Never write a journal quote,
-    // a journal date, or italics" — a prohibition on a grammar the instructions
-    // had already taught. Study III measured the model emitting markers against
-    // an empty pack on 184 turns, while mis-resolving 2 markers in 3,157 slots
-    // when a pack existed: the model can address a slot, it just does not honour
-    // a negative. So these now state the absence and stop there. The prohibition
-    // is not weakened, it is relocated — `ReplyRenderer` drops an unbacked
-    // marker whatever the prompt said, which is the guarantee that actually
-    // holds.
-    static let ambientNote = "[Evidence: background only. Speak about these entries in "
-        + "your own words.]"
-    static let noneNote = "[Evidence: none.]"
+    // 051 R1, reverted 2026-09-24 by Study IV.
+    //
+    // These briefly read "[Evidence: none.]" and "[Evidence: background only.
+    // Speak about these entries in your own words.]", on the argument that
+    // prohibiting a grammar the instructions had already taught was a negative
+    // instruction, and that a negative instruction is not a mechanism.
+    //
+    // Study IV measured that directly. Markers emitted against an empty pack
+    // went from 18.4% of none-state turns to 25.7% — removing the prohibition
+    // made it forty percent worse. It is a weak mechanism, not a null one,
+    // suppressing roughly a third of what appears without it, so it stays until
+    // the grammar itself can be withheld (see the spec's R1).
+    //
+    // The over-reading was of spec 050: 050 replaced an *overloaded* token with
+    // an unambiguous one, which is not the same act as deleting a rule.
+    static let ambientNote = "[Evidence: background only — no quote or date markers this turn. "
+        + "Speak about these entries in your own words; never quote them, never use italics.]"
+    static let noneNote = "[Evidence: none — no quote or date markers this turn. "
+        + "Never write a journal quote, a journal date, or italics.]"
 
     /// What the journal recipe is told about markers this turn. The matched
     /// legend lists each slot's exact words beside its markers, so the model

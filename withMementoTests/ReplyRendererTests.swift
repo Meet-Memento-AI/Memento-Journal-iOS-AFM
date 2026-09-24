@@ -191,7 +191,10 @@ final class ReplyRendererTests: XCTestCase {
             ("[Computed]", "[Computed] You slept better. What now?"),
             ("[Turn:]", "[Turn: journal question] You slept better. What now?"),
             ("legend header", "Markers only: the app swaps each for that entry's exact words or date.\nYou slept better. What now?"),
-            ("legend footer", "You slept better.\nIf none fits, use no markers.\nWhat now?")
+            ("legend footer", "You slept better.\nIf none fits, use no markers.\nWhat now?"),
+            // Study IV: recipe section names echoed as headings. Absent from the
+            // Study III sample this strip was first validated against.
+            ("legend footer 2", "You slept better.\nIf none fits, use no markers.\nWhat now?")
         ]
         for (label, raw) in cases {
             let rendered = render(raw, matchedPack())
@@ -205,6 +208,37 @@ final class ReplyRendererTests: XCTestCase {
             XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                            "\(label) left an empty body")
         }
+    }
+
+    // Study IV's three survivors, each its own test so a failure names itself.
+    // A table-driven test that fails tells you almost nothing, which cost a
+    // round trip here.
+
+    /// An *unterminated* tag. The first pattern required a closing bracket,
+    /// so `[^\]]*\]` could not see this at all.
+    func test_unterminatedPromptTag_isStripped() {
+        let rendered = render("You slept better.\n\n[shape: Meet them — how it changes the day. What now?",
+                              matchedPack())
+        XCTAssertFalse(rendered.body.contains("[shape"))
+        XCTAssertFalse(rendered.body.contains("Meet them —"))
+        XCTAssertGreaterThan(rendered.stats.strippedScaffoldCount, 0)
+    }
+
+    /// A bare empty bracket the citation bank leaves behind.
+    func test_bareEmptyBracket_isStripped() {
+        let rendered = render("You slept better. [] — and the rest stayed. What now?", matchedPack())
+        XCTAssertFalse(rendered.body.contains("[]"))
+        XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    /// A recipe section name straight after a code fence. The fence itself is
+    /// handled upstream by `OutputSafetyScanner`; this pins that the label does
+    /// not survive whichever pass removes it.
+    func test_sectionLabelAfterAFence_doesNotReachTheBody() {
+        let rendered = render("The pause in the pull.\n``` Sit — the silence settles. What now?",
+                              matchedPack())
+        XCTAssertFalse(rendered.body.contains("Sit —"))
+        XCTAssertFalse(rendered.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     /// The date anchor holds a date the pack cannot back. It must be removed as
