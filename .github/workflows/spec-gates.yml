@@ -3,7 +3,10 @@ name: Spec gates (2.0)
 # Memento 2.0 constitutional gate ladder. Each job enforces one spec-derived,
 # SDK-free governance rule so it holds continuously as the rewrite lands, rather
 # than being checked once in review. All jobs are pure shell/python (no Xcode),
-# so they run on the Linux runner.
+# so they run on GitHub-hosted Ubuntu. They ran on a self-hosted Linux runner
+# until 2026-09-23; that runner was deregistered and every job queued forever,
+# so no gate ran at all. Hosted runners are free for this public repository
+# and, unlike self-hosted ones, safe to expose to fork pull requests.
 #
 # These are wired here; making any of them a *required* status check is a branch-
 # protection setting (see docs/BRANCH_PROTECTION_SETUP.md). Report-only jobs
@@ -19,10 +22,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   single-intelligence-importer:
     name: Single FoundationModels importer (spec 017 R1 / P3)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Enforce exactly-one FoundationModels importer
@@ -30,7 +38,8 @@ jobs:
 
   context-budget-derivation:
     name: No hardcoded context budgets (spec 017 R9 / CONSTITUTION §4 rule 5)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Enforce runtime-derived context budgets
@@ -44,7 +53,8 @@ jobs:
 
   forbidden-phrases:
     name: Positioning-claim lint (spec 014 R3 / REQ-POS-001)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Lint forbidden absolute-privacy phrasing
@@ -52,7 +62,8 @@ jobs:
 
   speakability:
     name: Speakability linter selftest (spec 018 R9 / REQ-VOX-006)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Run speakability pattern selftest
@@ -62,7 +73,8 @@ jobs:
 
   dependency-allowlist:
     name: Dependency allowlist (spec 021 R6 / REQ-MON-005)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check SPM deps against allowlist
@@ -78,7 +90,8 @@ jobs:
 
   privacy-manifest:
     name: Privacy manifest matches the code (docs/app-store/03)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check PrivacyInfo.xcprivacy in both directions
@@ -90,7 +103,8 @@ jobs:
 
   store-metadata:
     name: Info.plist + build-number hygiene (docs/app-store/02, /07)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check export compliance, purpose strings, build-number floor
@@ -101,7 +115,8 @@ jobs:
 
   archive-hygiene:
     name: Nothing internal ships in the bundle (docs/app-store/07)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check synchronized-group membership exceptions
@@ -115,7 +130,8 @@ jobs:
 
   live-legal-urls:
     name: Published legal site is live and accurate (docs/app-store/00 A6/B1/B2)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check the four legal URLs and the privacy policy's content
@@ -130,7 +146,8 @@ jobs:
 
   tts-licence-path:
     name: TTS path is GPL-free and G2P-free (spec 018 R12 / REQ-TTS-009)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Scan the TTS path for GPL text and phonemizer components
@@ -143,7 +160,8 @@ jobs:
 
   asc-metadata:
     name: App Store copy limits + claims (docs/app-store/04, /08)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Check field limits, REQ-POS-001, pricing, clinical framing
@@ -153,7 +171,8 @@ jobs:
 
   corpus-validation:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Validate corpus structure + honesty scrub + gold set
@@ -175,7 +194,8 @@ jobs:
 
   single-coreml-importer:
     name: CoreML stays in the TTS package (spec 031)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Enforce package-only CoreML importer
@@ -183,7 +203,8 @@ jobs:
 
   tts-zero-egress:
     name: Neural TTS has no huggingface fetch (spec 030 / 036)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Grep TTS path for weight hosts
@@ -191,7 +212,8 @@ jobs:
 
   no-sirikit:
     name: No SiriKit (spec 020 R1)
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - name: Forbid Intents.framework

@@ -506,7 +506,7 @@ extension RenderPass {
         RenderText.regex(#"(?m)(^|```|\n)\s*(Meet them|Meet|Notebook|Sit|Open)\s*[—–-]\s*"#),
         // A bare legend line the model reproduced verbatim.
         RenderText.regex(#"(?m)^\s*Markers only:.*$"#),
-        RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#),
+        RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#)
     ]
 
     /// Removes prompt scaffolding from the body and counts it.

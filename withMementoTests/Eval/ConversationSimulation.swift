@@ -167,12 +167,16 @@ final class ConversationSimulation: XCTestCase {
                 var produced: String?
                 for attempt in 0..<2 where produced == nil {
                     let attemptMove = attempt == 0 ? drawn : ConvoSimCast.safeMove
+                    // Rendered before the concurrent closure: `history` is a var
+                    // that later turns append to, and capturing it by reference
+                    // is an error in the Swift 6 language mode.
+                    let attemptPrompt = Self.userPrompt(history: history, move: attemptMove)
                     do {
                         produced = try await Self.withTimeout(Self.turnTimeout) {
                             try await service.evalRawGenerate(
                                 instructions: Self.userInstructions(persona: persona,
                                                                     lifeContext: lifeContext),
-                                prompt: Self.userPrompt(history: history, move: attemptMove),
+                                prompt: attemptPrompt,
                                 temperature: 1.0,
                                 maximumResponseTokens: 90
                             )

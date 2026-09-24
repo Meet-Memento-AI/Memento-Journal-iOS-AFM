@@ -68,7 +68,7 @@ struct RetrievalResult: Sendable, Equatable {
     /// `var` with a default so the memberwise initializer keeps the twenty-odd
     /// existing construction sites compiling: a margin is a property of a real
     /// retrieval, and a hand-built fixture has no opinion about it.
-    var topMargin: Double? = nil
+    var topMargin: Double?
 
     var isEmpty: Bool { entries.isEmpty }
 
@@ -721,7 +721,8 @@ enum EntryRetriever {
         }()
         return RetrievalResult(entries: retrieved,
                                contextBlock: buildContextBlock(retrieved, ambient: ambient),
-                               isAmbient: ambient, topMargin: margin)
+                               isAmbient: ambient,
+                               topMargin: margin)
     }
 
     // MARK: - Passage cosine + excerpt (spec 044 R1)
@@ -837,8 +838,11 @@ enum EntryRetriever {
     /// The cosine a match must clear to count as a real topical signal for THIS
     /// corpus: max(absolute floor, μ + k·σ) once the corpus is big enough for
     /// the statistics to mean anything. Pure — tests feed synthetic arrays.
-    static func semanticThreshold(cosines: [Double], highBar: Bool,
-                                  tuning: RetrieverTuning = .default) -> Double {
+    static func semanticThreshold(
+        cosines: [Double],
+        highBar: Bool,
+        tuning: RetrieverTuning = .default
+    ) -> Double {
         let floorAbs = highBar ? tuning.semanticFloorHigh : tuning.semanticFloorAbs
         guard cosines.count >= tuning.minCorpusForSigma else {
             // Too few points for μ/σ — a slightly raised absolute floor.
@@ -1054,8 +1058,9 @@ enum EntryRetriever {
                     // 051 R6. Life events that are origins without saying
                     // "first": all measured misses on the 2026-09-23 baseline.
                     "break up", "broke up", "meet", "met ", "move to", "moved to",
-                    "quit", "join", "joined", "sign up", "signed up"] {
-            if lower.contains(cue) { return true }
+                    "quit", "join", "joined", "sign up", "signed up"]
+        where lower.contains(cue) {
+            return true
         }
         // Bare "first" before a noun — "my first pottery class", "our first
         // argument" — which the phrase list above cannot cover without
