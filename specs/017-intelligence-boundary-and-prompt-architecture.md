@@ -642,6 +642,36 @@ still-open with findings) before this spec's status moves to done; no other
       physical minimum-spec iOS 27 device; p50 < 2s target unvalidated until
       then (R10, Task 10).
 
+## Blocking precondition — the published privacy policy (App Store row B4)
+
+**No commit may route generation to Private Cloud Compute until the published
+privacy policy states the Z0/Z1 boundary.** This is recorded here rather than
+only in the App Store checklist because the checklist is read before a
+submission and this spec is read before the code change — and the code change is
+what makes the policy false.
+
+The mechanics:
+
+- Today `docs/privacy.html` says content is "processed on the device and are not
+  sent to us or to any third-party AI service". That is accurate while this spec
+  is unimplemented, and becomes a Guideline **5.1.2(i)** and **2.3** defect the
+  moment a PCC path ships.
+- The required replacement text is specified in
+  [`docs/app-store/01-review-guidelines-digest.md`](../docs/app-store/01-review-guidelines-digest.md)
+  §5.1.1(i), in `specs/014`'s vocabulary, and must name Apple PCC explicitly
+  rather than leaving it to inference.
+- The published page and the in-repo source must stay byte-identical;
+  `scripts/ci/check_live_legal_urls.sh` asserts that, so the policy update has
+  to be pushed and served, not merely committed. The November 2025 rejection was
+  a fix that existed in the repo and not on the web.
+- The same wording rule applies to in-app copy (`12` A4.1: `DataUsageInfoView`
+  and About describe Z0 only until Z1 ships) and to store copy (`REQ-POS-001`;
+  `04` carries a 1.x permitted line and a separate Z1 line gated on this spec).
+
+Ordering, explicitly: **policy first, then routing.** Shipping the routing and
+updating the policy afterwards inverts the dependency and leaves a window in
+which the served policy is false.
+
 ## Regression Guards
 `CONSTITUTION.md` §4 rule 5 ("exactly one Swift module imports `FoundationModels`")
 is enforced by this spec and MUST be checkable by build configuration, not just

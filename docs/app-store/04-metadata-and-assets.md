@@ -16,9 +16,10 @@ character counts, and covers the assets.
 
 ## The three rules every draft is checked against
 
-**1. `REQ-POS-001` — the positioning claim.** The app routes to Private Cloud
-Compute, so absolute-privacy claims are false. Forbidden, verbatim from
-`specs/014` R3 and `technology/10` §6:
+**1. `REQ-POS-001` — the positioning claim.** Absolute-privacy claims are false:
+the iCloud private-DB replica leaves the device, opt-in quality feedback leaves
+the device (spec 042), and `specs/017`'s Private Cloud Compute path will when it
+ships. Forbidden, verbatim from `specs/014` R3 and `technology/10` §6:
 
 > ❌ "Nothing leaves your phone" · ❌ "No network calls" · ❌ "Turn on airplane
 > mode and everything still works" · ❌ "There is no server" · ❌ "100% on-device"
@@ -26,11 +27,22 @@ Compute, so absolute-privacy claims are false. Forbidden, verbatim from
 > iCloud private-DB replica (spec 040) is the user's Apple ID, not a Memento
 > account. Do not claim the journal never leaves this device.
 
-Permitted, and used verbatim in the description:
+Permitted **for 1.x**, and what `metadata/en-US/description.txt` actually ships:
 
-> ✅ "No account. No analytics. No third-party AI. Your words are processed on
+> ✅ "No account. No analytics. No third-party AI. Companion replies are
+> generated on your iPhone or iPad with Apple's on-device models."
+
+Permitted **once `specs/017` PCC routing ships**, and not before — naming a path
+the binary does not have is the same accuracy defect in the other direction
+(`00` submit-gate item 2, row B4):
+
+> ⏳ "No account. No analytics. No third-party AI. Your words are processed on
 > your iPhone, or on Apple's Private Cloud Compute, which stores nothing and is
 > independently verifiable. Nothing else."
+
+This file previously carried the Z1 line as the one "used verbatim in the
+description", which `description.txt` has never matched. The file was right and
+the doc was wrong.
 
 Overstating the trust boundary is an existential brand risk in exactly the
 community that would otherwise advocate for this app. It is also a Guideline
@@ -108,9 +120,12 @@ appears before "more". Sections: what it does (feature by feature), how it
 handles your writing (the `REQ-POS-001` claim verbatim), **what it will not do**
 (the anti-clinical statement), subscription disclosure, and device requirements.
 
-**The subscription paragraph is required by Guideline 2.3.2** — in-app purchases
-must be disclosed in the description. It states auto-renewal, the 24-hour
-cancellation window, and where to manage it. It states no price, per 2.3.7.
+**The subscription paragraph is required by Guideline 2.3.2 — but only once there
+are in-app purchases.** 1.x has none: `StoreKit` appears once in the target, for
+`requestReview()`, and D10 sets the app Free. So `description.txt` carries no
+subscription paragraph and should not. When IAP ships, the paragraph states
+auto-renewal, the 24-hour cancellation window, and where to manage it, and no
+price, per 2.3.7.
 
 **The requirements paragraph** is the honest handling of `DEC-001`: reflection
 features need Apple Intelligence; capture, transcription, timeline, search, and
@@ -261,8 +276,10 @@ future session knows they exist.
       and for competitor names returns nothing.
 - [ ] Grep of the same for a `$` or a digit followed by `%` returns nothing
       (no pricing, no unverifiable accuracy claim).
-- [ ] The subscription paragraph in `description.txt` states auto-renewal, the
-      24-hour cancellation window, and where to manage it (2.3.2).
+- [x] **N/A for 1.x** — no IAP in the target (`StoreKit` is `requestReview()`
+      only; D10 sets Free), so 2.3.2 does not apply and `description.txt`
+      correctly has no subscription paragraph. Re-open when IAP ships. *A box
+      that can never be ticked teaches people to skip the list.*
 - [ ] The device-requirement paragraph matches whichever branch `DEC-001` took.
 - [ ] Screenshots exist at **1320 × 2868** and **2064 × 2752**, contain only
       fictional entries, show the app in use, and one of them shows the recording
