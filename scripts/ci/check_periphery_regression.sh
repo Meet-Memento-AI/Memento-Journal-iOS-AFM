@@ -3,9 +3,33 @@ set -euo pipefail
 
 REPORT_FILE="${1:-periphery-report.txt}"
 BASE_REF="${2:-${GITHUB_BASE_REF:-dev}}"
+EXIT_FILE="${3:-${REPORT_FILE%.*}-exit.txt}"
 
 if [[ ! -f "$REPORT_FILE" ]]; then
   echo "Periphery report file not found: $REPORT_FILE"
+  exit 1
+fi
+
+# The scan step is `continue-on-error`, so a crashed or killed scan still leaves
+# an empty report behind — and an empty report grepped for new findings in
+# changed files finds none and reports success. That is a gate that stops
+# gating the moment the tool breaks, which is the failure this repo already
+# paid for once in `hall.fabricatedQuote` (046 R1): a check that cannot run
+# must fail, never pass quietly.
+#
+# So the scan's exit status is load-bearing. If the file is absent we cannot
+# tell a clean scan from a broken one, and the safe reading of an unknown is
+# failure.
+if [[ -f "$EXIT_FILE" ]]; then
+  scan_exit="$(tr -d '[:space:]' < "$EXIT_FILE")"
+  if [[ "$scan_exit" != "0" ]]; then
+    echo "Periphery scan exited $scan_exit — the report cannot be trusted."
+    echo "Refusing to report a pass from a scan that did not complete."
+    exit 1
+  fi
+else
+  echo "No scan exit-status file ($EXIT_FILE)."
+  echo "Cannot distinguish a clean scan from a failed one; failing closed."
   exit 1
 fi
 
