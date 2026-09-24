@@ -125,12 +125,21 @@ does not have to re-derive it:
 
 | Apple's matrix | Memento |
 |---|---|
-| Only encryption **provided by the Apple operating system** → **no documentation required** | ✅ This is us. PBKDF2-SHA256 via **CommonCrypto** and key storage in the **Keychain** (`EncryptionService.swift`, `SecurityService.swift`) are OS-provided. Transport is **ATS-only HTTPS** (`NSAllowsArbitraryLoads = false`) — and in practice there is no `URLSession` in the app at all |
+| Only encryption **provided by the Apple operating system** → **no documentation required** | ✅ This is us. **AES-256-GCM** via **CryptoKit** (journal content at rest), **PBKDF2-HMAC-SHA256** via **CommonCrypto** (legacy read path only), CSPRNG via `SecRandomCopyBytes`, and key storage in the **Keychain** are all OS-provided — the binary bundles no crypto implementation of its own. Transport is **ATS-only HTTPS** (`NSAllowsArbitraryLoads = false`); the app's one `URLSession` is `SupabaseFeedbackClient` (spec 042). Full inventory with call sites: `15-encryption-documentation.md` |
 | Industry-standard algorithm **not** provided by the OS (a bundled crypto library) → **French encryption declaration** if distributing in France | ❌ Not us. No bundled OpenSSL, libsodium, or equivalent. Verify this stays true whenever a dependency is added |
 | **Proprietary** encryption → **US CCATS + French declaration** | ❌ Not us |
 
 **Therefore: no French declaration, no CCATS, no
 `ITSEncryptionExportComplianceCode`.**
+
+> **Corrected 2026-09-24.** This row previously cited only PBKDF2 and claimed
+> "there is no `URLSession` in the app at all". The first named the legacy read
+> path while omitting AES-256-GCM, the app's primary content encryption; the
+> second stopped being true when spec 042 added `SupabaseFeedbackClient`. The
+> conclusion above is unchanged — every primitive is still OS-provided and
+> transport is still ATS-enforced HTTPS — but the evidence had drifted from the
+> code. `15-encryption-documentation.md` carries the audited inventory and is
+> what to hand to Apple or BIS if either asks.
 
 **Guard:** if a dependency ever bundles its own crypto implementation, this
 declaration becomes false and row 2 applies. The dependency-allowlist check

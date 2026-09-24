@@ -10,6 +10,12 @@ file, the Free determination and its evidence, and a look-and-paste list for the
 rows currently ticked on a statement rather than a command. This page stays the
 authority on *what* is required; `14` is the order to do it in.
 
+**If App Store Connect asks for App Encryption Documentation**, the answer is
+[`15-encryption-documentation.md`](15-encryption-documentation.md): no upload is
+required, the audited algorithm inventory with call sites, the four answers to
+enter, and what to check when the prompt appears anyway (it is the build, not
+the answer). `05` §3 stays the authority on the declaration itself.
+
 For a sequenced **product enhancement plan** (backend/data honesty, dark mode,
 accessibility) that closes many of the agent-owned rows below, see
 [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md).
@@ -69,7 +75,10 @@ reject us on.
 > `withMemento/Services/LocalJournalStorage.swift` `modificationDate`
 > (`attributesOfItem` → `.modificationDate` on files inside the app container).
 > `NSPrivacyAccessedAPICategoryUserDefaults` (`CA92.1`) is justified by 11 call
-> sites. `ITSAppUsesNonExemptEncryption = false` is present in `Info.plist`.
+> sites. `ITSAppUsesNonExemptEncryption = false` is present in `Info.plist`,
+> and the algorithm inventory behind that `false` — AES-256-GCM via CryptoKit,
+> PBKDF2-HMAC-SHA256 via CommonCrypto, both OS-provided, no bundled crypto
+> library — is audited in `15-encryption-documentation.md`.
 
 ---
 
