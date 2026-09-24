@@ -104,12 +104,19 @@ class Cell:
         self.states: collections.Counter = collections.Counter()
         self.codes: collections.Counter = collections.Counter()
         self.spans: list[str] = []
+        # citation counts split by turn type, so a size-invariant overall rate
+        # cannot hide a composition shift in what was being asked.
+        self.by_type: collections.Counter = collections.Counter()
+        self.cited_by_type: collections.Counter = collections.Counter()
 
     def add(self, row: dict) -> None:
         self.turns += 1
         self.sessions.add(row.get("run_id", ""))
+        turn_type = row.get("turn_type") or "?"
+        self.by_type[turn_type] += 1
         if row.get("citations"):
             self.cited += 1
+            self.cited_by_type[turn_type] += 1
         if violated(row):
             self.gated += 1
         for violation in row.get("violations", []):
@@ -141,6 +148,8 @@ class Cell:
         self.states += other.states
         self.codes += other.codes
         self.spans += other.spans
+        self.by_type += other.by_type
+        self.cited_by_type += other.cited_by_type
 
     @property
     def p50(self) -> float | None:
@@ -352,6 +361,48 @@ def report(path: Path) -> int:
     print("|---|---|---|")
     for name, v, evidence in results:
         print(f"| {name} | **{v}** | {evidence} |")
+
+    # ---- citation rate by turn type and bin
+    print("\n## Citation rate by turn type — is the overall rate hiding a mix shift?\n")
+    types = sorted({t for c in bins.values() for t in c.by_type})
+    print("| turn type | " + " | ".join(f"{lo}–{hi}" for lo, hi in BINS) + " |")
+    print("|---" * (len(BINS) + 1) + "|")
+    for turn_type in types:
+        cells = []
+        for b in BINS:
+            c = bins[b]
+            total = c.by_type.get(turn_type, 0)
+            got = c.cited_by_type.get(turn_type, 0)
+            cells.append(f"{got}/{total} ({pct(got, total)})" if total else "—")
+        print(f"| `{turn_type}` | " + " | ".join(cells) + " |")
+
+    # ---- P2b: post-hoc, and labelled as such
+    print("\n## P2b — post-hoc, NOT pre-registered\n")
+    print("P2 reads the citation rate over every generated turn, which mixes in "
+          "social and acknowledgement turns where a citation would be wrong. "
+          "Restricting to the turn types where retrieval is the right answer is "
+          "a sharper test of the same claim — and it was decided after seeing "
+          "the turn-type table, so it is reported as a secondary analysis and "
+          "cannot count as confirming the pre-registration.\n")
+    eligible = ("journalQuery", "quantitative")
+    xs2, ys2 = [], []
+    for n in sizes:
+        c = by_size[n]
+        total = sum(c.by_type.get(t, 0) for t in eligible)
+        got = sum(c.cited_by_type.get(t, 0) for t in eligible)
+        if n >= 5 and total:
+            xs2.append(float(n))
+            ys2.append(100 * got / total)
+    rho2 = spearman(xs2, ys2)
+    el_small = sum(small.by_type.get(t, 0) for t in eligible)
+    el_small_cited = sum(small.cited_by_type.get(t, 0) for t in eligible)
+    el_large = sum(large.by_type.get(t, 0) for t in eligible)
+    el_large_cited = sum(large.cited_by_type.get(t, 0) for t in eligible)
+    print(f"- eligible turns (`{'`, `'.join(eligible)}`): "
+          f"n<=4 {el_small_cited}/{el_small} ({pct(el_small_cited, el_small)}), "
+          f"n>=5 {el_large_cited}/{el_large} ({pct(el_large_cited, el_large)})")
+    print(f"- Spearman rho(n, eligible citation rate) = "
+          f"{f'{rho2:+.3f}' if rho2 is not None else 'n/a'} over {len(xs2)} sizes")
 
     # ---- violation codes by bin, zero rows included
     print("\n## Violation codes by bin (zero rows kept — 048 R2)\n")
