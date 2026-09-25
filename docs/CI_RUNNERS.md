@@ -38,6 +38,24 @@ suites skipped by `CI_ONLINE=1` (asserted by `scripts/ci/assert_ios_build_specs.
 | `xcode-27` | `ios-build-online.yml` | GitHub's Xcode 27 image ([runner-images#14404](https://github.com/actions/runner-images/issues/14404)), still a *preview* label. The Xcode 26.x images **cannot compile the app** (iOS 27 FoundationModels APIs). Swap to the GA label via the `IOS_RUNNER` variable when it ships |
 | `[self-hosted, macOS, ARM64, ios, xcode]` | `ios-device-eval.yml` only | Advisory lane; needs Apple Intelligence hardware, which hosted runners lack. Never trigger it from `pull_request` — this repo is public |
 
+### Device classes for model evals (spec 051 R6)
+
+iOS 27 runs one of two on-device models, and quality differs by model, so an
+eval run must say which one answered. Every generation's `model_identifier`
+now carries the tier (`apple.system.on-device.afm3-core-advanced`,
+`.afm3-core`, `.pre-afm3`), and the perf line logs `tier=` / `tier_source=`.
+
+| Device class | Example | Model | Needed for |
+|---|---|---|---|
+| 12 GB or more | iPhone 17 Pro, iPhone 17 Pro Max, iPhone Air | AFM 3 Core Advanced (20B, sparse) | Core Advanced quality and TTFT; the only evidence that may move its latency clamps (spec 051 R5) |
+| 8 GB | iPhone 17, iPhone 16 | AFM 3 Core (3B) | The Core baseline every other spec's numbers were tuned on |
+
+Run a physical-device eval on one device of each class. A **simulator** run
+uses the host Mac's model and reports the host's memory, so its tier describes
+the Mac, not a phone: label it with whatever the resolver reported and never
+compare it across tiers. The tier on these rows is inferred from OS and memory
+(`tier_source=inferred`) until spec 051 R0 finds an SDK member that reports it.
+
 **Git LFS.** The ~148 MB of Core ML voice weights are LFS objects. The iOS job
 caches `.git/lfs` keyed on the object ids, so the quota is spent once per weights
 change rather than once per run, and it fails fast if any pointer file survives.
