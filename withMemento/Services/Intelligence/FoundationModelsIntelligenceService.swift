@@ -610,7 +610,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // Resolves the model tier before any pool key is built.
             _ = await self.availability()
             let personalization = PromptPersonalization.fromLocalProfile()
-            let budget = ContextBudget(window: Self.currentWindow())
+            let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
 
             var plans: [AskTranscriptPlan] = []
             var seen = Set<String>()
@@ -736,6 +736,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let priority = ModelRouter.row(for: intent)?.priority ?? .interactive
         let capability = await quotaGovernor.capability(for: priority)
         return ModelRouter.resolve(intent: intent, pinnedToDevice: false, pccCapability: capability)
+    }
+
+    /// The resolved on-device model tier; `.unknown` (Core's clamps) until
+    /// the first `.available` result resolves it (spec 051 R5).
+    private static func currentTier() -> OnDeviceModelTier {
+        OnDeviceModelTierCache.shared.current.tier
     }
 
     /// The model's usable context window (CONSTITUTION §4 rule 5's corollary).
@@ -994,7 +1000,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Statistic never reads SystemLanguageModel — not for availability,
         // not for contextSize. The count is Swift.
         let budget = ContextBudget(
-            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable
+            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable,
+            tier: Self.currentTier()
         )
         if channel.requiresOnDeviceModel {
             let availability = await availability()
@@ -1997,7 +2004,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let route = await resolveRoute(for: .profileEstimate)
         let zone = route.executionZone
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .profileEstimate, zone: zone,
                                               degraded: route.useDegradedPrompt)
         let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
@@ -2073,7 +2080,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let route = await resolveRoute(for: .summary)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .summary, zone: route.executionZone,
                                               degraded: route.useDegradedPrompt)
 
@@ -2517,7 +2524,7 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .entryReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let cap = max(budget.maxEntryChars, 400)
         let excerpt = String(entry.text.prefix(cap)) // budget-exempt: ContextBudget-derived
         let moodList = MoodLabel.allCases.map(\.rawValue).joined(separator: ", ")
@@ -2586,7 +2593,7 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .weeklyReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
         let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
@@ -2645,7 +2652,7 @@ extension FoundationModelsIntelligenceService {
         let blob = entries.suffix(12).map { "\($0.title) \($0.text)" }.joined(separator: "\n") // budget-exempt: safety-scan cap, not a model payload
         try Self.enforceInputSafety(blob)
         let route = await resolveRoute(for: .profileRefresh)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(
             intent: .profileRefresh, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
