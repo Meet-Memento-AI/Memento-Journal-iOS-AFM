@@ -95,6 +95,13 @@ extension View {
     /// Shrinks this view to `container width - 2 × edgeInset` before glass
     /// samples. Padding around `glassEffect` is ignored on root pages that
     /// call `.ignoresSafeArea()`; this is not.
+    ///
+    /// **Superseded by `pageColumnRelative()` (spec 052) and currently unused.**
+    /// It is kept because it is the formula `contentColumnRelative` is built on
+    /// and because the preservation contract and a dozen comments still name it.
+    /// Do not reach for it on new chrome: it is *unbounded*, so on iPad it pins
+    /// controls to the window edges instead of the content column — which is the
+    /// defect 051 removed. Use `pageColumnRelative()`.
     func rootEdgeInset() -> some View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             max(length - AppHeaderMetrics.edgeInset * 2, 0)
@@ -218,7 +225,15 @@ struct AppHeader<Leading: View, Trailing: View>: View {
                     trailing
                 }
                 .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
-                .rootEdgeInset()
+                // Aligns to the page's column instead of the window, so the
+                // avatar and the action cluster sit over the content they act on
+                // rather than ~1300pt apart on a 13" iPad. Inert on iPhone:
+                // `min(width - 32, cap)` is `width - 32` at every phone width.
+                //
+                // The cap belongs on this HStack only. The island strip above
+                // stays full-bleed, and so does the outer `.frame(maxWidth:
+                // .infinity)` — the ProgressiveBlurEdge has to span the window.
+                .pageColumnRelative()
             }
         }
         .frame(maxWidth: .infinity)

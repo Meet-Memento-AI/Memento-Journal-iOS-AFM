@@ -135,6 +135,22 @@ else
   fi
 fi
 
+# Spec 021 R3/R5: RevenueCat collects purchase history (its own bundled manifest
+# says so). Declared iff the integration exists, and never linked.
+purchases_dir="${SRC_ROOT}/Services/Purchases"
+if [ -d "$purchases_dir" ]; then
+  if grep -A2 "<string>NSPrivacyCollectedDataTypePurchaseHistory</string>" "$MANIFEST" | grep -A1 "NSPrivacyCollectedDataTypeLinked</key>" | grep -q "<false/>"; then
+    echo "OK   collected type declared: NSPrivacyCollectedDataTypePurchaseHistory (not linked)"
+  else
+    echo "FAIL: $purchases_dir exists but $MANIFEST does not declare PurchaseHistory as not linked"
+    note "RevenueCat's bundled manifest declares it; the app label must match (spec 021 R5)."
+    fail=1
+  fi
+elif grep -q "<string>NSPrivacyCollectedDataTypePurchaseHistory</string>" "$MANIFEST"; then
+  echo "FAIL: PurchaseHistory is declared but $purchases_dir is absent."
+  fail=1
+fi
+
 # --- ATT must be absent ------------------------------------------------------
 if grep -rq "NSUserTrackingUsageDescription" --include="*.plist" --include="*.pbxproj" . 2>/dev/null; then
   echo "FAIL: NSUserTrackingUsageDescription found. Memento does not track; adding"

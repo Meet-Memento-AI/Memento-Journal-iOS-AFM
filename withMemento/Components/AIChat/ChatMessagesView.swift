@@ -238,9 +238,22 @@ struct ChatMessagesView: View {
                 .accessibilityHidden(true)
         }
         .scrollIndicators(.hidden)
-        // Same 16pt gutter as header/footer. Padding is ignored
-        // under RootPageScaffold's `.ignoresSafeArea()`.
-        .rootEdgeInset()
+        // Same 16pt gutter as header/footer, now bounded by the page's column.
+        // Padding is ignored under RootPageScaffold's `.ignoresSafeArea()`.
+        //
+        // This must stay ON the ScrollView, and the reporter below must stay
+        // OUTSIDE it, because `columnFrame` *is* this rect — and it is the only
+        // width the send flight has. `ChatTranscriptMetrics.landingRect` places
+        // the ghost at `column.maxX` and `SendFlightGhost` wraps its text at
+        // `UserBubbleSurface.maxWidth(inColumnWidth: column.width)`. Move the
+        // inset onto the scroll *content* and this reports the whole window: on a
+        // 13" iPad the ghost would land 323pt right of the row it hands off to
+        // and wrap at 1294pt instead of 648pt — the reflow bug documented at
+        // `UserBubbleSurface.maxWidth(inColumnWidth:)`, scaled up 600pt.
+        // Re-measuring from the content is not an alternative: a `.page` reporter
+        // inside the scroll content fires every scroll frame (see `ChatSpace`),
+        // and the landing y is a viewport offset that would then scroll.
+        .pageColumnRelative()
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { choreographer.columnFrame = $0 }
         .onScrollGeometryChange(for: ScrollSnapshot.self) { geometry in
@@ -349,7 +362,9 @@ struct ChatMessagesView: View {
         // that circularly depends on content width and collapses to zero.
         emptyState
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .rootEdgeInset()
+            // Same measure as the transcript, so the suggestion tiles share the
+            // left edge the first reply will land on.
+            .pageColumnRelative()
             .opacity(showsEmptyState ? 1 : 0)
             .allowsHitTesting(showsEmptyState)
             .accessibilityHidden(!showsEmptyState)

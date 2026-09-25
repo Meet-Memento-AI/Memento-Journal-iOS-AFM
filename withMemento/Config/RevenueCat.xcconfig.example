@@ -1,0 +1,6 @@
+// Copy to RevenueCat.xcconfig (Debug) and RevenueCat.release.xcconfig
+// (Release). Both are gitignored. Keys are in the RevenueCat dashboard under
+// Project → API keys.
+//   Debug:   test_…  (Test Store; purchases work in the simulator)
+//   Release: appl_…  (App Store; required before TestFlight / App Store)
+REVENUECAT_API_KEY =

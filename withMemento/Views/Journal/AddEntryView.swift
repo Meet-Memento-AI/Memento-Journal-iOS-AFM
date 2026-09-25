@@ -260,6 +260,15 @@ public struct AddEntryView: View {
                 }
                 .padding(.top, AppHeaderMetrics.headerClearance + Spacing.xxl)
                 .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                // The editor is prose end to end. All three of its bands (this,
+                // the header row, the footer) read the page's column, and the
+                // editor is pushed on ContentView's overlay stack — a *sibling*
+                // of the pager — so that resolves to the prose measure. A header
+                // at the wider one would sit 60pt outside the text.
+                // The cover photo stays full-bleed behind this: the backdrop
+                // layers are `.ignoresSafeArea()` siblings and read no content
+                // width, so `shaderRevealProgress` is untouched.
+                .pageColumnCentered()
                 .opacity(hasCoverPhoto ? entryContentOpacity : 1)
                 // Title and body are one field in both modes so glyphs do not
                 // jump. Chrome still springs via `modeTransition`.
@@ -496,6 +505,8 @@ public struct AddEntryView: View {
                 }
             }
             .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            // Inside a `.center`-aligned safeAreaInset, so a plain clamp places it.
+            .pageColumn()
             .padding(.bottom, keyboardBottomPadding)
             .accessibleAnimation(Self.modeTransition, value: isViewingExisting)
         }
@@ -540,7 +551,9 @@ public struct AddEntryView: View {
                     trailingHeaderButton
                 }
                 .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
-                .rootEdgeInset()
+                // Keeps the relative form: padding around glass is unreliable
+                // under `.ignoresSafeArea()` (see `rootEdgeInset`).
+                .pageColumnRelative()
             }
         }
         .frame(maxWidth: .infinity)
