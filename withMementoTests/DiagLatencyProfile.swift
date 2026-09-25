@@ -98,6 +98,8 @@ final class DiagLatencyProfile: XCTestCase {
         out += "| condition | TTFT s | total s |\n|---|---|---|\n"
         out += "| first call of the process | \(String(format: "%.2f", coldRun.ttft)) | \(String(format: "%.2f", coldRun.total)) |\n"
         out += "| after prewarm() + 2s | \(String(format: "%.2f", warmRun.ttft)) | \(String(format: "%.2f", warmRun.total)) |\n"
+        // Spec 051 R4: latency differs by on-device model; name the one measured.
+        out += "\nOn-device model: \(OnDeviceModelTierCache.shared.current.logFields)\n"
 
         // MARK: per-channel distribution
         let companionHistory = [

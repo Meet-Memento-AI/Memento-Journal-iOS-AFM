@@ -104,6 +104,8 @@ struct AskTurnPerf: Sendable, Equatable {
     let promptVersion: String
     let channel: String
     let speculativeHit: Bool
+    /// `OnDeviceModelTier.rawValue` (spec 051 R4), so latency splits by model.
+    let modelTier: String
 }
 
 /// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
@@ -321,7 +323,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Cached availability. Once the model reports `.available` it stays
     /// available for the process, so we resolve it once instead of querying
-    /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
+    /// `onDeviceModel().availability` on every ask/summary/estimate.
     private var cachedAvailability: IntelligenceAvailability?
 
     /// Consecutive refusals with no success between (see `RefusalOutageTracker`).
@@ -342,19 +344,24 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var lastTurnPerf: AskTurnPerf?
 
     /// Consumes the speculative session iff its plan fingerprint matches.
+    /// Pool keys carry the model tier (spec 051 R2), so a session prewarmed
+    /// before the tier resolved is never adopted as if it were resolved.
     private func takeSpeculativeSession(matching fingerprint: String) -> LanguageModelSession? {
+        let key = OnDeviceModelTierCache.shared.current.poolKey(for: fingerprint)
         stateLock.lock(); defer { stateLock.unlock() }
-        return speculativePool.take(matching: fingerprint)
+        return speculativePool.take(matching: key)
     }
 
     private func hasSpeculativeSession(matching fingerprint: String) -> Bool {
+        let key = OnDeviceModelTierCache.shared.current.poolKey(for: fingerprint)
         stateLock.lock(); defer { stateLock.unlock() }
-        return speculativePool.has(matching: fingerprint)
+        return speculativePool.has(matching: key)
     }
 
     private func storeSpeculativePair(_ pair: [(fingerprint: String, session: LanguageModelSession)]) {
+        let tier = OnDeviceModelTierCache.shared.current
         stateLock.lock(); defer { stateLock.unlock() }
-        speculativePool.replaceAll(pair.map { ($0.fingerprint, $0.session) })
+        speculativePool.replaceAll(pair.map { (tier.poolKey(for: $0.fingerprint), $0.session) })
     }
 
     /// Monotonic prewarm request counter. A prewarm that queued behind the
@@ -384,7 +391,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         lastTurnPerf = AskTurnPerf(
             promptVersion: promptVersion,
             channel: channel.rawValue,
-            speculativeHit: speculativeHit
+            speculativeHit: speculativeHit,
+            modelTier: OnDeviceModelTierCache.shared.current.tier.rawValue
         )
     }
 
@@ -582,7 +590,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         _ = journal
         _ = limits
-        return LanguageModelSession(transcript: transcript)
+        return LanguageModelSession(model: Self.onDeviceModel(), transcript: transcript)
     }
 
     /// Speculatively builds and prefills sessions for the NEXT turn of a
@@ -599,8 +607,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let generation = bumpPrewarmGeneration()
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+            // Resolves the model tier before any pool key is built.
+            _ = await self.availability()
             let personalization = PromptPersonalization.fromLocalProfile()
-            let budget = ContextBudget(window: Self.currentWindow())
+            let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
 
             var plans: [AskTranscriptPlan] = []
             var seen = Set<String>()
@@ -632,6 +642,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
+    // MARK: On-device model
+
+    /// The one place the on-device model is chosen (spec 051 R2). Every
+    /// session, availability check, window read, and token count goes
+    /// through here, so they all describe the model that will actually run.
+    ///
+    /// Path B: `.default` is AFM 3 Core Advanced on devices with at least
+    /// 12 GB and AFM 3 Core elsewhere; the OS does the fallback. If spec 051
+    /// R0 finds an SDK tier selector (path A), explicit selection with a
+    /// one-retry fallback to Core lands here and nowhere else.
+    private static func onDeviceModel() -> SystemLanguageModel {
+        SystemLanguageModel.default
+    }
+
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
@@ -644,7 +668,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // governance (spec 017 R2/R3) — is an iOS-27-SDK type; it re-enables when
         // the app builds against Xcode 27 and is approved for PCC. On-device-first.
         let resolved: IntelligenceAvailability
-        switch SystemLanguageModel.default.availability {
+        switch Self.onDeviceModel().availability {
         case .available:
             resolved = .available(.z0Device)
         case .unavailable(let reason):
@@ -656,8 +680,24 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // can flip to available later, so keep re-checking that case.
         if case .available = resolved {
             cachePositiveAvailability(resolved)
+            Self.resolveOnDeviceTierIfNeeded()
         }
         return resolved
+    }
+
+    /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
+    /// `reported` is nil and the tier is inferred from OS and memory. Only
+    /// called after a `.available` result; the cache ignores `.unknown`.
+    private static func resolveOnDeviceTierIfNeeded() {
+        let cache = OnDeviceModelTierCache.shared
+        guard !cache.hasResolved else { return }
+        let info = ProcessInfo.processInfo
+        cache.store(OnDeviceModelTierResolver.resolve(
+            reported: nil,
+            modelAvailable: true,
+            osMajorVersion: info.operatingSystemVersion.majorVersion,
+            physicalMemoryBytes: info.physicalMemory
+        ))
     }
 
     // MARK: Prewarm
@@ -698,6 +738,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return ModelRouter.resolve(intent: intent, pinnedToDevice: false, pccCapability: capability)
     }
 
+    /// The resolved on-device model tier; `.unknown` (Core's clamps) until
+    /// the first `.available` result resolves it (spec 051 R5).
+    private static func currentTier() -> OnDeviceModelTier {
+        OnDeviceModelTierCache.shared.current.tier
+    }
+
     /// The model's usable context window (CONSTITUTION §4 rule 5's corollary).
     ///
     /// `SystemLanguageModel.contextSize` is declared in the iOS 27 SDK and
@@ -711,7 +757,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// exact thing this rule forbids.
     private static func currentWindow() -> ContextWindow {
         #if compiler(>=6.3)
-        return .reported(tokens: SystemLanguageModel.default.contextSize)
+        return .reported(tokens: Self.onDeviceModel().contextSize)
         #else
         return .unavailable
         #endif
@@ -743,7 +789,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // latency record (spec 029 R1) and it is content-free by construction,
         // so it is safe as public metadata and useful in release traces.
         PerfSignposts.perfLog.info(
-            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools)"
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools) \(OnDeviceModelTierCache.shared.current.logFields, privacy: .public)"
         )
     }
 
@@ -770,7 +816,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // longer reconciles the two — it reports conflicting bindings for `T`.
         // Spelling the labels on both sides pins `T` to one tuple type.
         return await ModelRuntimeGate.shared.tryWithLock { () -> (prompt: Int?, cached: Int?) in
-            let model = SystemLanguageModel.default
+            let model = Self.onDeviceModel()
             let inst = try await model.tokenCount(for: Instructions(instructions))
             let user = try await model.tokenCount(for: prompt)
             return (prompt: inst + user, cached: nil)
@@ -954,7 +1000,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Statistic never reads SystemLanguageModel — not for availability,
         // not for contextSize. The count is Swift.
         let budget = ContextBudget(
-            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable
+            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable,
+            tier: Self.currentTier()
         )
         if channel.requiresOnDeviceModel {
             let availability = await availability()
@@ -1957,10 +2004,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let route = await resolveRoute(for: .profileEstimate)
         let zone = route.executionZone
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .profileEstimate, zone: zone,
                                               degraded: route.useDegradedPrompt)
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         let prompt = Self.buildProfileEstimatePrompt(reflection: trimmed, budget: budget)
 
         do {
@@ -2033,7 +2080,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let route = await resolveRoute(for: .summary)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .summary, zone: route.executionZone,
                                               degraded: route.useDegradedPrompt)
 
@@ -2051,7 +2098,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             break
         }
 
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         // The conversation is bounded by the same history allocation the ask
         // prompt uses, so a long chat can't crowd out the summary itself.
         let conversation = turns.suffix(budget.maxHistoryTurns).map { turn in
@@ -2455,12 +2502,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Persisted provenance (`REQ-PRM-004`). Stable strings — the quality study
     /// joins on them, so treat these as a wire format rather than log prose.
-    private static func modelIdentifier(for zone: TrustZone) -> String {
-        switch zone {
-        case .z0Device: return "apple.system.on-device"
-        case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
-        case .z1AppleContentFree: return "apple.cloud.content-free"
-        }
+    /// On-device strings carry the model tier (spec 051 R3).
+    private static func modelIdentifier(
+        for zone: TrustZone,
+        tier: ResolvedOnDeviceModelTier = OnDeviceModelTierCache.shared.current
+    ) -> String {
+        tier.modelIdentifier(for: zone)
     }
 }
 
@@ -2477,7 +2524,7 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .entryReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let cap = max(budget.maxEntryChars, 400)
         let excerpt = String(entry.text.prefix(cap)) // budget-exempt: ContextBudget-derived
         let moodList = MoodLabel.allCases.map(\.rawValue).joined(separator: ", ")
@@ -2489,7 +2536,7 @@ extension FoundationModelsIntelligenceService {
         Entry titled \(entry.title):
         \(excerpt)
         """
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2546,9 +2593,9 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .weeklyReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2605,7 +2652,7 @@ extension FoundationModelsIntelligenceService {
         let blob = entries.suffix(12).map { "\($0.title) \($0.text)" }.joined(separator: "\n") // budget-exempt: safety-scan cap, not a model payload
         try Self.enforceInputSafety(blob)
         let route = await resolveRoute(for: .profileRefresh)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(
             intent: .profileRefresh, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
@@ -2625,7 +2672,7 @@ extension FoundationModelsIntelligenceService {
         Recent journal moments:
         \(moments)
         """
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2741,7 +2788,7 @@ extension FoundationModelsIntelligenceService {
                          prompt: String,
                          temperature: Double = 1.0,
                          maximumResponseTokens: Int = 120) async throws -> String {
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: instructions)
         let response = try await ModelRuntimeGate.shared.withLock {
             try await session.respond(
                 to: prompt,

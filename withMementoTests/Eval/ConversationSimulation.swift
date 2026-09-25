@@ -243,6 +243,9 @@ final class ConversationSimulation: XCTestCase {
             if let result {
                 row["prompt_version"] = result.promptVersion
                 row["model_identifier"] = result.modelIdentifier
+                let tier = OnDeviceModelTierCache.shared.current
+                row["model_tier"] = tier.tier.rawValue
+                row["model_tier_source"] = tier.source.rawValue
                 row["was_degraded"] = result.wasDegraded
                 row["tools_called"] = result.toolsCalled
                 row["citations"] = result.citations.map { citation in

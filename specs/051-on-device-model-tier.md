@@ -2,7 +2,7 @@
 id: 051
 title: On-Device Model Tier — AFM 3 Core Advanced by Default Where the Hardware Allows
 tier: P1
-status: draft (2026-09-25 — plan only; R0 needs a Mac with Xcode 27)
+status: in-progress (2026-09-25 — R1–R6 code landed on path B; R0, Mac build, and device runs pending)
 effort: 2–3 sessions, stacked commits (see Tasks)
 depends_on: [017, 022, 029, 043]
 findings:
@@ -295,20 +295,20 @@ convo-sim run per tier lands in the warehouse before R5's clamps move.
 
 ## Tasks
 
-- [ ] 0. `spec(051)`: this plan.
+- [x] 0. `spec(051)`: this plan (PR #39).
 - [ ] 1. `R0` (Mac): read the Xcode 27 GM interface; update `technology/01`
       §3 and the verification queue; pick path A or B in this spec.
-- [ ] 2. `tier`: `OnDeviceModelTier` + resolver + `OnDeviceModelTierTests`.
+- [x] 2. `tier`: `OnDeviceModelTier` + resolver + `OnDeviceModelTierTests`.
       Pure Swift; compiles on the Linux toolchain like spec 050's units. (R1)
-- [ ] 3. `model-site`: `onDeviceModel()`; all seven sites pass `model:`;
+- [x] 3. `model-site` (path B): `onDeviceModel()`; all seven sites pass `model:`;
       availability / window / token count use it; pool fingerprint gains the
       tier; importer-script check. Path A adds selection and a single retry. (R2)
-- [ ] 4. `provenance`: `modelIdentifier(for:tier:)`; perf line; `AskTurnPerf`;
+- [x] 4. `provenance`: `modelIdentifier(for:tier:)`; perf line; `AskTurnPerf`;
       convo-sim columns; `ChatContinuityTests` + identifier test. (R3, R4)
-- [ ] 5. `budget`: `ContextBudget(window:tier:)` with Core Advanced clamps
+- [x] 5. `budget`: `ContextBudget(window:tier:)` with Core Advanced clamps
       equal to Core's; `ContextBudgetTests`. (R5)
-- [ ] 6. `eval`: import script passthrough; `docs/CI_RUNNERS.md` device classes;
-      one warehoused run per tier. (R6)
+- [x] 6. `eval`: import script passthrough; `docs/CI_RUNNERS.md` device classes. (R6)
+- [ ] 6b. One warehoused convo-sim run per tier (needs both device classes). (R6)
 - [ ] 7. `budget (measured)`: move Core Advanced clamps only if step 6's
       numbers clear spec 029's target; record them here. (R5)
 
@@ -325,8 +325,10 @@ after it.
       -only-testing:withMementoTests/ModelRouterTests
       -only-testing:withMementoTests/ModelRuntimeGateTests` green.
 - [ ] Full online suite per `.github/PULL_REQUEST_TEMPLATE.md`.
-- [ ] `scripts/ci/check_single_intelligence_importer.sh` reports exactly 1.
-- [ ] `scripts/ci/check_no_hardcoded_context_budgets.sh` passes.
+- [x] `scripts/ci/check_single_intelligence_importer.sh` reports exactly 1, and its new
+      spec 051 R2 check fails on a session created without `model:` (tried by
+      stripping `model:` from one site, then restored).
+- [x] `scripts/ci/check_no_hardcoded_context_budgets.sh` passes.
 - [ ] Device, iPhone 17 Pro, iOS 27: the perf line shows
       `tier=afm3CoreAdvanced`; the Xcode Foundation Models instrument's
       TTFT and tokens/sec are recorded for Ask (light and notebook), entry
@@ -336,6 +338,33 @@ after it.
 - [ ] Device, iOS 26.x: `tier=preAFM3`.
 - [ ] Narration on the 12 GB phone with neural TTS loaded: no memory
       warning or jetsam across a 20-turn conversation (Risks).
+
+### What was verified without a Mac (2026-09-25)
+
+No Mac or Xcode was available, so the pure-Swift half was compiled and run on
+a Linux Swift 6.4 toolchain: a scratch SwiftPM package whose sources are the
+real repo files (`OnDeviceModelTier.swift`, `TrustZone.swift`,
+`Prompt/ContextBudget.swift`) plus a stub carrying `RetrievalLimits` and
+`EntryRetriever`'s two constants, generated from `EntryRetriever.swift` by line
+range because the real file needs NaturalLanguage. `OnDeviceModelTierTests`
+(21) and `ContextBudgetTests` (16, 4 new) pass. Setting the Core Advanced
+evidence clamp to 7,000 made `test_tier_coreAdvancedClamps_equalCoresUntilMeasured`
+fail, so the tier tests are not vacuous.
+
+**Not compiled here** (FoundationModels / UIKit): the edits to
+`FoundationModelsIntelligenceService.swift` (the `onDeviceModel()` seam, seven
+`model:` sites, tier resolution in `availability()`, pool keys, perf line),
+`ChatContinuityTests`, and the eval harness rows. They need the
+`ios-build-online.yml` lane.
+
+**Implementation notes.** `onDeviceModel()` is one `static` function rather
+than an instance method plus a static twin, because every reader of it
+(`currentWindow`, `measurePromptTokens`, `modelIdentifier`) is already static.
+`modelIdentifier(for:tier:)` defaults `tier` to the cached value, so its eight
+call sites did not change. The identifier and pool-key rules live on
+`ResolvedOnDeviceModelTier` so they are testable without the importer.
+`ContextBudget` does not store the tier, so budgets for different tiers with
+the same clamps compare equal.
 
 ## Risks
 
