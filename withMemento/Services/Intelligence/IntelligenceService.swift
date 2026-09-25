@@ -461,8 +461,14 @@ extension IntelligenceService {
         spoken: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
-        askStream(question, history: history, images: images, spoken: spoken,
-                  deep: false, loadEntries: loadEntries)
+        askStream(
+            question,
+            history: history,
+            images: images,
+            spoken: spoken,
+            deep: false,
+            loadEntries: loadEntries
+        )
     }
 
     func askStream(

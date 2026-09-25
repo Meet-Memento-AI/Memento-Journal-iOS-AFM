@@ -112,6 +112,57 @@ final class ContextBudgetTests: XCTestCase {
         }
     }
 
+    // MARK: Model tier (spec 051 R5)
+
+    private static let tierWindows = [0, 256, 1024, 2048, 4096, 8192, 16384, 32768, 1_000_000]
+
+    /// Core, pre-AFM 3, and unknown must reproduce today's budget exactly —
+    /// the tier parameter may not move a single Core reply.
+    func test_tier_nonAdvancedTiers_areByteIdenticalToTheDefault() {
+        for tokens in Self.tierWindows {
+            let window = ContextWindow.reported(tokens: tokens)
+            let shipped = ContextBudget(window: window)
+            for tier in [OnDeviceModelTier.afm3Core, .preAFM3, .unknown] {
+                XCTAssertEqual(ContextBudget(window: window, tier: tier), shipped, "\(tier) @ \(tokens)")
+            }
+        }
+        for tier in OnDeviceModelTier.allCases {
+            XCTAssertEqual(ContextBudget(window: .unavailable, tier: tier), ContextBudget(window: .unavailable))
+        }
+    }
+
+    func test_tier_tokenCountsInit_nonAdvancedTiers_matchTheDefault() {
+        let counts = ContextBudget.TokenCounts(instructions: 400, history: 80, evidence: 200)
+        for tokens in Self.tierWindows {
+            let window = ContextWindow.reported(tokens: tokens)
+            let shipped = ContextBudget(tokenCounts: counts, window: window)
+            for tier in [OnDeviceModelTier.afm3Core, .preAFM3, .unknown] {
+                XCTAssertEqual(ContextBudget(tokenCounts: counts, window: window, tier: tier), shipped)
+            }
+        }
+    }
+
+    /// Core Advanced never exceeds its own latency clamp once the clamp binds.
+    /// (Below that, the grounding floors win over it, as for Core.)
+    func test_tier_coreAdvanced_respectsItsOwnLatencyClamps() {
+        let clamps = ContextBudget.latencyClamps(for: .afm3CoreAdvanced)
+        for tokens in [4096, 8192, 16384, 32768, 1_000_000] {
+            let budget = ContextBudget(window: .reported(tokens: tokens), tier: .afm3CoreAdvanced)
+            XCTAssertLessThanOrEqual(budget.maxRetrievedEntries * budget.maxEntryChars, clamps.evidenceChars)
+            XCTAssertLessThanOrEqual(budget.maxHistoryTurns * budget.maxHistoryCharsPerTurn, clamps.historyChars)
+        }
+    }
+
+    /// Until spec 051's device measurements land, the Core Advanced clamps
+    /// equal Core's. Changing them must update this test and record the
+    /// TTFT numbers in spec 051 in the same commit.
+    func test_tier_coreAdvancedClamps_equalCoresUntilMeasured() {
+        let core = ContextBudget.latencyClamps(for: .afm3Core)
+        let advanced = ContextBudget.latencyClamps(for: .afm3CoreAdvanced)
+        XCTAssertEqual(advanced.evidenceChars, core.evidenceChars)
+        XCTAssertEqual(advanced.historyChars, core.historyChars)
+    }
+
     // MARK: Clamps
 
     /// A degenerate window must not produce a budget that retrieves nothing —

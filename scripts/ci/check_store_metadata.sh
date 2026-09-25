@@ -9,9 +9,9 @@
 #      for export compliance (spec 002 R1).
 #   2. Usage-description keys present and non-boilerplate -> Apple's
 #      own common-rejection #6 is unclear data-access requests.
-#   3. Usage strings defined EXACTLY ONCE -> GENERATE_INFOPLIST_FILE = YES merges
-#      Info.plist with INFOPLIST_KEY_* build settings and the winner is
-#      unpredictable (spec 002 R5).
+#   3. Usage strings defined EXACTLY ONCE, in Info.plist or in INFOPLIST_KEY_*
+#      build settings but not both -> GENERATE_INFOPLIST_FILE = YES merges the
+#      two and the winner is unpredictable (spec 002 R5).
 #   4. No com.testing.* bundle ids -> sample targets were removed by spec 002 R4.
 #   5. Build number above the last-uploaded floor -> 1.0(2) was uploaded and
 #      rejected in Nov 2025; build numbers are consumed permanently per version
@@ -30,15 +30,65 @@ UPLOADED="${UPLOADED:-docs/app-store/last-uploaded-build.txt}"
 fail=0
 note() { echo "  $*"; }
 
-# --- 1. Export compliance ----------------------------------------------------
-if grep -q "ITSAppUsesNonExemptEncryption" "$PLIST"; then
-  echo "OK   ITSAppUsesNonExemptEncryption present"
-else
-  echo "FAIL: ITSAppUsesNonExemptEncryption missing from $PLIST"
-  note "Without it every App Store Connect upload asks the export-compliance"
-  note "question. See docs/app-store/05 section 3."
+# A key may live in Info.plist OR in INFOPLIST_KEY_* build settings (the
+# withMemento rename moved the purpose strings into build settings), but never
+# both: GENERATE_INFOPLIST_FILE = YES merges the two and the winner is
+# unpredictable (spec 002 R5). The per-configuration copies in build settings
+# (Debug, Release) must also agree, or Release ships a string nobody reviewed.
+#
+# resolve_key <key> sets:
+#   where = plist | settings | both | none | conflict
+#   value = the resolved string (unquoted)
+resolve_key() {
+  local key="$1" in_plist=0 settings_values distinct
+  where="none"; value=""
+  grep -q "<key>${key}</key>" "$PLIST" && in_plist=1
+  settings_values="$(grep -E "^[[:space:]]*INFOPLIST_KEY_${key} = " "$PBXPROJ" \
+    | sed -E "s/^[[:space:]]*INFOPLIST_KEY_${key} = //; s/;[[:space:]]*$//; s/^\"(.*)\"$/\1/" || true)"
+
+  if [ "$in_plist" -eq 1 ] && [ -n "$settings_values" ]; then
+    where="both"; return
+  fi
+  if [ "$in_plist" -eq 1 ]; then
+    where="plist"
+    value="$(grep -A1 "<key>${key}</key>" "$PLIST" | tail -1 \
+      | sed -E 's#.*<string>(.*)</string>.*#\1#; s#.*<(true|false)/>.*#\1#')"
+    return
+  fi
+  if [ -n "$settings_values" ]; then
+    distinct="$(printf '%s\n' "$settings_values" | sort -u | wc -l | tr -d ' ')"
+    if [ "$distinct" -gt 1 ]; then where="conflict"; return; fi
+    where="settings"
+    value="$(printf '%s\n' "$settings_values" | head -1)"
+  fi
+}
+
+report_placement_failure() {
+  local key="$1"
+  case "$where" in
+    none)
+      echo "FAIL: ${key} is missing (not in $PLIST, not in INFOPLIST_KEY_${key})" ;;
+    both)
+      echo "FAIL: ${key} is defined in BOTH $PLIST and INFOPLIST_KEY_${key} in the project."
+      note "GENERATE_INFOPLIST_FILE = YES merges them and the winner is unpredictable."
+      note "Keep exactly one definition (spec 002 R5)." ;;
+    conflict)
+      echo "FAIL: INFOPLIST_KEY_${key} has different values across build configurations."
+      note "Debug and Release must ship the same string." ;;
+  esac
   fail=1
-fi
+}
+
+# --- 1. Export compliance ----------------------------------------------------
+resolve_key ITSAppUsesNonExemptEncryption
+case "$where" in
+  plist|settings)
+    echo "OK   ITSAppUsesNonExemptEncryption present ($where: $value)" ;;
+  *)
+    report_placement_failure ITSAppUsesNonExemptEncryption
+    note "Without it every App Store Connect upload asks the export-compliance"
+    note "question. See docs/app-store/05 section 3." ;;
+esac
 
 # --- 2 & 3. Usage descriptions ----------------------------------------------
 # Boilerplate strings draw Guideline 5.1.1 rejections; require a minimum length
@@ -53,22 +103,12 @@ REQUIRED_KEYS=(
 )
 
 for key in "${REQUIRED_KEYS[@]}"; do
-  if ! grep -q "<key>${key}</key>" "$PLIST"; then
-    echo "FAIL: ${key} missing from $PLIST"
-    fail=1
-    continue
-  fi
+  resolve_key "$key"
+  case "$where" in
+    plist|settings) ;;
+    *) report_placement_failure "$key"; continue ;;
+  esac
 
-  # Duplicate definition in build settings?
-  if grep -q "INFOPLIST_KEY_${key}" "$PBXPROJ"; then
-    echo "FAIL: ${key} is defined in BOTH $PLIST and INFOPLIST_KEY_${key} in the project."
-    note "GENERATE_INFOPLIST_FILE = YES merges them and the winner is unpredictable."
-    note "Keep the string in Info.plist only (spec 002 R5)."
-    fail=1
-    continue
-  fi
-
-  value="$(grep -A1 "<key>${key}</key>" "$PLIST" | tail -1 | sed -E 's#.*<string>(.*)</string>.*#\1#')"
   if [ "${#value}" -lt 30 ]; then
     echo "FAIL: ${key} looks like boilerplate (${#value} chars): \"$value\""
     note "Apple's common-rejection #6 is unclear data-access requests. State what"
@@ -79,7 +119,7 @@ for key in "${REQUIRED_KEYS[@]}"; do
     note "Purpose strings should be specific to this app, not generic."
     fail=1
   else
-    echo "OK   ${key} present, specific, defined once"
+    echo "OK   ${key} present, specific, defined once ($where)"
   fi
 done
 

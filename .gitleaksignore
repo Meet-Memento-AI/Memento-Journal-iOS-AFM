@@ -1,0 +1,57 @@
+# Reviewed gitleaks findings (2026-09-23). Every entry was triaged by hand;
+# gitleaks still fails on anything NOT listed here, so a new leak still blocks.
+#
+# All 14 findings sit in pre-2026 history (the MeetMemento / Supabase-backend
+# era), which PRs carry because main was re-rooted at 772f156 while feature
+# branches kept the old history. That history is already public on many
+# branches, so ignoring it here exposes nothing new.
+#
+# The ONLY real value: the anon-role key for Supabase project
+# fhsgvlbedqwxwpubtlls, the retired backend. Anon keys are public by design
+# (RLS is the control), and the live feedback project is a different one
+# (ibdtqiembpexzeoyhfim). Pause or delete fhsgvlbedqwxwpubtlls in the Supabase
+# dashboard rather than rewriting history.
+#
+# Format: <commit>:<file>:<rule>:<line>
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+fd69b1d837053480a63b20f765117bd51f5368cd:.claude-instructions/implementations/AI_INSIGHTS_ARCHITECTURE_PLAN.md:curl-auth-header:2222
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+ce178a931f20cac7a7478e1ae5d24f20ed6fa382:CONTINUOUS_QUESTIONS_IMPLEMENTATION.md:curl-auth-header:140
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+ce178a931f20cac7a7478e1ae5d24f20ed6fa382:CONTINUOUS_QUESTIONS_IMPLEMENTATION.md:curl-auth-header:513
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+fd69b1d837053480a63b20f765117bd51f5368cd:INSIGHTS_TROUBLESHOOTING.md:curl-auth-header:174
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+7e321beef42b32c2626c4375ca1dd3798d1d2b28:docs/RAG_SETUP.md:curl-auth-header:97
+
+# curl-auth-header: placeholder token in a doc example (YOUR_TOKEN / YOUR_JWT / YOUR_ANON_KEY)
+d5fe4db12c276f6b85c881457b306913e3a9d9c5:supabase/functions/README.md:curl-auth-header:49
+
+# generic-api-key: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+90d5bb7dd4b19112c25da7a1edf7e229fe282b87:.github/workflows/ios-tests.yml:generic-api-key:41
+
+# generic-api-key: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+90d5bb7dd4b19112c25da7a1edf7e229fe282b87:.github/workflows/ios-tests.yml:generic-api-key:46
+
+# jwt: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+dc4c4b39f54459bda73535fe57414c9b70c0addf:.github/workflows/ios-tests.yml:jwt:41
+
+# jwt: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+dc4c4b39f54459bda73535fe57414c9b70c0addf:.github/workflows/ios-tests.yml:jwt:46
+
+# jwt: REAL anon-role key, retired project fhsgvlbedqwxwpubtlls (see header)
+d5766fd9c66e2542860ed318d98d1da16d0ad85d:MeetMemento/Resources/SupabaseConfig.swift:jwt:16
+
+# jwt: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+aa2db8cbdc51dcee4c9a6477286ad76499fc38d0:MeetMemento/Services/SupabaseService.swift:jwt:49
+
+# jwt: Supabase CLI local-dev demo anon key (ref "local"/"ci"), publicly documented default
+13c9202de066f400f358bb932a0cc9335553e342:MeetMemento/Services/SupabaseService.swift:jwt:49
+
+# private-key: false positive: literal PEM header strings in cleanPrivateKey(), no key body
+d5766fd9c66e2542860ed318d98d1da16d0ad85d:MeetMemento/Services/Auth/JWTGenerator.swift:private-key:76
