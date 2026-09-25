@@ -59,4 +59,21 @@ if [ "$EXPECT_EXACTLY" = "1" ] && [ "$count" -ne 1 ]; then
   exit 1
 fi
 
-echo "OK [REQ-INT-001 / spec 017 R1 / P3]"
+# Spec 051 R2: every session names its model, so the on-device model is chosen
+# in one place (`onDeviceModel()`). A bare `LanguageModelSession(` silently
+# binds `SystemLanguageModel.default` and escapes that seam. Comment lines are
+# skipped so prose about the rule doesn't trip it.
+if [ "$count" -eq 1 ]; then
+  implicit=$(grep -nE 'LanguageModelSession\(' "${importers[0]}" \
+    | grep -vE '^[0-9]+:[[:space:]]*//' \
+    | grep -v 'model:' || true)
+  if [ -n "$implicit" ]; then
+    echo ""
+    echo "FAIL [spec 051 R2]: a LanguageModelSession is created without 'model:'."
+    echo "Pass 'model: Self.onDeviceModel()' so the model is chosen in one place."
+    echo "$implicit"
+    exit 1
+  fi
+fi
+
+echo "OK [REQ-INT-001 / spec 017 R1 / P3; spec 051 R2]"

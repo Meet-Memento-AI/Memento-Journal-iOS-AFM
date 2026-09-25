@@ -73,6 +73,11 @@ struct ResolvedOnDeviceModelTier: Sendable, Equatable {
     }
 
     static let onDeviceBaseIdentifier = "apple.system.on-device"
+
+    /// Speculative-pool key (spec 051 R2): the plan fingerprint plus the
+    /// tier, so a session prewarmed for one model is never adopted by
+    /// another.
+    func poolKey(for fingerprint: String) -> String { "\(fingerprint)|tier=\(tier.rawValue)" }
 }
 
 enum OnDeviceModelTierResolver {

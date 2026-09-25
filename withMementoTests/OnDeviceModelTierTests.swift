@@ -125,6 +125,23 @@ final class OnDeviceModelTierTests: XCTestCase {
         XCTAssertEqual(ResolvedOnDeviceModelTier.unresolved.logFields, "tier=unknown tier_source=inferred")
     }
 
+    // MARK: Speculative pool key (R2)
+
+    func test_poolKey_differsByTier_andIsStablePerTier() {
+        let core = ResolvedOnDeviceModelTier(tier: .afm3Core, source: .inferred)
+        let advanced = ResolvedOnDeviceModelTier(tier: .afm3CoreAdvanced, source: .inferred)
+        XCTAssertNotEqual(core.poolKey(for: "abc"), advanced.poolKey(for: "abc"))
+        XCTAssertNotEqual(ResolvedOnDeviceModelTier.unresolved.poolKey(for: "abc"), core.poolKey(for: "abc"))
+        XCTAssertEqual(core.poolKey(for: "abc"), core.poolKey(for: "abc"))
+        XCTAssertNotEqual(core.poolKey(for: "abc"), core.poolKey(for: "abd"))
+    }
+
+    func test_poolKey_ignoresSource() {
+        let reported = ResolvedOnDeviceModelTier(tier: .afm3Core, source: .reported)
+        let inferred = ResolvedOnDeviceModelTier(tier: .afm3Core, source: .inferred)
+        XCTAssertEqual(reported.poolKey(for: "abc"), inferred.poolKey(for: "abc"))
+    }
+
     // MARK: Cache
 
     func test_cache_startsUnresolved() {
