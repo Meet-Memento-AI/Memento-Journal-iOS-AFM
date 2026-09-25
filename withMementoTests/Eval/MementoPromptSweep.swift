@@ -45,6 +45,7 @@ final class MementoPromptSweep: XCTestCase {
         var heading2: String = ""
         var citations: [(id: String, date: String, excerpt: String)] = []
         var promptVersion: String = ""
+        var modelIdentifier: String = ""
         var zone: String = ""
         var degraded: Bool = false
         var seconds: Double = 0
@@ -65,6 +66,7 @@ final class MementoPromptSweep: XCTestCase {
                 "citations": citations.map { ["id": $0.id, "date": $0.date, "excerpt": $0.excerpt] },
                 "citationCount": citations.count,
                 "promptVersion": promptVersion,
+                "modelIdentifier": modelIdentifier,
                 "zone": zone,
                 "degraded": degraded,
                 "seconds": seconds,
@@ -175,6 +177,7 @@ final class MementoPromptSweep: XCTestCase {
         row.heading1 = result.heading1 ?? ""
         row.heading2 = result.heading2 ?? ""
         row.promptVersion = result.promptVersion
+        row.modelIdentifier = result.modelIdentifier
         row.zone = "\(result.zoneUsed)"
         row.degraded = result.wasDegraded
 

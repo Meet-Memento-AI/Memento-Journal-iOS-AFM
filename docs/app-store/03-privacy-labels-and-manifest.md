@@ -63,6 +63,13 @@ returned **zero hits** on 2026-08-07. **2026-09-11:** `SupabaseFeedbackClient`
 is the first third-party `URLSession` call site. Legal links remain
 `UIApplication.shared.open`.
 
+**2026-09-25 (spec 051 R3):** the feedback row's `model_identifier` now names
+the on-device model class (for example
+`apple.system.on-device.afm3-core-advanced`, AFM 3 Core Advanced, which only
+runs on devices with 12 GB or more). That is a coarse hardware class sent only
+on the same opt-in and Report paths, alongside the app version already sent;
+it stays under Other Data Types / Analytics and needs no new label type.
+
 ### The two things that can break "Data Not Collected"
 
 **1. An undisclosed off-device speech path.**

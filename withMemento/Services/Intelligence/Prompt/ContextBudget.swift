@@ -106,6 +106,24 @@ struct ContextBudget: Equatable, Sendable {
     private static let maxEvidenceLatencyChars = 3_500   // historically 7 × 500
     private static let maxHistoryLatencyChars  = 2_000   // ≈ baseline 6 × 320
 
+    /// AFM 3 Core Advanced's prefill-latency budgets (spec 051 R5). Also not
+    /// windows. Deliberately equal to Core's until a device run shows its p50
+    /// time-to-first-token at a larger budget still meets spec 029's target;
+    /// the numbers that justify a change are recorded in spec 051.
+    private static let coreAdvancedEvidenceLatencyChars = 3_500
+    private static let coreAdvancedHistoryLatencyChars  = 2_000
+
+    /// The latency clamp pair for the model that will run. Every tier but
+    /// Core Advanced keeps the shipped Core clamps, byte for byte.
+    static func latencyClamps(for tier: OnDeviceModelTier) -> (evidenceChars: Int, historyChars: Int) {
+        switch tier {
+        case .afm3CoreAdvanced:
+            return (coreAdvancedEvidenceLatencyChars, coreAdvancedHistoryLatencyChars)
+        case .afm3Core, .preAFM3, .unknown:
+            return (maxEvidenceLatencyChars, maxHistoryLatencyChars)
+        }
+    }
+
     // MARK: Baseline (window unreadable)
     //
     // The caps this module shipped before it could read a window. Empirically
@@ -124,11 +142,13 @@ struct ContextBudget: Equatable, Sendable {
     /// for `.unavailable` — this initializer never invents a window.
     struct TokenCounts: Equatable, Sendable {
         let instructions: Int
+        // periphery:ignore - measured slices (044 R7); only instructions feed the budget today
         let history: Int
+        // periphery:ignore - measured slices (044 R7); only instructions feed the budget today
         let evidence: Int
     }
 
-    init(window: ContextWindow) {
+    init(window: ContextWindow, tier: OnDeviceModelTier = .unknown) {
         switch window {
         case .unavailable:
             self.init(
@@ -139,7 +159,7 @@ struct ContextBudget: Equatable, Sendable {
                 window: window
             )
         case .reported(let tokens):
-            let derived = Self.derived(usableTokens: Double(max(tokens, 0)))
+            let derived = Self.derived(usableTokens: Double(max(tokens, 0)), tier: tier)
             self.init(
                 maxRetrievedEntries: derived.entries,
                 maxEntryChars: derived.entryChars,
@@ -153,13 +173,13 @@ struct ContextBudget: Equatable, Sendable {
     /// Token-aware budget (044 R7). Subtracts measured instruction tokens
     /// from a reported window, then applies the same share math. When the
     /// window is unreadable, identical to `init(window: .unavailable)`.
-    init(tokenCounts: TokenCounts, window: ContextWindow) {
+    init(tokenCounts: TokenCounts, window: ContextWindow, tier: OnDeviceModelTier = .unknown) {
         switch window {
         case .unavailable:
             self.init(window: .unavailable)
         case .reported(let tokens):
             let remaining = max(0, tokens - tokenCounts.instructions)
-            let derived = Self.derived(usableTokens: Double(remaining))
+            let derived = Self.derived(usableTokens: Double(remaining), tier: tier)
             self.init(
                 maxRetrievedEntries: derived.entries,
                 maxEntryChars: derived.entryChars,
@@ -184,9 +204,15 @@ struct ContextBudget: Equatable, Sendable {
         self.window = window
     }
 
-    private static func derived(usableTokens: Double) -> (
-        entries: Int, entryChars: Int, turns: Int, turnChars: Int
-    ) {
+    private struct Derived {
+        let entries: Int
+        let entryChars: Int
+        let turns: Int
+        let turnChars: Int
+    }
+
+    private static func derived(usableTokens: Double, tier: OnDeviceModelTier) -> Derived {
+        let clamps = latencyClamps(for: tier)
         let retrievalChars = usableTokens * retrievalShare * charsPerToken
         let historyChars = usableTokens * historyShare * charsPerToken
 
@@ -201,31 +227,36 @@ struct ContextBudget: Equatable, Sendable {
         // always win over the clamp: a slow grounded reply beats a fast
         // ungrounded one.
         let entries = Int((retrievalChars / Double(baselineEntryChars)).rounded(.down))
-        let latencyEntryCap = maxEvidenceLatencyChars / baselineEntryChars
+        let latencyEntryCap = clamps.evidenceChars / baselineEntryChars
         let maxRetrievedEntries = max(
             min(entries, maxRetrievedEntriesCeiling, latencyEntryCap),
             minRetrievedEntries
         )
         let perEntry = Int((retrievalChars / Double(maxRetrievedEntries)).rounded(.down))
-        let latencyPerEntryCap = maxEvidenceLatencyChars / maxRetrievedEntries
+        let latencyPerEntryCap = clamps.evidenceChars / maxRetrievedEntries
         let maxEntryChars = max(
             min(perEntry, maxEntryCharsCeiling, latencyPerEntryCap),
             minEntryChars
         )
 
         let turns = Int((historyChars / Double(baselineHistoryCharsPerTurn)).rounded(.down))
-        let latencyTurnCap = maxHistoryLatencyChars / baselineHistoryCharsPerTurn
+        let latencyTurnCap = clamps.historyChars / baselineHistoryCharsPerTurn
         let maxHistoryTurns = max(
             min(turns, maxHistoryTurnsCeiling, latencyTurnCap),
             minHistoryTurns
         )
         let perTurn = Int((historyChars / Double(maxHistoryTurns)).rounded(.down))
-        let latencyPerTurnCap = maxHistoryLatencyChars / maxHistoryTurns
+        let latencyPerTurnCap = clamps.historyChars / maxHistoryTurns
         let maxHistoryCharsPerTurn = max(
             min(perTurn, maxHistoryCharsPerTurnCeiling, latencyPerTurnCap),
             minHistoryCharsPerTurn
         )
-        return (maxRetrievedEntries, maxEntryChars, maxHistoryTurns, maxHistoryCharsPerTurn)
+        return Derived(
+            entries: maxRetrievedEntries,
+            entryChars: maxEntryChars,
+            turns: maxHistoryTurns,
+            turnChars: maxHistoryCharsPerTurn
+        )
     }
 
     /// Total characters this budget may put into a prompt, excluding
@@ -261,7 +292,12 @@ struct ContextBudget: Equatable, Sendable {
             }
         }
         if let tokenCount, let tokenLimit, tokenCount(clipped) > tokenLimit, clipped.count > 40 {
-            return clipToSentence(String(clipped.prefix(clipped.count * 3 / 4)), limit: limit, tokenCount: tokenCount, tokenLimit: tokenLimit)
+            return clipToSentence(
+                String(clipped.prefix(clipped.count * 3 / 4)),
+                limit: limit,
+                tokenCount: tokenCount,
+                tokenLimit: tokenLimit
+            )
         }
         return clipped
     }
