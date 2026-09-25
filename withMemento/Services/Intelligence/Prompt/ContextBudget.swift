@@ -202,9 +202,14 @@ struct ContextBudget: Equatable, Sendable {
         self.window = window
     }
 
-    private static func derived(usableTokens: Double, tier: OnDeviceModelTier) -> (
-        entries: Int, entryChars: Int, turns: Int, turnChars: Int
-    ) {
+    private struct Derived {
+        let entries: Int
+        let entryChars: Int
+        let turns: Int
+        let turnChars: Int
+    }
+
+    private static func derived(usableTokens: Double, tier: OnDeviceModelTier) -> Derived {
         let clamps = latencyClamps(for: tier)
         let retrievalChars = usableTokens * retrievalShare * charsPerToken
         let historyChars = usableTokens * historyShare * charsPerToken
@@ -244,7 +249,12 @@ struct ContextBudget: Equatable, Sendable {
             min(perTurn, maxHistoryCharsPerTurnCeiling, latencyPerTurnCap),
             minHistoryCharsPerTurn
         )
-        return (maxRetrievedEntries, maxEntryChars, maxHistoryTurns, maxHistoryCharsPerTurn)
+        return Derived(
+            entries: maxRetrievedEntries,
+            entryChars: maxEntryChars,
+            turns: maxHistoryTurns,
+            turnChars: maxHistoryCharsPerTurn
+        )
     }
 
     /// Total characters this budget may put into a prompt, excluding
@@ -280,7 +290,12 @@ struct ContextBudget: Equatable, Sendable {
             }
         }
         if let tokenCount, let tokenLimit, tokenCount(clipped) > tokenLimit, clipped.count > 40 {
-            return clipToSentence(String(clipped.prefix(clipped.count * 3 / 4)), limit: limit, tokenCount: tokenCount, tokenLimit: tokenLimit)
+            return clipToSentence(
+                String(clipped.prefix(clipped.count * 3 / 4)),
+                limit: limit,
+                tokenCount: tokenCount,
+                tokenLimit: tokenLimit
+            )
         }
         return clipped
     }
