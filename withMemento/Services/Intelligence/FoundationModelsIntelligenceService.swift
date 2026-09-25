@@ -104,6 +104,8 @@ struct AskTurnPerf: Sendable, Equatable {
     let promptVersion: String
     let channel: String
     let speculativeHit: Bool
+    /// `OnDeviceModelTier.rawValue` (spec 051 R4), so latency splits by model.
+    let modelTier: String
 }
 
 /// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
@@ -384,7 +386,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         lastTurnPerf = AskTurnPerf(
             promptVersion: promptVersion,
             channel: channel.rawValue,
-            speculativeHit: speculativeHit
+            speculativeHit: speculativeHit,
+            modelTier: OnDeviceModelTierCache.shared.current.tier.rawValue
         )
     }
 
@@ -656,8 +659,24 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // can flip to available later, so keep re-checking that case.
         if case .available = resolved {
             cachePositiveAvailability(resolved)
+            Self.resolveOnDeviceTierIfNeeded()
         }
         return resolved
+    }
+
+    /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
+    /// `reported` is nil and the tier is inferred from OS and memory. Only
+    /// called after a `.available` result; the cache ignores `.unknown`.
+    private static func resolveOnDeviceTierIfNeeded() {
+        let cache = OnDeviceModelTierCache.shared
+        guard !cache.hasResolved else { return }
+        let info = ProcessInfo.processInfo
+        cache.store(OnDeviceModelTierResolver.resolve(
+            reported: nil,
+            modelAvailable: true,
+            osMajorVersion: info.operatingSystemVersion.majorVersion,
+            physicalMemoryBytes: info.physicalMemory
+        ))
     }
 
     // MARK: Prewarm
@@ -743,7 +762,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // latency record (spec 029 R1) and it is content-free by construction,
         // so it is safe as public metadata and useful in release traces.
         PerfSignposts.perfLog.info(
-            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools)"
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools) \(OnDeviceModelTierCache.shared.current.logFields, privacy: .public)"
         )
     }
 
@@ -2455,12 +2474,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Persisted provenance (`REQ-PRM-004`). Stable strings — the quality study
     /// joins on them, so treat these as a wire format rather than log prose.
-    private static func modelIdentifier(for zone: TrustZone) -> String {
-        switch zone {
-        case .z0Device: return "apple.system.on-device"
-        case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
-        case .z1AppleContentFree: return "apple.cloud.content-free"
-        }
+    /// On-device strings carry the model tier (spec 051 R3).
+    private static func modelIdentifier(
+        for zone: TrustZone,
+        tier: ResolvedOnDeviceModelTier = OnDeviceModelTierCache.shared.current
+    ) -> String {
+        tier.modelIdentifier(for: zone)
     }
 }
 

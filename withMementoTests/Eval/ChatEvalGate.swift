@@ -89,6 +89,7 @@ final class ChatEvalGate: XCTestCase {
         var body: String = ""
         var citations: Int = 0
         var promptVersion: String = ""
+        var modelIdentifier: String = ""
         var citedFixtureIDs: [String] = []
         var seconds: Double = 0
         var error: String?
@@ -187,6 +188,7 @@ final class ChatEvalGate: XCTestCase {
         sample.body = result.body
         sample.citations = result.citations.count
         sample.promptVersion = result.promptVersion
+        sample.modelIdentifier = result.modelIdentifier
 
         if result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             sample.error = "empty body"
@@ -329,6 +331,7 @@ final class ChatEvalGate: XCTestCase {
                 "chars": s.body.count,
                 "seconds": s.seconds,
                 "promptVersion": s.promptVersion,
+                "modelIdentifier": s.modelIdentifier,
                 "violations": s.violations.map { ["code": $0.code, "detail": $0.detail] },
                 "body": s.body
             ]

@@ -54,6 +54,25 @@ struct ResolvedOnDeviceModelTier: Sendable, Equatable {
     let source: OnDeviceModelTierSource
 
     static let unresolved = ResolvedOnDeviceModelTier(tier: .unknown, source: .inferred)
+
+    /// Fields for the per-generation perf line (spec 051 R4). Enum raw values
+    /// only, so the line stays content-free (CONSTITUTION §4 rule 3).
+    var logFields: String { "tier=\(tier.rawValue) tier_source=\(source.rawValue)" }
+
+    /// The model identifier for a generation in `zone` (spec 051 R3). Only
+    /// on-device generations carry the tier; the bare on-device string is
+    /// kept for `.unknown` so historical rows still join.
+    func modelIdentifier(for zone: TrustZone) -> String {
+        switch zone {
+        case .z0Device:
+            guard let suffix = tier.identifierSuffix else { return Self.onDeviceBaseIdentifier }
+            return "\(Self.onDeviceBaseIdentifier).\(suffix)"
+        case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
+        case .z1AppleContentFree: return "apple.cloud.content-free"
+        }
+    }
+
+    static let onDeviceBaseIdentifier = "apple.system.on-device"
 }
 
 enum OnDeviceModelTierResolver {

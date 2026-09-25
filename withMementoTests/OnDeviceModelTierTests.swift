@@ -86,6 +86,45 @@ final class OnDeviceModelTierTests: XCTestCase {
         XCTAssertEqual(Set(suffixes).count, OnDeviceModelTier.allCases.count - 1)
     }
 
+    // MARK: Model identifiers (R3) — a wire format; pinned verbatim
+
+    func test_modelIdentifier_onDevice_pinsAllFourStrings() {
+        func id(_ tier: OnDeviceModelTier) -> String {
+            ResolvedOnDeviceModelTier(tier: tier, source: .inferred).modelIdentifier(for: .z0Device)
+        }
+        XCTAssertEqual(id(.afm3CoreAdvanced), "apple.system.on-device.afm3-core-advanced")
+        XCTAssertEqual(id(.afm3Core), "apple.system.on-device.afm3-core")
+        XCTAssertEqual(id(.preAFM3), "apple.system.on-device.pre-afm3")
+        XCTAssertEqual(id(.unknown), "apple.system.on-device")
+    }
+
+    func test_modelIdentifier_sourceDoesNotForkTheIdentifier() {
+        let reported = ResolvedOnDeviceModelTier(tier: .afm3Core, source: .reported)
+        let inferred = ResolvedOnDeviceModelTier(tier: .afm3Core, source: .inferred)
+        XCTAssertEqual(reported.modelIdentifier(for: .z0Device), inferred.modelIdentifier(for: .z0Device))
+    }
+
+    func test_modelIdentifier_offDeviceZones_ignoreTheTier() {
+        let tier = ResolvedOnDeviceModelTier(tier: .afm3CoreAdvanced, source: .inferred)
+        XCTAssertEqual(tier.modelIdentifier(for: .z1AppleContent(reasoningLevel: .light)), "apple.pcc.light")
+        XCTAssertEqual(tier.modelIdentifier(for: .z1AppleContentFree), "apple.cloud.content-free")
+    }
+
+    func test_modelIdentifier_onDevice_keepsTheHistoricalPrefix() {
+        for tier in OnDeviceModelTier.allCases {
+            let id = ResolvedOnDeviceModelTier(tier: tier, source: .inferred).modelIdentifier(for: .z0Device)
+            XCTAssertTrue(id.hasPrefix("apple.system.on-device"), id)
+        }
+    }
+
+    // MARK: Perf line (R4)
+
+    func test_logFields_areEnumRawValuesOnly() {
+        let fields = ResolvedOnDeviceModelTier(tier: .afm3CoreAdvanced, source: .inferred).logFields
+        XCTAssertEqual(fields, "tier=afm3CoreAdvanced tier_source=inferred")
+        XCTAssertEqual(ResolvedOnDeviceModelTier.unresolved.logFields, "tier=unknown tier_source=inferred")
+    }
+
     // MARK: Cache
 
     func test_cache_startsUnresolved() {

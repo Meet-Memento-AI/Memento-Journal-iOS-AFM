@@ -98,6 +98,32 @@ final class ChatContinuityTests: XCTestCase {
         XCTAssertEqual(turns.first?.text, "You wrote about the move twice this week.")
     }
 
+    /// Spec 051 R3: a tier-suffixed on-device identifier round-trips like the
+    /// bare one, and the reply still unwraps to prose.
+    func testStoredAssistantJSONCarriesTierSuffixedModelIdentifier() throws {
+        let identifier = ResolvedOnDeviceModelTier(tier: .afm3CoreAdvanced, source: .inferred)
+            .modelIdentifier(for: .z0Device)
+        let json = ChatService.assistantContentJSON(
+            body: "You wrote about the move twice this week.",
+            heading1: nil,
+            heading2: nil,
+            sources: [],
+            promptVersion: "ask-core@19",
+            modelIdentifier: identifier,
+            zone: "z0.device",
+            wasDegraded: false
+        )
+
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(object["model_identifier"] as? String, "apple.system.on-device.afm3-core-advanced")
+        let turns = ChatService.historyTurns(from: [
+            ChatMessageDTO(id: UUID(), role: "assistant", content: json, createdAt: "2026-09-25T00:00:00Z")
+        ])
+        XCTAssertEqual(turns.first?.text, "You wrote about the move twice this week.")
+    }
+
     /// Replies stored before provenance existed must still parse unchanged.
     func testLegacyStoredAssistantJSONWithoutProvenanceStillParses() throws {
         let legacy = ChatService.assistantContentJSON(
