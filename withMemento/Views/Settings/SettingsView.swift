@@ -49,6 +49,7 @@ struct SettingsView: View {
         .background(theme.background.ignoresSafeArea())
         #if MEMENTO_AI
         .task { await syncStatus.refresh() }
+            .proseColumn()
         #endif
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)

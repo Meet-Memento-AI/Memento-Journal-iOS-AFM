@@ -194,6 +194,12 @@ public struct ContentView: View {
 
             // Destinations that still push on `navigationPath` (search, the
             // standalone journal toolbar). Hit-testing is off while the path
+            // Both root pages are surfaces of cards, so they read at the wider
+            // measure and their shared `AppHeader` aligns to it. Declared here
+            // rather than per page so the two cannot drift. The overlay
+            // NavigationStack below is a *sibling*, not a child, so routes
+            // pushed on it (settings, the entry editor) keep the prose measure.
+            .contentColumnWidth(ContentColumnMetrics.surface)
             // is empty so the pager receives swipes.
             NavigationStack(path: $navigationPath) {
                 Color.clear

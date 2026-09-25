@@ -265,7 +265,7 @@ struct ChatInputField: View {
         .padding(.top, attachedPhotos.isEmpty ? 0 : Spacing.sm)
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity)
-        .rootEdgeInset()
+        .pageColumnRelative()
         // Liquid Glass, `.regular` — the frosted variant, which is what spec 024
         // and the API reference both assign to this surface. `.clear` has
         // refraction but no frost, and this capsule floats over a scrolling

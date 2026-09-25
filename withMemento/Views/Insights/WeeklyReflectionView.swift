@@ -58,6 +58,7 @@ struct WeeklyReflectionView: View {
                 Spacer(minLength: Spacing.xxxl)
             }
             .padding(.horizontal, Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())
@@ -199,6 +200,7 @@ struct PatternsView: View {
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())
+            .proseColumn()
         .navigationTitle("Patterns")
         .navigationBarTitleDisplayMode(.inline)
     }
