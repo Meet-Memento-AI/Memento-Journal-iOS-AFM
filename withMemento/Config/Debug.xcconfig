@@ -10,4 +10,10 @@
 SUPABASE_SLASH = /
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
+// RevenueCat public SDK key (spec 021 R3), supplied by the gitignored
+// RevenueCat.xcconfig (see RevenueCat.xcconfig.example). Use the `test_` key
+// here: it talks to RevenueCat's Test Store, so purchases work in the simulator.
+// Missing → EntitlementStore stays off and paid surfaces are open.
+REVENUECAT_API_KEY =
 #include? "Supabase.xcconfig"
+#include? "RevenueCat.xcconfig"

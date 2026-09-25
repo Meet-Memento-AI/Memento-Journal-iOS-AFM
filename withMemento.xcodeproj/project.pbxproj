@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		A5CHARTS012F0000020000CH01 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5CHARTS022F0000020000CH02 /* Charts.framework */; };
 		A5D0E1A22F0000010000AA03 /* SupertonicTTS in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0E1A12F0000010000AA02 /* SupertonicTTS */; };
+		A5D0E1B32F0000010000BB04 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0E1B12F0000010000BB02 /* RevenueCat */; };
+		A5D0E1B42F0000010000BB05 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = A5D0E1B22F0000010000BB03 /* RevenueCatUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -86,6 +88,8 @@
 			files = (
 				A5CHARTS012F0000020000CH01 /* Charts.framework in Frameworks */,
 				A5D0E1A22F0000010000AA03 /* SupertonicTTS in Frameworks */,
+				A5D0E1B32F0000010000BB04 /* RevenueCat in Frameworks */,
+				A5D0E1B42F0000010000BB05 /* RevenueCatUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -166,6 +170,8 @@
 			name = withMemento;
 			packageProductDependencies = (
 				A5D0E1A12F0000010000AA02 /* SupertonicTTS */,
+				A5D0E1B12F0000010000BB02 /* RevenueCat */,
+				A5D0E1B22F0000010000BB03 /* RevenueCatUI */,
 			);
 			productName = withMemento;
 			productReference = A52968642E8CCF12004F65BE /* withMemento.app */;
@@ -247,6 +253,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A5D0E1A02F0000010000AA01 /* XCLocalSwiftPackageReference "Packages/SupertonicTTS" */,
+				A5D0E1B02F0000010000BB01 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A52968652E8CCF12004F65BE /* Products */;
@@ -647,11 +654,32 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A5D0E1B02F0000010000BB01 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.91.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A5D0E1A12F0000010000AA02 /* SupertonicTTS */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A5D0E1A02F0000010000AA01 /* XCLocalSwiftPackageReference "Packages/SupertonicTTS" */;
 			productName = SupertonicTTS;
+		};
+		A5D0E1B12F0000010000BB02 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5D0E1B02F0000010000BB01 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		A5D0E1B22F0000010000BB03 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5D0E1B02F0000010000BB01 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

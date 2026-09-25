@@ -55,6 +55,22 @@
                 <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
             </array>
         </dict>
+        <!-- Spec 021 R3/R5: RevenueCat receives purchase receipts under its
+             anonymous app-user ID. Mirrors the SDK's own bundled manifest
+             (purchases-ios-spm 5.91.0): Purchase History, not linked, not
+             tracking, App Functionality. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
     </array>
 
     <!-- APIs accessed by the app that require reasons -->

@@ -185,21 +185,24 @@ public struct ContentView: View {
                             navigationPath.append(route)
                         }
                     )
+                    // Ask is a paid surface (spec 021 R4). The pager swipe
+                    // back to Journal stays live while it's locked.
+                    .proGated("Ask")
                 #else
                 case .chat:
                     EmptyView()
                 #endif
                 }
             }
-
-            // Destinations that still push on `navigationPath` (search, the
-            // standalone journal toolbar). Hit-testing is off while the path
             // Both root pages are surfaces of cards, so they read at the wider
             // measure and their shared `AppHeader` aligns to it. Declared here
             // rather than per page so the two cannot drift. The overlay
             // NavigationStack below is a *sibling*, not a child, so routes
             // pushed on it (settings, the entry editor) keep the prose measure.
             .contentColumnWidth(ContentColumnMetrics.surface)
+
+            // Destinations that still push on `navigationPath` (search, the
+            // standalone journal toolbar). Hit-testing is off while the path
             // is empty so the pager receives swipes.
             NavigationStack(path: $navigationPath) {
                 Color.clear

@@ -439,10 +439,46 @@ spec's status moves to done.
     bundled privacy manifest *and* a signature**, so landing it adds an upload
     obligation (`ITMS-91061`) on top of the V8 label question.
 
+## Decision record — RevenueCat integration (2026-09-24)
+
+- **V8 verdict (R5): disclosure triggered.** The bundled manifest of
+  purchases-ios-spm 5.91.0 (`Sources/PrivacyInfo.xcprivacy`) declares
+  `NSPrivacyCollectedDataTypePurchaseHistory`: Linked = false,
+  Tracking = false, purpose App Functionality.
+  - **Product owner's decision: keep RevenueCat anyway.** This overrides R5's
+    "StoreKit 2 direct" fallback.
+  - The label target is now **Purchases → Purchase History, not linked to
+    the user**, alongside the spec 042 feedback types the manifest already
+    declared.
+  - `PrivacyInfo.xcprivacy` mirrors the declaration, and
+    `check_privacy_manifest.sh` enforces the pairing.
+  - Still open: confirming against App Store Connect's aggregated report on
+    an archived build.
+- **Products:** `monthly`, `yearly`, and a non-consumable `lifetime`, all
+  granting entitlement `memento_ai_pro`. `lifetime` goes beyond R1's
+  monthly/annual pair and is the product owner's call.
+  - Prices come only from the store. The paywall is RevenueCatUI's
+    `PaywallView` on the current offering, presented annual-first.
+  - Setup steps: `docs/app-store/revenuecat-setup.md`.
+- **Integration (R3):**
+  - `Services/Purchases/EntitlementStore` is the single observable source.
+    It uses the anonymous ID only and has no `logIn` or attributes, which
+    `RevenueCatConfigTests` enforces.
+  - The last known state is cached so gates work offline.
+  - Restore Purchases is in the paywall template and in Settings.
+- **Gating (R4):** `ProAccess.decide` is the one gate. It is applied through
+  `.proGated(_:)` inside `WeeklyReflectionView`, `PatternsView`, and on
+  `AIChatView`.
+  - It never looks at quota.
+  - Ineligible devices never see purchase UI (R2, `ProAccessTests`).
+  - Personal Voice has no user-facing surface yet. Gate it through the same
+    call once it has one.
+  - Export and the other free surfaces do not import the module.
+
 ## Tasks
 - [ ] 1. Resolve `DEC-004` (pricing/trial).
 - [ ] 2. Resolve `DEC-001` (Reduced-tier shipping posture).
-- [ ] 3. Implement StoreKit 2 + RevenueCat per `REQ-MON-001`.
+- [x] 3. Implement StoreKit 2 + RevenueCat per `REQ-MON-001` (2026-09-24; see decision record).
 - [ ] 4. Confirm Small Business Program enrollment status against spec 013's
       filing (`REQ-MON-002`).
 - [ ] 5. Implement free/paid feature gating (`REQ-MON-003`).

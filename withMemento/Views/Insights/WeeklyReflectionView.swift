@@ -62,6 +62,9 @@ struct WeeklyReflectionView: View {
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())
+        // Paid surface (spec 021 R4). Inside the view so every route —
+        // ContentView, JournalView, ProfileSheet — is gated once.
+        .proGated("Weekly reflections")
         .navigationTitle("Weekly")
         .navigationBarTitleDisplayMode(.inline)
         .onReceive(NotificationCenter.default.publisher(for: WeeklyReflectionStore.writingDidChange)) { _ in
@@ -197,10 +200,13 @@ struct PatternsView: View {
                 Spacer(minLength: Spacing.xxxl)
             }
             .padding(.horizontal, Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())
-            .proseColumn()
+        // Paid surface (spec 021 R4). Inside the view so every route —
+        // ContentView, JournalView, ProfileSheet — is gated once.
+        .proGated("Patterns")
         .navigationTitle("Patterns")
         .navigationBarTitleDisplayMode(.inline)
     }

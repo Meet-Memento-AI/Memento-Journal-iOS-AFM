@@ -11,6 +11,9 @@
 #
 # --- TARGET (2.0 end state) ---
 revenuecat/purchases-ios
+# The official SPM mirror of purchases-ios (same source, faster resolution);
+# the one RevenueCat's install docs point at. Linked 2026-09-24, spec 021 R3.
+revenuecat/purchases-ios-spm
 #
 # --- NEURAL VOICE (spec 030; decision record: spec 021 R6 amendment 2026-08-18) ---
 # The on-device TTS integration surface. Admitted under REQ-TTS-001 (runs entirely

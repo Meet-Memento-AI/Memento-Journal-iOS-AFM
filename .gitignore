@@ -111,6 +111,8 @@ withMemento/Secrets.swift
 withMemento/Config/Debug.local.xcconfig
 withMemento/Config/Release.local.xcconfig
 withMemento/Config/Supabase.xcconfig
+withMemento/Config/RevenueCat.xcconfig
+withMemento/Config/RevenueCat.release.xcconfig
 
 # Environment variables
 .env
