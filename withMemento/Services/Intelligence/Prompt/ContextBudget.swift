@@ -142,7 +142,9 @@ struct ContextBudget: Equatable, Sendable {
     /// for `.unavailable` — this initializer never invents a window.
     struct TokenCounts: Equatable, Sendable {
         let instructions: Int
+        // periphery:ignore - measured slices (044 R7); only instructions feed the budget today
         let history: Int
+        // periphery:ignore - measured slices (044 R7); only instructions feed the budget today
         let evidence: Int
     }
 

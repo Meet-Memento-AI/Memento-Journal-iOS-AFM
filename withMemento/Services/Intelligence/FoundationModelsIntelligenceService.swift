@@ -196,6 +196,7 @@ final class SearchJournalTool: Tool {
     private let state: SearchJournalTurnState
     private let ingestPool: @Sendable ([RetrievedEntry]) -> Void
 
+    // periphery:ignore - built when attachSearchOnMiss is wired (044 R4); retained deliberately
     init(
         entries: [Entry],
         limits: RetrievalLimits,
@@ -872,9 +873,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt: String
         let resolved: ResolvedPrompt
         let budget: ContextBudget
-        /// The session transcript (instructions + history tail) this turn
-        /// runs against — and the adoption key for speculative sessions.
-        let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
         let spoken: Bool
         /// What the prompt carries and the renderer may insert (spec 050).
@@ -1240,7 +1238,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
             channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
-            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken,
+            budget: core.budget, generationOptions: generationOptions, spoken: core.spoken,
             pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
         )
     }
