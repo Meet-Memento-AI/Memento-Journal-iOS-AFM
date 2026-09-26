@@ -145,14 +145,26 @@ struct YourEntriesView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             Spacer()
-            JournalEmptyMark()
+            VStack(spacing: 12) {
+                JournalEmptyMark()
+                Text("Nothing here yet. A few lines about today is a good start.")
+                    .font(type.body1)
+                    .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("No journal entries yet. A few lines about today is a good start.")
+            Button("Start writing") {
+                onNavigateToEntry(.create)
+            }
+            .padding(.top, 8)
+            .accessibilityIdentifier("journal.empty.startWriting")
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("No journal entries yet")
     }
 
     private var entriesList: some View {

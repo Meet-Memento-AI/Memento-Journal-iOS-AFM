@@ -22,7 +22,6 @@ public struct AIChatView: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -33,6 +32,7 @@ public struct AIChatView: View {
     @ObservedObject private var preferences = PreferencesService.shared
     @StateObject private var keyboardObserver = KeyboardObserver()
     @StateObject private var choreographer = ChatSendChoreographer()
+    @StateObject private var companionAvailability = CompanionAvailability()
 
     private struct CitationsWrapper: Identifiable {
         let id = UUID()
@@ -96,7 +96,7 @@ public struct AIChatView: View {
     }
 
     private var footerBottomPadding: CGFloat {
-        guard preferences.aiEnabled else { return 0 }
+        guard preferences.aiEnabled, companionUnavailableReason == nil else { return 0 }
         if isNarrating { return AppHeaderMetrics.rowBottomPadding }
         return keyboardBottomPadding
     }
@@ -115,6 +115,10 @@ public struct AIChatView: View {
                 + AppHeaderMetrics.rowBottomPadding
         }
         return AppHeaderMetrics.rowBottomPadding
+    }
+
+    private var companionUnavailableReason: IntelligenceUnavailableReason? {
+        viewModel.messages.isEmpty ? companionAvailability.unavailableReason : nil
     }
 
     private var followTail: Bool {
@@ -150,6 +154,7 @@ public struct AIChatView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background { stopNarration() }
         }
+        .task(id: scenePhase) { if scenePhase == .active { await companionAvailability.refresh() } }
         .sheet(item: $selectedCitations) { wrapper in
             CitationsBottomSheet(citations: wrapper.citations)
         }
@@ -309,7 +314,7 @@ public struct AIChatView: View {
             }
         ) {
             ZStack {
-                if preferences.aiEnabled {
+                if preferences.aiEnabled, companionUnavailableReason == nil {
                     ChatMessagesView(
                         viewModel: viewModel,
                         voiceService: voiceService,
@@ -345,7 +350,8 @@ public struct AIChatView: View {
                             .onTapGesture { dismissKeyboard() }
                             .accessibilityHidden(true)
                     }
-
+                } else if preferences.aiEnabled, let reason = companionUnavailableReason {
+                    CompanionUnavailableView(reason: reason) { Task { await companionAvailability.refresh() } }
                 } else {
                     aiDisabledView
                 }
@@ -375,7 +381,7 @@ public struct AIChatView: View {
 
     @ViewBuilder
     private var chatFooter: some View {
-        if preferences.aiEnabled {
+        if preferences.aiEnabled, companionUnavailableReason == nil {
             ZStack(alignment: .bottom) {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
@@ -409,9 +415,6 @@ public struct AIChatView: View {
             )
         }
     }
-
-    /// One-time compact-voice tip (spec 029 R8). Informational, non-blocking;
-    /// the X persists dismissal via PreferencesService.
 
     private var aiDisabledView: some View {
         VStack(spacing: 24) {
@@ -665,6 +668,7 @@ struct AIChatNarrationPreviewConfiguration {
     var isLoading: Bool = false
     var messages: [ChatMessage] = []
 
+    // periphery:ignore - read only by #Preview canvases
     static var sampleTurn: [ChatMessage] {
         [
             ChatMessage(
@@ -679,6 +683,7 @@ struct AIChatNarrationPreviewConfiguration {
     }
 }
 
+// periphery:ignore - instantiated only by #Preview canvases
 private struct AIChatNarrationPreview: View {
     let configuration: AIChatNarrationPreviewConfiguration
     @StateObject private var viewModel = ChatViewModel()
