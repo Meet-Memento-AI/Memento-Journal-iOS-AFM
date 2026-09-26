@@ -480,7 +480,7 @@ public struct WelcomeView: View {
                     )
                 )
                 .clipShape(shape)
-                .glassEffect(.regular, in: shape)
+                .mementoChromeGlass(.regular, in: shape)
                 .contentShape(shape)
         }
         .buttonStyle(PrimaryButtonPressStyle())
@@ -489,6 +489,9 @@ public struct WelcomeView: View {
         .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(hint)
+        // The chip is always light on video; under Reduce Transparency its
+        // plate is `theme.card`, which must stay white under the dark label.
+        .environment(\.theme, .light)
         .environment(\.colorScheme, .light)
         .accessibilityIdentifier(identifier)
     }
