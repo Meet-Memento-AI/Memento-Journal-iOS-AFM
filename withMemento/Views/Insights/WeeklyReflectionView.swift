@@ -11,38 +11,40 @@ import SwiftUI
 struct WeeklyReflectionView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
     @State private var isWriting = WeeklyReflectionStore.isWriting
     @State private var refreshStamp = Date()
 
     var body: some View {
+        // swiftlint:disable:next redundant_discardable_let
         let _ = refreshStamp
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 let stats = PatternStats.week(entries: entryViewModel.entries)
                 Text("This week")
-                    .font(.title2.weight(.semibold))
+                    .font(type.h3)
                 Text("\(stats.entryCount) entries")
-                    .font(.subheadline)
+                    .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
                     .accessibilityIdentifier("weekly.entryCount")
 
                 if isWriting {
                     Text("writing now…")
-                        .font(.body)
+                        .font(type.body1)
                         .foregroundStyle(theme.mutedForeground)
                         .accessibilityIdentifier("weekly.writingNow")
                 } else if WeeklyReflectionStore.hasNothingToSay,
                           WeeklyReflectionStore.latestBody != nil {
                     Text(WeeklyReflectionCoordinator.quietCopy)
-                        .font(.body)
+                        .font(type.body1)
                         .foregroundStyle(theme.mutedForeground)
                         .accessibilityIdentifier("weekly.quiet")
                 } else if let body = WeeklyReflectionStore.latestBody, !body.isEmpty {
                     Text(body)
-                        .font(.body)
+                        .font(type.body1)
                     if let observation = WeeklyReflectionStore.observation, !observation.isEmpty {
                         Text(observation)
-                            .font(.body.italic())
+                            .font(type.body1.italic())
                             .padding(.top, Spacing.xs)
                     }
                     citationList
@@ -52,7 +54,7 @@ struct WeeklyReflectionView: View {
                         "A weekly reflection appears here after you have a few entries. "
                             + "Counts stay on this screen — they are never sent to the model."
                     )
-                    .font(.body)
+                    .font(type.body1)
                     .foregroundStyle(theme.mutedForeground)
                 }
                 Spacer(minLength: Spacing.xxxl)
@@ -78,16 +80,16 @@ struct WeeklyReflectionView: View {
         let ids = WeeklyReflectionStore.citationIDs
         if !ids.isEmpty {
             Text("From your journal")
-                .font(.headline)
+                .font(type.body1Medium)
                 .padding(.top, Spacing.sm)
             ForEach(ids, id: \.self) { id in
                 if let entry = entryViewModel.entry(id: id) {
                     NavigationLink(value: EntryRoute.edit(id)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
-                                .font(.subheadline.weight(.medium))
+                                .font(type.body2)
                             Text(entry.excerpt)
-                                .font(.caption)
+                                .font(type.caption)
                                 .foregroundStyle(theme.mutedForeground)
                                 .lineLimit(2)
                         }
@@ -122,6 +124,7 @@ struct WeeklyReflectionView: View {
 struct PatternsView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     var body: some View {
         let stats = PatternStats.month(entries: entryViewModel.entries)
@@ -140,21 +143,21 @@ struct PatternsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 Text("Patterns")
-                    .font(.title2.weight(.semibold))
+                    .font(type.h3)
                 Text("\(stats.entryCount) entries this month")
-                    .font(.subheadline)
+                    .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
                     .opacity(stats.entryCount < InsightEngine.lowConfidenceThreshold ? 0.55 : 1)
                     .accessibilityIdentifier("patterns.entryCount")
                 if stats.entryCount < InsightEngine.lowConfidenceThreshold {
                     Text(InsightFact.lowConfidenceCopy(n: stats.entryCount))
-                        .font(.caption)
+                        .font(type.caption)
                         .foregroundStyle(theme.mutedForeground)
                 }
 
                 if stats.weekFacts.contains(where: { $0.n > 0 }) {
                     Text("Entries by week")
-                        .font(.headline)
+                        .font(type.body1Medium)
                     InsightBarChart(
                         facts: stats.weekFacts,
                         yTitle: "Entries",
@@ -165,7 +168,7 @@ struct PatternsView: View {
 
                 if timeOfDay.contains(where: { $0.n > 0 }) {
                     Text("Time of day")
-                        .font(.headline)
+                        .font(type.body1Medium)
                     InsightBarChart(
                         facts: timeOfDay,
                         yTitle: "Entries",
@@ -191,7 +194,7 @@ struct PatternsView: View {
                 }
 
                 Text("Charts are counted in the app. The model never sees these numbers.")
-                    .font(.footnote)
+                    .font(type.caption)
                     .foregroundStyle(theme.mutedForeground)
                 Spacer(minLength: Spacing.xxxl)
             }
@@ -207,23 +210,23 @@ struct PatternsView: View {
     private func factList(title: String, facts: [InsightFact]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(title)
-                .font(.headline)
+                .font(type.body1Medium)
             ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(fact.label)
-                            .font(.subheadline.weight(.medium))
+                            .font(type.body2)
                         Spacer()
                         Text(fact.value)
-                            .font(.subheadline.weight(.semibold))
+                            .font(type.body2Medium)
                     }
                     if fact.isLowConfidence {
                         Text(InsightFact.lowConfidenceCopy(n: fact.n))
-                            .font(.caption)
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                     } else if fact.n > 0 {
                         Text(InsightFact.sampleSizeCopy(n: fact.n))
-                            .font(.caption)
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                     }
                 }
