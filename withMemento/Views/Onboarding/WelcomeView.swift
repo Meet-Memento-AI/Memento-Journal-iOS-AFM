@@ -67,12 +67,12 @@ public struct WelcomeView: View {
             ZStack {
                 // Plate only while dissolving (intro in / Get Started out).
                 // A standing plate flashes through when the player wraps.
-                // Intro dissolves up from the white LaunchScreen, so that leg
-                // stays white; the exit hands off to onboarding, which paints
-                // `theme.background` — black in dark mode — so it must
-                // dissolve to the same colour or the bridge flashes white.
+                // Both legs use `theme.background`: the intro dissolves up
+                // from LaunchScreen (`LaunchBackground`, white/black by
+                // appearance) and the exit hands off to onboarding, so a
+                // white plate would flash in dark mode either way.
                 if isExiting || videoOpacity < 1 {
-                    (isExiting ? theme.background : Color.white)
+                    theme.background
                         .ignoresSafeArea()
                 }
 
@@ -211,8 +211,8 @@ public struct WelcomeView: View {
     /// Matches the launch screen appearance for seamless transition
     private var launchLoadingView: some View {
         ZStack {
-            // White background matching LaunchScreen.storyboard
-            Color.white
+            // Matches LaunchScreen.storyboard's `LaunchBackground`.
+            theme.background
                 .ignoresSafeArea()
 
             // Memento-Logo centered, matching storyboard dimensions
@@ -231,6 +231,7 @@ public struct WelcomeView: View {
     private let welcomeMarkSize: CGFloat = 56
 
     private var welcomeMarkFill: LinearGradient {
+        // overlay-on-video: not canvas
         LinearGradient(
             colors: [
                 Color.white.opacity(0.32),
@@ -468,6 +469,7 @@ public struct WelcomeView: View {
                 .padding(.horizontal, Spacing.xl)
                 .frame(minHeight: AppHeaderMetrics.minimumTapTarget)
                 .background(
+                    // overlay-on-video: not canvas
                     LinearGradient(
                         colors: [
                             Color.white.opacity(Self.ctaFillTopOpacity),
