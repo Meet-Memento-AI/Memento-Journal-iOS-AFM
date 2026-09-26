@@ -34,7 +34,8 @@ if ! command -v xcodebuild >/dev/null 2>&1; then
   exit 1
 fi
 
-xcode_line="$(xcodebuild -version | head -n1)"
+xcode_version_output="$(xcodebuild -version)"
+xcode_line="${xcode_version_output%%$'\n'*}"
 echo "OK   toolchain: $xcode_line"
 xcode_major="$(printf '%s\n' "$xcode_line" | sed -E 's/^Xcode[[:space:]]+([0-9]+).*/\1/')"
 if ! [[ "$xcode_major" =~ ^[0-9]+$ ]]; then
