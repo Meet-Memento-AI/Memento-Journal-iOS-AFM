@@ -421,7 +421,7 @@ public struct AIChatView: View {
             Spacer()
 
             Image(systemName: "brain.head.profile")
-                .font(.system(size: 56))
+                .font(.system(size: 56)) // icon-size: not user text
                 .foregroundStyle(theme.iconForeground.opacity(0.5))
 
             Text("AI Features Disabled")
@@ -697,4 +697,29 @@ private struct AIChatNarrationPreview: View {
         .useTheme()
         .useTypography()
     }
+}
+
+#Preview("Empty State · AX5") {
+    @Previewable @StateObject var viewModel = ChatViewModel()
+    NavigationStack {
+        AIChatView(
+            viewModel: viewModel,
+            isEmbedded: true,
+            hasEntries: true,
+            seededSuggestions: ChatSuggestion.previewSamples
+        )
+    }
+    .useTheme()
+    .useTypography()
+    .environment(\.dynamicTypeSize, .accessibility5)
+}
+
+#Preview("Narration · Speaking · AX5") {
+    AIChatNarrationPreview(
+        configuration: AIChatNarrationPreviewConfiguration(
+            phase: .speaking,
+            messages: AIChatNarrationPreviewConfiguration.sampleTurn
+        )
+    )
+    .environment(\.dynamicTypeSize, .accessibility5)
 }

@@ -13,7 +13,6 @@ struct JournalSearchView: View {
 
     @EnvironmentObject private var entryViewModel: EntryViewModel
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var searchQuery = ""
 
@@ -179,4 +178,16 @@ struct JournalSearchView: View {
         .preferredColorScheme(.dark)
         .useTheme()
         .useTypography()
+}
+
+#Preview("JournalSearchView - AX5") {
+    @Previewable @StateObject var viewModel = EntryViewModel.withPreviewEntries()
+    @Previewable @State var isPresented = true
+    @Previewable @State var navPath = NavigationPath()
+
+    JournalSearchView(isPresented: $isPresented, navigationPath: $navPath)
+        .environmentObject(viewModel)
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }
