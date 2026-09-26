@@ -130,10 +130,10 @@ private struct RootNavigationChromePreview: View {
     }
 }
 
+// periphery:ignore - instantiated only by #Preview canvases
 /// Inside the wrapper, so it reads the same `rootNavigationBarHosted` the
 /// real pages do: the first card should sit 16pt under the bar at regular
 /// width and 16pt under the glass row at compact width.
-// periphery:ignore - instantiated only by #Preview canvases
 private struct RootNavigationChromePreviewPage: View {
     @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
