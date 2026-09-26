@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import withMemento
 
@@ -60,5 +61,78 @@ final class ContentColumnTests: XCTestCase {
             phoneFooterOvershoot,
             "the footer should sit proud of the copy by the same amount on both devices"
         )
+    }
+
+    // MARK: - Regular width: one column, one inset
+
+    /// `rootEdgeInset()` is how header rows, the Chat transcript and composer,
+    /// and the editor chrome take their width. On every phone it must still
+    /// be the full width less the 16pt gutter it always was.
+    func testRootEdgeInsetIsUnchangedAtEveryIPhonePortraitWidth() {
+        for width in [320, 375, 390, 393, 402, 428, 430, 440] as [CGFloat] {
+            XCTAssertEqual(
+                ContentColumnMetrics.insetWidth(in: width),
+                width - AppHeaderMetrics.edgeInset * 2,
+                "rootEdgeInset() must not move at \(width)pt"
+            )
+        }
+    }
+
+    /// The safe-area column (pushed Settings/Insights pages, sheets) adds no
+    /// padding at any phone width.
+    func testSafeAreaColumnIsInertAtEveryIPhonePortraitWidth() {
+        for width in [320, 375, 390, 393, 402, 428, 430, 440] as [CGFloat] {
+            XCTAssertEqual(ContentColumnMetrics.sideInset(in: width), 0, "\(width)pt")
+        }
+    }
+
+    /// iPad 11" and 13", portrait and landscape, plus the half-screen Split
+    /// View widths that stay regular. Every column-sizing path must agree on
+    /// the same two edges, and the shared gutter sits inside them.
+    func testEveryColumnPathSharesTheSameEdgesOnIPad() {
+        for width in [683, 820, 834, 1024, 1032, 1180, 1194, 1366, 1376] as [CGFloat] {
+            let column = ContentColumnMetrics.columnWidth(in: width)
+            XCTAssertEqual(column, 600, "\(width)pt should clamp to the column")
+            XCTAssertEqual(
+                width - ContentColumnMetrics.sideInset(in: width) * 2,
+                column,
+                "safe-area column and frame column must match at \(width)pt"
+            )
+            XCTAssertEqual(
+                ContentColumnMetrics.insetWidth(in: width) + AppHeaderMetrics.edgeInset * 2,
+                column,
+                "rootEdgeInset() must sit one gutter inside the column at \(width)pt"
+            )
+        }
+    }
+
+    /// Slide Over and narrow Split View drop to compact width. The column must
+    /// hand the page back untouched there, exactly like a phone.
+    func testNarrowIPadSplitWidthsFallBackToThePhoneLayout() {
+        for width in [320, 375, 438, 507, 551] as [CGFloat] {
+            XCTAssertEqual(ContentColumnMetrics.columnWidth(in: width), width)
+            XCTAssertEqual(ContentColumnMetrics.sideInset(in: width), 0)
+            XCTAssertEqual(
+                ContentColumnMetrics.insetWidth(in: width),
+                width - AppHeaderMetrics.edgeInset * 2
+            )
+        }
+    }
+
+    // MARK: - Regular width: native header
+
+    /// `AppHeader` only hands its controls to a toolbar inside a page that
+    /// `rootNavigationStack(title:)` actually wrapped. Anywhere else, including
+    /// every compact-width page, the glass row stays.
+    func testHeaderStaysAGlassRowUnlessANavigationBarHostsIt() {
+        XCTAssertFalse(EnvironmentValues().rootNavigationBarHosted)
+    }
+
+    func testEveryVisibleRootPageHasANavigationTitle() {
+        XCTAssertEqual(RootPage.journal.navigationTitle, "Journal")
+        XCTAssertEqual(RootPage.chat.navigationTitle, "Chat")
+        for page in RootPage.visibleCases {
+            XCTAssertFalse(page.navigationTitle.isEmpty, "\(page)")
+        }
     }
 }
