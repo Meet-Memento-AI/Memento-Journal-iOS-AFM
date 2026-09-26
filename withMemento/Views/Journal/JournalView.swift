@@ -44,6 +44,7 @@ public struct JournalView: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     /// Use external navigation when embedded, internal when standalone
     private var navigationPath: Binding<NavigationPath> {
@@ -240,7 +241,7 @@ public struct JournalView: View {
         YourEntriesView(
             entryViewModel: entryViewModel,
             monthGroups: entryViewModel.entriesByMonth,
-            topContentPadding: AppHeaderMetrics.contentTopPadding,
+            topContentPadding: RootContentInsets.contentTopPadding(hosted: navigationBarHosted),
             bottomContentPadding: isEmbedded
                 ? PositionedNewEntryFAB.scrollClearance
                 : 20,

@@ -27,6 +27,24 @@ extension EnvironmentValues {
     }
 }
 
+/// Top spacing for root-page content, resolved for whichever header is up.
+///
+/// Compact pages ignore the safe area and clear the floating glass row by
+/// hand (`AppHeaderMetrics.contentTopPadding` / `chatPinTopInset`). A page
+/// hosted in a native bar keeps the top safe area instead — the bar is
+/// already in it — so it only adds the air the glass row gets below it.
+enum RootContentInsets {
+    /// First line of scroll content.
+    static func contentTopPadding(hosted: Bool) -> CGFloat {
+        hosted ? AppHeaderMetrics.contentGap : AppHeaderMetrics.contentTopPadding
+    }
+
+    /// Chat's pinned-message inset.
+    static func chatPinTopInset(hosted: Bool) -> CGFloat {
+        hosted ? AppHeaderMetrics.chatPinGap : AppHeaderMetrics.chatPinTopInset
+    }
+}
+
 extension View {
     /// Wraps a root page in a native `NavigationStack` on regular width only.
     func rootNavigationStack(title: String) -> some View {
@@ -105,6 +123,21 @@ private struct RootHeaderToolbar<Leading: View, Trailing: View>: ViewModifier {
 // periphery:ignore - instantiated only by #Preview canvases
 private struct RootNavigationChromePreview: View {
     var body: some View {
+        RootNavigationChromePreviewPage()
+            .rootNavigationStack(title: "Journal")
+            .useTheme()
+            .useTypography()
+    }
+}
+
+/// Inside the wrapper, so it reads the same `rootNavigationBarHosted` the
+/// real pages do: the first card should sit 16pt under the bar at regular
+/// width and 16pt under the glass row at compact width.
+// periphery:ignore - instantiated only by #Preview canvases
+private struct RootNavigationChromePreviewPage: View {
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
+
+    var body: some View {
         RootPageScaffold(
             header: {
                 AppHeader {
@@ -134,12 +167,9 @@ private struct RootNavigationChromePreview: View {
                     .padding(.horizontal, AppHeaderMetrics.edgeInset)
                     .contentColumn()
                     .frame(maxWidth: .infinity)
-                    .padding(.top, AppHeaderMetrics.contentTopPadding)
+                    .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
                 }
             }
         )
-        .rootNavigationStack(title: "Journal")
-        .useTheme()
-        .useTypography()
     }
 }

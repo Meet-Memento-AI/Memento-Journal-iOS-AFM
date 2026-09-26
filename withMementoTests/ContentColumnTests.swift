@@ -135,4 +135,34 @@ final class ContentColumnTests: XCTestCase {
             XCTAssertFalse(page.navigationTitle.isEmpty, "\(page)")
         }
     }
+
+    // MARK: - Regular width: top spacing under the bar
+
+    /// Compact pages clear the floating glass row by hand; these must be the
+    /// exact values iPhone has always used.
+    func testCompactTopSpacingIsThePhoneHeaderClearance() {
+        XCTAssertEqual(
+            RootContentInsets.contentTopPadding(hosted: false),
+            AppHeaderMetrics.contentTopPadding
+        )
+        XCTAssertEqual(
+            RootContentInsets.chatPinTopInset(hosted: false),
+            AppHeaderMetrics.chatPinTopInset
+        )
+    }
+
+    /// Under a native bar the safe area already clears the bar, so content
+    /// gets only the standard gap below it — the same 16pt the glass row gets
+    /// — and none of the glass row's own clearance on top.
+    func testHostedTopSpacingIsTheStandardGapBelowTheBar() {
+        XCTAssertEqual(RootContentInsets.contentTopPadding(hosted: true), AppHeaderMetrics.contentGap)
+        XCTAssertEqual(RootContentInsets.contentTopPadding(hosted: true), 16)
+        XCTAssertEqual(RootContentInsets.chatPinTopInset(hosted: true), AppHeaderMetrics.chatPinGap)
+        XCTAssertEqual(
+            RootContentInsets.contentTopPadding(hosted: false)
+                - RootContentInsets.contentTopPadding(hosted: true),
+            AppHeaderMetrics.headerClearance,
+            "hosted content must drop exactly the glass row's clearance"
+        )
+    }
 }
