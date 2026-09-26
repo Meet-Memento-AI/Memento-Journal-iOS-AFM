@@ -43,7 +43,7 @@ struct SettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

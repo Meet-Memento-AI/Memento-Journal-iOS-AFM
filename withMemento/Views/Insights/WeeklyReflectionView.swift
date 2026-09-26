@@ -59,7 +59,7 @@ struct WeeklyReflectionView: View {
                 }
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())
@@ -198,7 +198,7 @@ struct PatternsView: View {
                     .foregroundStyle(theme.mutedForeground)
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
             .padding(.top, Spacing.md)
         }
         .background(theme.background.ignoresSafeArea())

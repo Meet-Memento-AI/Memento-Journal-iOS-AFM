@@ -48,4 +48,44 @@ extension View {
     func mementoSheetPresentation() -> some View {
         modifier(MementoSheetPresentation())
     }
+
+    /// Regular width only: sizes a centred sheet to the 600pt reading column
+    /// (page height) and rims it with `theme.border`. Without the rim a dark
+    /// sheet has no visible edge on the dimmed page and reads as content
+    /// overlapping the journal. Compact sheets are untouched.
+    func mementoColumnSheet() -> some View {
+        modifier(MementoColumnSheet())
+    }
+}
+
+/// The system form sheet is narrower than `ContentColumnMetrics.maxWidth`,
+/// which left sheet rows inside the page column's edges.
+struct ColumnSheetSizing: PresentationSizing {
+    func proposedSize(
+        for root: PresentationSizingRoot,
+        context: PresentationSizingContext
+    ) -> ProposedViewSize {
+        let page = PagePresentationSizing.page.proposedSize(for: root, context: context)
+        return ProposedViewSize(width: ContentColumnMetrics.maxWidth, height: page.height)
+    }
+}
+
+private struct MementoColumnSheet: ViewModifier {
+    @Environment(\.theme) private var theme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    func body(content: Content) -> some View {
+        if horizontalSizeClass == .regular {
+            content
+                .overlay {
+                    RoundedRectangle(cornerRadius: theme.radius.xxl, style: .continuous)
+                        .strokeBorder(theme.border, lineWidth: 1)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                }
+                .presentationSizing(ColumnSheetSizing())
+        } else {
+            content
+        }
+    }
 }

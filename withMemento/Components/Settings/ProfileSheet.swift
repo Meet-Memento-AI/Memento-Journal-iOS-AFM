@@ -103,7 +103,7 @@ struct ProfileSheet: View {
                             .accessibilityIdentifier("profile.settings")
                         }
                     }
-                    .padding(.horizontal, Spacing.lg)
+                    .columnGutter(compact: Spacing.lg)
                     .padding(.bottom, Spacing.xxl)
                 }
             }
@@ -121,6 +121,7 @@ struct ProfileSheet: View {
         }
         .presentationDetents([.fraction(0.95)])
         .mementoSheetPresentation()
+        .mementoColumnSheet()
     }
 
     // MARK: - Chrome

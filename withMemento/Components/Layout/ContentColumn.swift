@@ -57,6 +57,14 @@ extension View {
         modifier(ContentColumnSafeArea())
     }
 
+    /// Horizontal gutter for pages that also open inside the column (Settings
+    /// and Insights). Compact keeps the page's own `compact` gutter; regular
+    /// width takes `AppHeaderMetrics.edgeInset`, so rows line up with the
+    /// Journal cards and Chat transcript.
+    func columnGutter(compact: CGFloat) -> some View {
+        modifier(ColumnGutter(compact: compact))
+    }
+
     /// Container-relative variant, for hosts under `.ignoresSafeArea()` where a
     /// plain clamp does not pick up the gutter.
     ///
@@ -68,6 +76,19 @@ extension View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             min(max(length - AppHeaderMetrics.edgeInset * 2, 0), maxWidth)
         }
+    }
+}
+
+private struct ColumnGutter: ViewModifier {
+    let compact: CGFloat
+
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    func body(content: Content) -> some View {
+        content.padding(
+            .horizontal,
+            horizontalSizeClass == .regular ? AppHeaderMetrics.edgeInset : compact
+        )
     }
 }
 
