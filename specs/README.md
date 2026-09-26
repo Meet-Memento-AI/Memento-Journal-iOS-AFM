@@ -46,6 +46,7 @@ specs/
 ├── 051-*.md           ← on-device model tier (AFM 3 Core Advanced by default on
 │                        ≥12 GB devices, Core otherwise; tier in provenance, perf
 │                        line, and budgets); REQ-TIER- — in progress
+├── 052-*.md           ← CI/CD pipeline + TestFlight release automation (Gate T path)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

@@ -10,8 +10,13 @@ runners (macOS included) free, and makes self-hosted runners unsafe: a fork's
 pull request would execute on our own machine.
 
 CI builds and tests the iOS app and runs security/governance gates; there are no
-deploy jobs. Journal data is on-device only; the one backend is the opt-in
-feedback endpoint (spec 042), which CI never calls.
+backend deploy jobs. Journal data is on-device only; the one backend is the
+opt-in feedback endpoint (spec 042), which CI never calls.
+
+The intended **store** CD job (archive / validate / TestFlight) is specified in
+[`docs/CICD_PIPELINE.md`](CICD_PIPELINE.md) and spec 052. Merge CI stays on
+hosted runners; release signing will use an `app-store` GitHub Environment and
+must not run on `pull_request` from forks.
 
 ## Online vs on-device (spec 025)
 
