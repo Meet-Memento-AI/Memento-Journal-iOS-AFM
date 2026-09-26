@@ -9,6 +9,9 @@
 import SwiftUI
 
 /// Metrics for the central reading column.
+///
+/// iPhone portrait-lock is the 1.x contract, not an accident — see
+/// `docs/app-store/14-orientation-decision.md` before enabling iPhone landscape.
 enum ContentColumnMetrics {
     /// Reading-column cap.
     ///
