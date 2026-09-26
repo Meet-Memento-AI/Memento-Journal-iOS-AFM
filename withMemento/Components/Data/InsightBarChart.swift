@@ -54,9 +54,9 @@ struct InsightBarChart: View {
                     }
                 }
                 .chartYAxis(.hidden)
-                .chartPlotStyle { plot in
-                    plot.padding(.top, Spacing.md)
-                }
+                // No plot-area padding: it shifts the bars down over the
+                // x-axis label band. The 1.25× Y domain is the annotation
+                // headroom.
                 .frame(height: chartHeight)
                 .accessibilityLabel(accessibilityLabel)
 
