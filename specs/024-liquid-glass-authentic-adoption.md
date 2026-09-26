@@ -79,13 +79,13 @@ Liquid Glass on device and the code matches the current SwiftUI documentation.
 no `fallback*Background` remain. Native `.glassEffect(_:in:)` (and glass button
 styles) appear directly in the view files. No `#if canImport(FoundationModels)` /
 `#available(iOS 26.0, *)` / `#if targetEnvironment(simulator)` guard wraps any
-glass. `grep -rn "mementoGlassEffect" MeetMemento/` → 0.
+glass. `grep -rn "mementoGlassEffect" withMemento/` → 0.
 
 ### R2. No opaque fills or hand-rolled sheens under glass
 **Acceptance:** no `.fill(...)` sits beneath a `.glassEffect` surface; the
 specular/sheen `LinearGradient` overlays are gone. Translucent surfaces use
 `.clear`/`.regular` glass; prominent actions use a **tint** that reads through the
-glass, not a solid fill. `grep -rn "Glassy sheen" MeetMemento/` → 0.
+glass, not a solid fill. `grep -rn "Glassy sheen" withMemento/` → 0.
 
 ### R3. Full adoption of the idiomatic API
 **Acceptance:** the primary FAB uses `.buttonStyle(.glassProminent)`; the
@@ -142,11 +142,11 @@ correct under Reduce Transparency, Reduce Motion, and Increase Contrast
 
 ## Verification
 
-- [x] `grep -rn "mementoGlassEffect" MeetMemento/ --include="*.swift"` → 0.
-- [x] `grep -rn "fallback.*Background\|glassLikeEffect\|glassFallback" MeetMemento/ --include="*.swift"` → 0.
-- [x] `grep -rn "Glassy sheen" MeetMemento/ --include="*.swift"` → 0.
+- [x] `grep -rn "mementoGlassEffect" withMemento/ --include="*.swift"` → 0.
+- [x] `grep -rn "fallback.*Background\|glassLikeEffect\|glassFallback" withMemento/ --include="*.swift"` → 0.
+- [x] `grep -rn "Glassy sheen" withMemento/ --include="*.swift"` → 0.
 - [x] No glass wrapped in `targetEnvironment(simulator)` / iOS-26 availability guards.
-- [x] Debug build green: `DEVELOPER_DIR=<Xcode 27 beta> xcodebuild -scheme MeetMemento -destination "platform=iOS Simulator,name=iPhone 17" -configuration Debug build` → **BUILD SUCCEEDED**, 0 errors, no new warnings from touched files.
+- [x] Debug build green: `DEVELOPER_DIR=<Xcode 27 beta> xcodebuild -scheme withMemento -destination "platform=iOS Simulator,name=iPhone 17" -configuration Debug build` → **BUILD SUCCEEDED**, 0 errors, no new warnings from touched files.
 - [ ] Real-device visual pass (light+dark): nav row, tab pill, FAB, chat input, settings cards, mic FABs, listening panel read as translucent Liquid Glass, not flat gray.
 - [ ] Reduce Transparency / Reduce Motion / Increase Contrast degrade gracefully.
 

@@ -19,7 +19,7 @@ Online merge stack (see [spec 025](../specs/025-ci-online-ios-build-gates.md)):
 The previous 60% / 75–80% schedule below is a **target**, not a live gate —
 advertising 60% while enforcing 13% is the class of failure spec 006 forbids.
 
-Suggested schedule *after* a re-measure (spec 046 R2 / 011 R5):
+Suggested schedule *after* a re-measure (spec 052 R2 / 011 R5):
 - Re-measure the online suite; set the floor to that integer (only upward).
 - Then increase by 2–3% when new suites land, toward a 75–80% **target**.
 

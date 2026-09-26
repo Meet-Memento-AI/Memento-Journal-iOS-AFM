@@ -1,0 +1,194 @@
+//
+//  DataUsageInfoView.swift
+//  withMemento
+//
+//  Information about what data is collected and how it's used
+//  Required for iOS App Store transparency
+//
+
+import SwiftUI
+
+public struct DataUsageInfoView: View {
+    @Environment(\.dismiss) var dismiss
+    @Environment(\.theme) private var theme
+
+    public init() {}
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                dataCollectionSection
+                dataUsageSection
+                #if MEMENTO_AI
+                aiServicesSection
+                #endif
+                dataStorageSection
+                yourRightsSection
+
+                Spacer(minLength: Spacing.xxxl)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.xs)
+        }
+        .background(theme.background.ignoresSafeArea())
+        .navigationTitle("Data Usage")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                IconButtonNav(
+                    icon: "chevron.left",
+                    enableHaptic: true,
+                    onTap: { dismiss() }
+                )
+                .accessibilityLabel("Back")
+            }
+        }
+    }
+
+    // MARK: - Sections
+
+    private var dataCollectionSection: some View {
+        SettingsSection(title: "What We Collect") {
+            SettingsInfoRow(
+                icon: "doc.text.fill",
+                title: "Journal Entries",
+                description: "Your journal entries, including titles, content, and dates. This is the core data you create in Memento."
+            )
+
+            #if MEMENTO_AI
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "sparkles",
+                title: "Conversations",
+                description: "Your chats with the AI companion, which grounds its replies in your own entries and cites the ones it drew from."
+            )
+            #endif
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "person.text.rectangle.fill",
+                title: "Personalization",
+                description: "What you tell us about yourself and your goals during setup, used only to tailor reflections to you."
+            )
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "hand.thumbsup.fill",
+                title: "Quality Feedback (opt-in)",
+                description: "Submitting a Report sends that question, answer, reason, and note for review so we can improve the model. If you turn on Share quality feedback, volunteered ratings can also be sent. Journal entries, chat history, and citation IDs stay on this device."
+            )
+        }
+    }
+
+    private var dataUsageSection: some View {
+        SettingsSection(title: "How We Use Your Data") {
+            SettingsInfoRow(
+                icon: "iphone",
+                title: "Stored On Your Device",
+                description: ProductCapabilities.includesCloudKit
+                    ? "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account. If you are signed into iCloud, a private replica can appear on your other Apple devices."
+                    : "Your journal lives on \(DeviceCopy.thisDevice). There is no Memento account and no iCloud replica."
+            )
+
+            #if MEMENTO_AI
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "brain.head.profile",
+                title: "Ground the AI Companion",
+                description: "When you chat, relevant entries are retrieved on \(DeviceCopy.thisDevice) and used as context, so answers come from what you actually wrote."
+            )
+            #endif
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "lock.shield.fill",
+                title: "Your PIN Guards Access",
+                description: "Entries are encrypted with a key stored in your device's Keychain; your PIN or Face ID unlocks the app. Neither is uploaded, and there's no account to reset through — this device is the only way in."
+            )
+        }
+    }
+
+    #if MEMENTO_AI
+    private var aiServicesSection: some View {
+        SettingsSection(title: "AI Features") {
+            SettingsInfoRow(
+                icon: "iphone.gen3",
+                title: "On-Device Processing",
+                description: "Speech-to-text, search, retrieval, and lighter companion turns run on \(DeviceCopy.thisDevice). Heavier reflections may use Apple's Private Cloud Compute, which stores nothing. No third-party AI. PIN, audio, and search index stay on this device."
+            )
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "gearshape",
+                title: "Your Control",
+                description: "You can turn the AI companion off entirely in Settings and use Memento as a plain journal. Speech recognition is set to on-device only."
+            )
+        }
+    }
+    #endif
+
+    private var dataStorageSection: some View {
+        SettingsSection(title: "Data Storage") {
+            SettingsInfoRow(
+                icon: "lock.shield.fill",
+                title: "Encrypted at Rest",
+                description: ProductCapabilities.includesCloudKit
+                    ? "On \(DeviceCopy.thisDevice), the journal uses Data Protection. iCloud, when signed in, holds a private replica we cannot read. There is no Memento server copy."
+                    : "On \(DeviceCopy.thisDevice), the journal uses Data Protection. There is no iCloud replica and no Memento server copy."
+            )
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "eye.slash.fill",
+                title: "Journal Not Uploaded",
+                description: "We don't operate accounts or analytics SDKs for your journal. Submitting a Report sends that question and answer for review. Ratings leave the device only if Share quality feedback is on. Journal entries and chat history are not uploaded."
+            )
+        }
+    }
+
+    private var yourRightsSection: some View {
+        SettingsSection(title: "Your Rights") {
+            SettingsInfoRow(
+                icon: "trash.fill",
+                title: "Delete Everything",
+                description: "You can permanently delete your journal and all associated data at any time from Settings > Your Data."
+            )
+
+            SettingsRowDivider()
+
+            SettingsInfoRow(
+                icon: "questionmark.circle.fill",
+                title: "Contact Us",
+                description: "For any privacy questions or data requests, contact \(Constants.Legal.supportEmail)"
+            )
+        }
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Light") {
+    NavigationStack {
+        DataUsageInfoView()
+            .useTheme()
+            .useTypography()
+    }
+    .preferredColorScheme(.light)
+}
+
+#Preview("Dark") {
+    NavigationStack {
+        DataUsageInfoView()
+            .useTheme()
+            .useTypography()
+    }
+    .preferredColorScheme(.dark)
+}

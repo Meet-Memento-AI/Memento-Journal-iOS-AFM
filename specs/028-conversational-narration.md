@@ -47,7 +47,7 @@ session ordering defects that break turn two, with their fixes.
 ## Current State (evidence)
 
 The loop exists end-to-end (confirmed 2026-08-17):
-`MeetMemento/ViewModels/NarrationCoordinator.swift` (phases idle → listening
+`withMemento/ViewModels/NarrationCoordinator.swift` (phases idle → listening
 → finalizing → awaitingResponse → speaking → listening), fed by
 `SpeechService` (on-device `SFSpeechRecognizer`, `.record`/`.measurement`)
 and `VoicePlaybackService` (`AVSpeechSynthesizer`, `.playback`/`.spokenAudio`)

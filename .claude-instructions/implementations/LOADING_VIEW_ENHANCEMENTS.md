@@ -397,7 +397,7 @@ Circle()
 1. **VoiceOver Support:**
    - Dynamic accessibility label
    - Announces current loading phase
-   - "Loading MeetMemento. Checking authentication..."
+   - "Loading withMemento. Checking authentication..."
 
 2. **Reduce Motion:**
    - Detects system preference

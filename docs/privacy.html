@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy - MeetMemento</title>
+    <title>Privacy Policy - Memento</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -15,70 +15,168 @@
         }
         h1 { color: #1a1a1a; border-bottom: 2px solid #007aff; padding-bottom: 10px; }
         h2 { color: #333; margin-top: 30px; }
-        h3 { color: #555; }
+        h3 { color: #555; margin-top: 22px; }
         strong { color: #000; }
         a { color: #007aff; text-decoration: none; }
         a:hover { text-decoration: underline; }
         ul { padding-left: 20px; }
         .meta { color: #666; font-style: italic; }
+        .callout { background: #f5f7fa; border-left: 3px solid #007aff; padding: 12px 16px; margin: 20px 0; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; vertical-align: top; font-size: 15px; }
+        th { background: #f5f7fa; }
     </style>
 </head>
 <body>
-    <h1>Privacy Policy for MeetMemento</h1>
-    <p class="meta"><strong>Last Updated:</strong> September 2026</p>
+    <h1>Privacy Policy for Memento</h1>
+    <p class="meta"><strong>Last Updated:</strong> September 17, 2026</p>
 
-    <h2>Overview</h2>
-    <p>MeetMemento ("we", "our", or "us") is a private journaling app. It is designed so that your journal stays on your device. MeetMemento has no user accounts. Journal entries, chat history, and retrieval excerpts are stored on your device (and, if you use iCloud, in your private iCloud database). They are not synced to a Memento backend.</p>
+    <p>Memento is a private journaling app for iPhone and iPad, developed by <strong>Sebastian Mendo</strong> ("we", "our", "us"). This policy explains exactly what happens to what you write. It is written to be specific rather than reassuring: where something does leave your device, we say so and say precisely what it is.</p>
 
-    <h2>Information We Collect</h2>
-    <p>We do <strong>not</strong> collect your journal. The only data that can leave the device for us is <strong>volunteered quality feedback</strong>, and only when you turn that on:</p>
+    <div class="callout">
+        <h3 style="margin-top:0">The short version</h3>
+        <ul>
+            <li><strong>There is no account and no sign-in.</strong> We do not know who you are.</li>
+            <li><strong>Your journal is not uploaded to us.</strong> We have no server copy and no way to read your entries.</li>
+            <li><strong>The AI companion runs on your device.</strong> Your entries are not sent to us or to any third-party AI service.</li>
+            <li><strong>There are no analytics SDKs, no advertising, and no tracking.</strong> The app links no third-party code.</li>
+            <li><strong>Three things do leave the device</strong>, and each is described below: a place name lookup (to Apple), an iCloud copy of your journal (to <em>your</em> iCloud account), and quality feedback you choose to send us.</li>
+        </ul>
+    </div>
+
+    <h2>1. What Memento stores, and where</h2>
+    <p>Everything you create lives on your device:</p>
     <ul>
-        <li><strong>Journal content:</strong> your entries, titles, and personalization (such as a display name and journaling goals) are stored on your device. We do not upload them.</li>
-        <li><strong>No account data:</strong> the app has no sign-in, so we do not collect an email address, name from a sign-in provider, or account identifiers.</li>
-        <li><strong>No analytics or tracking:</strong> the app does not track you across apps or websites and includes no third-party analytics SDKs.</li>
-        <li><strong>Quality feedback:</strong> submitting a Report sends that question, answer, reason, and note to our verification database (hosted on Supabase) so we can review answer quality. Thumbs, reason chips, and notes are sent only if you enable Share quality feedback in Settings. Journal entries, chat history, and citation IDs are not uploaded. Turning the ratings setting off, or using Delete Everything, requests erasure of that device's feedback.</li>
+        <li><strong>Journal entries</strong> — title, text, and timestamps.</li>
+        <li><strong>Photos</strong> attached to entries, stored encrypted on the device.</li>
+        <li><strong>Voice capture.</strong> When you dictate, audio is transcribed to text. By default the audio file is discarded immediately after transcription.</li>
+        <li><strong>Moods and topics</strong> inferred on the device from your entries.</li>
+        <li><strong>A place name</strong> — a short display string such as "Dallas, TX" — when you choose to attach one. See section 4.</li>
+        <li><strong>Chat conversations</strong> with the AI companion, and the reflections it produces.</li>
+        <li><strong>Personalization</strong> — the name and the setup answers you gave during onboarding.</li>
+        <li><strong>A search index</strong> of your entries, built on the device so the companion can find what you wrote.</li>
+    </ul>
+    <p>We never receive any of it.</p>
+
+    <h2>2. How it is protected on the device</h2>
+    <ul>
+        <li>Entry files and photos are encrypted with <strong>AES-256-GCM</strong>. The key is generated on your device, stored in the iOS Keychain as device-only (it cannot be extracted to another device), and never leaves the device or reaches us.</li>
+        <li>App data files are written with iOS <strong>Data Protection</strong>, so they are unreadable while the device is locked.</li>
+        <li>You can set an optional <strong>app lock</strong> (Face ID, Touch ID, or a PIN). The PIN is held in the Keychain and is never uploaded. Because there is no account, there is no password-reset path — that is the trade-off for having no server.</li>
+        <li>Some data — your display name, your setup answers, your preferences, and the most recent weekly reflection — is stored in ordinary app preferences rather than in the encrypted store. It stays within the app's private container on the device and is covered by iOS Data Protection and your device passcode, but it is not separately encrypted by us.</li>
     </ul>
 
-    <h2>How Your Data Is Stored</h2>
+    <h2>3. iCloud</h2>
+    <p>If you are signed in to iCloud, Memento keeps a copy of your journal in <strong>your own private iCloud database</strong> so it can appear on your other Apple devices. To be exact:</p>
     <ul>
-        <li>Your journal content is stored in <strong>encrypted local storage</strong> on your device.</li>
-        <li>There is no Memento cloud copy of your journal and no journal sync through MeetMemento. Optional quality feedback, if you enable it, is stored in our verification database until you erase it.</li>
-        <li>An optional device PIN protects access to the app.</li>
-        <li>Standard device backups (for example iCloud or Finder backups) are controlled by your own device settings, not by MeetMemento.</li>
+        <li>This copy lives in <strong>your</strong> Apple account, under Apple's terms and Apple's encryption. It is not our infrastructure and <strong>we cannot read it, query it, or recover it for you.</strong></li>
+        <li>What is mirrored: entry titles and text, moods, topics, place names, your chat conversations, reflections and their citations, and your personalization profile.</li>
+        <li>What is <strong>not</strong> mirrored: photo and audio files, the on-device search index, the read-aloud audio cache, your PIN, and your encryption key. Those stay on the device that created them.</li>
+        <li><strong>Control:</strong> Memento has no in-app sync switch. You control this through iOS — sign out of iCloud, or turn off iCloud for Memento in iPhone Settings, and the mirroring stops.</li>
     </ul>
 
-    <h2>AI-Powered Features</h2>
-    <p>MeetMemento's chat and related AI features run <strong>on your device</strong> using Apple's on-device foundation models. When you chat, the app finds relevant entries and generates replies locally.</p>
+    <h2>4. Location</h2>
+    <p>When you choose to attach a place to an entry, Memento takes a <strong>single, reduced-accuracy</strong> location reading and asks Apple's mapping service to turn it into a place name.</p>
     <ul>
-        <li><strong>On-device processing:</strong> your messages and journal entries are processed on the device and are not sent to us or to any third-party AI service.</li>
-        <li><strong>No third-party AI processors:</strong> MeetMemento does not send your content to any external AI provider.</li>
+        <li><strong>Your coordinates are sent to Apple</strong> as part of that lookup, the same way any app's place-name lookup works. Apple's handling of it is governed by Apple's privacy policy.</li>
+        <li><strong>Your coordinates are never stored and never sent to us.</strong> Only the short text result — for example "Dallas, TX" — is saved with the entry.</li>
+        <li>It happens only when you tap to add a place while writing an entry. There is no background location tracking, and the app never asks for "Always" location access.</li>
+        <li>Deny or revoke the location permission in iPhone Settings and entries simply have no place name.</li>
     </ul>
 
-    <h2>Data Sharing</h2>
-    <p>We do <strong>not</strong> sell, rent, or share your personal information for advertising. Journal content is not transmitted to us. If you opt in to quality feedback, we use Supabase as a write-only processor for that volunteered feedback so we can review product quality. We do not read it back into the app.</p>
-
-    <h2>Your Rights and Control</h2>
+    <h2>5. The AI companion</h2>
+    <p>The companion answers questions about your own journal. It requires a device with Apple Intelligence, and it can be turned off entirely in Settings.</p>
     <ul>
-        <li><strong>Delete:</strong> you can delete individual entries in the app, or remove all app data by using the app's delete-everything option and/or uninstalling the app.</li>
-        <li><strong>Access and export:</strong> your data lives on your device; export options may be offered within the app.</li>
-        <li>Delete Everything in the app also requests deletion of any quality feedback that device sent. If you have questions about feedback we may still hold, contact us.</li>
+        <li><strong>It runs on your device.</strong> Retrieval, search, transcription, image understanding, and reply generation all happen locally using Apple's on-device models. Your entries and messages are not sent to us, and not to OpenAI, Anthropic, Google, or any other AI provider. <strong>There is no third-party AI processor.</strong></li>
+        <li><strong>Apple Private Cloud Compute.</strong> The app is designed so that heavier requests could, in a future version, run on Apple's Private Cloud Compute — Apple infrastructure that is cryptographically attested and retains nothing after the request. <strong>That path is not enabled in the current version; all generation runs on your device today.</strong> If we enable it, we will update this policy before that version ships, and the app's Settings already contain an "On-Device Only" switch that keeps requests local.</li>
+        <li><strong>Speech.</strong> Dictation uses Apple's speech models installed on your device. Installing those model assets is a download from Apple; the transcription itself runs locally.</li>
+        <li><strong>Photos in chat</strong> are analysed on the device to produce a text description for the model. The image itself is not uploaded.</li>
     </ul>
 
-    <h2>Children's Privacy</h2>
-    <p>MeetMemento is not intended for children under 13, and we do not knowingly collect information from children.</p>
+    <h2>6. Spotlight</h2>
+    <p>Memento can add your entries to your iPhone's own Spotlight search index so you can find them from the home screen. This is <strong>off by default</strong> and is a local system index — nothing is transmitted.</p>
 
-    <h2>Changes to This Policy</h2>
-    <p>We may update this Privacy Policy from time to time. We will post the updated policy in the app or on our website. Your continued use after changes constitutes acceptance.</p>
+    <h2>7. The only data we receive: quality feedback</h2>
+    <p>The AI companion is imperfect, and the only way we can fix a bad answer is to see it. Two separate mechanisms exist, with different consent rules. <strong>Nothing here happens silently — both require you to act.</strong></p>
 
-    <h2>Contact Us</h2>
-    <p>If you have questions about this Privacy Policy, contact us at:</p>
-    <p><strong>Email:</strong> <a href="mailto:contact@sebastianmendo.design">contact@sebastianmendo.design</a><br>
-    <strong>Support:</strong> In-app Settings &gt; About &gt; Support</p>
+    <table>
+        <tr><th>What you do</th><th>What is sent</th><th>Consent</th></tr>
+        <tr>
+            <td><strong>Report</strong> an answer</td>
+            <td>The <strong>question you asked and the reply the app gave</strong>, plus the reason you selected and any note you wrote (up to 280 characters), plus the technical fields below.</td>
+            <td>Per-report. Tapping Report <em>is</em> the consent, so this sends even if the ratings switch is off.</td>
+        </tr>
+        <tr>
+            <td><strong>Thumbs up / thumbs down</strong></td>
+            <td>The rating, the reason you selected, any note, and the technical fields below. <strong>No question or answer text.</strong></td>
+            <td>Only if you turn on <em>Share quality feedback</em> in Settings. <strong>It is off by default.</strong></td>
+        </tr>
+    </table>
 
-    <h2>Your Consent</h2>
-    <p>By using MeetMemento, you consent to this Privacy Policy.</p>
+    <p>The technical fields sent with either are: an app-generated identifier for the message and session, the app version, which prompt version and model produced the reply, whether the reply was degraded, whether a safety card was shown, <strong>how many</strong> entries the reply cited (a number — never which entries), and timestamps.</p>
+
+    <p><strong>What is never sent, in either case:</strong> your journal entries, your entry text, the identifiers of the entries that were cited, your chat history beyond the single reported exchange, your name, your setup answers, your photos, your audio, or your location.</p>
+
+    <p><strong>Please note:</strong> because a Report includes the question and the reply, and because the companion quotes your journal in its replies, <strong>a Report can contain personal writing.</strong> Only report an answer if you are comfortable with us reading that exchange.</p>
+
+    <h3>Who processes it, and how it is identified</h3>
+    <ul>
+        <li>Feedback is stored in a database hosted by <strong>Supabase</strong>, acting as our processor. It is <strong>write-only</strong> from the app: the app can add feedback and erase its own, and never reads any of it back.</li>
+        <li>It carries <strong>no account, email, name, or advertising identifier.</strong> The only identifier is a random UUID generated on your device the first time you send feedback. Its sole purpose is to let you erase what your device sent. It is not linked to you, and it is reset if you delete the app.</li>
+        <li>It is used only to diagnose and improve the quality and safety of the app's answers. It is never sold, never used for advertising, and never used to build a profile of you.</li>
+    </ul>
+
+    <h3>How long we keep it, and how to erase it</h3>
+    <p>We keep feedback until it is erased. You can erase everything your device has sent, at any time, in either of these ways:</p>
+    <ul>
+        <li>Turn <strong>Share quality feedback</strong> off in Settings — this requests deletion of that device's feedback, including any reports.</li>
+        <li>Use <strong>Delete Everything</strong> in Settings.</li>
+    </ul>
+    <p>If the device is offline at the time, the erase request is held and sent on the next launch. You can also email us and we will delete it manually.</p>
+
+    <h2>8. What we do not do</h2>
+    <ul>
+        <li><strong>No accounts.</strong> No email address, no sign-in, no user ID.</li>
+        <li><strong>No analytics or crash SDKs.</strong> The app links no third-party libraries at all. Any crash reports you send are sent by iOS to Apple, under your own iOS settings, and we see only what Apple shows every developer — aggregate, anonymous crash traces.</li>
+        <li><strong>No tracking.</strong> We do not track you across apps or websites, and we do not use App Tracking Transparency because there is nothing to ask you about.</li>
+        <li><strong>No advertising, and no sale or sharing of personal information</strong> — including no "sale" or "sharing" as those terms are defined under California law.</li>
+    </ul>
+
+    <h2>9. Permissions the app asks for</h2>
+    <table>
+        <tr><th>Permission</th><th>Why</th></tr>
+        <tr><td>Microphone</td><td>To capture your voice so it can be transcribed into an entry.</td></tr>
+        <tr><td>Speech Recognition</td><td>To turn that audio into text using Apple's on-device speech models.</td></tr>
+        <tr><td>Camera</td><td>To take a photo to attach to an entry.</td></tr>
+        <tr><td>Location (When In Use)</td><td>To attach a place name to an entry. See section 4.</td></tr>
+        <tr><td>Face ID / Touch ID</td><td>To unlock the app, if you enable the app lock.</td></tr>
+        <tr><td>Notifications</td><td>Only if you turn on reminders. Reminders are scheduled locally on the device; we do not operate a push server.</td></tr>
+    </table>
+    <p>Each is optional and can be revoked in iPhone Settings. Choosing a photo from your library uses the system photo picker, which gives Memento only the picture you pick and requires no library access.</p>
+
+    <h2>10. Your rights and your controls</h2>
+    <ul>
+        <li><strong>Access and portability.</strong> Settings → Export Your Journal writes your entries out as Markdown and JSON that you can keep or move elsewhere.</li>
+        <li><strong>Deletion.</strong> Delete individual entries in the app, or use Settings → <strong>Delete Everything</strong>, which erases your journal, chat, reflections, the search index, the audio and read-aloud caches, your preferences and lock, destroys the encryption key, deletes the mirrored copy in your iCloud database, and requests erasure of any feedback that device sent. If iCloud is unreachable at that moment, the app tells you the iCloud part is pending and completes it later rather than failing silently.</li>
+        <li><strong>Correction.</strong> You can edit any entry at any time. We hold no copy to correct.</li>
+        <li><strong>Objection and withdrawal of consent.</strong> Turn off Share quality feedback, or turn off the AI companion entirely, at any time.</li>
+    </ul>
+    <p>If you are in the EEA or the UK: our legal basis for processing the feedback you send us is your <strong>consent</strong> (GDPR Art. 6(1)(a)), which you can withdraw at any time as described above. Everything else stays on your device or in your own iCloud account, so we are not processing it. If you are in California, we do not sell or share personal information, and we do not use it for cross-context behavioural advertising. Because we hold no identifiable record of you, a request to access "your data" will usually be answered by telling you that we hold nothing beyond feedback tied to a device identifier — which you can erase yourself, without contacting us.</p>
+
+    <h2>11. Children</h2>
+    <p>Memento is not directed to children under 13, and we do not knowingly collect personal information from them. If you believe a child has sent us feedback, email us and we will delete it.</p>
+
+    <h2>12. International transfers</h2>
+    <p>If you send us quality feedback, it is stored on servers operated by our processor, Supabase, which may be located outside your country. Everything else remains on your device or in your own iCloud account.</p>
+
+    <h2>13. Changes to this policy</h2>
+    <p>We will update this page when the app's behaviour changes, and we will change the "Last Updated" date above. If a change means data that previously stayed on your device starts leaving it, we will say so clearly in the app before that version ships.</p>
+
+    <h2>14. Contact</h2>
+    <p><strong>Email:</strong> <a href="mailto:hello@withmemento.ai">hello@withmemento.ai</a><br>
+    <strong>Support:</strong> <a href="support.html">Support page</a>, or in-app Settings &gt; About &gt; Support</p>
 
     <hr>
-    <p class="meta">For App Review / TestFlight: MeetMemento is a personal, on-device journaling tool. It has no accounts and no backend; all user data is stored locally on the device and is not transmitted to us or to third parties.</p>
+    <p class="meta">© 2026 Sebastian Mendo. <a href="index.html">Home</a> · <a href="terms.html">Terms of Service</a> · <a href="support.html">Support</a></p>
 </body>
 </html>

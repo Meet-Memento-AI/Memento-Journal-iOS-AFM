@@ -34,7 +34,7 @@ meet-memento-ai/speech-swift
 # is visible rather than silent.
 #
 # UPDATED 2026-08-18 (DEC-012): the neural TTS weights are no longer downloaded
-# at all. They are vendored at MeetMemento/Resources/Voices/ (~148 MB, Git LFS)
+# at all. They are vendored at withMemento/Resources/Voices/ (~148 MB, Git LFS)
 # and ship INSIDE the app binary. Governed instead by:
 #   - integrity  -> build-time: scripts/build_voice_pack.sh pins the source
 #                   checksum; the bundle is code-signed with the app (REQ-TTS-002)

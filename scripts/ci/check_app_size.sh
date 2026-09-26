@@ -10,7 +10,7 @@
 # present so it can be run locally without ceremony.
 #
 # Usage:
-#   scripts/ci/check_app_size.sh [path/to/MeetMemento.app]
+#   scripts/ci/check_app_size.sh [path/to/withMemento.app]
 #   APP_PATH=... scripts/ci/check_app_size.sh
 set -euo pipefail
 
@@ -26,12 +26,12 @@ fi
 app="${1:-${APP_PATH:-}}"
 if [ -z "$app" ]; then
   # Prefer an archive product (closest to what ships), then any Release build.
-  app="$(find build -name 'MeetMemento.app' -maxdepth 6 2>/dev/null | head -1 || true)"
-  [ -z "$app" ] && app="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Build/Products/Release*/MeetMemento.app' -maxdepth 5 2>/dev/null | head -1 || true)"
+  app="$(find build -name 'withMemento.app' -maxdepth 6 2>/dev/null | head -1 || true)"
+  [ -z "$app" ] && app="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Build/Products/Release*/withMemento.app' -maxdepth 5 2>/dev/null | head -1 || true)"
 fi
 
 if [ -z "$app" ] || [ ! -d "$app" ]; then
-  echo "SKIP no MeetMemento.app found — build Release or pass a path."
+  echo "SKIP no withMemento.app found — build Release or pass a path."
   echo "     Ceiling on record: ${ceiling} MB (docs/app-store/00 C10)"
   exit 0
 fi

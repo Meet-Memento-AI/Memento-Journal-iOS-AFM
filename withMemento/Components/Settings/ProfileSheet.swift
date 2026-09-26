@@ -1,0 +1,235 @@
+//
+//  ProfileSheet.swift
+//  withMemento
+//
+//  Profile and settings, opened from the Journal header's avatar.
+//
+//  Replaces the left drawer. The drawer's edge-swipe was attached to the whole
+//  NavigationStack, so every horizontal drag in the app arbitrated against it —
+//  impossible to reconcile with a root pager. A sheet has no edge gesture of its
+//  own, so the pager gets the horizontal axis to itself.
+//
+//  "About yourself" and "Your journal themes" have no other entry point in the
+//  app; losing them here would orphan EditAboutYourselfView and
+//  EditJournalGoalsView.
+//
+
+import SwiftUI
+
+struct ProfileSheet: View {
+    /// The app's main navigation path, used only by the standalone fallback —
+    /// rows normally push inside this sheet's own stack.
+    var navigationPath: Binding<NavigationPath>
+
+    @EnvironmentObject private var entryViewModel: EntryViewModel
+    @EnvironmentObject private var appState: AppStateStore
+    @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        // Its own stack, so rows push in place and you can swipe back without
+        // losing the sheet — rather than dismissing and pushing full-width on
+        // the main stack, which reads as a two-stage jump.
+        NavigationStack {
+            VStack(spacing: 0) {
+                MementoSheetHandle()
+                header
+
+                ScrollView {
+                    VStack(spacing: Spacing.xl) {
+                        SettingsSection(title: "You") {
+                            NavigationLink(value: DrawerRoute.aboutYourself) {
+                                SettingsRow(
+                                    icon: "person",
+                                    title: "About yourself",
+                                    subtitle: "What Memento knows about you",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            SettingsRowDivider()
+
+                            NavigationLink(value: DrawerRoute.journalGoals) {
+                                SettingsRow(
+                                    icon: "slider.horizontal.3",
+                                    title: "Your journal themes",
+                                    subtitle: "What you want to reflect on",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            SettingsRowDivider()
+
+                            #if MEMENTO_AI
+                            NavigationLink(value: SettingsRoute.weekly) {
+                                SettingsRow(
+                                    icon: "calendar",
+                                    title: "Weekly",
+                                    subtitle: "This week's reflection",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            SettingsRowDivider()
+
+                            NavigationLink(value: SettingsRoute.patterns) {
+                                SettingsRow(
+                                    icon: "chart.bar",
+                                    title: "Patterns",
+                                    subtitle: "Counts stay in the app, not the model",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            #endif
+                        }
+
+                        SettingsSection(title: "App") {
+                            NavigationLink(value: SettingsRoute.main) {
+                                SettingsRow(
+                                    icon: "gear",
+                                    title: "Settings",
+                                    subtitle: "Appearance, security, data and privacy",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            // Was `drawer.settings` — renamed with the drawer it
+                            // named. The upgrade-migration UI test drives this row.
+                            .accessibilityIdentifier("profile.settings")
+                        }
+                    }
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.bottom, Spacing.xxl)
+                }
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationDestination(for: SettingsRoute.self) { route in
+                settingsDestination(for: route)
+            }
+            .navigationDestination(for: DrawerRoute.self) { route in
+                drawerDestination(for: route)
+            }
+            .navigationDestination(for: EntryRoute.self) { route in
+                EntryEditorDestination(route: route)
+                    .environmentObject(entryViewModel)
+            }
+        }
+        .presentationDetents([.fraction(0.95)])
+        .mementoSheetPresentation()
+    }
+
+    // MARK: - Chrome
+
+    private var header: some View {
+        VStack(spacing: 12) {
+            AvatarInitialButton(
+                initial: appState.firstName?.first.map { String($0) },
+                size: 96,
+                accessibilityLabel: "Your profile"
+            )
+            .allowsHitTesting(false)
+
+            VStack(spacing: 4) {
+                Text(appState.firstName ?? "Your account")
+                    .font(type.h4)
+                    .foregroundStyle(theme.foreground)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                Text(journalingSinceCaption)
+                    .font(type.body2)
+                    .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
+    }
+
+    /// Earliest real entry (samples excluded). Empty / sample-only journals
+    /// keep the device-local fallback rather than inventing a start month.
+    private var journalingSinceCaption: String {
+        let earliest = entryViewModel.entries
+            .filter { !SampleContentService.shared.isSampleEntry($0.id) }
+            .map(\.createdAt)
+            .min()
+        guard let earliest else { return "On this device only" }
+        return "Journaling since \(earliest.formatted(as: "MMMM, yyyy"))"
+    }
+
+    // MARK: - Destinations
+    // Mirrors ContentView's builders. SettingsView needs both environment
+    // objects, and a sheet's own NavigationStack does not inherit them from the
+    // presenting view's stack, so they are re-injected here.
+
+    @ViewBuilder
+    private func settingsDestination(for route: SettingsRoute) -> some View {
+        switch route {
+        case .main:
+            SettingsView()
+                .environmentObject(entryViewModel)
+                .environmentObject(appState)
+        case .profile:
+            ProfileSettingsView()
+        case .appearance:
+            AppearanceSettingsView()
+        case .notifications:
+            NotificationsSettingsView()
+        #if MEMENTO_AI
+        case .voice:
+            VoiceSettingsView()
+        #else
+        case .voice:
+            EmptyView()
+        #endif
+        case .security:
+            SecuritySettingsView()
+                .environmentObject(entryViewModel)
+        case .about:
+            AboutSettingsView()
+        case .acknowledgments:
+            AcknowledgmentsView()
+        #if MEMENTO_AI
+        case .weekly:
+            WeeklyReflectionView()
+                .environmentObject(entryViewModel)
+        case .patterns:
+            PatternsView()
+                .environmentObject(entryViewModel)
+        #else
+        case .weekly, .patterns:
+            EmptyView()
+        #endif
+        }
+    }
+
+    @ViewBuilder
+    private func drawerDestination(for route: DrawerRoute) -> some View {
+        switch route {
+        case .aboutYourself:
+            EditAboutYourselfView()
+        case .journalGoals:
+            EditJournalGoalsView()
+        }
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Profile sheet") {
+    Rectangle()
+        .fill(Color.gray.opacity(0.2))
+        .ignoresSafeArea()
+        .sheet(isPresented: .constant(true)) {
+            ProfileSheet(navigationPath: .constant(NavigationPath()))
+                .environmentObject(EntryViewModel())
+                .environmentObject(AppStateStore())
+                .useTheme()
+                .useTypography()
+        }
+}

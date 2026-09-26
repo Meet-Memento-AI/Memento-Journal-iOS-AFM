@@ -19,7 +19,7 @@ func initializeAuth() async {
 }
 ```
 
-## File 2: MeetMementoApp.swift  
+## File 2: withMementoApp.swift  
 Add .task modifier:
 ```swift
 WindowGroup {

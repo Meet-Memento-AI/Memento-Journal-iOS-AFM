@@ -20,7 +20,7 @@ different place by a different mechanism:
 | Artifact | Where it lives | How it changes | Reviewed by |
 |---|---|---|---|
 | **App Privacy nutrition label** | App Store Connect → App Privacy | Editable **at any time, without shipping a build** | App Review, and every user on the product page |
-| **`PrivacyInfo.xcprivacy`** | `MeetMemento/PrivacyInfo.xcprivacy` | Ships in the binary | Automated validation at upload (ITMS-9105x) |
+| **`PrivacyInfo.xcprivacy`** | `withMemento/PrivacyInfo.xcprivacy` | Ships in the binary | Automated validation at upload (ITMS-9105x) |
 | **Privacy policy** | `docs/privacy.html` (published), `PRIVACY_POLICY.md` (source) | Published to GitHub Pages | App Review, and legally binding on us |
 
 The label being editable without a build is precisely how it drifted last time:
@@ -51,28 +51,48 @@ Apple's definition of "collect", verbatim:
 | Data | Where it goes | Collected? |
 |---|---|---|
 | Journal entries, transcripts, reflections | SwiftData on device; mirrored to the **user's own CloudKit private database** | **No** — CloudKit private database is the user's iCloud account, not our infrastructure. We have no access to it |
-| Audio | Live buffers only. `SpeechService.swift` uses `AVAudioEngine` + `SFSpeechAudioBufferRecognitionRequest` with `requiresOnDeviceRecognition = true`; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — on-device recognition is required, see below |
+| Audio | Live buffers only. `SpeechAnalyzerEngine.swift` uses `AVAudioEngine` + `SpeechAnalyzer`/`SpeechTranscriber` against locally installed assets; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — transcription is local-asset-backed with no server fallback, see below |
 | Display name / experience profile | `StoredProfile` in SwiftData; mirrored to the user's CloudKit private DB (spec 040). Not a Memento account. | **No** — we cannot read the user's private DB |
 | Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
 | Crash and performance data | Apple's own, opt-in at the OS level, never surfaced to us via an SDK | **No** |
 | Quality feedback (opt-in, spec 042) | Write-only RPC to the evaluations Supabase project: ratings, reason, note; question/answer only on explicit Report + include-text | **Yes** — Other User Content, Other Data Types, User ID. Linked, not tracking. Purposes: App Functionality + Analytics |
 
-Corroborating evidence: `grep -rn "URLSession" MeetMemento --include="*.swift"`
+Corroborating evidence: `grep -rn "URLSession" withMemento --include="*.swift"`
 returned **zero hits** on 2026-08-07. **2026-09-11:** `SupabaseFeedbackClient`
 is the first third-party `URLSession` call site. Legal links remain
 `UIApplication.shared.open`.
 
+**2026-09-25 (spec 051 R3):** the feedback row's `model_identifier` now names
+the on-device model class (for example
+`apple.system.on-device.afm3-core-advanced`, AFM 3 Core Advanced, which only
+runs on devices with 12 GB or more). That is a coarse hardware class sent only
+on the same opt-in and Report paths, alongside the app version already sent;
+it stays under Other Data Types / Analytics and needs no new label type.
+
 ### The two things that can break "Data Not Collected"
 
-**1. `SFSpeechRecognizer` without `requiresOnDeviceRecognition = true`.**
-**RESOLVED (2026-08-11, previously stale).** `MeetMemento/Services/SpeechService.swift`
-**does** set `request.requiresOnDeviceRecognition = true` (see the comment block
-at the call site: "Keep audio on the device"), so recognition cannot be routed
-to Apple's servers; unavailable locales surface an error rather than a silent
-off-device path. Spec 018 R1's `SpeechAnalyzer` migration remains the 2.0 plan,
-but the 1.x label is safe on this point. (This paragraph previously claimed the
-flag was unset — that was out of date, not a code change.)
+**1. An undisclosed off-device speech path.**
+**RESOLVED — but not the way this section said. Corrected 2026-09-17.**
+
+Spec 018 R1's migration already shipped. Capture runs through
+`withMemento/Services/SpeechAnalyzerEngine.swift` on `SpeechAnalyzer` +
+`SpeechTranscriber`, and there is **no `SFSpeechAudioBufferRecognitionRequest`
+and no `recognitionTask` anywhere in the target** — verified by grep on
+2026-09-17. `requiresOnDeviceRecognition` is consequently **not set, and cannot
+be**: it is a property of a request object the app never constructs.
+`SFSpeechRecognizer` remains only as the authorization API
+(`SpeechService.swift:167,178,226`), which is why the symbol still appears.
+
+The 2026-08-11 revision of this paragraph claimed the flag *was* set and cited a
+call site that does not exist. That claim propagated into `00` C4, `02` §4, and
+`12`, and was the weakest sentence in the library: a reviewer who grepped the
+binary would have found the opposite of what we wrote.
+
+The accurate — and stronger — statement is that `SpeechTranscriber` runs against
+assets installed on the device via `AssetInventory`, and when they are
+unavailable dictation **reports unavailable rather than falling back to a
+server**. There is no server path to disclose because there is no server path.
 
 **2. RevenueCat, if spec 021 ships it.** `REQ-MON-004` / **V8** is an open
 verification item: does RevenueCat's SDK itself trigger a collection disclosure
@@ -146,14 +166,14 @@ reviewer comparing the manifest to the binary has grounds to ask.
 | Category | Reason | Justified by | Verdict |
 |---|---|---|---|
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — "access user defaults in **just your app**" | **11 files** use `UserDefaults` (`AppStateStore.swift`, `PreferencesService.swift`, `LocalProfileStore.swift`, `SecurityService.swift`, `PromptRegistry.swift`, plus view models and views) | ✅ **Keep.** Switch to (or add) `1C8F.1` **only if** spec 020's widgets introduce a shared App Group suite — there is no `suiteName` usage today |
-| `NSPrivacyAccessedAPICategoryFileTimestamp` | `C617.1` — "access timestamps, size, or other metadata of files inside the app container" | `MeetMemento/Services/LocalJournalStorage.swift:118-121` — `fileManager.attributesOfItem(atPath:)` → `.modificationDate`, on files inside the app container. Consumed by `JournalService.swift:133,170` | ✅ **Keep.** `C617.1` is precisely the right reason for container-internal metadata |
-| `NSPrivacyAccessedAPICategorySystemBootTime` | `35F9.1` | **Nothing.** `grep -rn "systemUptime\|mach_absolute_time\|kern.boottime" MeetMemento --include="*.swift"` → no matches | 🔴 **Remove.** The comment claims "for security features"; `SecurityService.swift` uses Keychain and constant-time comparison, not boot time |
+| `NSPrivacyAccessedAPICategoryFileTimestamp` | `C617.1` — "access timestamps, size, or other metadata of files inside the app container" | `withMemento/Services/LocalJournalStorage.swift:118-121` — `fileManager.attributesOfItem(atPath:)` → `.modificationDate`, on files inside the app container. Consumed by `JournalService.swift:133,170` | ✅ **Keep.** `C617.1` is precisely the right reason for container-internal metadata |
+| `NSPrivacyAccessedAPICategorySystemBootTime` | `35F9.1` | **Nothing.** `grep -rn "systemUptime\|mach_absolute_time\|kern.boottime" withMemento --include="*.swift"` → no matches | 🔴 **Remove.** The comment claims "for security features"; `SecurityService.swift` uses Keychain and constant-time comparison, not boot time |
 | `NSPrivacyAccessedAPICategoryDiskSpace` | — | Not declared, and not used — `grep -rn "volumeAvailableCapacity\|systemFreeSize\|attributesOfFileSystem"` → no matches | ✅ **Correctly absent.** Add `E174.1` **only if** capture starts checking free space before recording — a plausible future requirement for long sessions |
 | `NSPrivacyAccessedAPICategoryActiveKeyboards` | — | Not used | ✅ Correctly absent |
 
 ### Target state — the diff
 
-Remove this block from `MeetMemento/PrivacyInfo.xcprivacy`:
+Remove this block from `withMemento/PrivacyInfo.xcprivacy`:
 
 ```xml
 <!-- System Boot Time: For security features -->
@@ -257,14 +277,14 @@ artifacts in the same session.
 
 ## Verification
 
-- [ ] `grep -c "SystemBootTime" MeetMemento/PrivacyInfo.xcprivacy` → **0**.
+- [ ] `grep -c "SystemBootTime" withMemento/PrivacyInfo.xcprivacy` → **0**.
 - [ ] `scripts/ci/check_privacy_manifest.sh` passes, and fails on a planted
       violation in **both** directions (a declared-but-unused category, and a
       used-but-undeclared API).
 - [ ] `grep -rn "NSUserTrackingUsageDescription" .` → no matches in any plist.
-- [ ] `grep -rn "URLSession" MeetMemento --include="*.swift"` → no matches, or
+- [ ] `grep -rn "URLSession" withMemento --include="*.swift"` → no matches, or
       every hit is accounted for in this document and the privacy policy.
-- [ ] The App Store Connect privacy label, `MeetMemento/PrivacyInfo.xcprivacy`,
+- [ ] The App Store Connect privacy label, `withMemento/PrivacyInfo.xcprivacy`,
       and the published privacy policy all state the same thing — checked
       together, in one session, with the date recorded.
 - [ ] V8's verdict is recorded in `specs/021` R5 and mirrored to

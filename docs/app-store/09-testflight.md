@@ -62,7 +62,7 @@ before you can invite external testers. There is no metadata-only path here.
 |---|---|
 | **Beta App Description** | What the app does. Editing it re-triggers review |
 | **What to Test** | Per build. Keep it specific — it doubles as the reviewer's orientation |
-| **Feedback email** | `contact@sebastianmendo.design` |
+| **Feedback email** | `hello@withmemento.ai` |
 | **Beta App Review contact** | Name, phone, email — same as `08` §1 |
 | **Demo account** | **None needed** — no login. Say so, as in `08` |
 | **Export compliance** | Answered per build **unless** `ITSAppUsesNonExemptEncryption` is in `Info.plist`. ✅ It is — so the prompt does not appear |

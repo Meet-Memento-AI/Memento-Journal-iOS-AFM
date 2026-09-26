@@ -22,19 +22,19 @@
 
 ### **New Files (2)**
 ```
-MeetMemento/Models/Entry.swift
-MeetMemento/ViewModels/EntryViewModel.swift
+withMemento/Models/Entry.swift
+withMemento/ViewModels/EntryViewModel.swift
 ```
 
 ### **Updated Files (7)**
 ```
-MeetMemento/Views/Journal/JournalView.swift
-MeetMemento/Views/Journal/JournalPageView.swift
-MeetMemento/Views/Journal/AddEntryView.swift
-MeetMemento/ContentView.swift
-MeetMemento/Components/Cards/JournalCard.swift
-MeetMemento/Components/Buttons/IconButton.swift
-MeetMemento/Components/Cards/SummaryCard.swift
+withMemento/Views/Journal/JournalView.swift
+withMemento/Views/Journal/JournalPageView.swift
+withMemento/Views/Journal/AddEntryView.swift
+withMemento/ContentView.swift
+withMemento/Components/Cards/JournalCard.swift
+withMemento/Components/Buttons/IconButton.swift
+withMemento/Components/Cards/SummaryCard.swift
 ```
 
 ### **Documentation (2)**

@@ -2,7 +2,7 @@
 
 This is the operator-facing map of **what Memento already proves in CI**, **what is
 still missing for honest builds and releases**, and **what to enable next**. The
-executable work-stream is [`specs/046-cicd-pipeline-and-release-automation.md`](../specs/046-cicd-pipeline-and-release-automation.md).
+executable work-stream is [`specs/052-cicd-pipeline-and-release-automation.md`](../specs/052-cicd-pipeline-and-release-automation.md).
 
 The product is an **on-device iOS journal** (bundle `com.sebastianmendo.MeetMemento`,
 display name Memento). There is **no backend deploy**. “CD” means **archive →
@@ -34,7 +34,8 @@ from how Apple actually accepts binaries, plus this repo’s constitution
 *signing + TestFlight* path. This repo’s **constitutional gates are Linux shell
 and must stay on GitHub** (forbidden-phrase lint, privacy manifest, corpus,
 allowlist). Target is a **hybrid**: GitHub for governance + online tests; a
-signed Mac (self-hosted today, Xcode Cloud later) for archive/validate/upload.
+signed Mac (hosted `xcode-27` for compile; signing/TestFlight later via an
+`app-store` environment or Xcode Cloud) for archive/validate/upload.
 
 ---
 
@@ -44,10 +45,10 @@ signed Mac (self-hosted today, Xcode Cloud later) for archive/validate/upload.
 
 | Lane | Workflow | Runner | Proves |
 |------|----------|--------|--------|
-| Spec gates (2.0) | `spec-gates.yml` | Linux self-hosted | Single `FoundationModels` importer; no hardcoded context budgets; REQ-POS-001 phrases; speakability selftest; SPM allowlist; privacy manifest both directions; Info.plist / build-number floor; archive-hygiene membership; live legal URLs; TTS licence/G2P scan; ASC metadata limits; fixture corpus + gold sync; single CoreML importer; TTS zero-egress; no SiriKit |
-| Security | `security.yml` | Linux | Sonar (fails if token/vars missing); gitleaks on new commits; dependency-review **critical** on PRs |
-| iOS build (online) | `ios-build-online.yml` | macOS + Xcode 26+ | Build-spec assert; changed-file SwiftLint (blocking on PR); `CI_ONLINE=1` unit tests; coverage ratchet (floor **13%**); Release simulator size vs 200 MB; Periphery PR regression |
-| Device / eval | `ios-device-eval.yml` | macOS, **not required** | Weekly/dispatch; live FM if present; Spotlight spikes on demand |
+| Spec gates (2.0) | `spec-gates.yml` | `ubuntu-latest` | Single `FoundationModels` importer; no hardcoded context budgets; REQ-POS-001 phrases; speakability selftest; SPM allowlist; privacy manifest both directions; Info.plist / build-number floor; archive-hygiene membership; live legal URLs; TTS licence/G2P scan; ASC metadata limits; fixture corpus + gold sync; single CoreML importer; TTS zero-egress; no SiriKit |
+| Security | `security.yml` | `ubuntu-latest` | gitleaks; dependency-review **critical** on PRs; Sonar **skipped** when unset |
+| iOS build (online) | `ios-build-online.yml` | `xcode-27` (hosted) | Build-spec assert; changed-file SwiftLint (blocking on PR); `CI_ONLINE=1` unit tests; coverage ratchet (floor **13%**); Release simulator size vs 200 MB; Periphery PR regression; LFS cache + pointer fail-fast |
+| Device / eval | `ios-device-eval.yml` | self-hosted macOS, **not required** | Weekly/dispatch; live FM if present; Spotlight spikes on demand |
 
 ### Store / release docs (process, not automation)
 
@@ -86,17 +87,17 @@ Other honesty gaps:
 | UITests skipped | Launch / onboarding / PIN / TTS read-aloud / upgrade migration never run in CI |
 | Single sim destination (iPhone 17) | App is universal; spec 040 iPad regular-width is unbuilt in merge CI |
 | Watch scheme not in merge | `MeetMementoWatch/` compiles only if someone opens it |
-| Coverage 13% vs rollout doc 60% | `docs/QUALITY_GATE_ROLLOUT.md` is aspirational and currently dishonest |
 | `STOREKIT_ENFORCE=0` | Placeholder IAP IDs would not fail merge |
-| Sonar hard-fails without secrets | Linux merge lane is coupled to a personal Sonar install |
-| Self-hosted only | macOS or Linux offline = entire merge blocked (012 #8) |
 | Eval gates not scheduled as artifacts | spec 022 / 036 Gate V remain local device work |
 | No dSYM UUID assertion | Crash pipeline can silently break |
-| No LFS pointer guard as a cheap Linux job | Pointer files fail at **runtime** model load, after a green compile if LFS is skipped |
 | Dependabot = Actions only | SPM / Xcode project pins are unattended |
-| No concurrency / cancel-in-progress | Duplicate PR runs waste the one Mac |
 | No CODEOWNERS path for `scripts/ci/` | Workflow owners miss the scripts that *are* the gates |
 | Branch-protection rename still a user action | Docs still say operators must replace `iOS quality gates` |
+
+Landed on `main` since the first draft of this doc (2026-09-23+): hosted
+`ubuntu-latest` + `xcode-27` merge lanes; workflow `concurrency`; Sonar skip
+when unconfigured; LFS cache + pointer fail-fast on the iOS job; Periphery
+install pinned. Coverage rollout doc now matches the 13% floor.
 
 ---
 
@@ -138,17 +139,16 @@ flowchart TB
 
 ## 5. Complete item list (what to build)
 
-Grouped by phase. Checkboxes are the implementation backlog (owned by spec 046).
+Grouped by phase. Checkboxes are the implementation backlog (owned by spec 052).
 
 ### Phase A — Honesty and operator wiring (no new product surface)
 
 - [ ] Confirm GitHub branch protection uses **`iOS build (online)`**, spec-gate
       job names, `Dependency review`, `Secret scanning`. Remove `iOS quality gates`.
-- [ ] Add `concurrency:` groups to all four workflows (`cancel-in-progress` on PRs).
-- [ ] Split Sonar into `continue-on-error` or `if: secrets.SONAR_TOKEN != ''` so
-      missing Sonar cannot fail the whole security workflow.
-- [ ] Add Linux job `check_lfs_pointers.sh`: fail if `*.mlmodelc` / weight files
-      are Git LFS pointers (`version https://git-lfs.github.com`).
+- [x] `concurrency:` groups on merge workflows (`cancel-in-progress` on PRs) —
+      landed on `main` 2026-09-23.
+- [x] Sonar skips when unconfigured (does not fail the security workflow).
+- [x] iOS job LFS cache + fail-fast if pointer files survive checkout.
 - [ ] Extend CODEOWNERS to `scripts/ci/` and `docs/app-store/`.
 - [ ] Dependabot `swift` / weekly SPM review, or a documented “no SPM deps”
       assertion (allowlist is already empty — keep it that way).
@@ -308,7 +308,7 @@ Never commit `.p8`, `.p12`, `.mobileprovision`.
 
 | Doc | Role |
 |-----|------|
-| `specs/046-cicd-pipeline-and-release-automation.md` | Executable requirements / tasks |
+| `specs/052-cicd-pipeline-and-release-automation.md` | Executable requirements / tasks |
 | `specs/025-ci-online-ios-build-gates.md` | Online vs device split (done) |
 | `specs/006-ci-and-build-config-integrity.md` | Honest gates (done) |
 | `docs/app-store/07-build-signing-and-upload.md` | Manual commands this CD automates |

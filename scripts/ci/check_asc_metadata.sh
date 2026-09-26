@@ -34,6 +34,11 @@ LIMITS=(
   "description|4000|chars"
   "release_notes|4000|chars"
   "review_notes|4000|bytes"
+  # Resolution Center reply. Apple caps it at 4000 CHARACTERS, a separate
+  # limit from the Notes field's 4000 bytes, so it is measured separately
+  # and the two files are allowed to differ. They must not CONTRADICT each
+  # other - see docs/app-store/08 section 5 rule 6.
+  "resolution_center_reply|4000|chars"
 )
 
 echo "App Store Connect metadata: $META_DIR"
@@ -123,6 +128,34 @@ if [ -n "$hits" ]; then
   fail=1
 else
   echo "OK   no clinical vocabulary"
+fi
+
+# --- Regional-difference claim matches the shipped crisis resources ----------
+# review_notes.txt section 5 tells App Review the crisis card is IDENTICAL in
+# every region. That is true today only because CrisisResources.json ships a
+# single locale block, so every locale falls through to defaultLocale. Add a
+# second block and the statement to Apple silently becomes false - a Guideline
+# 2.3 accuracy defect in the one answer Apple explicitly asked for (item 5 of
+# the September 2026 information request). See docs/app-store/08 section 2.
+CRISIS_JSON="${CRISIS_JSON:-withMemento/Resources/Safety/CrisisResources.json}"
+NOTES_FILE="$META_DIR/review_notes.txt"
+if [ -f "$CRISIS_JSON" ] && [ -f "$NOTES_FILE" ]; then
+  if grep -qi "identical in every region" "$NOTES_FILE"; then
+    locale_count="$(python3 -c "
+import json,sys
+print(len(json.load(open(sys.argv[1]))['locales']))
+" "$CRISIS_JSON")"
+    if [ "$locale_count" -eq 1 ]; then
+      echo "OK   crisis resources ship 1 locale; the region-identical claim holds"
+    else
+      echo "FAIL: review_notes.txt tells App Review the crisis card is identical"
+      echo "      in every region, but $CRISIS_JSON now ships $locale_count locales."
+      note "Either revert to a single locale, or rewrite review_notes.txt section 5"
+      note "to describe the regional variation. Do not ship the claim and the"
+      note "variation together. See docs/app-store/08 section 2."
+      fail=1
+    fi
+  fi
 fi
 
 echo ""

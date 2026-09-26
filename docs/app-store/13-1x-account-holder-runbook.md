@@ -26,12 +26,28 @@ which is the A6 root cause. Verified passing 2026-09-12.
 
 ## A — Apple's clock
 
-### A0 — Accept the Xcode licence on the build Mac (1 minute, blocks everything)
+### A0 — Make the build Mac able to build (blocks everything)
 
 ```sh
 sudo xcodebuild -license accept
 xcodebuild -version   # expect 26.x
+xcodebuild -project withMemento.xcodeproj -scheme withMemento -showdestinations
 ```
+
+**Found 2026-09-17: the third command returns ZERO available destinations.**
+Xcode is 26.6 (17F113) with the iOS **26.5** SDK, but the **iOS 26.5 platform
+component is not downloaded**, so `Any iOS Device` and the physical iPhone both
+report *"iOS 26.5 is not installed"*, and the installed simulator runtimes
+(26.0, 27.0) are not offered to this Xcode. Nothing archives, nothing tests,
+nothing runs.
+
+**Fix:** Xcode → Settings → **Components** → download **iOS 26.5**. Re-run
+`-showdestinations` and confirm real destinations come back *before* archiving.
+
+Do **not** work around this with `~/Downloads/Xcode-beta.app` — that is **Xcode
+27.0 beta (27A5228h)**, and Apple does not accept App Store builds made with
+beta software. It is fine for local iteration and useless for the submission.
+See checklist C2/C3/C3a.
 
 **Found 2026-09-12.** `/Applications/Xcode.app` (26.6, 17F113) had an unaccepted
 licence, and that blocks far more than archiving: `git`, `xcodebuild`, and
@@ -102,18 +118,21 @@ App Store Connect → App Information → Age Rating. Worked answers from `05`:
 
 ## D — App Store Connect record (paste)
 
-Bundle ID `com.sebastianmendo.MeetMemento`. App Apple ID `6754416850`.
+Bundle ID `com.sebmendo.withMementoAI` — ⚠️ a **new** record; the old
+`com.sebastianmendo.MeetMemento` / App Apple ID `6754416850` listing is not
+reusable after the rename (see `02-app-store-connect-record.md`). App Apple ID is
+assigned when the new record is created.
 Display name **Memento**. Version **1.0**, build must be **≥ 3**.
 
 | Field | Value |
 |---|---|
 | D1 Privacy Policy URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` |
 | D2 Support URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` |
-| D3 Support email | `contact@sebastianmendo.design` |
+| D3 Support email | `hello@withmemento.ai` |
 | D4 Primary category | **Lifestyle**. Secondary: Productivity. Never Health & Fitness or Medical |
 | D5 Copyright | `2026 Sebastian Mendoza` (no ©). Content Rights: No third-party content. License: Apple's standard EULA |
 | D6 App Privacy | Tracking = **No**. Declare **Other User Content**, **Other Data Types**, **User ID** (linked, not tracking; App Functionality + Analytics) for opt-in quality feedback (spec 042). Journal is not collected. CloudKit private DB is the user’s iCloud, not our collection. Match `PrivacyInfo.xcprivacy` and live `privacy.html`. **Not** Data Not Collected |
-| D7 Review contact | Name + phone (you). Email: `contact@sebastianmendo.design`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
+| D7 Review contact | Name + phone (you). Email: `hello@withmemento.ai`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
 | D8 Metadata | Paste `metadata/en-US/{name,subtitle,keywords,promotional_text,description,release_notes}.txt` |
 | D9 Screenshots | **iPhone 6.9″ 1320×2868** and **iPad 13″ 2064×2752** (iPad is mandatory; `TARGETED_DEVICE_FAMILY = 1,2`) |
 | D10 Price | From A2. Tax category required if paid |
@@ -157,16 +176,16 @@ or purchased data. Match `PrivacyInfo.xcprivacy` and the live privacy policy.
 
 ## Archive (after A1)
 
-Xcode **26 GA** (not 27 beta). Scheme MeetMemento, Release, generic iOS.
+Xcode **26 GA** (not 27 beta). Scheme withMemento, Release, generic iOS.
 
 ```sh
 xcodebuild -version   # expect 26.x
 xcodebuild \
-  -project MeetMemento.xcodeproj \
-  -scheme MeetMemento \
+  -project withMemento.xcodeproj \
+  -scheme withMemento \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -archivePath build/MeetMemento.xcarchive \
+  -archivePath build/withMemento.xcarchive \
   archive
 ```
 
@@ -174,7 +193,7 @@ Then Organizer → Distribute App → App Store Connect → Upload, or
 `xcodebuild -exportArchive` + `xcrun altool --validate-app` per `07`.
 
 **Evidence 2026-08-17:** `xcodebuild -version` → **Xcode 26.0.1 (17A400)**.
-`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/MeetMemento.xcarchive`.
+`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/withMemento.xcarchive`.
 Product contains no `.xcconfig`, `.storekit`, or `.md` files.
 
 **Export is blocked on signing, not the binary.**

@@ -279,12 +279,12 @@ Final polish and required App Store metadata.
 
 - **Rate on App Store**
   - Uses `SKStoreReviewController.requestReview()`
-  - Button: "Rate MeetMemento"
+  - Button: "Rate withMemento"
 
 - **Share App**
   - Native iOS share sheet
   - Share App Store link
-  - Include message: "Check out MeetMemento!"
+  - Include message: "Check out withMemento!"
 
 **Files to Create:**
 ```
@@ -298,7 +298,7 @@ Resources/CHANGELOG.md
 ┌─────────────────────────────────┐
 │ About                           │
 ├─────────────────────────────────┤
-│ ℹ️ About MeetMemento         → │
+│ ℹ️ About withMemento         → │
 │    Version, legal, support     │
 └─────────────────────────────────┘
 ```
@@ -501,7 +501,7 @@ Settings
 │   └── Data Usage
 │
 ├── About → AboutSettingsView ⭐ REQUIRED
-│   └── About MeetMemento
+│   └── About withMemento
 │
 ├── Advanced → AdvancedSettingsView (optional)
 │   └── Advanced Settings

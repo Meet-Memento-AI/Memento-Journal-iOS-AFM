@@ -4,7 +4,7 @@
 #
 # Fails unless the tree matches the online iOS merge-CI contract:
 #   - Xcode major >= 26 (Foundation Models SDK present to compile)
-#   - scheme MeetMemento exists
+#   - scheme withMemento exists
 #   - every IPHONEOS_DEPLOYMENT_TARGET >= 26.0
 #   - destination env is reported (caller supplies IOS_SIM_DESTINATION)
 #
@@ -12,8 +12,8 @@
 # Portable: macOS Bash 3.2 + Linux Bash 4+.
 set -euo pipefail
 
-PBXPROJ="${PBXPROJ:-MeetMemento.xcodeproj/project.pbxproj}"
-SCHEME="${SCHEME:-MeetMemento}"
+PBXPROJ="${PBXPROJ:-withMemento.xcodeproj/project.pbxproj}"
+SCHEME="${SCHEME:-withMemento}"
 MIN_XCODE_MAJOR="${MIN_XCODE_MAJOR:-26}"
 MIN_DEPLOYMENT="${MIN_DEPLOYMENT:-26.0}"
 IOS_SIM_DESTINATION="${IOS_SIM_DESTINATION:-platform=iOS Simulator,name=iPhone 17,OS=latest}"
@@ -49,11 +49,11 @@ else
 fi
 
 # --- Schemes -----------------------------------------------------------------
-for required_scheme in MeetMemento; do
-  if xcodebuild -list -project MeetMemento.xcodeproj 2>/dev/null | grep -Eq "^[[:space:]]*${required_scheme}$"; then
+for required_scheme in withMemento; do
+  if xcodebuild -list -project withMemento.xcodeproj 2>/dev/null | grep -Eq "^[[:space:]]*${required_scheme}$"; then
     echo "OK   scheme $required_scheme present"
   else
-    echo "FAIL: scheme $required_scheme not found in MeetMemento.xcodeproj"
+    echo "FAIL: scheme $required_scheme not found in withMemento.xcodeproj"
     fail=1
   fi
 done

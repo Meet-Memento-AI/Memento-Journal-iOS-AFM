@@ -30,9 +30,22 @@ and use `chat-light@4`. Typed Chat and Narration share one pipeline
 ([`028`](028-conversational-narration.md)). Eval goldens are 022 fixtures
 and unit contracts ([`022`](022-evaluation-and-quality-study.md)).
 
-**Amendment (2026-09-01, narration):** spoken journal stays `AskAnswer`; spoken companion/meta stay `LightAskAnswer`. Companion / meta use body-only typed as well (they
+**Amendment (2026-09-01, narration):** spoken companion/meta stay
+`LightAskAnswer`. Companion / meta use body-only typed as well (they
 never emit citations). Typed notebook/thread keep `AskAnswer` + optional
-`citedRefs`. Spoken follow-ups with no journal anchor (`RetrievalPolicy`
+`citedRefs`.
+
+**Amendment (2026-09-16, narrate-mode latency):** spoken journal
+(notebook/thread) moves from `AskAnswer` to `LightAskAnswer`, superseding
+the 2026-09-01 line above. `citedRefs` is the last field in `AskAnswer`'s
+decode order, so every step it costs lands *after* the final audible word
+— dead air at the end of a half-duplex turn, spent on an array TTS never
+speaks. Typed notebook/thread are unchanged. Citations are not lost from
+the persisted turn: `reconcileCitations` handles an empty ref list by
+matching verbatim quoted spans in the body first, then falling back to
+the top retrieved entries, so spoken journal turns cite from retrieval
+rather than from the model's own declaration — less precisely attributed,
+not absent. Caps are untouched. Spoken follow-ups with no journal anchor (`RetrievalPolicy`
 `.none`) use the companion recipe (`chat-companion@1`, 80 tokens) instead
 of ask@15 / 256. Journal-anchored spoken follow-ups stay on thread + RAG.
 Spoken companion cap is 80; meta stays 128; notebook/thread spoken stay
@@ -243,6 +256,13 @@ a **new** ask — no recap.
 Overlay is nil for casual; non-nil overlays contain a question and never
 “Do not end with a question.”
 
+**Amendment (2026-09-21, spec 049).** The always-Open rule applies to
+`reflect` only. Task policies — `list`, `answer`, `acknowledge`,
+`retract` — and empty statistic bodies do not require a closing question.
+`rule.noOpen` does not fire on those policies. Farewell still skips the
+question via `ConversationalMove.skipsQuestion`. Venting reflection keeps
+one question. This amendment does not flatten the voice.
+
 ### R7. Eval goldens
 
 Add (or pin in unit contracts until the 022 harness exists) at least:
@@ -269,8 +289,10 @@ Typed Chat and Narration Mode consume the same channelled
 `AskStreamEvent` body (037 R1 / 028). Guided family, two shapes: light,
 companion, meta, and redirect stream `LightAskAnswer` (body only); typed
 notebook/thread stream `AskAnswer` (`body` + optional `citedRefs`).
-Spoken journal stays `AskAnswer`; spoken companion/meta stay `LightAskAnswer`. TTS does not speak citations;
-`reconcileCitations` still backfills from retrieval. Short phatic replies are a TTS latency
+**Spoken** notebook/thread also stream `LightAskAnswer` (2026-09-16):
+TTS does not speak citations, and the trailing `citedRefs` decode is pure
+dead air at the end of a narrated turn. `reconcileCitations` still
+backfills from retrieval, so the persisted turn keeps its citations. Short phatic replies are a TTS latency
 win; 029 records the caps, this spec does not retune the loop.
 
 ### R9. ConversationalMove cues

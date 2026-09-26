@@ -49,8 +49,8 @@ by the time the backend is deleted, nothing in the UI calls auth.
 | # | Finding | Evidence | Implication |
 |---|---|---|---|
 | 1 | Display name is already local-first: onboarding and ProfileSettings write `memento_first_name`/`_last_name` to UserDefaults; Supabase `users.full_name` is only a backfill (`refreshFirstNameIfMissing`) | `OnboardingCoordinatorView.swift` (~152), `ProfileSettingsView.swift` (~170), `AuthViewModel.swift` (~44) | R2 is mostly deletion, not construction |
-| 2 | Security stack is account-independent: PIN/salt/mode under fixed Keychain keys (`com.sebastianmendo.MeetMemento.*`), encryption key = PBKDF2(PIN, salt), local files keyed by entry UUID | `SecurityService.swift`, `EncryptionService.swift`, `LocalJournalStorage.swift` | Survives untouched; migration (R5) must not touch these Keychain entries |
-| 3 | Auth surface: `WelcomeView` (Apple/Google buttons), orphaned email-OTP path (`AuthBottomSheet` → `OTPVerificationView`), `AppleSignInService`, `AuthViewModel` state machine (`isAuthenticated`/`hasCheckedAuth`/8s session fetch/3s watchdog), SIWA entitlement | `Views/Onboarding/WelcomeView.swift`, `Components/AuthBottomSheet.swift`, `Services/AppleSignInService.swift`, `ViewModels/AuthViewModel.swift`, `MeetMemento.entitlements` | The removal set for R1 |
+| 2 | Security stack is account-independent: PIN/salt/mode under fixed Keychain keys (`com.sebmendo.withMementoAI.*`), encryption key = PBKDF2(PIN, salt), local files keyed by entry UUID | `SecurityService.swift`, `EncryptionService.swift`, `LocalJournalStorage.swift` | Survives untouched; migration (R5) must not touch these Keychain entries |
+| 3 | Auth surface: `WelcomeView` (Apple/Google buttons), orphaned email-OTP path (`AuthBottomSheet` → `OTPVerificationView`), `AppleSignInService`, `AuthViewModel` state machine (`isAuthenticated`/`hasCheckedAuth`/8s session fetch/3s watchdog), SIWA entitlement | `Views/Onboarding/WelcomeView.swift`, `Components/AuthBottomSheet.swift`, `Services/AppleSignInService.swift`, `ViewModels/AuthViewModel.swift`, `withMemento.entitlements` | The removal set for R1 |
 | 4 | `onboarding_completed` lives in the Supabase `users` row; every backend service guards on `client.auth.currentUser?.id` | `UserService.hasCompletedOnboarding`, `JournalService`/`ChatService`/`InsightsService` guards | Flag goes local (R1); service guards die with specs 015–017 |
 | 5 | Account management UI: Sign Out + two-step Delete Account (RPC `delete_user` + manual table deletes + local clears) in Settings' Account section | `SettingsView.swift` accountSection | Transforms into "Delete everything" (R4) |
 | 6 | Lock screen's only escape when biometrics+PIN fail is emergency **Sign Out** | `LockScreenView.swift` | Needs a no-account replacement (R6) |
@@ -69,7 +69,7 @@ superseded-pending-verification note — record the outcome there).
 (spec 014's Z0 verification applies); no `AuthViewModel`, `AppleSignInService`,
 `AuthBottomSheet`, `OTPVerificationView`, `GoogleSignInButton`, `SocialButton`,
 or `OTPTextField` symbols remain in the app target; the Sign in with Apple
-entitlement is removed from `MeetMemento.entitlements`.
+entitlement is removed from `withMemento.entitlements`.
 
 ### R2. Welcome preserved minus auth (PRES-060)
 Video background, branding, staged motion all intact. The Apple/Google buttons
@@ -108,7 +108,7 @@ spec [040](040-ipad-backend-readiness.md) includes `StoredProfile` and issues
 the CloudKit wipe). **iCloud is not a Memento account** — it is the user's
 Apple ID private DB for replica only. Sign Out row deleted.
 **Acceptance:** post-deletion cold launch is indistinguishable from a fresh
-install; `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/` returns
+install; `grep -ri "supabase\|gemini" withMemento/Views/Settings/` returns
 nothing.
 
 ### R5. Existing-user migration
@@ -164,7 +164,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       `AuthViewModel` (R1). **Done 2026-07-23** — `Services/AppStateStore.swift`
       (`@Observable` local store: `hasCompletedOnboarding`/`hasStartedOnboarding`/
       `firstName` from UserDefaults, `localUserID` stable local UUID for the
-      interim entry-tagging need, zero network calls). `MeetMementoApp.swift`
+      interim entry-tagging need, zero network calls). `withMementoApp.swift`
       root switch rewritten off `authViewModel`/`isAuthenticated`/`authState`.
 - [x] 2. Strip auth from Welcome; add "Get Started" + positioning line (R2).
       **Done** — `WelcomeView.swift`: Apple/Google buttons removed, single
@@ -199,7 +199,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       nothing and is independently verifiable" matching the Welcome
       `REQ-POS-001` line); "Account Information"/"Account Security"/"Delete
       Your Account" items replaced with local-storage/PIN/"Delete Everything"
-      equivalents. `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/`
+      equivalents. `grep -ri "supabase\|gemini" withMemento/Views/Settings/`
       now returns nothing (two stray code comments in
       `EditAboutYourselfView.swift`/`EditJournalGoalsView.swift` referencing
       "Supabase-backed UserService" were also reworded, since the acceptance
@@ -237,24 +237,24 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       `AuthBottomSheet.swift`, `OTPVerificationView.swift`, `OTPTextField.swift`,
       `GoogleSignInButton.swift`, `SocialButton.swift`;
       `com.apple.developer.applesignin` removed from
-      `MeetMemento.entitlements` (`keychain-access-groups` kept). Symbol grep
+      `withMemento.entitlements` (`keychain-access-groups` kept). Symbol grep
       for `AuthViewModel|AppleSignInService|AuthBottomSheet|OTPVerificationView|OTPTextField|GoogleSignInButton|SocialButton`
-      across `MeetMemento/` and `MeetMementoTests/` returns zero hits.
+      across `withMemento/` and `withMementoTests/` returns zero hits.
       `AuthViewModelTests.swift` replaced with `AppStateStoreTests.swift` (9
       tests, retargeted per spec 011 R3).
 - [ ] 8. Run the full preservation walkthrough; record the spec 009 R2 outcome
       (R7). **Partially done.** `xcodebuild build` (app target) and
       `xcodebuild build-for-testing`/`test` (test target) both succeed;
-      `MeetMementoTests` full suite is green. The spec 009 R2 outcome (does
+      `withMementoTests` full suite is green. The spec 009 R2 outcome (does
       removing accounts also remove the auth-bootstrap race that motivated the
       3-failsafe consolidation) can now be answered: **yes** —
-      `MeetMementoApp.swift`'s `.task` block no longer has any watchdog/timeout
+      `withMementoApp.swift`'s `.task` block no longer has any watchdog/timeout
       race at all (`appState.initializeAppState()` is synchronous, no
       network), so R2's three-failsafe concern is moot, not just superseded;
       record this in spec 009 as a follow-up edit.
 
       Real XCUITest interaction coverage now exists and passes
-      (`MeetMementoUITests/MeetMementoSmokeUITests.swift`, 3/3 green):
+      (`withMementoUITests/withMementoSmokeUITests.swift`, 3/3 green):
       `test_launch_doesNotCrash`, `test_welcome_showsGetStartedNoAuthButtons`
       (asserts the `welcome.getStarted` button and `welcome.positioning`
       REQ-POS-001 line are reachable and no Apple/Google auth UI exists), and
@@ -276,7 +276,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
 
       **Upgrade-fixture, lock-screen matrix, and Delete Everything now have
       real automated coverage too**
-      (`MeetMementoUITests/MeetMementoUpgradeMigrationUITests.swift`, 4/4
+      (`withMementoUITests/withMementoUpgradeMigrationUITests.swift`, 4/4
       green), driven through an actual app launch, not direct method calls.
       `AppStateStore` gained a `-SeedUpgradeFixture` launch-argument hook
       (double-gated behind `-UITesting`, see `seedUpgradeFixture()`) that
@@ -326,7 +326,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
 
       **Zero-network-calls claim (R1's acceptance criterion): corrected.** Static
       trace of every file in the launch → Welcome → onboarding → Journal path
-      (`AppStateStore`, `MeetMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
+      (`AppStateStore`, `withMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
       `OnboardingViewModel`, the onboarding step views, `ContentView`) for
       `URLSession`/`SupabaseService`/`import Supabase` returns zero hits —
       the app-state bootstrap machinery itself is genuinely network-free.
@@ -351,7 +351,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
 - [x] Upgrade fixture: prior session + entries + PIN + name → direct to Journal,
       lock intact, no onboarding shown, Keychain unchanged. **Verified
       2026-07-23 via a real app launch**
-      (`MeetMementoUpgradeMigrationUITests.test_upgradeFixture_skipsOnboarding_landsOnIntactLockScreen`
+      (`withMementoUpgradeMigrationUITests.test_upgradeFixture_skipsOnboarding_landsOnIntactLockScreen`
       + `test_upgradeFixture_correctPIN_unlocksToJournal`): seeded pre-023
       local evidence (cached name + configured PIN, via a new
       `-SeedUpgradeFixture` launch-arg hook in `AppStateStore`) lands
@@ -364,14 +364,14 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       verified instead by static reading of `migrateFromPriorAccountIfNeeded()`,
       which only reads `SecurityService.shared.currentMode`, never writes
       Keychain).
-- [x] `grep -rn "AuthViewModel\|AppleSignInService\|AuthBottomSheet\|OTPVerificationView\|signInWith" MeetMemento/ --include="*.swift"` → 0.
+- [x] `grep -rn "AuthViewModel\|AppleSignInService\|AuthBottomSheet\|OTPVerificationView\|signInWith" withMemento/ --include="*.swift"` → 0.
       **Verified 2026-07-23** — 5 stray historical comments (in
       `InsightsService.swift`, `SupabaseService.swift`, `AppStateStore.swift`)
       referencing the removed `AuthViewModel` by name were reworded to "the
       old auth view model" so the literal grep, which doesn't distinguish
       comments from symbol references, passes honestly. Confirmed with
       `xcodebuild build` (succeeded) after the edits.
-- [x] `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/` → 0. **Verified
+- [x] `grep -ri "supabase\|gemini" withMemento/Views/Settings/` → 0. **Verified
       2026-07-23.**
 - [x] "Delete everything" → relaunch → indistinguishable from fresh install.
       **Verified 2026-07-23** via

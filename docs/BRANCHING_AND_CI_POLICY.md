@@ -50,7 +50,7 @@ The product is **on-device only** — there is no backend deploy pipeline in the
 current workflow set (`ios-build-online.yml`, `security.yml`, `spec-gates.yml`,
 optional `ios-device-eval.yml`). Store upload / TestFlight remain manual operator
 steps (`docs/app-store/07`) until spec
-[046](../specs/046-cicd-pipeline-and-release-automation.md) lands
+[052](../specs/052-cicd-pipeline-and-release-automation.md) lands
 `release-ios.yml` (archive → validate → TestFlight **internal** only).
 
 Full inventory, Apple principles, and the test/enable matrix:

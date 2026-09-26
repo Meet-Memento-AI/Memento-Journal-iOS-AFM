@@ -158,7 +158,7 @@ Sprint 8: Search
 
 3. **Create the files**:
    ```
-   MeetMemento/
+   withMemento/
    ├── Models/
    │   └── Insights.swift (NEW)
    └── ViewModels/
@@ -269,9 +269,9 @@ Week 3: Sprints 5-8 (Polish & features)
 
 ### File Locations:
 ```
-Documentation:          /MeetMemento/
-Sprint Plans:           /MeetMemento/.sprints/
-Database Migrations:    /MeetMemento/supabase/migrations/
+Documentation:          /withMemento/
+Sprint Plans:           /withMemento/.sprints/
+Database Migrations:    /withMemento/supabase/migrations/
 ```
 
 ---

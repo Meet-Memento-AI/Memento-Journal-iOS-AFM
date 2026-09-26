@@ -2,7 +2,7 @@
 id: 045
 title: Computed Insights and Period Reflection
 tier: P2
-status: draft (2026-09-06)
+status: in-progress (2026-09-21 — R1 InsightEngine landed; entry tags, weekly PeriodReflection, and Patterns consumption remain open)
 effort: 5–7 sessions; each phase ships independently
 depends_on: [014, 017, 018, 019, 022, 026, 037, 038, 041, 044]
 findings:
@@ -243,8 +243,9 @@ spec owns the quantitative templates.
 
 ## Tasks
 
-- [ ] 1. `InsightFact` + `InsightEngine` (cadence, clusters, NLTagger
-      people/places) + goldens over `Fixtures/corpus` (R1)
+- [x] 1. `InsightFact` + `InsightEngine` (cadence, clusters, NLTagger
+      people/places) + goldens over `Fixtures/corpus` (R1) —
+      `Services/Intelligence/Insights/InsightEngine.swift`
 - [ ] 2. `PatternsView` + adopt-or-delete Insights-Data cards; low-confidence
       copy (R2)
 - [ ] 3. `TurnType.quantitative` + `ReplyChannel.statistic` +

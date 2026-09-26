@@ -1,7 +1,7 @@
 # Theme System Redesign
 
 ## Overview
-The MeetMemento theme system has been redesigned with a comprehensive design token approach, ensuring consistent visual design, WCAG AA accessibility compliance, and maintainable color management throughout the app.
+The withMemento theme system has been redesigned with a comprehensive design token approach, ensuring consistent visual design, WCAG AA accessibility compliance, and maintainable color management throughout the app.
 
 ## Design Tokens
 

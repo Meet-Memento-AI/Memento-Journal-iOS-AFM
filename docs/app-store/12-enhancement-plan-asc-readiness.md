@@ -45,7 +45,7 @@ post-1.0 / 2.0 foundation — do not block 1.x on iOS 27 GA or PCC entitlement.
 | Journal persistence | `LocalJournalStorage` + `EncryptionService` DEK in Keychain | Honest “Data Not Collected” *if* nothing leaves the device |
 | Sync / server | **Gone**, but `PendingSyncOperation`, offline “sync” UI, and `Entry.syncStatus` remain | Misleading UX → Guideline **2.3** (accurate metadata) / **2.1** confusion |
 | Intelligence | On-device `IntelligenceService` / Foundation Models | Keep zone disclosure honest; no Z2 content |
-| Speech | `requiresOnDeviceRecognition = true` already set | Docs in `03` are stale on this point — update docs, keep the flag |
+| Speech | `SpeechAnalyzer`/`SpeechTranscriber` against local assets (spec 018 R1 shipped). No `requiresOnDeviceRecognition` — the request type it belongs to is never constructed | ~~Docs in `03` are stale — keep the flag~~ **Corrected 2026-09-17:** the flag never existed; `03`, `02` and `00` C4 now describe the migration instead |
 | Monetization | Dead `SubscriptionPlan` + placeholder `Configuration.storekit` | Noise / inaccurate privacy if left linked |
 | 2.0 target | SwiftData + CloudKit private DB (spec 015) — **not in tree yet** | Do not claim CloudKit sync in 1.x store copy |
 
@@ -60,7 +60,7 @@ Ordered for rejection risk, then product honesty, then polish.
 | ID | Work | Owner | Evidence / acceptance |
 |---|---|---|---|
 | **A0.1** | Publish `docs/{privacy,terms,support,index}.html` from **this** repo (enable GitHub Pages → `/docs`). Point ASC Privacy + Support URLs at the new host. | ☐ user + agent prep | `curl` → **200** for all four; privacy HTML has **zero** matches for `openai\|supabase\|gemini\|google` AI backend claims |
-| **A0.2** | Align in-app links (`AboutSettingsView`, Settings privacy row, `DataUsageInfoView`) + support email to one address (`contact@sebastianmendo.design` per checklist D3). | agent | Single email string; URLs match published host |
+| **A0.2** | Align in-app links (`AboutSettingsView`, Settings privacy row, `DataUsageInfoView`) + support email to one address (`hello@withmemento.ai` per checklist D3). | agent | Single email string; URLs match published host |
 | **A0.3** | Set ASC App Privacy nutrition label to **Data Not Collected**, matching `PrivacyInfo.xcprivacy` (empty collected types, `NSPrivacyTracking = false`). | ☐ user | Label ↔ manifest ↔ published policy identical |
 | **A0.4** | Close Apple clock items that block upload/sale: PLA, Paid Apps Agreement + tax/banking (if paid), age-rating questionnaire, social-media declaration, EU trader decision. | ☐ user | See checklist §A |
 | **A0.5** | Seeded first-run experience so a cold reviewer reaches capture → entry without an empty dead-end (Guideline **2.1**). | agent + ☐ user | Sample content path or explicit review notes; no login wall |
@@ -76,7 +76,7 @@ Goal: the binary must not behave or speak as if a server still exists.
 | **A1.3** | **Delete-everything completeness audit** for the *current* stores: encrypted files, chat store, profile store, Keychain DEK/PIN, UserDefaults, speech/temp caches. Document gaps vs future five-store wipe (spec 015). | `AppStateStore.deleteEverything()`, `LocalChatStore`, `SecurityService` | Manual QA: after wipe, relaunch is fresh-install; no decryptable leftovers |
 | **A1.4** | **Strip monetization noise** until `DEC-004` / spec 021 land: placeholder StoreKit product IDs, unused `SubscriptionPlan`, linked-but-unused auth frameworks, orphan `GoogleIcon`, unhandled `memento://` scheme (handle or remove). | checklist C5; `Models/SubscriptionPlan.swift`; `Configuration.storekit` | `check_archive_hygiene.sh` clean; no fake IAP surface in Release |
 | **A1.5** | **Stale comment / API cleanup** in chat/journal services that still say “backend”, “server”, “persist feedback”. | `ChatService.swift`, `ChatViewModel.swift`, `EntryViewModel.swift` | Public strings + review-facing copy match on-device model |
-| **A1.6** | Keep **`requiresOnDeviceRecognition = true`**; update `docs/app-store/03` which still claims it is unset. Prefer graceful “speech unavailable for this language” UI when on-device ASR is missing. | `SpeechService.swift`, `03-privacy-labels-and-manifest.md` | Doc matches code; denied/unavailable paths are labeled for VoiceOver |
+| **A1.6** | ✅ **Done — restated 2026-09-17.** The ask was "keep `requiresOnDeviceRecognition = true`", which was never true. Spec 018 R1 shipped instead: `SpeechAnalyzer`/`SpeechTranscriber` against `AssetInventory`-installed assets, with no server-capable request object in the target. Graceful "speech unavailable for this language" UI when assets are missing. | `SpeechAnalyzerEngine.swift`, `SpeechService.swift`, `03-privacy-labels-and-manifest.md` | Doc matches code; denied/unavailable paths are labeled for VoiceOver |
 
 ### P1 — Dark mode
 
@@ -123,7 +123,7 @@ Conventions already in tree: `AccessibilityHelpers`, `Typography` +
 
 | ID | Work | Why |
 |---|---|---|
-| **A5.1** | Empty-state / load flash (`MeetMemento/PLAN.md` race) | Reviewer sees a broken empty journal |
+| **A5.1** | Empty-state / load flash (`withMemento/PLAN.md` race) | Reviewer sees a broken empty journal |
 | **A5.2** | Release logging already gated (spec 005) — spot-check no journal text in OS logs | Privacy |
 | **A5.3** | Metadata drafts in `docs/app-store/metadata/en-US/` — finalize screenshot set (iPhone 6.9″ + iPad 13″) | Upload requirements |
 | **A5.4** | Manual TestFlight path (Gate T) before Submit | Catch Release-only issues |
@@ -198,4 +198,4 @@ Gate        Archive → validate → TestFlight (Gate T) → Submit (Gate S)
 | `URLSession` in app target | 0 |
 | Live `…/support.html` | **404** |
 | Live `…/privacy.html` | **200**, still mentions OpenAI / Google / Supabase |
-| Speech on-device flag | **Present** (`requiresOnDeviceRecognition = true`) |
+| Speech on-device flag | ~~**Present** (`requiresOnDeviceRecognition = true`)~~ — **this row was wrong when recorded, not merely stale. Corrected 2026-09-17:** the flag is absent because the app uses `SpeechAnalyzer`/`SpeechTranscriber`, which has no such property. The other rows in this appendix are accurate for 2026-08-10 and have since moved on; this one was never true |

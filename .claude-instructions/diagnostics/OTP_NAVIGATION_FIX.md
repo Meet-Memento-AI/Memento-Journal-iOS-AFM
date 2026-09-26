@@ -132,7 +132,7 @@ User writes entry → Creates first journal entry
 WelcomeView .onChange(of: hasCompletedOnboarding) fires
 → newValue = true
 → showOnboardingFlow = false (dismisses fullScreenCover)
-→ MeetMementoApp detects: isAuthenticated && hasCompletedOnboarding
+→ withMementoApp detects: isAuthenticated && hasCompletedOnboarding
 → Shows ContentView (main app)
 ```
 

@@ -50,11 +50,11 @@ runs late; it is the only thing that ever reaches the engine.
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | A runtime sanitizer already exists and runs at a single choke point | `MeetMemento/Utilities/SpeechTextSanitizer.swift:21` `sanitize(_:)`, `:53` `speakableText(heading1:heading2:body:)`; invoked inside `VoicePlaybackService.swift:271` `enqueue(sentence:)` | — (asset; the choke point must be preserved) |
-| 2 | A build-time validator enforces the same intent from the other side | `MeetMemento/Utilities/SpeakabilityLinter.swift` — `REQ-VOX-006` hard-fail patterns, Swift port of `scripts/ci/speakability_lint.py`; CI gate `Speakability linter selftest (spec 018 R9 / REQ-VOX-006)` | — (asset) |
-| 3 | Nothing converts display register to spoken register anywhere. Dates, times, and ambiguous fractions reach the synthesizer verbatim | No date/time/number spoken-form transform exists in `MeetMemento/Utilities/` | High — the gap this spec fills |
-| 4 | There is no expression-tag vocabulary and no filter for one — an unbounded surface the moment a prompt is asked to produce tags | `grep -rn '<breath>\|<sigh>\|<laugh>' MeetMemento/` → zero hits | High — must be closed before tags are ever requested |
-| 5 | A user-facing speech-rate control already ships, contradicting any "no rate UI" assumption | `MeetMemento/Models/SpeechRatePreset.swift` (slower/normal/brisk/fast, default `.brisk`); `PreferencesService.swift:23` `speechRate` | Medium — rate defaults must account for it |
+| 1 | A runtime sanitizer already exists and runs at a single choke point | `withMemento/Utilities/SpeechTextSanitizer.swift:21` `sanitize(_:)`, `:53` `speakableText(heading1:heading2:body:)`; invoked inside `VoicePlaybackService.swift:271` `enqueue(sentence:)` | — (asset; the choke point must be preserved) |
+| 2 | A build-time validator enforces the same intent from the other side | `withMemento/Utilities/SpeakabilityLinter.swift` — `REQ-VOX-006` hard-fail patterns, Swift port of `scripts/ci/speakability_lint.py`; CI gate `Speakability linter selftest (spec 018 R9 / REQ-VOX-006)` | — (asset) |
+| 3 | Nothing converts display register to spoken register anywhere. Dates, times, and ambiguous fractions reach the synthesizer verbatim | No date/time/number spoken-form transform exists in `withMemento/Utilities/` | High — the gap this spec fills |
+| 4 | There is no expression-tag vocabulary and no filter for one — an unbounded surface the moment a prompt is asked to produce tags | `grep -rn '<breath>\|<sigh>\|<laugh>' withMemento/` → zero hits | High — must be closed before tags are ever requested |
+| 5 | A user-facing speech-rate control already ships, contradicting any "no rate UI" assumption | `withMemento/Models/SpeechRatePreset.swift` (slower/normal/brisk/fast, default `.brisk`); `PreferencesService.swift:23` `speechRate` | Medium — rate defaults must account for it |
 
 ## Requirements
 

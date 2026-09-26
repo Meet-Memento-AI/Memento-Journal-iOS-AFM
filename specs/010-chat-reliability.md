@@ -30,9 +30,9 @@ Gate 3, sequenced after 004 (shares the edge-function test harness and deploy lo
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | Top-level catch returns canned reply with **200** (`chat/index.ts:594-603`); Gemini failure path also 200 (`:481-489`). Client retry only triggers on 5xx/429/network (`ChatService.swift:140-166`) → never retries real failures; user message lost (not persisted on failure path). | `supabase/functions/chat/index.ts`, `MeetMemento/Services/ChatService.swift` | HIGH (within P2) |
+| 1 | Top-level catch returns canned reply with **200** (`chat/index.ts:594-603`); Gemini failure path also 200 (`:481-489`). Client retry only triggers on 5xx/429/network (`ChatService.swift:140-166`) → never retries real failures; user message lost (not persisted on failure path). | `supabase/functions/chat/index.ts`, `withMemento/Services/ChatService.swift` | HIGH (within P2) |
 | 2 | `chat-with-entries` (460 lines) duplicates the chat surface with client-supplied entries as grounding context (`chat-with-entries/index.ts:362-379`) — the client dictates what the LLM sees. Confirm whether the iOS app still calls it; decommission or explicitly justify. | `supabase/functions/chat-with-entries/` | MEDIUM |
-| 3 | Fire-and-forget `Task {}` blocks in `ChatViewModel` (`:179,:374,:403`) aren't stored/cancelled — a rapidly dismissed chat view leaves in-flight work updating discarded state (bounded by @MainActor; not a leak, but wasted work and potential stale-state writes). | `MeetMemento/ViewModels/ChatViewModel.swift` | LOW |
+| 3 | Fire-and-forget `Task {}` blocks in `ChatViewModel` (`:179,:374,:403`) aren't stored/cancelled — a rapidly dismissed chat view leaves in-flight work updating discarded state (bounded by @MainActor; not a leak, but wasted work and potential stale-state writes). | `withMemento/ViewModels/ChatViewModel.swift` | LOW |
 
 ## Requirements
 
@@ -83,7 +83,7 @@ leaving the view doesn't corrupt the next session's state.
       message preserved; server log shows 5xx; restoring the key + tapping retry
       succeeds and the thread history contains the original message exactly once.
 - [ ] `deno test` green including new error-contract tests.
-- [ ] `grep -rn "chat-with-entries" MeetMemento/` matches only the decided outcome
+- [ ] `grep -rn "chat-with-entries" withMemento/` matches only the decided outcome
       (zero if decommissioned).
 - [ ] Rapid-fire: send message → back out of chat immediately → re-enter: no crash, no
       duplicated/stale messages.

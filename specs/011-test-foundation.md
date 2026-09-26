@@ -30,8 +30,8 @@ are now obsolete — superseded by 015 and 019 respectively.) Depends on 006
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | iOS tests: `ChatViewModelTests.swift` (83 L), `ChatResponseDecodingTests.swift` (55 L), `RegressionSmokeTests.swift` (8 L), `MockChatService.swift` (38 L). UITests exist but are `-skip-testing` in merge CI (`ios-build-online.yml`). | `MeetMementoTests/` | — |
-| 2 | Zero tests for `EncryptionService`, `SecurityService`, `AuthViewModel`, `JournalService`, `LocalJournalStorage`, onboarding VMs. | `MeetMemento/Services/`, `ViewModels/` | HIGH |
+| 1 | iOS tests: `ChatViewModelTests.swift` (83 L), `ChatResponseDecodingTests.swift` (55 L), `RegressionSmokeTests.swift` (8 L), `MockChatService.swift` (38 L). UITests exist but are `-skip-testing` in merge CI (`ios-build-online.yml`). | `withMementoTests/` | — |
+| 2 | Zero tests for `EncryptionService`, `SecurityService`, `AuthViewModel`, `JournalService`, `LocalJournalStorage`, onboarding VMs. | `withMemento/Services/`, `ViewModels/` | HIGH |
 | 3 | Coverage gate ratchet (spec 006/025 set the honest online floor; this spec raises it further). | `ios-build-online.yml` | MEDIUM |
 | 4 | Deno: only `chat/lib_test.ts` pure helpers; no handler/auth/limiter tests (004/010 add some). | `supabase/functions/` | MEDIUM |
 
@@ -106,7 +106,7 @@ workflow says so, per 006).
 
 ## Verification
 
-- [ ] `xcodebuild test -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17'`
+- [ ] `xcodebuild test -scheme withMemento -destination 'platform=iOS Simulator,name=iPhone 17'`
       → all green locally.
 - [ ] CI `ios-build-online.yml` green at the new gate on a PR branch.
 - [ ] Mutation spot-check: intentionally break the constant-time compare (flip the

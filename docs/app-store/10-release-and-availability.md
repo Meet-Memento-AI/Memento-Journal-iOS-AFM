@@ -133,7 +133,7 @@ unavailable for download without removing the app.
 | Duty | Cadence | Owner |
 |---|---|---|
 | **Respond to App Store reviews** | Weekly. Requires Customer Support role or higher | ☐ user |
-| **Support inbox** — `contact@sebastianmendo.design` | The support page promises a response; Guideline 1.5 requires the contact method to work | ☐ user |
+| **Support inbox** — `hello@withmemento.ai` | The support page promises a response; Guideline 1.5 requires the contact method to work | ☐ user |
 | **Monitor first-time downloads against 2,000,000** and Small Business Program status | Every release. Crossing either starts a **6-month window** before Private Cloud Compute access is cut off. Exit paths in `06` §3 | `specs/021` R7 |
 | **Re-read the App Review Guidelines changelog** before each submission | Per release. Last revision 2025-11-13 | agent |
 | **Check `developer.apple.com/news/upcoming-requirements/`** | Per release. This is where the SDK minimum, the age-rating deadline, and the September 2026 social-media declaration were all announced | agent |
@@ -170,8 +170,8 @@ not chase the gap. It is the cost of the privacy posture, and it is the right co
 archive, 2026-08-18 — binary and dSYM both `DE824DAB-2BDD-3B75-9D6A-B6139988126B`:
 
 ```
-dwarfdump --uuid build/MeetMemento.xcarchive/Products/Applications/MeetMemento.app/MeetMemento
-dwarfdump --uuid build/MeetMemento.xcarchive/dSYMs/MeetMemento.app.dSYM
+dwarfdump --uuid build/withMemento.xcarchive/Products/Applications/withMemento.app/withMemento
+dwarfdump --uuid build/withMemento.xcarchive/dSYMs/withMemento.app.dSYM
 ```
 
 Re-check this whenever the build configuration changes. A mismatched UUID means

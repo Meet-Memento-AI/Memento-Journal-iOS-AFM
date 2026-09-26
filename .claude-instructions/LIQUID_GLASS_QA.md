@@ -47,9 +47,9 @@ After any change that touches tabs or nav bars, run through:
 
 | Area              | Files |
 |-------------------|--------|
-| Tab style / animation | `MeetMemento/ContentView.swift` |
-| Journal root bar  | `MeetMemento/Views/Journal/JournalView.swift` |
-| Insights root bar| `MeetMemento/Views/Insights/InsightsView.swift` |
-| Pushed screens    | `MeetMemento/Views/Journal/AddEntryView.swift`, `MeetMemento/Views/AI-Chat/AIChatView.swift`, `MeetMemento/Views/Settings/SettingsView.swift` |
+| Tab style / animation | `withMemento/ContentView.swift` |
+| Journal root bar  | `withMemento/Views/Journal/JournalView.swift` |
+| Insights root bar| `withMemento/Views/Insights/InsightsView.swift` |
+| Pushed screens    | `withMemento/Views/Journal/AddEntryView.swift`, `withMemento/Views/AI-Chat/AIChatView.swift`, `withMemento/Views/Settings/SettingsView.swift` |
 
 No changes to InsightsService or API; this is UI/QA only.

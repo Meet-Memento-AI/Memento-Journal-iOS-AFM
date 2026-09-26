@@ -1,5 +1,11 @@
 name: Security gates
 
+# Runs on GitHub-hosted Ubuntu. Until 2026-09-23 these jobs targeted a
+# self-hosted Linux runner that no longer exists, so they queued forever and no
+# secret scan ran. Hosted runners are free for this public repository, and a
+# self-hosted runner on a public repository would execute fork pull requests'
+# code on our own machine.
+
 on:
   push:
     branches: [main, dev]
@@ -14,40 +20,55 @@ permissions:
   security-events: write
   actions: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   sonar:
     name: Sonar analysis
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # Sonar's new-code detection needs history.
+          fetch-depth: 0
 
-      - name: Validate Sonar configuration
+      # Advisory until configured: a gate that fails on missing credentials
+      # reports nothing about the code and teaches everyone to ignore red CI.
+      # Set secret SONAR_TOKEN and variables SONAR_PROJECT_KEY / SONAR_HOST_URL
+      # to turn it on (SonarCloud is free for public repositories).
+      - name: Check Sonar configuration
+        id: sonar-config
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
         run: |
           if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_PROJECT_KEY" ]; then
-            echo "Missing Sonar configuration. Required: secret SONAR_TOKEN and variable SONAR_PROJECT_KEY."
-            exit 1
+            echo "::notice title=Sonar skipped::Set secret SONAR_TOKEN and variable SONAR_PROJECT_KEY to enable Sonar analysis."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Sonar scan
+        if: steps.sonar-config.outputs.configured == 'true'
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-        run: |
-          "$HOME/.local/sonar-scanner/bin/sonar-scanner" \
-            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
-            -Dsonar.host.url="$SONAR_HOST_URL" \
-            -Dsonar.token="$SONAR_TOKEN" \
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.sources=.
 
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -63,20 +84,31 @@ jobs:
 
   secret-scan:
     name: Secret scanning
-    runs-on: [self-hosted, Linux, x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      # Pinned release tarball, verified against its published checksum. The
+      # upstream install.sh this used to pipe into bash now 404s; without
+      # pipefail that failure was silent and the scan step died later on a
+      # missing binary.
       - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
         run: |
-          if ! command -v gitleaks >/dev/null 2>&1; then
-            mkdir -p "$HOME/.local/bin"
-            curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | bash -s -- -b "$HOME/.local/bin" v8.24.2
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          fi
+          set -euo pipefail
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$HOME/.local/bin" gitleaks
+          "$HOME/.local/bin/gitleaks" version
 
       - name: Secret scan on new commits only
         env:

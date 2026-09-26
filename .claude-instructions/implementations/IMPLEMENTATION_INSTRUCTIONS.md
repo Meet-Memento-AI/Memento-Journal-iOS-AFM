@@ -29,7 +29,7 @@ Before starting, ensure you have:
 
 - [ ] **Supabase project created**
   - Go to https://supabase.com/dashboard
-  - Create or open your MeetMemento project
+  - Create or open your withMemento project
 
 - [ ] **Project linked locally**
   ```bash
@@ -48,7 +48,7 @@ Before starting, ensure you have:
 
 ```bash
 # Navigate to project root
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 
 # Run automated deployment
 bash DEPLOY_WEEKLY_QUESTIONS.sh
@@ -224,13 +224,13 @@ Now only requests with this secret can trigger the cron job.
 
 Add these 3 new files to your Xcode project:
 
-1. **MeetMemento/Models/GeneratedFollowUpQuestion.swift** ✅ Created
-2. **MeetMemento/Services/SupabaseService+FollowUpQuestions.swift** ✅ Created
-3. **MeetMemento/ViewModels/GeneratedQuestionsViewModel.swift** ✅ Created
+1. **withMemento/Models/GeneratedFollowUpQuestion.swift** ✅ Created
+2. **withMemento/Services/SupabaseService+FollowUpQuestions.swift** ✅ Created
+3. **withMemento/ViewModels/GeneratedQuestionsViewModel.swift** ✅ Created
 
 **How to add:**
 1. In Xcode: Right-click project navigator
-2. Select "Add Files to MeetMemento"
+2. Select "Add Files to withMemento"
 3. Navigate to each file location
 4. Check "Copy items if needed"
 5. Click "Add"

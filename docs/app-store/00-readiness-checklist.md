@@ -28,14 +28,15 @@ control. Everything else can be done in an afternoon; these cannot.
 
 | # | Item | Owner | Blocks | Status / evidence |
 |---|---|---|---|---|
-| A1 | **Accept the current Program License Agreement** at developer.apple.com. Archive signing has been failing on a pending PLA since 2026-07-13. | ☐ user | Gate T | ☐ Open — `specs/002` Task 8 blocked on this since 2026-07-13 |
+| A1 | **Accept the current Program License Agreement** at developer.apple.com. Archive signing has been failing on a pending PLA since 2026-07-13. | ☐ user | Gate T | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Archive signing should now proceed. |
 | A2 | **Sign the Paid Apps Agreement** (Business → Agreements), complete **tax forms** (W-9 or W-8BEN) and **banking**. Account Holder only, requires 2FA, cannot be undone. Without all three the app **cannot go on sale even after App Review approves it**. | ☐ user | Gate L | ☐ Open for **paid download**. **Skip if 1.x is Free** (no IAP). Click path in `13`. |
 | A3 | **Enroll in the App Store Small Business Program.** This is the eligibility gate for A4 and therefore for the entire Z1 architecture, not a commission perk. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — Z1/PCC is not in this binary. File when 2.0 starts. |
 | A4 | **File the Private Cloud Compute access request** at `developer.apple.com/contact/request/private-cloud-compute/`. Separate, gated, and **Apple states no lead time anywhere** — this is the least controllable dependency in the project. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — this build is on-device Foundation Models only. |
 | A5 | **Declare EU Digital Services Act trader status** and pass email + phone verification. Required since 2025-02-17; apps without it are **removed from the App Store in all 27 EU territories**. See `05` — this is a *decision*, because an individual developer's address and phone are **published on the EU product page**. | ☐ user | Gate S | ✅ **1.x default recorded 2026-08-17** — deselect the 27 EU territories (reversible). Still answer the account-level trader question. Click path in `13`. |
-| A6 | **Enable GitHub Pages** on `Meet-Memento-AI/Memento-Journal-iOS-AFM`, source `main` → `/docs`. The live legal site is currently served from a *different* repo (`sebmendo1/MeetMemento` @ `Memento-v1.1`), which is why fixes committed here never reached production. | ☐ user | Gate S | ✅ **Enabled 2026-08-17** — `html_url` `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`, source `main` `/docs`. Verify with `scripts/ci/check_live_legal_urls.sh`. |
-| A7 | **Answer the updated age-rating questionnaire** (5-tier scale: 4+/9+/13+/16+/18+). Was due 2026-01-31; unanswered apps are blocked from submitting. | ☐ user | Gate S | ☐ Open — worked answers in `05` and `13` (expect **9+**) |
-| A8 | **Answer the social-media capability declaration.** New in the July 2026 questionnaire; **required to submit new versions or updates from September 2026**. Our answer is "no". | ☐ user | Gate S | ☐ Open — answer **No**. Click path in `13`. |
+| A6 | **Enable GitHub Pages** on `Meet-Memento-AI/Memento-Journal-iOS-AFM`, source `main` → `/docs`. The live legal site is currently served from a *different* repo (`sebmendo1/withMemento` @ `Memento-v1.1`), which is why fixes committed here never reached production. | ☐ user | Gate S | ✅ **Enabled 2026-08-17** — `html_url` `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`, source `main` `/docs`. Verify with `scripts/ci/check_live_legal_urls.sh`. |
+| A6a | **Publish the `docs/` changes.** A6 enabled Pages on the right repo, but Pages serves what is *committed to `main`*, so an edited-but-uncommitted `docs/` is invisible in production. This is the November 2025 root cause in a new costume: the fix exists in the repo and not on the web. | agent + ☐ user | Gate S | ✅ **Closed 2026-09-17** — pushed as `4d5ec85`; all four live pages now serve `hello@withmemento.ai` and `check_live_legal_urls.sh` passes, including the byte-for-byte match against `docs/privacy.html`. **Verified with the gate, not with `git log`** |
+| A7 | **Answer the updated age-rating questionnaire** (5-tier scale: 4+/9+/13+/16+/18+). Was due 2026-01-31; unanswered apps are blocked from submitting. | ☐ user | Gate S | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Worked answers were in `05` and `13` (expected **9+**). |
+| A8 | **Answer the social-media capability declaration.** New in the July 2026 questionnaire; **required to submit new versions or updates from September 2026**. Our answer is "no". | ☐ user | Gate S | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Answered **No**. |
 
 ---
 
@@ -47,9 +48,9 @@ reject us on.
 
 | # | Item | Owner | Guideline | Status / evidence |
 |---|---|---|---|---|
-| B1 | **The Support URL returns 404.** `https://sebmendo1.github.io/MeetMemento/support.html` → HTTP 404; the live index links only privacy and terms. This is the *exact* reason Apple cited in November 2025. `docs/support.html` exists in this repo but has never been published (see A6). | agent + ☐ user | **1.5**, 2.1 | ✅ **Closed 2026-08-17** — `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` HTTP 200. Point ASC Support URL here. Guard: `scripts/ci/check_live_legal_urls.sh`. |
-| B2 | **The live privacy policy describes third-party AI and a backend the app no longer uses.** The published page at `https://sebmendo1.github.io/MeetMemento/privacy.html` names **OpenAI, Google, and Supabase**. The app is on-device only. `PRIVACY_POLICY.md` at the repo root is equally stale (it has a "Google Gemini 2.5 Flash" section). `docs/privacy.html` in this repo *is* clean — it just was never published. | agent + ☐ user | **5.1.1(i)**, **5.1.2(i)**, 2.3 | ✅ **Closed 2026-08-17** — `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` HTTP 200 and has no OpenAI/Supabase/Gemini. **Reopened 2026-09-11 (spec 042)**, **re-closed 2026-09-12:** the live page is now **byte-identical** to in-repo `docs/privacy.html` and discloses the opt-in verification pipeline hosted on Supabase — Pages republication already happened, so only the **ASC privacy label** (D6) is outstanding. Journal content is still not collected. `check_live_legal_urls.sh` now asserts the match, and no longer fails on the intentional Supabase mention (it did until 2026-09-12, which is why this row looked open). |
-| B3 | **`PrivacyInfo.xcprivacy` declared `NSPrivacyAccessedAPICategorySystemBootTime` (`35F9.1`) for an API the app never calls.** No `systemUptime`, `mach_absolute_time`, or `kern.boottime` anywhere in `MeetMemento/`. Over-declaring is an unforced inaccuracy in exactly the metadata category we were rejected on. | agent | **5.1.2**, ITMS-91055 | ✅ **Fixed 2026-08-07** — block removed; `scripts/ci/check_privacy_manifest.sh` now fails on both over- and under-declaration |
+| B1 | **The Support URL returns 404.** `https://sebmendo1.github.io/withMemento/support.html` → HTTP 404; the live index links only privacy and terms. This is the *exact* reason Apple cited in November 2025. `docs/support.html` exists in this repo but has never been published (see A6). | agent + ☐ user | **1.5**, 2.1 | ✅ **Closed 2026-08-17** — `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` HTTP 200. Point ASC Support URL here. Guard: `scripts/ci/check_live_legal_urls.sh`. |
+| B2 | **The live privacy policy describes third-party AI and a backend the app no longer uses.** The published page at `https://sebmendo1.github.io/withMemento/privacy.html` names **OpenAI, Google, and Supabase**. The app is on-device only. `PRIVACY_POLICY.md` at the repo root is equally stale (it has a "Google Gemini 2.5 Flash" section). `docs/privacy.html` in this repo *is* clean — it just was never published. | agent + ☐ user | **5.1.1(i)**, **5.1.2(i)**, 2.3 | ✅ **Closed 2026-08-17** — `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` HTTP 200 and has no OpenAI/Supabase/Gemini. **Reopened 2026-09-11 (spec 042)**, **re-closed 2026-09-12:** the live page is now **byte-identical** to in-repo `docs/privacy.html` and discloses the opt-in verification pipeline hosted on Supabase — Pages republication already happened, so only the **ASC privacy label** (D6) is outstanding. Journal content is still not collected. `check_live_legal_urls.sh` now asserts the match, and no longer fails on the intentional Supabase mention (it did until 2026-09-12, which is why this row looked open). |
+| B3 | **`PrivacyInfo.xcprivacy` declared `NSPrivacyAccessedAPICategorySystemBootTime` (`35F9.1`) for an API the app never calls.** No `systemUptime`, `mach_absolute_time`, or `kern.boottime` anywhere in `withMemento/`. Over-declaring is an unforced inaccuracy in exactly the metadata category we were rejected on. | agent | **5.1.2**, ITMS-91055 | ✅ **Fixed 2026-08-07** — block removed; `scripts/ci/check_privacy_manifest.sh` now fails on both over- and under-declaration |
 | B4 | **The published privacy policy will become an overclaim when Z1 ships.** `docs/privacy.html` (the corrected version, not yet published) says content is *"processed on the device and are not sent to us or to any third-party AI service"* and makes no mention of **Private Cloud Compute**. That is accurate today, because no Z1 routing has shipped — and becomes false the moment `specs/017`'s PCC path lands. `REQ-POS-001` governs app strings and store copy; the privacy policy is the one place making the same claim *legally*. | agent | **5.1.2(i)**, `REQ-POS-001` | 🟠 **Open** — must be rewritten to state the Z0/Z1 boundary **before** PCC routing ships, not after. `01` §5.1.1(i) has the required content |
 | B5 | **A third, older privacy policy is what users actually see.** `PRIVACY_POLICY.md` (repo root) describes Gemini and Supabase; the **live** page describes OpenAI, Google, and Supabase; `docs/privacy.html` is correct but unpublished. Three versions, one of them served. | agent + ☐ user | **5.1.1(i)** | ✅ **Closed 2026-08-17** — in-repo `docs/*.html` is canonical; Pages now serves this repo. Remaining: ASC URLs must match (D1/D2). |
 
@@ -59,7 +60,7 @@ reject us on.
 > Content, Other Data Types, and User ID for opted-in quality feedback.
 > `NSPrivacyAccessedAPICategoryFileTimestamp`
 > (`C617.1`) is **correctly justified** by
-> `MeetMemento/Services/LocalJournalStorage.swift` `modificationDate`
+> `withMemento/Services/LocalJournalStorage.swift` `modificationDate`
 > (`attributesOfItem` → `.modificationDate` on files inside the app container).
 > `NSPrivacyAccessedAPICategoryUserDefaults` (`CA92.1`) is justified by 11 call
 > sites. `ITSAppUsesNonExemptEncryption = false` is present in `Info.plist`.
@@ -70,53 +71,95 @@ reject us on.
 
 | # | Item | Owner | Status / evidence |
 |---|---|---|---|
-| C1 | Bump the build number past the consumed `1.0(2)`. | agent | ✅ **Done 2026-08-07** — `CURRENT_PROJECT_VERSION` 2 → **3**. Floor recorded in `last-uploaded-build.txt`, enforced by `check_store_metadata.sh` |
+| C1 | Bump the build number past the last consumed build. | agent | ✅ **Done 2026-09-17** — `CURRENT_PROJECT_VERSION` 3 → **4**. `1.0(3)` was uploaded for the September 2026 submission and is now permanently consumed, so the floor moved; recorded in `last-uploaded-build.txt` and enforced by `check_store_metadata.sh`. (Previously 2 → 3 on 2026-08-07 after the November 2025 rejection consumed `1.0(2)`.) **Decision 2026-09-17: build 4 ships.** The Guideline 2.1 citation alone needed no binary, but the support-email re-point to `hello@withmemento.ai` lives in `withMemento/Resources/Constants.swift`, and build 3 has the old address compiled in (verified with `strings` on the archive). Rather than leave the in-app address disagreeing with the website and the ASC support field, the re-point ships in build 4. That converts this cycle into a **binary** submission, so A1 and C3 are now on the critical path |
 | C2 | **Deployment target is `IPHONEOS_DEPLOYMENT_TARGET = 26.0` on the current archive Xcode (SDK max 26).** Spec 015 R7's 27.0 bump lands when the build Mac runs Xcode 27. SpeechAnalyzer is available on iOS 26. | agent | 🟠 **Held at 26.0, correctly** — re-verified 2026-09-12: the build Mac's `/Applications/Xcode.app` is now **26.6 (17F113)**, so supported targets run 12.0–26.6.99. Still no iOS 27 SDK in a GA Xcode, so 26.0 stays right |
-| C3 | Built with **Xcode 26 or later** using an iOS 26+ SDK — mandatory for uploads since **2026-04-28**. **Archive with the release Xcode (26.0.1), not the Xcode 27 beta.** | agent | 🟠 **Archive proven, export never has been.** `archive` succeeded 2026-08-17 on Xcode 26.0.1 (17A400). The build Mac now runs **26.6 (17F113)**, so re-archive on it. **Export remains blocked** on an Apple Distribution cert vs the store profile (`13`), so `-exportArchive` → `altool --validate-app` has **never once completed** — the zero-ITMS-errors line in "Do not press Submit until" is therefore still unevidenced. Also note 2026-09-12: `/Applications/Xcode.app`'s **licence was unaccepted**, which blocked `git`, `xcodebuild` and `simctl` outright; run `sudo xcodebuild -license accept`. |
-| C4 | `requiresOnDeviceRecognition` — `SFSpeechRecognizer` is used without it, so audio may leave the device, contradicting the positioning claim CI lints for. Either set it, migrate to `SpeechAnalyzer` per spec 018 R1, **or disclose the off-device path** per 5.1.2(i). | agent | ✅ **Closed 2026-08-11** — `SpeechService.swift` sets `request.requiresOnDeviceRecognition = true` at the recognition-request call site; the `03` caveat that claimed otherwise was stale and has been corrected |
+| C3 | Built with a **GA** Xcode using a current iOS SDK — mandatory for uploads since 2026-04-28. Archive with **Xcode 27.0 GA (`27A266a`) at `~/Downloads/Xcode.app`**, never the `Xcode-beta.app` seed (`27A5228h`). | agent + ☐ user | 🟡 **Archive proven 2026-09-17, export blocked on a login.** `archive` succeeds and produces a correct build 4 (`CFBundleVersion 4`, `DTXcodeBuild 27A266a`, `MinimumOSVersion 26.0`, `hello@withmemento.ai` in the binary). `-exportArchive` then fails — and the long-standing "Apple Distribution cert vs store profile" theory is **wrong**. The actual error is: *"Unable to log in with account 'sebasmendo1@gmail.com' … Your session has expired. Please log in."* Automatic signing cannot fetch the distribution profile with a dead session. **Fix: Xcode → Settings → Accounts → sign in again**, then re-run export and `altool --validate-app` |
+| C3a | **Use the right Xcode: `~/Downloads/Xcode.app` (27.0 GA, `27A266a`).** There are three Xcodes on the build Mac and only one can build this project. `/Applications/Xcode.app` is **26.6 (17F113)**, iOS 26.5 SDK — it **cannot compile the app**, because `FoundationModelsIntelligenceService.swift` uses iOS 27 APIs (`LanguageModelError`, `Attachment`, `GeneratedContent.ParsingError`, `SystemLanguageModel.Error`). `~/Downloads/Xcode-beta.app` is **27.0 beta (`27A5228h`)** and must never archive a submission. `~/Downloads/Xcode.app` is **27.0 GA (`27A266a`)** and is what produced every accepted archive. | agent | ✅ **Resolved 2026-09-17** — `DEVELOPER_DIR=~/Downloads/Xcode.app/Contents/Developer` archives cleanly (build 4, 22 warnings, 0 errors). **Correction:** this row previously diagnosed a *missing iOS 26.5 platform* on Xcode 26.6 and prescribed an 8.5 GB `-downloadPlatform iOS`. That download was unnecessary — the real problem was the wrong Xcode. Check `mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'"` for every install **before** concluding a component is missing |
+| C4 | `requiresOnDeviceRecognition` — `SFSpeechRecognizer` is used without it, so audio may leave the device, contradicting the positioning claim CI lints for. Either set it, migrate to `SpeechAnalyzer` per spec 018 R1, **or disclose the off-device path** per 5.1.2(i). | agent | ✅ **Closed by migration, not by the flag. Corrected 2026-09-17** — spec 018 R1 shipped: capture is `SpeechAnalyzer` + `SpeechTranscriber` (`withMemento/Services/SpeechAnalyzerEngine.swift`), and **no `SFSpeechAudioBufferRecognitionRequest` or `recognitionTask` exists anywhere in the target**. `requiresOnDeviceRecognition` is therefore **not set and cannot be** — it is a property of the request object the app never constructs. `SFSpeechRecognizer` survives only as the authorization API (`SpeechService.swift:167,178,226`). The defensible claim to Apple is the stronger one: `SpeechTranscriber` runs against locally installed assets (`AssetInventory`), and when they are unavailable dictation **reports unavailable rather than falling back to a server**. The 2026-08-11 note claiming the flag was set was wrong in every doc that repeated it |
 | C5 | Submission noise removed: `Configuration.storekit` with placeholder product IDs `12345678`/`123456789`; dead `SubscriptionPlan.swift` with Supabase-era `CodingKeys`; linked-but-unused `AuthenticationServices.framework`; unhandled `memento://` URL scheme; orphan `GoogleIcon.imageset`. | agent | ✅ **Closed 2026-08-11** — all five deleted (storekit + navigator refs + `membershipExceptions` entries cleaned from pbxproj; `CFBundleURLTypes` removed from Info.plist); `check_archive_hygiene.sh` now reports "no .storekit configuration in the project" |
-| C6 | Release bundle contains only shipping resources — no xcconfigs, no `.storekit`, no internal docs. | agent | ✅ **Re-verified on the 2026-08-17 archive product** — no `.xcconfig`, `.storekit`, or `.md` under `MeetMemento.app`. Still guarded by `check_archive_hygiene.sh`. |
+| C6 | Release bundle contains only shipping resources — no xcconfigs, no `.storekit`, no internal docs. | agent | ✅ **Re-verified on the 2026-08-17 archive product** — no `.xcconfig`, `.storekit`, or `.md` under `withMemento.app`. Still guarded by `check_archive_hygiene.sh`. |
 | C7 | Usage-description strings are specific and defined exactly once. Apple's own common-rejection #6 is vague purpose strings. | agent | ✅ Present in `Info.plist`; wording review in `02` |
 | C8 | App icon is 1024×1024 PNG, opaque, no alpha, square corners. | agent | ✅ **Flattened 2026-09-12** — `AppIcon-iOS.png` 1024×1024, `sips -g hasAlpha` → no. **1.x skip** — no dark/tinted variants |
 | C9 | A reviewer opening the app for the first time can reach the core experience. **>40% of unresolved App Review issues are Guideline 2.1**, and the reviewer will open an empty journal with no meeting to record. | agent | ✅ **Decision recorded 2026-08-11**: review-notes-only (no product change). `SampleContentService` + the Settings "Load Sample Entries" row are the path; `review_notes.txt` §2 walks the reviewer through it step by step |
 | C10 | **App bundle size against the 200 MB cellular-download threshold.** Not Apple's 4 GB limit — the threshold above which iOS prompts before downloading over cellular, a conversion tax paid on every install. No row or gate measured this before 2026-09-12. | agent | 🟠 **188 MB measured 2026-09-12** (Release, simulator arm64, unthinned) — **12 MB of headroom**. `147 MB` of it is the four Core ML voice models bundled per `DEC-012` (VectorEstimator 61.7, Vocoder 48.4, TextEncoder 34.5, DurationPredictor 1.8); the binary is 35 MB. One more voice pack crosses the line. Ceiling recorded in `app-size-budget.txt`, enforced by `scripts/ci/check_app_size.sh` in `ios-build-online.yml` |
 | C11 | **The verification endpoint must actually resolve.** | agent | ✅ **Fixed 2026-09-12** — `Config/Supabase.xcconfig.example` wrote `SUPABASE_URL = https://host` literally, but **xcconfig treats `//` as a comment**, so the value reaching `Info.plist` was `https:`. `URL(string:)` accepts that, so the client reported itself *configured* and failed every spec-042 upload silently while the outbox retried. The URL is now composed through `$(SUPABASE_SLASH)`, and `FeedbackSupabaseConfig.resolve` requires a host (fails closed). Regression-tested in `FeedbackVerificationTests`. **Bearing on D6:** had this shipped, the privacy label would have declared collection that never occurred |
 
-### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
+### ⚠️ Superseded 2026-09-17 — Xcode 27 and iOS 27 shipped
 
-**Corrected 2026-08-08.** Rows C2 and C3 previously instructed a bump to iOS
-27.0 and named the Xcode 27 beta as the archive toolchain. **Both were wrong and
-would have made the app unsubmittable.**
+**The warning below is out of date and its conclusion is now wrong.** It was
+written on 2026-08-08, when iOS 27 and Xcode 27 existed only as betas. Both have
+since gone GA, and the build Mac has **Xcode 27.0 GA, build `27A266a`**, at
+`~/Downloads/Xcode.app`. Every archive Apple has accepted was produced by it,
+against the **iOS 27.0 SDK**.
 
-- **iOS 27 has not shipped GA.** Every reference in this repository is to *Xcode
-  27 beta 4 (27A5228h)* and the iOS 27.0 SDK. **Apple does not accept App Store
-  builds made with beta software**, so a build targeting iOS 27 cannot be
-  submitted, and one archived with the beta Xcode will be rejected at upload
-  regardless of its deployment target.
-- **The release toolchain already satisfies Apple's floor.** `xcodebuild
-  -version` → **Xcode 26.0.1 (17A400)**, GA, shipping the iOS 26.0 SDK — which
-  meets the "Xcode 26 / iOS 26 SDK or later" requirement in force since
-  2026-04-28.
-- **`REQ-PLAT-001` (iOS 27.0 deployment target) is a Memento 2.0 requirement,
-  not a 1.x one.** It becomes actionable only after Apple ships iOS 27 publicly
-  *and* Xcode 27 reaches GA. Until then the 2.0 architecture — Core Spotlight
-  retrieval, PCC/Z1 routing, SwiftData + CloudKit — is unshippable by
-  construction.
+What is still true, and what changed:
 
-The project targets **26.0 in all four build configurations**, which is correct
-and should stay that way. `scripts/ci/check_store_metadata.sh` does **not**
-currently assert this; if a future session bumps it speculatively, nothing will
-catch it — treat this note as the guard.
+- ✅ **Still true: never archive with a beta.** `~/Downloads/Xcode-beta.app` is
+  `27A5228h`, a seed. Apple rejects App Store builds made with beta software.
+  The distinction is GA-vs-beta, **not** 26-vs-27.
+- ❌ **No longer true: "archive with Xcode 26."** `/Applications/Xcode.app`
+  (26.6, iOS 26.5 SDK) **cannot compile this app at all** — the intelligence
+  layer uses iOS 27 FoundationModels APIs that do not exist in the 26.5 SDK.
+- ✅ **Unchanged: `IPHONEOS_DEPLOYMENT_TARGET` stays 26.0.** Building against the
+  iOS 27 SDK while deploying to 26.0 is normal and correct; it is what the
+  shipping archive does (`MinimumOSVersion 26.0`). Do not confuse the SDK with
+  the deployment target — the old warning did.
 
-**Addressable-market consequence, recorded deliberately:** iOS 26.0 plus the
-Apple Intelligence hardware requirement (A17 Pro / M-series) for the generative
-surfaces is a narrow install base. The code handles it correctly —
-`SystemLanguageModel.default.availability` returning `.unavailable(.deviceNotEligible)`
-yields a designed empty state, while capture, voice, timeline, search, and
-export keep working. **That is `DEC-001` Option A, already implemented**; see
-`05` and record it in `specs/021` R2 rather than leaving the decision open.
+The addressable-market note at the end of the original text still stands and is
+retained below.
 
 ---
+
+> **Historical — the 2026-08-08 text, kept for the reasoning:**
+>
+> ### ⚠️ Do not target iOS 27, and do not archive with the beta toolchain
+>
+> **Corrected 2026-08-08.** Rows C2 and C3 previously instructed a bump to iOS
+> 27.0 and named the Xcode 27 beta as the archive toolchain. **Both were wrong and
+> would have made the app unsubmittable.**
+>
+> - **iOS 27 has not shipped GA.** Every reference in this repository is to *Xcode
+>   27 beta 4 (27A5228h)* and the iOS 27.0 SDK. **Apple does not accept App Store
+>   builds made with beta software**, so a build targeting iOS 27 cannot be
+>   submitted, and one archived with the beta Xcode will be rejected at upload
+>   regardless of its deployment target.
+> - **The release toolchain already satisfies Apple's floor.** `xcodebuild
+>   -version` → **Xcode 26.0.1 (17A400)**, GA, shipping the iOS 26.0 SDK — which
+>   meets the "Xcode 26 / iOS 26 SDK or later" requirement in force since
+>   2026-04-28.
+> - **`REQ-PLAT-001` (iOS 27.0 deployment target) is a Memento 2.0 requirement,
+>   not a 1.x one.** It becomes actionable only after Apple ships iOS 27 publicly
+>   *and* Xcode 27 reaches GA. Until then the 2.0 architecture — Core Spotlight
+>   retrieval, PCC/Z1 routing, SwiftData + CloudKit — is unshippable by
+>   construction.
+>
+> The project targets **26.0 in all four build configurations**, which is correct
+> and should stay that way. `scripts/ci/check_store_metadata.sh` does **not**
+> currently assert this; if a future session bumps it speculatively, nothing will
+> catch it — treat this note as the guard.
+>
+> **Addressable-market consequence, recorded deliberately:** iOS 26.0 plus the
+> Apple Intelligence hardware requirement (A17 Pro / M-series) for the generative
+> surfaces is a narrow install base. The code handles it correctly —
+> `SystemLanguageModel.default.availability` returning `.unavailable(.deviceNotEligible)`
+> yields a designed empty state, while capture, voice, timeline, search, and
+> export keep working. **That is `DEC-001` Option A, already implemented**; see
+> `05` and record it in `specs/021` R2 rather than leaving the decision open.
+>
+>---
+
+> **Legal host decision, recorded 2026-09-17.** The product now has its own
+> domain (`withmemento.ai`, live, Google Workspace MX). The legal pages
+> nevertheless stay on
+> `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`, deliberately:
+> `withMemento/Resources/Constants.swift` hard-codes that base URL, so moving the
+> host means **shipping a new binary**, and this submission needs no new build.
+> Verified 2026-09-17 that `withmemento.ai` serves **no** competing
+> `/privacy`, `/terms`, `/support` or `/legal` page (all 404, only a `#privacy`
+> anchor on the marketing page) — so there is still exactly one published policy.
+> Two published policies is defect B5, and it cost us a cycle already. If the
+> pages ever move, `Constants.Legal.siteBase`, the ASC URLs, and the in-app links
+> move together, in a build, or not at all.
 
 ## Section D — App Store Connect record
 
@@ -124,16 +167,17 @@ export keep working. **That is `DEC-001` Option A, already implemented**; see
 |---|---|---|---|
 | D1 | Privacy Policy URL — required for **all** apps, must be reachable without login **and** from inside the app. | ☐ user | Paste `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` — in-app already uses `Constants.Legal.privacyPolicyURL` |
 | D2 | Support URL — required, must be live. | ☐ user | Paste `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` |
-| D3 | Support email standardized on **`contact@sebastianmendo.design`** (the developer-account address, already verified with Apple). Three addresses are currently in circulation. | agent + ☐ user | ✅ **Agent half closed 2026-08-11** — in-app sites now read `Constants.Legal.supportEmail`; `docs/{privacy,terms,support}.html` collapsed to the one address. Remaining: confirm ASC fields use it |
+| D3 | Support email standardized on **`hello@withmemento.ai`** (superseded `contact@sebastianmendo.design` on 2026-09-17 — the product now has its own domain). This is the single address for every outward surface: the legal pages, the in-app support links, the ASC support field, **and** the App Review / TestFlight contact. | agent + ☐ user | ✅ **Agent half closed 2026-08-11, re-pointed 2026-09-17** — in-app sites read `Constants.Legal.supportEmail`; `docs/{privacy,terms,support,index}.html` and all of `docs/app-store/` carry the new address. Remaining: **`hello@withmemento.ai` must be live and receiving before submission** (Guideline 1.5), and ASC fields must be re-pointed by hand. **Evidence 2026-09-17:** `dig MX withmemento.ai` → `1 smtp.google.com`, and the Account Holder confirms the mailbox receives. The four published pages now serve the new address (verified in production by `check_live_legal_urls.sh`). ✅ Published 2026-09-17 (A6a). The **in-app** address still reads the old one until **build 4** ships — that is the whole reason C1 bumps the build |
 | D4 | Categories: primary **Lifestyle**. Do **not** choose Health & Fitness or Medical — see `01` on 1.4.1 / 5.1.1(ix). | ☐ user | ✅ In project (`public.app-category.lifestyle`); confirm in ASC |
-| D5 | Copyright string, content rights declaration, licence agreement. | ☐ user | ☐ Open — values in `02` |
-| D6 | App Privacy nutrition label set to the spec 042 target and **matching `PrivacyInfo.xcprivacy` and the privacy policy**. Tracking = No; Other User Content, Other Data Types, User ID (linked, not tracking; App Functionality + Analytics). Journal is not collected. CloudKit private DB is the user’s iCloud. **Not** Data Not Collected. The label is editable without a build, which is exactly how it drifted last time. | ☐ user | ☐ Open — `03`, click path in `13` |
-| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | ☐ Open — paste `metadata/en-US/review_notes.txt` (updated 2026-09-12 for location, iCloud private replica, opt-in feedback). Click path in `13`. |
-| D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | ☐ Open — paste `metadata/en-US/` via `13` |
-| D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | ☐ user | ☐ Open — shot list in `13` |
+| D5 | Copyright string, content rights declaration, licence agreement. | ☐ user | 🟡 **Presumed populated 2026-09-17** — the build reached App Review (it came back under 2.1 *Information Needed*, not for missing metadata), and App Store Connect will not accept a submission with this field empty. Recorded as bookkeeping lag, not as an open task. Confirm on the next pass through `13`. Values in `02`. |
+| D6 | App Privacy nutrition label set to the spec 042 target and **matching `PrivacyInfo.xcprivacy` and the privacy policy**. Tracking = No; Other User Content, Other Data Types, User ID (linked, not tracking; App Functionality + Analytics). Journal is not collected. CloudKit private DB is the user’s iCloud. **Not** Data Not Collected. The label is editable without a build, which is exactly how it drifted last time. | ☐ user | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. **This is the row that caused the November 2025 rejection**, so re-read it against `PrivacyInfo.xcprivacy` before each submission: Tracking = No; Other User Content, Other Data Types, User ID; **not** Data Not Collected. |
+| D7 | App Review Information: contact name/email/phone, notes, attachments. No demo account needed (no login) — but the notes must **say so**. | ☐ user | 🟡 **Ready to paste 2026-09-17.** `metadata/en-US/review_notes.txt` is restructured onto Apple's six items (3988/4000 bytes) and `metadata/en-US/resolution_center_reply.txt` is the matching Resolution Center reply (3900/4000 chars). Both are length-gated by `check_asc_metadata.sh` and linted by `lint_forbidden_phrases.py`. Remaining: paste the notes into App Review Information, attach the video (D7a), and send the reply in Resolution Center |
+| D7a | **A demo video recorded on a physical device is attached** to App Review Information. Apple asked for it by name and the app was rejected without it. | agent + ☐ user | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Recorded and checked against the eight steps in `08` §4 by the Account Holder; the file is deliberately kept outside this public repo, so it is not in the evidence column. |
+| D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | 🔴 **Action required 2026-09-17** — `description.txt` changed *after* the build was submitted: the companion line said it "requires a compatible iPhone" while the app ships `TARGETED_DEVICE_FAMILY = "1,2"` and Apple Intelligence runs on M-series iPads. **The live product page still carries the old wording**, so re-paste `metadata/en-US/description.txt` into App Store Connect. Metadata edits do not need a new build. |
+| D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | ☐ user | 🟡 **Presumed populated 2026-09-17** — the build reached App Review (it came back under 2.1 *Information Needed*, not for missing metadata), and App Store Connect will not accept a submission with this field empty. Recorded as bookkeeping lag, not as an open task. Confirm on the next pass through `13`. ⚠️ Screenshots must still show the **actual app in use** (2.3.3) and use the fictional sample entries (2.3.9); iPad 13″ is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. |
 | D10 | Price and **tax category** — both required before submission. | ☐ user | 1.x has **no IAP**. Set Free, or a paid-download tier after A2. Subscription `DEC-004` is 2.0. See `13`. |
 | D11 | Availability / territories, including the EU decision from A5 and the recommendation to exclude mainland China. | ☐ user | 1.x default: exclude mainland China **and** the 27 EU until trader verification. See `13`. |
-| D12 | Release option — **Manual** recommended for 1.0. | ☐ user | ☐ Open — `10` |
+| D12 | Release option — **Manual** recommended for 1.0. | ☐ user | 🟡 **Presumed populated 2026-09-17** — the build reached App Review (it came back under 2.1 *Information Needed*, not for missing metadata), and App Store Connect will not accept a submission with this field empty. Recorded as bookkeeping lag, not as an open task. Confirm on the next pass through `13`. **Manual** release is the recommendation for 1.0 — see `10`. |
 
 ---
 
@@ -169,7 +213,7 @@ When adding a script here, wire it in the same commit.
 |---|---|---|
 | `scripts/ci/check_privacy_manifest.sh` | Every required-reason API declared in `PrivacyInfo.xcprivacy` has a call site, **and every call site is declared**. Plus `NSPrivacyTracking = false`, spec 042 collected types when the verification client is present, and no `NSUserTrackingUsageDescription` anywhere | Blocking |
 | `scripts/ci/check_store_metadata.sh` | `ITSAppUsesNonExemptEncryption` present; usage strings present, specific, and defined exactly once; no `com.testing.*` bundle ids; build number above the recorded floor | Blocking |
-| `scripts/ci/check_archive_hygiene.sh` | Every doc, config, and fixture under `MeetMemento/` is individually excluded from the target. Placeholder StoreKit product ids reported | Blocking; StoreKit half **report-only** until `DEC-004` |
+| `scripts/ci/check_archive_hygiene.sh` | Every doc, config, and fixture under `withMemento/` is individually excluded from the target. Placeholder StoreKit product ids reported | Blocking; StoreKit half **report-only** until `DEC-004` |
 | `scripts/ci/check_asc_metadata.sh` | Field character/byte limits; `REQ-POS-001`; no pricing or accuracy claims; no clinical vocabulary | Blocking |
 | `scripts/ci/check_live_legal_urls.sh` | The four legal URLs return 200; the privacy policy names **no** third-party AI backend **and does** disclose the spec-042 opt-in egress; Pages serves *this* repo's copy byte-for-byte | Blocking — **wired 2026-09-12** (it existed since August but no workflow ran it, which is how it went stale) |
 | `scripts/ci/check_tts_license_path.sh` | No GPL-family licence text and no espeak/phonemizer component in the TTS path; the OpenRAIL-M attribution surface still ships | Blocking — **new 2026-09-12**, closes spec 018 R12's missing gate |
@@ -206,6 +250,9 @@ Connect privacy label matches the manifest. Those need evidence, not a script.
    with **zero ITMS errors**. **(C1–C6, `07`)**
 5. A reviewer who launches the app cold can reach capture → transcription →
    Chat without an account, and the review notes tell them how. **(C9, D7)**
+5a. The review notes answer **all six items** of Apple's standard information
+   request, in Apple's order, and a demo video captured on a physical device —
+   beginning at app launch — is attached. **(D7, D7a, `08` §2 and §4)**
 6. If the app is **paid**, the Paid Apps Agreement, tax forms, and banking are
    all in effect. If **free**, skip. **(A2)**
 7. Age rating and the social-media declaration are answered. **(A7, A8)**
