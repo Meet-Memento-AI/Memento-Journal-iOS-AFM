@@ -37,6 +37,7 @@ extension View {
     /// **Never use this inside a `ScrollView`** — see the note at
     /// `ChatMessagesView.contentStack`: `containerRelativeFrame` circularly
     /// depends on content width there and collapses to zero.
+    // periphery:ignore - no caller yet; kept for full-bleed iPad hosts; retained deliberately
     func contentColumnRelative(_ maxWidth: CGFloat = ContentColumnMetrics.maxWidth) -> some View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             min(max(length - AppHeaderMetrics.edgeInset * 2, 0), maxWidth)
