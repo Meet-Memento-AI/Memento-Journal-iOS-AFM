@@ -19,7 +19,6 @@ import SwiftUI
 
 public struct VoiceSettingsView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var selectedVoiceID: String = VoiceCatalog.default.id
     @State private var selectedRate: SpeechRatePreset = .brisk
