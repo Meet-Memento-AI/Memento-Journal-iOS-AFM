@@ -555,7 +555,10 @@ public struct AddEntryView: View {
                 if isSaving {
                     ProgressView()
                         .tint(chromeForeground)
-                        .mementoGlassButtonChrome(interactive: false)
+                        .mementoGlassButtonChrome(
+                            interactive: false,
+                            opaqueUnderReduceTransparency: false
+                        )
                         .accessibilityLabel("Saving entry")
                         .accessibilityIdentifier("journal.entryEditor.save")
                 } else {
@@ -1133,6 +1136,7 @@ public struct AddEntryView: View {
 extension AddEntryView {
     /// Seeds a cover so canvas hosts can show photo-backed chrome.
     /// `fileprivate` is enough: only `AddEntryPreviewHost` in this file calls it.
+    // periphery:ignore - preview-only
     fileprivate init(
         state: EntryState,
         previewPhoto: UIImage,
@@ -1164,6 +1168,7 @@ extension AddEntryView {
     }
 }
 
+// periphery:ignore - preview-only
 private enum AddEntryPreviewAssets {
     static let photo: UIImage = {
         let size = CGSize(width: 8, height: 12)
@@ -1176,6 +1181,7 @@ private enum AddEntryPreviewAssets {
 
 /// Canvas host. `#Preview` only constructs this type so the generated thunk
 /// never calls the photo init or `AddEntryPreviewAssets` directly.
+// periphery:ignore - constructed only by #Preview
 struct AddEntryPreviewHost: View {
     enum Kind {
         case create
