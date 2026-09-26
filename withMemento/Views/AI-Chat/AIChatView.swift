@@ -24,6 +24,7 @@ public struct AIChatView: View {
     @Environment(\.typography) private var type
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     @ObservedObject var viewModel: ChatViewModel
     @StateObject private var narrationCoordinator = NarrationCoordinator()
@@ -319,7 +320,6 @@ public struct AIChatView: View {
                         viewModel: viewModel,
                         voiceService: voiceService,
                         choreographer: choreographer,
-                        hasEntries: hasEntries,
                         bottomReserve: bottomReserve,
                         followTail: followTail,
                         suggestions: currentSuggestions,
@@ -336,7 +336,7 @@ public struct AIChatView: View {
                     )
 
                     NarrationListeningCanvas()
-                        .padding(.top, AppHeaderMetrics.contentTopPadding)
+                        .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
                         .padding(.bottom, bottomReserve)
                         .narrationDissolve(
                             isVisible: isNarrating && viewModel.messages.isEmpty,
@@ -369,7 +369,7 @@ public struct AIChatView: View {
         if let flight = choreographer.flight {
             SendFlightGhost(
                 flight: flight,
-                pinTopInset: AppHeaderMetrics.chatPinTopInset,
+                pinTopInset: RootContentInsets.chatPinTopInset(hosted: navigationBarHosted),
                 animation: Motion.sendFlight,
                 onLanded: { choreographer.land(messageID: flight.id) }
             )
@@ -448,8 +448,8 @@ public struct AIChatView: View {
 
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .contentColumn().frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
     }
 
     // MARK: - Narration

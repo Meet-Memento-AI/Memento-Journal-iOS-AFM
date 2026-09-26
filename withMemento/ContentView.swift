@@ -19,9 +19,6 @@ private struct PreviewInitialTabKey: EnvironmentKey {
 private struct TabBarHiddenKey: EnvironmentKey {
     static let defaultValue: Binding<Bool>? = nil
 }
-private struct ShowAccessoryKey: EnvironmentKey {
-    static let defaultValue: Binding<Bool>? = nil
-}
 private struct SelectedTabKey: EnvironmentKey {
     static let defaultValue: Binding<RootPage>? = nil
 }
@@ -41,10 +38,6 @@ extension EnvironmentValues {
         get { self[TabBarHiddenKey.self] }
         set { self[TabBarHiddenKey.self] = newValue }
     }
-    var showAccessory: Binding<Bool>? {
-        get { self[ShowAccessoryKey.self] }
-        set { self[ShowAccessoryKey.self] = newValue }
-    }
     var selectedTab: Binding<RootPage>? {
         get { self[SelectedTabKey.self] }
         set { self[SelectedTabKey.self] = newValue }
@@ -55,68 +48,11 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - Scroll Direction Tracker
-
-/// ViewModifier that tracks scroll direction and updates the tabBarHidden binding.
-/// Used for iOS 18 fallback to manually hide/show the tab bar accessory.
-/// IMPORTANT: Only activates on iOS 18.x - does nothing on iOS 26+ to avoid interfering with native behavior.
-private struct ScrollOffsetModifier: ViewModifier {
-    @Binding var tabBarHidden: Bool
-    @State private var lastOffset: CGFloat = 0
-    @State private var currentOffset: CGFloat = 0
-    @StateObject private var scrollDebouncer = ScrollDebouncer(delay: 0.1)
-
-    private let threshold: CGFloat = 50 // Minimum scroll distance to trigger state change
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            // iOS 26+: Native scroll tracking - don't interfere
-            content
-        } else {
-            // iOS 18-25: Manual scroll tracking with debouncing
-            content
-                .background(
-                    GeometryReader { geometry in
-                        Color.clear
-                            .preference(
-                                key: ScrollOffsetPreferenceKey.self,
-                                value: geometry.frame(in: .named("scroll")).minY
-                            )
-                    }
-                )
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    scrollDebouncer.debounce {
-                        let delta = value - lastOffset
-                        currentOffset = value
-
-                        // Scrolling down (delta < 0) - hide tab bar
-                        if delta < -threshold && !tabBarHidden {
-                            tabBarHidden = true
-                        }
-                        // Scrolling up (delta > 0) - show tab bar
-                        else if delta > threshold && tabBarHidden {
-                            tabBarHidden = false
-                        }
-
-                        lastOffset = value
-                    }
-                }
-        }
-    }
-}
-
-
-extension View {
-    /// Attach to a ScrollView to track scroll direction and toggle tab bar visibility
-    func trackScrollDirection(tabBarHidden: Binding<Bool>) -> some View {
-        self.modifier(ScrollOffsetModifier(tabBarHidden: tabBarHidden))
-    }
-}
-
 public struct ContentView: View {
     /// Which root page the pager is showing.
     @State private var selectedPage: RootPage = .journal
     @State private var didSetPreviewTab = false
+    // periphery:ignore - write-only here; YourEntriesView's iOS 18 fallback drives it through `\.tabBarHidden`
     @State private var isTabBarHidden = false
     @State private var showEntryToast = false
     @Namespace private var entryZoom
@@ -147,8 +83,6 @@ public struct ContentView: View {
     }
 
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var appState: AppStateStore
     @EnvironmentObject var navigationState: AppNavigationState
@@ -209,9 +143,11 @@ public struct ContentView: View {
                     .transparentNavigationContainer()
                     .navigationDestination(for: SettingsRoute.self) { route in
                         settingsDestination(for: route)
+                            .contentColumnSafeArea()
                     }
                     .navigationDestination(for: DrawerRoute.self) { route in
                         drawerDestination(for: route)
+                            .contentColumnSafeArea()
                     }
                     .navigationDestination(for: EntryRoute.self) { route in
                         EntryEditorDestination(route: route) {
@@ -435,6 +371,21 @@ public struct ContentView: View {
         .environmentObject(AppStateStore())
         .environmentObject(AppNavigationState())
         .preferredColorScheme(.light)
+}
+
+#Preview("iPad 13-inch landscape · regular", traits: .fixedLayout(width: 1376, height: 1032)) {
+    ContentView()
+        .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
+        .environment(\.horizontalSizeClass, .regular)
+}
+
+#Preview("iPad 11-inch portrait · regular", traits: .fixedLayout(width: 834, height: 1194)) {
+    ContentView()
+        .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
+        .environment(\.horizontalSizeClass, .regular)
+        .preferredColorScheme(.dark)
 }
 
 #Preview("Dark - iPhone 15 Pro") {

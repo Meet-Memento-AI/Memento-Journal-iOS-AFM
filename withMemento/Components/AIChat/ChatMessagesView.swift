@@ -13,7 +13,6 @@ struct ChatMessagesView: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var voiceService: VoicePlaybackService
     @ObservedObject var choreographer: ChatSendChoreographer
-    var hasEntries: Bool
     var bottomReserve: CGFloat
     var followTail: Bool
     /// Starter prompts for the empty state. The three tiles always render
@@ -26,6 +25,7 @@ struct ChatMessagesView: View {
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     /// Visible content height — container minus both safe-area insets. Read
     /// from `ScrollGeometry` rather than derived by hand.
@@ -231,7 +231,7 @@ struct ChatMessagesView: View {
         // than only the first.
         .safeAreaInset(edge: .top, spacing: 0) {
             Color.clear
-                .frame(height: AppHeaderMetrics.chatPinTopInset)
+                .frame(height: RootContentInsets.chatPinTopInset(hosted: navigationBarHosted))
                 // `Color` is hit-testable. Without this, a drag started
                 // anywhere in the top band would never reach the scroll view.
                 .allowsHitTesting(false)
@@ -712,7 +712,7 @@ struct ChatMessagesView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, AppHeaderMetrics.contentTopPadding)
+                .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
                 .padding(.bottom, bottomReserve)
             }
             .scrollIndicators(.hidden)

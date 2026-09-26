@@ -20,6 +20,23 @@ enum ContentColumnMetrics {
     /// `min(width - 2 * edgeInset, 600)` always resolves to the width the page
     /// already had — see `ContentColumnTests`. Only iPad ever reaches the cap.
     static let maxWidth: CGFloat = 600
+
+    /// Width of the column itself: the container, capped.
+    static func columnWidth(in container: CGFloat) -> CGFloat {
+        min(container, maxWidth)
+    }
+
+    /// Width inside the column once the shared `AppHeaderMetrics.edgeInset`
+    /// gutter is taken off both sides. What `rootEdgeInset()` resolves to.
+    static func insetWidth(in container: CGFloat) -> CGFloat {
+        max(columnWidth(in: container) - AppHeaderMetrics.edgeInset * 2, 0)
+    }
+
+    /// Horizontal safe-area padding that centres a full-width page on the
+    /// column. Zero whenever the container is no wider than the column.
+    static func sideInset(in container: CGFloat) -> CGFloat {
+        max((container - maxWidth) / 2, 0)
+    }
 }
 
 extension View {
@@ -29,6 +46,15 @@ extension View {
     /// with an inner `rootEdgeInset()`.
     func contentColumn(_ maxWidth: CGFloat = ContentColumnMetrics.maxWidth) -> some View {
         frame(maxWidth: maxWidth)
+    }
+
+    /// Safe-area variant, for whole pages and sheets that should keep
+    /// full-width backgrounds, scrolling and navigation bars while their
+    /// content sits on the column. Adds horizontal safe area rather than a
+    /// frame, so `.ignoresSafeArea()` fills and scroll indicators are
+    /// unaffected. Zero at every width up to the column, so iPhone is inert.
+    func contentColumnSafeArea() -> some View {
+        modifier(ContentColumnSafeArea())
     }
 
     /// Container-relative variant, for hosts under `.ignoresSafeArea()` where a
@@ -42,5 +68,15 @@ extension View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             min(max(length - AppHeaderMetrics.edgeInset * 2, 0), maxWidth)
         }
+    }
+}
+
+private struct ContentColumnSafeArea: ViewModifier {
+    @State private var containerWidth: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaPadding(.horizontal, ContentColumnMetrics.sideInset(in: containerWidth))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { containerWidth = $0 }
     }
 }

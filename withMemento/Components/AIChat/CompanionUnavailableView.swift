@@ -15,6 +15,7 @@ struct CompanionUnavailableView: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     var body: some View {
         VStack(spacing: 24) {
@@ -48,8 +49,9 @@ struct CompanionUnavailableView: View {
 
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
         .accessibilityIdentifier("chat.unavailable")
     }
 }

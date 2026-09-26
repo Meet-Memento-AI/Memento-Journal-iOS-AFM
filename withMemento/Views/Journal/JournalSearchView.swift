@@ -33,6 +33,7 @@ struct JournalSearchView: View {
             // Search header
             searchHeader
                 .padding(.horizontal, Spacing.md)
+                .contentColumn()
                 .padding(.top, safeAreaTop + Spacing.md)
                 .padding(.bottom, Spacing.md)
 
@@ -48,6 +49,8 @@ struct JournalSearchView: View {
                     }
                 }
                 .padding(.horizontal, Spacing.md)
+                .contentColumn()
+                .frame(maxWidth: .infinity)
                 .padding(.bottom, Spacing.xxxl)
             }
             .animation(.easeInOut(duration: 0.2), value: searchResults.count)
@@ -55,6 +58,9 @@ struct JournalSearchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background)
         .ignoresSafeArea()
+        // Regular width hosts Journal in a navigation bar; this full-screen
+        // overlay carries its own header, so the bar steps aside while it's up.
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Subviews
