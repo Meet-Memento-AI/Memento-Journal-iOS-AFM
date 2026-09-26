@@ -184,6 +184,7 @@ extension RootPageScaffold where BackgroundOverlay == EmptyView {
 }
 
 extension RootPageScaffold where Footer == EmptyView, BackgroundOverlay == EmptyView {
+    // periphery:ignore - header-and-content pages; today only #Preview canvases build one
     init(
         @ViewBuilder header: () -> Header,
         @ViewBuilder content: () -> Content

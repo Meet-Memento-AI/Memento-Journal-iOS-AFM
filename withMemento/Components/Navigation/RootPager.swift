@@ -131,6 +131,7 @@ public struct RootPager<Content: View>: View {
 }
 
 private struct RootPagerPreview: View {
+    // periphery:ignore - read only by the #Preview canvas
     @State private var page: RootPage = .journal
 
     var body: some View {
