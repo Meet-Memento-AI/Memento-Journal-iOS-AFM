@@ -13,11 +13,13 @@ import SwiftUI
 struct IconButtonNav: View {
     // MARK: - Inputs
     let icon: String
+    // periphery:ignore - still passed by call sites; buttonSize and the Body symbol font drive layout
     var iconSize: CGFloat = 24
     var buttonSize: CGFloat = AppHeaderMetrics.controlSize
     var foregroundColor: Color? = nil  // nil = use theme.foreground
     /// Kept for call-site compatibility. `.regular` glass already adapts to
     /// light and dark backdrops, so this no longer switches a fill.
+    // periphery:ignore - kept for call-site compatibility (see above)
     var useDarkBackground: Bool = false
     var enableHaptic: Bool = false
     var accessibilityLabel: String? = nil  // Custom label for screen readers

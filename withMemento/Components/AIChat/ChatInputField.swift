@@ -63,8 +63,6 @@ struct ChatInputField: View {
     /// before it clears the text and collapses the field, and geometry
     /// callbacks are post-layout.
     var onComposerFrame: ((CGRect) -> Void)?
-    /// For preview purposes - allows setting initial state
-    var initialState: InputState
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -131,11 +129,6 @@ struct ChatInputField: View {
     /// from every other state change. They share this curve now.
     private static let stateChange: Animation = .easeOut(duration: 0.25)
 
-    /// Whether the input is in an expanded state (chatActive or narrateActive)
-    var isExpanded: Bool {
-        inputState == .chatActive || inputState == .narrateActive
-    }
-
     private var isTextEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -173,7 +166,6 @@ struct ChatInputField: View {
         self.onDismiss = onDismiss
         self.onNarrate = onNarrate
         self.isInteractive = isInteractive
-        self.initialState = initialState
         self.onComposerFrame = onComposerFrame
         self._inputState = State(initialValue: initialState)
     }
@@ -644,6 +636,7 @@ struct ChatInputField: View {
     /// Shown above the capsule while dictating so a mishearing is visible
     /// before the user commits it (REQ-CAP-003 honesty signal). This used to
     /// sit inside the 280pt listening panel; the panel is gone, the signal isn't.
+    // periphery:ignore - not mounted since the listening panel went; re-mounting is a product call
     @ViewBuilder
     private var liveTranscriptLabel: some View {
         let live = speechService.partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -957,6 +950,7 @@ private struct SpeechAlertsModifier: ViewModifier {
         .useTypography()
 }
 
+// periphery:ignore - constructed only by #Preview
 private struct ChatInputFieldPreview: View {
     let initialState: ChatInputField.InputState
     @State private var text: String
