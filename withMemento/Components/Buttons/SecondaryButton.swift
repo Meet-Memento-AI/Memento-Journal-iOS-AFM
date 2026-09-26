@@ -37,7 +37,8 @@ public struct SecondaryButton: View {
                     .typographyH5()
                 if isLoading { ProgressView().tint(customColor ?? theme.foreground) }
             }
-            .frame(height: 48)
+            // AX5: minHeight lets the label grow instead of clipping at large Dynamic Type sizes.
+            .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(customColor ?? theme.foreground)
             .background(isDarkVariant ? Color.white.opacity(0.15) : theme.muted)
