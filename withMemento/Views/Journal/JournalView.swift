@@ -19,6 +19,7 @@ public struct JournalView: View {
     @EnvironmentObject var entryViewModel: EntryViewModel
     @EnvironmentObject var appState: AppStateStore
 
+    // periphery:ignore - read through its `$` binding in `navigationPath`
     @State private var internalNavigationPath = NavigationPath()
 
     // Month picker state
