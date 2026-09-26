@@ -9,6 +9,9 @@
 import SwiftUI
 
 /// Metrics for the central reading column.
+///
+/// iPhone portrait-lock is the 1.x contract, not an accident — see
+/// `docs/app-store/14-orientation-decision.md` before enabling iPhone landscape.
 enum ContentColumnMetrics {
     /// Reading-column cap.
     ///
@@ -34,6 +37,7 @@ extension View {
     /// **Never use this inside a `ScrollView`** — see the note at
     /// `ChatMessagesView.contentStack`: `containerRelativeFrame` circularly
     /// depends on content width there and collapses to zero.
+    // periphery:ignore - no caller yet; kept for full-bleed iPad hosts; retained deliberately
     func contentColumnRelative(_ maxWidth: CGFloat = ContentColumnMetrics.maxWidth) -> some View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
             min(max(length - AppHeaderMetrics.edgeInset * 2, 0), maxWidth)
