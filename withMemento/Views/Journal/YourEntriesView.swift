@@ -279,15 +279,19 @@ struct YourEntriesView: View {
         }
     }
 
-    /// Year-month key so picker `DateComponents(day: 1)` matches
-    /// `dateInterval(of: .month).start` even when the hour/timezone differ.
     /// Under a native nav bar, `topContentPadding` already gives the first
     /// line its 16pt of air; the header's own 16pt would double it. Later
     /// headers keep it — it is part of the gap between month groups.
     private func monthHeaderTopPadding(for monthGroup: MonthGroup) -> CGFloat {
-        navigationBarHosted && monthGroup.id == monthGroups.first?.id ? 0 : 16
+        let isFirst: Bool = monthGroup.id == monthGroups.first?.id
+        if navigationBarHosted && isFirst {
+            return 0
+        }
+        return 16
     }
 
+    /// Year-month key so picker `DateComponents(day: 1)` matches
+    /// `dateInterval(of: .month).start` even when the hour/timezone differ.
     private static func monthScrollID(_ date: Date) -> String {
         let parts = Calendar.current.dateComponents([.year, .month], from: date)
         return "month-\(parts.year ?? 0)-\(parts.month ?? 0)"
