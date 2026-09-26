@@ -260,6 +260,8 @@ public struct AddEntryView: View {
                 }
                 .padding(.top, AppHeaderMetrics.headerClearance + Spacing.xxl)
                 .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                .contentColumn()
+                .frame(maxWidth: .infinity)
                 .opacity(hasCoverPhoto ? entryContentOpacity : 1)
                 // Title and body are one field in both modes so glyphs do not
                 // jump. Chrome still springs via `modeTransition`.
@@ -496,6 +498,7 @@ public struct AddEntryView: View {
                 }
             }
             .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            .contentColumn()
             .padding(.bottom, keyboardBottomPadding)
             .accessibleAnimation(Self.modeTransition, value: isViewingExisting)
         }

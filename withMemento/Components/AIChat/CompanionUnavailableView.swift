@@ -48,6 +48,7 @@ struct CompanionUnavailableView: View {
 
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, AppHeaderMetrics.contentTopPadding)
         .accessibilityIdentifier("chat.unavailable")

@@ -38,6 +38,7 @@ struct MementoSheetPresentation: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .contentColumnSafeArea()
             .presentationDragIndicator(.hidden)
             .presentationCornerRadius(theme.radius.xxl)
     }

@@ -141,6 +141,7 @@ struct YourEntriesView: View {
             .padding(.top, 8)
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -164,6 +165,7 @@ struct YourEntriesView: View {
             .accessibilityIdentifier("journal.empty.startWriting")
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -232,7 +234,9 @@ struct YourEntriesView: View {
                     .onAppear { onMonthVisibilityChanged(monthGroup.monthStart) }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            .contentColumn()
+            .frame(maxWidth: .infinity)
             .padding(.top, topContentPadding)
             .padding(.bottom, bottomContentPadding)
             .background(

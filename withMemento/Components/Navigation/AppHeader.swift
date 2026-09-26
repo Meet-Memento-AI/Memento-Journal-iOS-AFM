@@ -92,12 +92,14 @@ enum AppHeaderMetrics {
 }
 
 extension View {
-    /// Shrinks this view to `container width - 2 × edgeInset` before glass
+    /// Shrinks this view to `column width - 2 × edgeInset` before glass
     /// samples. Padding around `glassEffect` is ignored on root pages that
-    /// call `.ignoresSafeArea()`; this is not.
+    /// call `.ignoresSafeArea()`; this is not. The column is the container
+    /// capped at `ContentColumnMetrics.maxWidth`, so on iPad every caller
+    /// shares the reading column's edges; on iPhone the cap never engages.
     func rootEdgeInset() -> some View {
         containerRelativeFrame(.horizontal, alignment: .center) { length, _ in
-            max(length - AppHeaderMetrics.edgeInset * 2, 0)
+            ContentColumnMetrics.insetWidth(in: length)
         }
     }
 
@@ -280,6 +282,7 @@ struct AppHeader<Leading: View, Trailing: View>: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .rootHeaderToolbar(leading: leading, trailing: trailing)
     }
 }
 

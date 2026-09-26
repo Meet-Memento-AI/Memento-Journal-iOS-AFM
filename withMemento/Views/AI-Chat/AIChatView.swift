@@ -448,7 +448,7 @@ public struct AIChatView: View {
 
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentColumn().frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, AppHeaderMetrics.contentTopPadding)
     }
 

@@ -106,7 +106,10 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
                 .allowsHitTesting(false)
         }
         .overlay(alignment: .bottom) {
+            // FAB and composer sit on the reading column's edge, not the
+            // screen's. A no-op at every iPhone width.
             footer
+                .contentColumn()
                 .padding(.bottom, footerPad)
         }
         .ignoresSafeArea()

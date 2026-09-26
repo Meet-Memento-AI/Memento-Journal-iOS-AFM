@@ -60,6 +60,7 @@ struct LockScreenView: View {
                         .padding(.bottom, 60)
                 }
             }
+            .contentColumn()
 
             // Hidden TextField for iOS keyboard (PIN mode only)
             if viewModel.showPINFallback {

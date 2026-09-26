@@ -32,6 +32,15 @@ public enum RootPage: String, CaseIterable, Identifiable, Hashable {
 
     public var id: String { rawValue }
 
+    /// Inline title in the regular-width navigation bar. Compact width has
+    /// no title row, so this never shows on iPhone.
+    var navigationTitle: String {
+        switch self {
+        case .journal: return "Journal"
+        case .chat: return "Chat"
+        }
+    }
+
     /// Pages the pager actually lists. Standard is journal-only; `.chat`
     /// stays on the enum for the full product but never appears in the TabView.
     public static var visibleCases: [RootPage] {
@@ -87,6 +96,7 @@ public struct RootPager<Content: View>: View {
             TabView(selection: $selection) {
                 ForEach(RootPage.visibleCases) { page in
                     content(page)
+                        .rootNavigationStack(title: page.navigationTitle)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(theme.background)
                         .ignoresSafeArea()

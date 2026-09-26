@@ -209,9 +209,11 @@ public struct ContentView: View {
                     .transparentNavigationContainer()
                     .navigationDestination(for: SettingsRoute.self) { route in
                         settingsDestination(for: route)
+                            .contentColumnSafeArea()
                     }
                     .navigationDestination(for: DrawerRoute.self) { route in
                         drawerDestination(for: route)
+                            .contentColumnSafeArea()
                     }
                     .navigationDestination(for: EntryRoute.self) { route in
                         EntryEditorDestination(route: route) {
@@ -435,6 +437,21 @@ public struct ContentView: View {
         .environmentObject(AppStateStore())
         .environmentObject(AppNavigationState())
         .preferredColorScheme(.light)
+}
+
+#Preview("iPad 13-inch landscape · regular", traits: .fixedLayout(width: 1376, height: 1032)) {
+    ContentView()
+        .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
+        .environment(\.horizontalSizeClass, .regular)
+}
+
+#Preview("iPad 11-inch portrait · regular", traits: .fixedLayout(width: 834, height: 1194)) {
+    ContentView()
+        .environmentObject(AppStateStore())
+        .environmentObject(AppNavigationState())
+        .environment(\.horizontalSizeClass, .regular)
+        .preferredColorScheme(.dark)
 }
 
 #Preview("Dark - iPhone 15 Pro") {
