@@ -27,6 +27,7 @@ struct PercentageBarItem: Identifiable {
     let color: Color?
 }
 
+// periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
 /// An editable data model for percentage chart with binding support
 struct EditablePercentageBarItem: Identifiable {
     let id = UUID()
@@ -60,6 +61,7 @@ struct PercentageBarChart: View {
     @FocusState private var focusedIndex: Int?
 
     let items: [PercentageBarItem]
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     var onValueChange: ((Int, Double) -> Void)?
 
     /// The design supports 2–5 bars. More than this and the labels collide.
@@ -80,6 +82,7 @@ struct PercentageBarChart: View {
         Array(items.prefix(maxItems))
     }
 
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     /// Initialize with up to `maxItems` items.
     init(items: [PercentageBarItem], onValueChange: ((Int, Double) -> Void)? = nil) {
         self.items = Self.clamped(items)
@@ -95,6 +98,7 @@ struct PercentageBarChart: View {
         self.onValueChange = onValueChange
     }
 
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     /// Convenience initializer with custom colors. Truncates to the shortest
     /// of the three arrays.
     init(labels: [String], values: [Double], colors: [Color], onValueChange: ((Int, Double) -> Void)? = nil) {
@@ -343,6 +347,7 @@ struct EditableChartExample: View {
 
 // MARK: - Preview
 
+// periphery:ignore - Xcode previews are not reachable from the app target
 struct PercentageBarChart_Previews: PreviewProvider {
     static var previews: some View {
         Group {
