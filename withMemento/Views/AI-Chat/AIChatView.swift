@@ -96,7 +96,7 @@ public struct AIChatView: View {
     }
 
     private var footerBottomPadding: CGFloat {
-        guard preferences.aiEnabled else { return 0 }
+        guard preferences.aiEnabled, companionUnavailableReason == nil else { return 0 }
         if isNarrating { return AppHeaderMetrics.rowBottomPadding }
         return keyboardBottomPadding
     }
@@ -115,6 +115,10 @@ public struct AIChatView: View {
                 + AppHeaderMetrics.rowBottomPadding
         }
         return AppHeaderMetrics.rowBottomPadding
+    }
+
+    private var companionUnavailableReason: IntelligenceUnavailableReason? {
+        viewModel.messages.isEmpty ? viewModel.unavailableReason : nil
     }
 
     private var followTail: Bool {
@@ -149,6 +153,7 @@ public struct AIChatView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background { stopNarration() }
+            if newPhase == .active { Task { await viewModel.refreshAvailability() } }
         }
         .sheet(item: $selectedCitations) { wrapper in
             CitationsBottomSheet(citations: wrapper.citations)
@@ -251,6 +256,7 @@ public struct AIChatView: View {
             viewModel.prewarm()
             refreshSuggestionsIfNeeded()
             Task {
+                await viewModel.refreshAvailability()
                 await viewModel.fetchSessions()
             }
         }
@@ -309,7 +315,7 @@ public struct AIChatView: View {
             }
         ) {
             ZStack {
-                if preferences.aiEnabled {
+                if preferences.aiEnabled, companionUnavailableReason == nil {
                     ChatMessagesView(
                         viewModel: viewModel,
                         voiceService: voiceService,
@@ -346,6 +352,8 @@ public struct AIChatView: View {
                             .accessibilityHidden(true)
                     }
 
+                } else if preferences.aiEnabled, let reason = companionUnavailableReason {
+                    CompanionUnavailableView(reason: reason) { Task { await viewModel.refreshAvailability() } }
                 } else {
                     aiDisabledView
                 }
@@ -375,7 +383,7 @@ public struct AIChatView: View {
 
     @ViewBuilder
     private var chatFooter: some View {
-        if preferences.aiEnabled {
+        if preferences.aiEnabled, companionUnavailableReason == nil {
             ZStack(alignment: .bottom) {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
@@ -409,9 +417,6 @@ public struct AIChatView: View {
             )
         }
     }
-
-    /// One-time compact-voice tip (spec 029 R8). Informational, non-blocking;
-    /// the X persists dismissal via PreferencesService.
 
     private var aiDisabledView: some View {
         VStack(spacing: 24) {

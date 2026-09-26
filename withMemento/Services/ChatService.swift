@@ -118,6 +118,8 @@ protocol ChatServiceProtocol: AnyObject {
     /// Prefill the next turn from this conversation's stored history tail.
     /// `sessionId` nil warms the empty-history first-turn session.
     func prewarmConversation(sessionId: UUID?)
+    /// Why the on-device model can't answer right now, or nil when it can.
+    func unavailableReason() async -> IntelligenceUnavailableReason?
     /// Streaming send: emits the reply as it generates, then a final response.
     /// `images` are JPEG bytes attached to this turn (empty for text-only).
     /// `spoken` is the narration fork (shorter caps + spoken shape).
@@ -142,6 +144,8 @@ protocol ChatServiceProtocol: AnyObject {
 
 extension ChatServiceProtocol {
     func prewarm() {}
+
+    func unavailableReason() async -> IntelligenceUnavailableReason? { nil }
 
     /// Mocks fall back to an ordinary send; only the live `ChatService`
     /// suppresses the stored user turn.
@@ -224,6 +228,13 @@ class ChatService {
         Task.detached(priority: .utility) {
             await VoicePlaybackService.shared.warmVoiceCatalog()
         }
+    }
+
+    func unavailableReason() async -> IntelligenceUnavailableReason? {
+        if case .unavailable(let reason) = await intelligence.availability() {
+            return reason
+        }
+        return nil
     }
 
     /// Next-turn speculative prefill (spec 029 Amendment A). History comes
