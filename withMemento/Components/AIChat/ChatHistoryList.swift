@@ -13,6 +13,7 @@ public struct ChatHistoryList: View {
     let onDelete: ((ChatSession) -> Void)?
 
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     public init(
         sessions: [ChatSession],
@@ -61,11 +62,11 @@ public struct ChatHistoryList: View {
                 .foregroundStyle(theme.iconForeground.opacity(0.5))
 
             Text("No chat history yet")
-                .font(.headline)
+                .font(type.body1Medium)
                 .foregroundStyle(theme.mutedForeground)
 
             Text("Start a conversation to see it here")
-                .font(.subheadline)
+                .font(type.body2)
                 .foregroundStyle(theme.mutedForeground.opacity(0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

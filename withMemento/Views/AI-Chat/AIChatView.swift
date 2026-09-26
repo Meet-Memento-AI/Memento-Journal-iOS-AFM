@@ -421,7 +421,7 @@ public struct AIChatView: View {
             Spacer()
 
             Image(systemName: "brain.head.profile")
-                .font(.system(size: 56))
+                .font(.system(size: 56)) // icon-size: not user text
                 .foregroundStyle(theme.iconForeground.opacity(0.5))
 
             Text("AI Features Disabled")

@@ -10,6 +10,7 @@ import SwiftUI
 
 struct LaunchLoadingView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
     @EnvironmentObject private var appState: AppStateStore
     @State private var isAnimating = false
     @State private var secondsVisible = 0
@@ -30,7 +31,7 @@ struct LaunchLoadingView: View {
                     .scaleEffect(1.2)
                 Text("Starting…")
                     .foregroundColor(theme.mutedForeground)
-                    .font(.caption)
+                    .font(type.caption)
             }
         }
         .onAppear {
