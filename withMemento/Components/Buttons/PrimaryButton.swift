@@ -42,7 +42,8 @@ public struct PrimaryButton: View {
                 }
                 if isLoading { ProgressView().tint(theme.primaryForeground) }
             }
-            .frame(height: 48)
+            // AX5: minHeight lets the label grow instead of clipping at large Dynamic Type sizes.
+            .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(theme.primaryForeground)
             .background(theme.primaryButtonFill)
