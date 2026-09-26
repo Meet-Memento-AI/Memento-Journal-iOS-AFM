@@ -9,10 +9,6 @@ class ChatViewModel: ObservableObject {
     @Published var loadingPhrase: String = LoadingStatus.fallback
     @Published var errorMessage: String?
     @Published var showingError: Bool = false
-    /// Set when the on-device model can't answer (device not eligible, model
-    /// still downloading). Chat shows a designed state instead of a composer
-    /// whose first send would only fail.
-    @Published private(set) var unavailableReason: IntelligenceUnavailableReason?
 
     // Session management
     @Published var currentSessionId: UUID?
@@ -214,11 +210,6 @@ class ChatViewModel: ObservableObject {
     /// Call when the chat view appears / the input gains focus.
     func prewarm() {
         chatService.prewarm()
-    }
-
-    func refreshAvailability() async {
-        let reason = await chatService.unavailableReason()
-        if reason != unavailableReason { unavailableReason = reason }
     }
 
     /// Prefill the next turn from the current conversation's history.

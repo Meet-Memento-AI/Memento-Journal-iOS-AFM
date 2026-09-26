@@ -42,34 +42,6 @@ final class ChatViewModelTests: XCTestCase {
                        "naming the conversation already on screen is not a new transcript")
     }
 
-    // MARK: - Availability
-
-    func test_availability_surfacesUnavailableReasonBeforeAnySend() async {
-        let mock = MockChatService()
-        mock.unavailableReasonImpl = { .deviceNotEligible }
-        let vm = ChatViewModel(chatService: mock)
-        XCTAssertNil(vm.unavailableReason)
-
-        await vm.refreshAvailability()
-
-        XCTAssertEqual(vm.unavailableReason, .deviceNotEligible)
-        XCTAssertTrue(vm.messages.isEmpty, "the state is read, not learned from a failed send")
-    }
-
-    func test_availability_clearsOnceTheModelIsReady() async {
-        var reason: IntelligenceUnavailableReason? = .modelNotReady
-        let mock = MockChatService()
-        mock.unavailableReasonImpl = { reason }
-        let vm = ChatViewModel(chatService: mock)
-
-        await vm.refreshAvailability()
-        XCTAssertEqual(vm.unavailableReason, .modelNotReady)
-
-        reason = nil
-        await vm.refreshAvailability()
-        XCTAssertNil(vm.unavailableReason)
-    }
-
     func test_transcriptGeneration_bumpsOnStartNewChat() {
         let vm = ChatViewModel(chatService: stalledService())
         let before = vm.transcriptGeneration

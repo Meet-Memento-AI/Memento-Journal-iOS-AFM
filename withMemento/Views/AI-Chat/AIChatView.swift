@@ -22,7 +22,6 @@ public struct AIChatView: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -33,6 +32,7 @@ public struct AIChatView: View {
     @ObservedObject private var preferences = PreferencesService.shared
     @StateObject private var keyboardObserver = KeyboardObserver()
     @StateObject private var choreographer = ChatSendChoreographer()
+    @StateObject private var companionAvailability = CompanionAvailability()
 
     private struct CitationsWrapper: Identifiable {
         let id = UUID()
@@ -118,7 +118,7 @@ public struct AIChatView: View {
     }
 
     private var companionUnavailableReason: IntelligenceUnavailableReason? {
-        viewModel.messages.isEmpty ? viewModel.unavailableReason : nil
+        viewModel.messages.isEmpty ? companionAvailability.unavailableReason : nil
     }
 
     private var followTail: Bool {
@@ -153,8 +153,8 @@ public struct AIChatView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background { stopNarration() }
-            if newPhase == .active { Task { await viewModel.refreshAvailability() } }
         }
+        .task(id: scenePhase) { if scenePhase == .active { await companionAvailability.refresh() } }
         .sheet(item: $selectedCitations) { wrapper in
             CitationsBottomSheet(citations: wrapper.citations)
         }
@@ -256,7 +256,6 @@ public struct AIChatView: View {
             viewModel.prewarm()
             refreshSuggestionsIfNeeded()
             Task {
-                await viewModel.refreshAvailability()
                 await viewModel.fetchSessions()
             }
         }
@@ -351,9 +350,8 @@ public struct AIChatView: View {
                             .onTapGesture { dismissKeyboard() }
                             .accessibilityHidden(true)
                     }
-
                 } else if preferences.aiEnabled, let reason = companionUnavailableReason {
-                    CompanionUnavailableView(reason: reason) { Task { await viewModel.refreshAvailability() } }
+                    CompanionUnavailableView(reason: reason) { Task { await companionAvailability.refresh() } }
                 } else {
                     aiDisabledView
                 }
@@ -670,6 +668,7 @@ struct AIChatNarrationPreviewConfiguration {
     var isLoading: Bool = false
     var messages: [ChatMessage] = []
 
+    // periphery:ignore - read only by #Preview canvases
     static var sampleTurn: [ChatMessage] {
         [
             ChatMessage(
@@ -684,6 +683,7 @@ struct AIChatNarrationPreviewConfiguration {
     }
 }
 
+// periphery:ignore - instantiated only by #Preview canvases
 private struct AIChatNarrationPreview: View {
     let configuration: AIChatNarrationPreviewConfiguration
     @StateObject private var viewModel = ChatViewModel()

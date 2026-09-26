@@ -7,7 +7,6 @@ final class MockChatService: ChatServiceProtocol {
     var loadSessionMessagesImpl: ((UUID) async throws -> [ChatMessageDTO])?
     var deleteSessionImpl: ((UUID) async throws -> Void)?
     var summarizeChatImpl: (([ChatMessage], UUID?) async throws -> ChatSummaryResponse)?
-    var unavailableReasonImpl: (() async -> IntelligenceUnavailableReason?)?
     private(set) var prewarmConversationSessionIds: [UUID?] = []
 
     func sendMessage(_ text: String, sessionId: UUID?) async throws -> ChatResponse {
@@ -29,10 +28,6 @@ final class MockChatService: ChatServiceProtocol {
 
     func deleteSession(sessionId: UUID) async throws {
         if let impl = deleteSessionImpl { try await impl(sessionId) }
-    }
-
-    func unavailableReason() async -> IntelligenceUnavailableReason? {
-        await unavailableReasonImpl?()
     }
 
     func prewarmConversation(sessionId: UUID?) {
