@@ -101,21 +101,42 @@ extension View {
         }
     }
 
+    /// Header/footer Liquid Glass whose ink is a `theme` text token.
+    ///
+    /// Reduce Transparency cannot thin native glass enough on its own: it
+    /// still samples whatever scrolls behind it. Same intent as
+    /// `JournalBackdropShader.chromeReduceTransparencyFloor`, taken to an
+    /// opaque `theme.card` plate with a `theme.glassBorder` rim so the
+    /// shape still reads when card and page share a colour. Only for ink
+    /// that holds on `theme.card` — cover-driven or tinted-prominence ink
+    /// keeps calling `.glassEffect` directly.
+    func mementoChromeGlass<S: Shape>(_ glass: Glass, in shape: S) -> some View {
+        modifier(MementoChromeGlass(glass: glass, shape: shape))
+    }
+
     /// Shared Liquid Glass button chrome. Apply last — after padding and
     /// foreground — so the material samples the 48pt (or larger) frame.
     /// Capsules hug width past 48pt; circles stay square.
+    ///
+    /// `opaqueUnderReduceTransparency` routes through `mementoChromeGlass`;
+    /// pass `false` when the ink is not a `theme` token (editor cover
+    /// chrome, white-on-video onboarding).
     func mementoGlassButtonChrome(
         interactive: Bool = true,
         shape: MementoGlassButtonShape = .capsule,
-        minLength: CGFloat = AppHeaderMetrics.controlSize
+        minLength: CGFloat = AppHeaderMetrics.controlSize,
+        opaqueUnderReduceTransparency: Bool = true
     ) -> some View {
-        mementoGlassButtonChrome(
-            .native(interactive: interactive),
+        modifier(MementoGlassButtonChrome(
+            glass: .native(interactive: interactive),
             shape: shape,
-            minLength: minLength
-        )
+            minLength: AppHeaderMetrics.glassButtonLength(minLength),
+            opaqueUnderReduceTransparency: opaqueUnderReduceTransparency
+        ))
     }
 
+    /// Caller-supplied glass (tinted prominence, cover wash) stays glass
+    /// under Reduce Transparency; its ink is solved against that tint.
     func mementoGlassButtonChrome(
         _ glass: Glass,
         shape: MementoGlassButtonShape = .capsule,
@@ -124,19 +145,22 @@ extension View {
         modifier(MementoGlassButtonChrome(
             glass: glass,
             shape: shape,
-            minLength: AppHeaderMetrics.glassButtonLength(minLength)
+            minLength: AppHeaderMetrics.glassButtonLength(minLength),
+            opaqueUnderReduceTransparency: false
         ))
     }
 
     /// Floating footer glass: 56×56 floor, width hugs labeled content.
     func mementoFooterGlassButtonChrome(
         interactive: Bool = true,
-        shape: MementoGlassButtonShape = .capsule
+        shape: MementoGlassButtonShape = .capsule,
+        opaqueUnderReduceTransparency: Bool = true
     ) -> some View {
         mementoGlassButtonChrome(
             interactive: interactive,
             shape: shape,
-            minLength: AppHeaderMetrics.footerButtonSize
+            minLength: AppHeaderMetrics.footerButtonSize,
+            opaqueUnderReduceTransparency: opaqueUnderReduceTransparency
         )
     }
 
@@ -158,23 +182,57 @@ enum MementoGlassButtonShape {
     case circle
 }
 
+private struct MementoChromeGlass<S: Shape>: ViewModifier {
+    let glass: Glass
+    let shape: S
+
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content
+                .background(theme.card, in: shape)
+                .overlay {
+                    shape
+                        .stroke(theme.glassBorder, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+        } else {
+            content.glassEffect(glass, in: shape)
+        }
+    }
+}
+
 private struct MementoGlassButtonChrome: ViewModifier {
     let glass: Glass
     let shape: MementoGlassButtonShape
     let minLength: CGFloat
+    let opaqueUnderReduceTransparency: Bool
 
     func body(content: Content) -> some View {
         switch shape {
         case .capsule:
-            content
-                .frame(minWidth: minLength, minHeight: minLength)
-                .glassEffect(glass, in: .capsule)
-                .contentShape(Capsule())
+            surface(
+                content.frame(minWidth: minLength, minHeight: minLength),
+                in: Capsule()
+            )
+            .contentShape(Capsule())
         case .circle:
-            content
-                .frame(width: minLength, height: minLength)
-                .glassEffect(glass, in: .circle)
-                .contentShape(Circle())
+            surface(
+                content.frame(width: minLength, height: minLength),
+                in: Circle()
+            )
+            .contentShape(Circle())
+        }
+    }
+
+    @ViewBuilder
+    private func surface<V: View, S: Shape>(_ view: V, in shape: S) -> some View {
+        if opaqueUnderReduceTransparency {
+            view.mementoChromeGlass(glass, in: shape)
+        } else {
+            view.glassEffect(glass, in: shape)
         }
     }
 }
@@ -304,9 +362,7 @@ struct HeaderIconButton: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         } label: {
-            glyphView
-                .foregroundStyle(foreground ?? theme.foreground)
-                .mementoGlassButtonChrome(resolvedGlass, minLength: size)
+            chrome(glyphView.foregroundStyle(foreground ?? theme.foreground))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
@@ -330,8 +386,17 @@ struct HeaderIconButton: View {
         }
     }
 
-    private var resolvedGlass: Glass {
-        glass ?? .native(interactive: interactive ?? !reduceMotion)
+    @ViewBuilder
+    private func chrome<V: View>(_ label: V) -> some View {
+        if let glass {
+            label.mementoGlassButtonChrome(glass, minLength: size)
+        } else {
+            label.mementoGlassButtonChrome(
+                interactive: interactive ?? !reduceMotion,
+                minLength: size,
+                opaqueUnderReduceTransparency: foreground == nil
+            )
+        }
     }
 }
 

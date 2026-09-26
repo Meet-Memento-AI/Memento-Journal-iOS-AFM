@@ -283,6 +283,8 @@ struct ChatInputField: View {
         // is the HIGH-severity row in spec 024's audit. A light canvas tint
         // through the material (same pattern as Welcome's Get Started) densifies
         // the frost so placeholder and typed text stay readable over the thread.
+        // Reduce Transparency is the one exception: `mementoChromeGlass` swaps
+        // the glass for an opaque `theme.card` plate.
         //
         // No `GlassEffectContainer`: containers exist to blend *multiple*
         // neighbouring glass effects, and this is a single surface — the trailing
@@ -296,7 +298,7 @@ struct ChatInputField: View {
         // Rest / single-line stays 32pt (a pill at the 64pt well). Wrapped
         // typing (Figma 976:2850) pins 24pt so the corners don't swell with
         // five lines — and so attachments don't turn the bar into a capsule.
-        .glassEffect(
+        .mementoChromeGlass(
             .regular.tint(theme.background.opacity(Self.glassFrostTintOpacity)),
             in: .rect(
                 cornerRadius: isParagraphLayout ? theme.radius.xl : theme.radius.xxl,

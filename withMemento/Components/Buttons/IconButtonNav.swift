@@ -35,7 +35,11 @@ struct IconButtonNav: View {
             Image(systemName: icon)
                 .font(AppHeaderMetrics.controlSymbolFont)
                 .foregroundStyle(foregroundColor ?? theme.foreground)
-                .mementoGlassButtonChrome(minLength: buttonSize)
+                .mementoGlassButtonChrome(
+                    minLength: buttonSize,
+                    opaqueUnderReduceTransparency: foregroundColor == nil
+                        || foregroundColor == theme.foreground
+                )
         }
         // `.plain`, not a custom press style: `.interactive()` supplies the
         // system press scale/bounce. A second scale would compound it.

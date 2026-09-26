@@ -555,7 +555,10 @@ public struct AddEntryView: View {
                 if isSaving {
                     ProgressView()
                         .tint(chromeForeground)
-                        .mementoGlassButtonChrome(interactive: false)
+                        .mementoGlassButtonChrome(
+                            interactive: false,
+                            opaqueUnderReduceTransparency: false
+                        )
                         .accessibilityLabel("Saving entry")
                         .accessibilityIdentifier("journal.entryEditor.save")
                 } else {
