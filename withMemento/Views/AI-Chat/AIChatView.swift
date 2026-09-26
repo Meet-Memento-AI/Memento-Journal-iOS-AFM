@@ -698,28 +698,3 @@ private struct AIChatNarrationPreview: View {
         .useTypography()
     }
 }
-
-#Preview("Empty State · AX5") {
-    @Previewable @StateObject var viewModel = ChatViewModel()
-    NavigationStack {
-        AIChatView(
-            viewModel: viewModel,
-            isEmbedded: true,
-            hasEntries: true,
-            seededSuggestions: ChatSuggestion.previewSamples
-        )
-    }
-    .useTheme()
-    .useTypography()
-    .environment(\.dynamicTypeSize, .accessibility5)
-}
-
-#Preview("Narration · Speaking · AX5") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .speaking,
-            messages: AIChatNarrationPreviewConfiguration.sampleTurn
-        )
-    )
-    .environment(\.dynamicTypeSize, .accessibility5)
-}
