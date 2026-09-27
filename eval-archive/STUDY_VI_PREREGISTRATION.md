@@ -97,3 +97,63 @@ the rest of the comparison is suspect.
   It is not part of the conversation simulation.
 - **`ReplyRenderStats.strippedScaffoldCount` does not exist on this branch**, so
   the `stripped_scaffold` column Study V recorded is absent here.
+
+---
+
+# Addendum, written mid-run (before any result was computed)
+
+**P1 is not falsifiable on this rig, and that is the study's first finding.**
+
+The pre-registration said P1 existed to make a silent failure visible. It did —
+just earlier and more completely than expected. Checking it against the first
+~600 generated turns:
+
+```
+('apple.system.on-device.afm3-core-advanced', 'afm3CoreAdvanced', 'inferred')  607
+```
+
+100% of generated turns carry the advanced-tier suffix. P1 "passes" — and the
+pass means nothing, for two independent reasons.
+
+**1. Spec 051 does not select the model.** `OnDeviceModelTier.swift`'s own header
+says so: *"The tier is provenance and budget input only. On path B the OS still
+chooses the model, so a mislabelled device never runs the wrong one — it only
+writes the wrong suffix on a row."* `SystemLanguageModel.default` resolves to
+whatever the device runs. So the registered independent variable — "the model
+underneath moved" — was never a model swap. It is a **label**, plus the tier's
+secondary effects on `ContextBudget` and the speculative pool key.
+
+**2. The label is a tautology on a simulator.** The tier is inferred from
+`ProcessInfo.processInfo.physicalMemory` against a 10 GB floor. Inside a
+simulator that call returns the **host Mac's** memory, which here is 137 GB.
+The inference therefore returns `afm3CoreAdvanced` on every simulator run on
+this machine, on any device type, for any model that actually executes.
+
+The corroborating evidence is the latency. A 20B sparse model should not be
+faster than a 3B dense one on the same silicon, and the empty arm's p50 came in
+at **1.64s against Study IV's 1.83s** — slightly faster, consistent with the
+same model running in both.
+
+**Why the unit tests did not catch it.** `OnDeviceModelTierTests` covers the
+resolver thoroughly — sixteen cases including `test_resolver_twelveGBDevice_...`
+and `test_resolver_memoryFloor_bothSides`. Every one of them *injects*
+`physicalMemoryBytes`. The single production call site,
+`resolveOnDeviceTierIfNeeded()`, reads `ProcessInfo` with no simulator guard and
+is covered by nothing. The pure core is exhaustively tested; the one impure
+input is untested.
+
+**Consequence for the eval warehouse (spec 043).** Every row this harness has
+written since 051 landed carries `model_identifier` ending `afm3-core-advanced`.
+For simulator-sourced rows that suffix is unverified provenance, not a fact.
+Any warehouse query that groups or filters by tier is, today, grouping on a
+constant.
+
+**What this study now measures.** Not a tier comparison. It is a clean
+re-measurement of the *current pipeline* against Study IV, over the same arms,
+corpus, cast, seeds and prompt — the differences being the 051 retriever and
+`ContextBudget` changes, and whatever the label's effect on budget and pooling
+turns out to be. P2–P9 stand as written and are still worth scoring; **P1 is
+recorded as an instrument failure, not a pass.** The run continues unchanged, so
+the numbers stay comparable.
+
+No result beyond P1 had been computed when this was written.
