@@ -245,6 +245,15 @@ enum ChatEvalScoring {
     static let casualListPattern = #"(^|\n)- "#
     static let boldPattern = #"\*\*([^*\n]{8,200}?)\*\*"#
     static let digitPattern = #"\b(\d+)\b"#
+    /// A month-and-day assertion in the reply: "March 12", "on March 12, 2026".
+    /// Capture group 1 is the whole date so `spans` can return it.
+    ///
+    /// Study III measured these more than doubling on the seeded arm once
+    /// `{{date:N}}` made dating salient — 118 to 290, with 250 passing every
+    /// check the suite had. Nothing scored them.
+    static let assertedDatePattern =
+        #"((?:January|February|March|April|May|June|July|August|September|October|November|December)"#
+        + #"\s+\d{1,2}(?:,?\s+\d{4})?)"#
 
     /// `\x{201C}`, not `\u{201C}`. This is a Swift *raw* string, so backslash
     /// escapes reach ICU untouched, and ICU accepts `\uhhhh` and `\x{hhhh}` but
@@ -274,7 +283,8 @@ enum ChatEvalScoring {
         "rule.casualList": casualListPattern,
         "hall.fabricatedQuote": fabricatedQuotePattern,
         "rule.boldNotTheirWords": boldPattern,
-        "insight.digitDisagrees": digitPattern
+        "insight.digitDisagrees": digitPattern,
+        "hall.unbackedDate": assertedDatePattern
     ]
 
     private static func spans(_ body: String, pattern: String) -> [String] {
@@ -318,7 +328,8 @@ enum ChatEvalScoring {
         italicQuotePattern,
         #"\*\*([^*\n]{8,200}?)\*\*"#,
         perceptionPattern,
-        #"\b(\d+)\b"#
+        #"\b(\d+)\b"#,
+        assertedDatePattern
     ]
 
     static let narrativeJoinPhrases = [
@@ -391,6 +402,61 @@ enum ChatEvalScoring {
                              index: QuoteIndex) -> [Violation] {
         guard citations.isEmpty, let span = index.quotesCorpus(body) else { return [] }
         return [.init(code: "hall.uncitedQuote", detail: "\"\(span.prefix(50))\" with 0 citations")]
+    }
+
+    /// A date the reply asserts that no cited entry carries.
+    ///
+    /// The third reference class, after quotes and counts. Spec 050 gave dates a
+    /// marker and the renderer expands `{{date:N}}` from the entry's own
+    /// timestamp, so a *marked* date is correct by construction. A date the
+    /// model typed itself is not, and until now nothing looked.
+    ///
+    /// `AskCitation` already carries `entryDate`, so this needs no new plumbing —
+    /// the same shape as `uncitedQuote`, which takes citations for the same
+    /// reason. A date is backed when it names the same day as some cited entry;
+    /// the year is optional in the reply, so a match on month and day is enough
+    /// and a stated year must agree if present.
+    ///
+    /// Report-only on arrival (046 R1): measure first, threshold after two
+    /// warehoused runs.
+    static func unbackedDate(_ body: String, citations: [AskCitation],
+                             calendar: Calendar = .current) -> [Violation] {
+        let asserted = spans(body, pattern: assertedDatePattern)
+        guard !asserted.isEmpty else { return [] }
+        let backing = citations.map { calendar.dateComponents([.year, .month, .day], from: $0.entryDate) }
+        return asserted.compactMap { span -> Violation? in
+            guard let parsed = parseAssertedDate(span, calendar: calendar) else { return nil }
+            let backed = backing.contains { cited in
+                cited.month == parsed.month && cited.day == parsed.day
+                    && (parsed.year == nil || cited.year == parsed.year)
+            }
+            guard !backed else { return nil }
+            return .init(code: "hall.unbackedDate",
+                         detail: "\"\(span.prefix(40))\" with \(citations.count) citation(s)")
+        }
+    }
+
+    /// Month name, day, optional year. Deliberately its own parser rather than a
+    /// `DateFormatter`: the reply's year is often absent, and a formatter would
+    /// silently supply 2000 for a bare "March 12".
+    ///
+    /// The renderer has an equivalent in `ReplyRenderer+Strict.swift`
+    /// (`RenderPass.parse`), but it is `private` and the test target's
+    /// `@testable import` does not reach `private`. Keep the two adjacent in
+    /// review: if one learns a new date shape, the other should.
+    private static func parseAssertedDate(_ span: String,
+                                          calendar: Calendar) -> (month: Int, day: Int, year: Int?)? {
+        let months = ["january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+                      "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
+                      "december": 12]
+        let parts = span.lowercased()
+            .replacingOccurrences(of: ",", with: " ")
+            .split(whereSeparator: { $0 == " " })
+            .map(String.init)
+        guard let first = parts.first, let month = months[first], parts.count >= 2,
+              let day = Int(parts[1]), (1...31).contains(day) else { return nil }
+        let year = parts.count >= 3 ? Int(parts[2]) : nil
+        return (month, day, year)
     }
 
     // MARK: - gold.* — is the answer right, not just well-formed?
@@ -540,7 +606,8 @@ enum ChatEvalScoring {
     static let reportOnlyCodes: Set<String> = [
         "hall.fabricatedQuote",
         "hall.firstPersonPerception",
-        "hall.narrativeJoin"
+        "hall.narrativeJoin",
+        "hall.unbackedDate"
     ]
 
     static func gating(_ violations: [Violation]) -> [Violation] {

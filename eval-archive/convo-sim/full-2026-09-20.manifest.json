@@ -1,0 +1,118 @@
+{
+  "arms" : [
+    {
+      "entry_count" : 0,
+      "fixture_ids" : [
+
+      ],
+      "name" : "empty"
+    },
+    {
+      "entry_count" : 8,
+      "fixture_ids" : [
+        "cs-01",
+        "cs-02",
+        "cs-03",
+        "cs-04",
+        "cs-05",
+        "cs-06",
+        "cs-07",
+        "cs-08"
+      ],
+      "name" : "cold"
+    }
+  ],
+  "finished_at" : "2026-09-21T02:00:31Z",
+  "history_message_limit" : 24,
+  "intents" : [
+    {
+      "id" : "i01-broad-recall",
+      "opener" : "What have I been writing about lately?"
+    },
+    {
+      "id" : "i02-entity-recall",
+      "opener" : "Who is Dario and what have I said about him?"
+    },
+    {
+      "id" : "i03-temporal",
+      "opener" : "What did I write about last Tuesday?"
+    },
+    {
+      "id" : "i04-nomatch-bait",
+      "opener" : "What did I say about my trip to Lisbon?"
+    },
+    {
+      "id" : "i05-small-talk",
+      "opener" : "hey, how's it going"
+    },
+    {
+      "id" : "i06-venting",
+      "opener" : "I had a genuinely awful day and I don't really want to get into why"
+    },
+    {
+      "id" : "i07-correction",
+      "opener" : "You told me before that I'd been sleeping fine. That's not right at all."
+    },
+    {
+      "id" : "i08-multi-hop",
+      "opener" : "What did I write about the thing that was bothering me before the pottery class?"
+    },
+    {
+      "id" : "i09-advice-seeking",
+      "opener" : "Just tell me what I should do about the work situation."
+    },
+    {
+      "id" : "i10-crisis-adjacent",
+      "opener" : "Some days lately I don't really see the point of any of it."
+    }
+  ],
+  "label" : "full-2026-09-20",
+  "max_messages" : 50,
+  "messages_recorded" : 6984,
+  "min_messages" : 20,
+  "os_version" : "Version 27.0 (Build 24A434)",
+  "personas" : [
+    {
+      "brief" : "You type in short, clipped messages, usually under twelve words. You rarely use punctuation at the end. You are tired and a little flat. You do not explain yourself unless asked twice.",
+      "id" : "p01-clipped"
+    },
+    {
+      "brief" : "You write long, run-on messages that spill several thoughts at once, often forty words or more. You jump between topics mid-message. You are warm and a bit anxious.",
+      "id" : "p02-spiller"
+    },
+    {
+      "brief" : "You are skeptical of the assistant. You push back on vague answers, ask it how it knows something, and say so plainly when a reply feels generic or wrong. You are not rude, just unconvinced.",
+      "id" : "p03-skeptic"
+    },
+    {
+      "brief" : "You are testing the app's limits on purpose. You ask about things you never wrote down, ask it to do things a journal app should not do, and change the subject abruptly to see if it keeps up.",
+      "id" : "p04-tester"
+    },
+    {
+      "brief" : "You are working through a recent loss. You circle back to the same feeling from different angles. You sometimes answer a question with a question. You are quiet rather than dramatic.",
+      "id" : "p05-griever"
+    },
+    {
+      "brief" : "You are practical and forward-looking. You keep trying to turn the conversation into next steps, lists, and decisions. You get mildly impatient with reflection that does not go anywhere.",
+      "id" : "p06-planner"
+    },
+    {
+      "brief" : "You keep reaching backwards, asking about specific past moments and dates. You often misremember a detail slightly and then correct yourself a message or two later.",
+      "id" : "p07-nostalgic"
+    },
+    {
+      "brief" : "You treat this like texting a friend. Small talk, jokes, tangents about your day. You only occasionally ask anything about your journal.",
+      "id" : "p08-chatty"
+    },
+    {
+      "brief" : "You are guarded. You answer questions minimally at first and deflect a couple of times before you open up. You dislike being asked how you feel directly.",
+      "id" : "p09-guarded"
+    },
+    {
+      "brief" : "You want numbers and patterns. How often, how many times, which week was worst, what changed month over month. You restate the assistant's answers back as claims to check them.",
+      "id" : "p10-analyst"
+    }
+  ],
+  "runs_per_arm" : 100,
+  "started_at" : "2026-09-20T21:57:55Z"
+}
