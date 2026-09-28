@@ -859,7 +859,9 @@ The 90-hour / 4-week estimate from the 1.3 checklist is approximately preserved.
 |---|---|---|---|
 | **DEC-002** | Can Spotlight donation be hidden from system-wide search? | Entire retrieval architecture | **P0** |
 | DEC-001 | Ship on non-Apple-Intelligence devices? | Monetization, App Store listing | P1 |
-| DEC-004 | Final pricing and trial length | Paywall spec | P1 |
+| DEC-004 | Final pricing and trial length | Paywall spec | ✅ resolved 2026-09-26, superseded by DEC-013 |
+| DEC-013 | Adopt the Monetization Strategy (September 2026): Day-0 offer, free chat with a daily limit, $59.99/yr, $9.99/mo | Specs 021, 053, 019, 017 | ✅ resolved 2026-09-26 (spec 021 decision record) |
+| DEC-014 | Offer a free trial? | Specs 021, 053 | ✅ resolved 2026-09-26: **no.** The free tier is the trial (spec 021 decision record) |
 | DEC-003 | Remote prompt manifest in 2.0 or 2.1? | Privacy explainer copy | P2 |
 | DEC-005 | Watch companion in 2.0 or 2.1? | Scope | P2 |
 | DEC-006 | Does HealthKit-derived context enter Z1 prompts at all? | Health spec, App Review | P1 |

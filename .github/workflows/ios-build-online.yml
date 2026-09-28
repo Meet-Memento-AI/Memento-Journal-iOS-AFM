@@ -117,28 +117,41 @@ jobs:
           MIN_COVERAGE: "13"
         run: bash scripts/ci/check_coverage.sh TestResults.xcresult
 
-      - name: Release build for size measurement
-        # The size that matters is the Release product's, and resources (the
-        # ~147 MB of Core ML voice weights bundled per DEC-012) dominate it.
-        # Cheap relative to the test build above, which is already warm.
+      - name: Release archive for size measurement
+        # Archive for a device, not `build` for a simulator. The old step
+        # measured the wrong artifact in two compounding ways: a simulator
+        # product is fat (x86_64 + arm64), and `build` does not run the strip
+        # phase that `archive` does. Together those inflated the executable
+        # from 17 MB to 116 MB — and the gate is a claim about what a person
+        # downloads, so it has to measure what ships.
+        #
+        # Unsigned: the gate weighs the bundle, and signing would need secrets
+        # this workflow does not have.
         run: |
           set -euo pipefail
-          xcodebuild \
+          xcodebuild archive \
             -scheme withMemento \
             -configuration Release \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath .build-size \
-            build
+            -destination 'generic/platform=iOS' \
+            -archivePath .build-size/withMemento.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
       - name: App size gate (docs/app-store/00 C10)
         # Nothing measured app size until 2026-09-12. The ceiling is the 200 MB
         # cellular-download threshold, not Apple's 4 GB limit: above 200 MB iOS
         # prompts before downloading over cellular, which is a conversion tax on
-        # every install. Headroom is currently ~12 MB, so one more voice pack
-        # crosses it — which is exactly why this is a gate and not a note.
+        # every install.
+        #
+        # Measured on the archive's device .app: arm64, stripped, unthinned.
+        # Still conservative — App Store thinning and compression both land
+        # below it — but no longer inflated by a simulator slice and unstripped
+        # symbols. Headroom at 172 MB is ~28 MB, which is roughly half a voice
+        # pack, so this stays a gate.
         run: |
           bash scripts/ci/check_app_size.sh \
-            .build-size/Build/Products/Release-iphonesimulator/withMemento.app
+            .build-size/withMemento.xcarchive/Products/Applications/withMemento.app
 
       # Pinned release zip, verified against its checksum. The Homebrew cask
       # broke on 2026-09-23 ("depends_on macos: :catalina is disabled") between

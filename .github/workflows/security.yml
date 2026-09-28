@@ -115,7 +115,14 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "$BASE_REF" --depth=1
+            # No --depth here. Checkout already fetched full history
+            # (fetch-depth: 0), and a shallow fetch re-grafts the repo: git
+            # then cannot walk past origin/$BASE_REF's boundary, so
+            # `origin/$BASE_REF..HEAD` stops excluding the base and expands
+            # from the PR's own commits to nearly the whole history. That is
+            # how a pre-existing false positive on an already-merged commit
+            # came to block a PR that never touched it.
+            git fetch origin "$BASE_REF"
             LOG_OPTS="origin/$BASE_REF..HEAD"
           else
             LOG_OPTS="-n 1"

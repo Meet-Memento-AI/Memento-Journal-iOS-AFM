@@ -174,6 +174,10 @@ public struct JournalView: View {
                         )
                     }
                     .padding(.horizontal, 16)
+                    // The FAB belongs at the trailing edge of the column it
+                    // writes into, not the window's. RootPageScaffold's footer
+                    // overlay is `.center`-aligned, so a plain clamp places it.
+                    .pageColumn()
                 }
             }
         ) {

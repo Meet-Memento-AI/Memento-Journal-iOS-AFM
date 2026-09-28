@@ -474,6 +474,9 @@ for reflection playback. Generation is fully on-device — `.z0Device`.
 
 `REQ-VOX-003` product rules (normative, `technology/06` B3):
 1. Delighter tier — never a default, never a gate, never monetization bait.
+   **(Confirmed by DEC-013, 2026-09-26:** 021 R4's amended table moves
+   Personal Voice out of Paid. Read Aloud and the voice catalog stay free
+   too; the strategy's "journal narrations" are not gated.)
 2. Onboarding MUST NOT mention it.
 3. Discovered late, at demonstrated engagement: surfaced only after the
    user's third or fourth weekly reflection (Task 5's trigger).

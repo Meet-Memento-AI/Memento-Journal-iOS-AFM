@@ -108,6 +108,9 @@ enum ChatStreamEvent: Sendable {
 // MARK: - Service protocol (enables unit tests with mocks)
 
 protocol ChatServiceProtocol: AnyObject {
+    /// Which entries the chat may draw on (spec 021 R4). Free chat is scoped
+    /// to the latest entry; Pro to the whole journal.
+    func setRetrievalScope(_ scope: ChatRetrievalScope)
     func sendMessage(_ text: String, sessionId: UUID?) async throws -> ChatResponse
     func fetchSessions() async throws -> [ChatSession]
     func loadSessionMessages(sessionId: UUID) async throws -> [ChatMessageDTO]
@@ -142,6 +145,9 @@ protocol ChatServiceProtocol: AnyObject {
 
 extension ChatServiceProtocol {
     func prewarm() {}
+
+    /// Mocks retrieve nothing, so scope is a no-op for them.
+    func setRetrievalScope(_ scope: ChatRetrievalScope) {}
 
     /// Mocks fall back to an ordinary send; only the live `ChatService`
     /// suppresses the stored user turn.
@@ -184,10 +190,44 @@ extension ChatServiceProtocol {
     }
 }
 
+// MARK: - Retrieval scope
+
+/// Which entries a chat may draw on (spec 021 R4 `REQ-MON-006`).
+enum ChatRetrievalScope: Sendable, Equatable {
+    /// Pro: every entry in the journal.
+    case wholeJournal
+    /// Free: the latest entry only, plus the conversation itself.
+    case latestEntry
+
+    func apply(to entries: [Entry]) -> [Entry] {
+        switch self {
+        case .wholeJournal:
+            return entries
+        case .latestEntry:
+            return entries.max { $0.createdAt < $1.createdAt }.map { [$0] } ?? []
+        }
+    }
+}
+
 // MARK: - Service
 
 class ChatService {
     static let shared = ChatService()
+
+    /// Set by `ChatViewModel` from the person's tier. Every retrieval path
+    /// (prewarm, `sendMessage`, `stream`, and through them `EntryRetriever`
+    /// and `SearchJournalTool`) loads entries through `loadLocalEntries()`,
+    /// so scoping that one call scopes them all.
+    var retrievalScope: ChatRetrievalScope {
+        get { scopeLock.withLock { _retrievalScope } }
+        set { scopeLock.withLock { _retrievalScope = newValue } }
+    }
+    private let scopeLock = NSLock()
+    private var _retrievalScope: ChatRetrievalScope = .wholeJournal
+
+    func setRetrievalScope(_ scope: ChatRetrievalScope) {
+        retrievalScope = scope
+    }
 
     // MARK: - Native intelligence (Apple Foundation Models)
 
@@ -253,7 +293,7 @@ class ChatService {
     private static let legacyPIN: String? = SecurityService.shared.getPIN()
 
     private func loadLocalEntries() -> [Entry] {
-        JournalService.shared.loadAllEntriesLocally(legacyPIN: Self.legacyPIN)
+        retrievalScope.apply(to: JournalService.shared.loadAllEntriesLocally(legacyPIN: Self.legacyPIN))
     }
 
     func sendMessage(_ text: String, sessionId: UUID? = nil) async throws -> ChatResponse {

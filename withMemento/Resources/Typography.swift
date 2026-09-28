@@ -188,6 +188,8 @@ public struct Typography {
     // MARK: - Utility Aliases
     /// Label text - uses captionMedium (13pt medium)
     public var label: Font { captionMedium }
+    /// Manrope Bold 16 — the Figma "H5" style on the free chat's Upgrade pill.
+    public var pillLabel: Font { Font.custom("Manrope-Bold", size: sizeLG, relativeTo: .body) }
     /// Label bold variant (13pt bold)
     public var labelBold: Font { captionBold }
     /// Button text - uses body1Bold (16pt bold)

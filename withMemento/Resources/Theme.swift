@@ -110,6 +110,8 @@ struct PrimaryScale {
     static let primary400 = Color(hex: "#BB9E8C")
     static let primary500 = Color(hex: "#9D7F6C")
     static let primary600 = Color(hex: "#7E6252")
+    /// Figma "Upgrade" label (free chat header, node 1177:3183).
+    static let primary650 = Color(hex: "#6F5749")
     static let primary700 = Color(hex: "#5F473A")
     static let primary800 = Color(hex: "#45322A")
     static let primary900 = Color(hex: "#2C1E19")
@@ -130,6 +132,12 @@ struct BrandColors {
     /// `#A87549` gives only 3.96:1 against white — below AA. This is Figma's
     /// own `text-brand` / `button-brand-hover` at 5.75:1 on white.
     static let brandOnText = Color(hex: "#895C37")
+
+    /// The app icon's mark gradient, sampled from `AppIcon-iOS.png`: pale
+    /// taupe on the leading edge to deep brown on the trailing edge. Each
+    /// shape carries the full ramp. Draw it with `MementoBrandMark`.
+    static let markLeading  = Color(hex: "#D1BCAE")
+    static let markTrailing = Color(hex: "#5F473A")
 
     /// Sage-green secondary accent (Figma `highlight`).
     static let highlight     = Color(hex: "#4E6B5C")

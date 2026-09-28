@@ -27,6 +27,13 @@ struct MementoRootScene: Scene {
     @StateObject private var lockScreenViewModel = LockScreenViewModel()
     @StateObject private var navigationState = AppNavigationState()
     @Environment(\.scenePhase) private var scenePhase
+    #if DEBUG && MEMENTO_AI
+    // periphery:ignore - bound by the .sheet below; both sit inside
+    // `#if DEBUG && MEMENTO_AI`, which the dead-code scan does not build.
+    /// `-UITesting -PaywallPreview`: the paywall over preview data, for
+    /// design review and PaywallUITests while Memento Pro is switched off.
+    @State private var showPaywallPreview = PaywallModel.isPreviewLaunch
+    #endif
 
     init() {
         // Opaque canvas so iOS 26 Liquid Glass cannot sample the wallpaper
@@ -39,6 +46,12 @@ struct MementoRootScene: Scene {
         Task { @MainActor in
             NotificationService.shared.installAsDelegate()
         }
+        #if MEMENTO_AI
+        // Memento Pro (spec 021 R3). Before any view reads entitlement state.
+        MainActor.assumeIsolated {
+            EntitlementStore.shared.configure()
+        }
+        #endif
     }
 
     var body: some Scene {
@@ -102,6 +115,13 @@ struct MementoRootScene: Scene {
                 FeedbackSyncService.shared.resumePendingWork()
                 #endif
             }
+            #if DEBUG && MEMENTO_AI
+            .sheet(isPresented: $showPaywallPreview) {
+                MementoProPaywall(trigger: PaywallModel.previewTrigger, model: .preview())
+                    .useTheme()
+                    .useTypography()
+            }
+            #endif
             .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
                 if completed {
@@ -128,6 +148,7 @@ struct MementoRootScene: Scene {
                     SecurityService.shared.updateActivityTimestamp()
                     Task { await NotificationService.shared.refreshAuthorizationStatus() }
                     #if MEMENTO_AI
+                    Task { await EntitlementStore.shared.refresh() }
                     FeedbackSyncService.shared.resumePendingWork()
                     #endif
                 }

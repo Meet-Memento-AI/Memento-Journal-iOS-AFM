@@ -111,6 +111,8 @@ withMemento/Secrets.swift
 withMemento/Config/Debug.local.xcconfig
 withMemento/Config/Release.local.xcconfig
 withMemento/Config/Supabase.xcconfig
+withMemento/Config/RevenueCat.xcconfig
+withMemento/Config/RevenueCat.release.xcconfig
 
 # Environment variables
 .env
@@ -146,5 +148,5 @@ ExportOptions.local.plist
 # Release build product used only by the app-size gate (scripts/ci/check_app_size.sh)
 .build-size/
 
-# RevenueCat API key. Local only — never committed.
-withMemento/Config/RevenueCat.xcconfig
+# Personal Claude Code settings (permissions, local MCP servers).
+.claude/settings.local.json
