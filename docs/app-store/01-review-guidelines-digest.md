@@ -135,7 +135,12 @@ rejection.
 
 ---
 
-## 1.5 Developer Information — **verdict: 🔴 live defect**
+## 1.5 Developer Information — **verdict: ✅ closed 2026-08-17**
+
+> Was 🔴 while `support.html` returned 404. Now
+> `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` → **200**,
+> guarded by `scripts/ci/check_live_legal_urls.sh` (`00` B1, A6). Remaining is the
+> ASC Support-URL paste (`00` D2, ☐ user) — a click, not a defect.
 
 Requires an easy contact method **in the app** and a **Support URL**.
 
@@ -433,26 +438,49 @@ none offered, there is nothing to provide an alternative to.
 
 ## 5.1.1 Data Collection and Storage
 
-### (i) Privacy policy — **verdict: 🔴 live defect**
+### (i) Privacy policy — **verdict: ✅ closed 2026-09-12**
+
+> Was 🔴 while the served page named OpenAI, Google and Supabase as AI backends
+> and `docs/privacy.html` was unpublished. The live page is now **byte-identical**
+> to in-repo `docs/privacy.html`, asserted by
+> `scripts/ci/check_live_legal_urls.sh` (`00` B2, B5). Two corrections to what
+> follows, made 2026-09-24:
+>
+> - The published host is
+>   `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html`.
+>   Any `sebmendo1.github.io` URL below is the **old** host and is not served.
+> - The label is **not** "Data Not Collected". Since spec 042 the target is
+>   Tracking = No with Other User Content, Other Data Types and User ID declared
+>   — linked, not tracking — for opt-in feedback (`00` D6). Submitting "Data Not
+>   Collected" is what caused the November 2025 rejection.
 
 The policy must be linked in App Store Connect **and** reachable inside the app,
 and must identify what data is collected, how, and every use; confirm that any
 third party receiving user data provides equal protection; explain retention and
 deletion; and describe how a user revokes consent or requests deletion.
 
-**Current state.** The **published** policy at
-`https://sebmendo1.github.io/withMemento/privacy.html` describes **OpenAI,
-Google, and Supabase**, none of which the app uses. `PRIVACY_POLICY.md` at the
-repo root is equally stale (it has a "Google Gemini 2.5 Flash" section).
-`docs/privacy.html` in this repository *is* clean — it was simply never
-published, because Pages is served from a different repository (`00` A6).
+**Historical state, kept because the failure is instructive.** Until 2026-08-17
+the **published** policy at `https://sebmendo1.github.io/withMemento/privacy.html`
+described **OpenAI, Google, and Supabase**, none of which the app used.
+`docs/privacy.html` in this repository was clean and simply never published,
+because Pages was served from a different repository (`00` A6). A policy naming
+third-party AI processors the app does not use is simultaneously a 5.1.1(i)
+defect, a 2.3 accuracy defect, and a contradiction of whatever label is
+declared.
 
-A privacy policy that names third-party AI processors the app does not use is
-simultaneously a 5.1.1(i) defect, a 2.3 accuracy defect, and a direct
-contradiction of the **"Data Not Collected"** label we intend to declare. Fix
-before anything else in this section is meaningful.
+**Current state (2026-09-12).** Pages serves this repo, the live page is
+byte-identical to `docs/privacy.html`, and the match is asserted by
+`scripts/ci/check_live_legal_urls.sh`. The old host is dead and must not be
+pasted anywhere. `PRIVACY_POLICY.md` at the repo root — the third version, with
+its "Google Gemini 2.5 Flash" section — no longer exists: it was deleted in
+`01f0060` ("remove submission noise"). Verified on the filesystem 2026-09-24,
+not inferred from this document, which still described it as present.
 
-**The rewritten policy must state**, in the vocabulary `specs/014` uses:
+**The rewritten policy must state**, in the vocabulary `specs/014` uses — **this
+is the target for when `specs/017`'s PCC routing ships, not the 1.x text.** For
+1.x the served policy is Z0-only and must stay that way (`00` submit-gate 2, row
+B4); the Z1 bullet below is what to add on the commit that introduces routing,
+and not before:
 - Journal content, audio, and derived reflections are stored **on device**, in
   SwiftData, mirrored only to the user's **own CloudKit private database**.
 - Generation happens **on device (Z0)** or on **Apple's Private Cloud Compute
@@ -540,6 +568,11 @@ perform. That was a labels defect (`03` owns it now). The 2026 exposure is
 different and is about AI disclosure.
 
 ### Our position on Private Cloud Compute, stated rather than assumed
+
+> **Applies from the moment PCC routing ships, and not before.** 1.x has no Z1
+> path, so in this binary there is no position to publish — and publishing one
+> would be the accuracy defect it is meant to prevent. Everything below is the
+> standing rule for when `specs/017` lands (`00` row B4).
 
 **Position:** Apple Private Cloud Compute is **Apple's own platform
 infrastructure, not a third-party AI service.** It requires no API key, costs the
