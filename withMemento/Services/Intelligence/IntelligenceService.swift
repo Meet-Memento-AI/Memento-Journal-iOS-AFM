@@ -1,6 +1,6 @@
 //
 //  IntelligenceService.swift
-//  MeetMemento
+//  withMemento
 //
 //  The app's single intelligence boundary (architecture principle P3 /
 //  REQ-INT-001, spec 017). Every AI surface depends on THIS protocol; only the
@@ -161,6 +161,12 @@ struct AskResult: Sendable {
     let facts: [InsightFact]
     /// Session 10 / 044 R4. Zero on iOS 26 and on channels that never attach tools.
     let toolsCalled: Int
+    /// Spec 050 R6: the quotes the body shows, each from the turn's evidence
+    /// pack. Empty on ambient, miss, light, and statistic turns.
+    let chips: [QuoteChip]
+    /// Spec 050 R7: what the renderer did, in counts. Nil where no model
+    /// text was rendered (statistic, authored copy).
+    let renderStats: ReplyRenderStats?
 
     init(
         heading1: String?,
@@ -173,7 +179,9 @@ struct AskResult: Sendable {
         modelIdentifier: String,
         latency: Duration = .zero,
         facts: [InsightFact] = [],
-        toolsCalled: Int = 0
+        toolsCalled: Int = 0,
+        chips: [QuoteChip] = [],
+        renderStats: ReplyRenderStats? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
@@ -186,6 +194,8 @@ struct AskResult: Sendable {
         self.latency = latency
         self.facts = facts
         self.toolsCalled = toolsCalled
+        self.chips = chips
+        self.renderStats = renderStats
     }
 }
 
@@ -334,11 +344,16 @@ protocol IntelligenceService: Sendable {
     /// Streaming Ask that loads the journal only after the channel is known.
     /// No-RAG turns must not await `loadEntries`. The protocol extension
     /// loads eagerly and forwards; the Foundation Models service overrides.
+    ///
+    /// `deep` is the suggestion-card analysis path: the person asked for the
+    /// archive to be read across many entries and is waiting on a synthesis,
+    /// so notebook/thread get a larger token cap. Typed chat passes false.
     func askStream(
         _ question: String,
         history: [ChatTurn],
         images: [Data],
         spoken: Bool,
+        deep: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error>
 
@@ -438,6 +453,7 @@ extension IntelligenceService {
         askStream(question, history: history, entries: entries, images: images, spoken: false)
     }
 
+    /// Back-compat overload for callers that never ask for the deep path.
     func askStream(
         _ question: String,
         history: [ChatTurn],
@@ -445,7 +461,28 @@ extension IntelligenceService {
         spoken: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
-        AsyncThrowingStream { continuation in
+        askStream(
+            question,
+            history: history,
+            images: images,
+            spoken: spoken,
+            deep: false,
+            loadEntries: loadEntries
+        )
+    }
+
+    func askStream(
+        _ question: String,
+        history: [ChatTurn],
+        images: [Data],
+        spoken: Bool,
+        deep: Bool,
+        loadEntries: @escaping @Sendable () async -> [Entry]
+    ) -> AsyncThrowingStream<AskStreamEvent, Error> {
+        // The eager fallback has no channel gate, so `deep` cannot change the
+        // cap here; the Foundation Models service overrides this.
+        _ = deep
+        return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     let entries = await loadEntries()

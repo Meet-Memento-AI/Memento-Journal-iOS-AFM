@@ -1,6 +1,6 @@
 //
 //  JournalPhotoBackdrop.swift
-//  MeetMemento
+//  withMemento
 //
 //  Treated-photo fill for JournalCard. Approximates Figma shader "Journal
 //  backdrop" (786:2721): blur, saturation toward luma, and a WCAG scrim

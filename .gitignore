@@ -107,10 +107,12 @@ iOSInjectionProject/
 **/*.secret.swift
 
 # Specific project secrets
-MeetMemento/Secrets.swift
-MeetMemento/Config/Debug.local.xcconfig
-MeetMemento/Config/Release.local.xcconfig
-MeetMemento/Config/Supabase.xcconfig
+withMemento/Secrets.swift
+withMemento/Config/Debug.local.xcconfig
+withMemento/Config/Release.local.xcconfig
+withMemento/Config/Supabase.xcconfig
+withMemento/Config/RevenueCat.xcconfig
+withMemento/Config/RevenueCat.release.xcconfig
 
 # Environment variables
 .env
@@ -145,3 +147,6 @@ ExportOptions.local.plist
 
 # Release build product used only by the app-size gate (scripts/ci/check_app_size.sh)
 .build-size/
+
+# Personal Claude Code settings (permissions, local MCP servers).
+.claude/settings.local.json

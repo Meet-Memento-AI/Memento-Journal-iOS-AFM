@@ -1,6 +1,6 @@
 //
 //  SecuritySettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Lets the user turn the app lock on or off, change their PIN, and switch
 //  Face ID on or off — after onboarding, not only during it.
@@ -63,7 +63,8 @@ struct SecuritySettingsView: View {
                 explainer
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

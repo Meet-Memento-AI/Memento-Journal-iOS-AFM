@@ -1,6 +1,6 @@
 //
 //  RetrievalPolicy.swift
-//  MeetMemento
+//  withMemento
 //
 //  Maps a classified turn (TurnClassifier) to a retrieval decision and, once
 //  retrieval has run, to the stance instruction handed to the model. The
@@ -65,13 +65,16 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
                 + "no ### unless they asked for the journal; then one question; do not force an insight or citation]"
         case .followupThread:
             return "[Turn: follow-up — continue your previous point in the same thread; "
-                + "Sit if the thread is about the notebook; then one question; "
+                + "Sit if the thread is about the notebook; "
+                + "journal words only as {{quote:N}} / {{date:N}} from an [Evidence] list; "
+                + "then one question; "
                 + "do not restart with a new heading or begin a new entry inventory]"
         case .journalGrounded:
-            return "[Turn: journal question — Meet them, then one ### notebook moment, "
-                + "italic exact quote, then Sit that names a pattern from the evidence; "
+            return "[Turn: journal question — Meet them, then one ### notebook moment "
+                + "built from {{date:N}} and {{quote:N}} in the [Evidence] list, "
+                + "then Sit that names a pattern from the evidence; "
                 + "lists only if they asked what they wrote about a topic; "
-                + "reproduce any quoted field exactly; "
+                + "never type a quote or date yourself; "
                 + "then one question; "
                 + "list only the refs you used in citedRefs; "
                 + "do not reopen an entry already used in this thread]"
@@ -82,7 +85,7 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
                 + "then one question back toward them]"
         case .noMatch:
             return "[Turn: journal question, no matches — "
-                + "Meet them, then say you can't find an entry that supports that; "
+                + "Meet them, then say exactly \"I can't find an entry that supports that.\"; "
                 + "then one question back toward them; "
                 + "no heading, no list; do not invent any; do not change the subject; "
                 + "invite them once to write only if they asked what they have written "

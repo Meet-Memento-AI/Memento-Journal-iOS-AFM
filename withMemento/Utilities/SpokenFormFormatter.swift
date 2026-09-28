@@ -1,6 +1,6 @@
 //
 //  SpokenFormFormatter.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 035: display register → spoken register, then the engine.
 //  Order at the choke point: SpeechTextSanitizer → SpokenFormFormatter → engine.

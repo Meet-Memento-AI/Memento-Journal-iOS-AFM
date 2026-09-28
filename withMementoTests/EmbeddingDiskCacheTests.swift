@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The persistent embedding cache (spec 029): stable hashing, the per-entry
 /// binary records, relaunch survival via a second instance on the same

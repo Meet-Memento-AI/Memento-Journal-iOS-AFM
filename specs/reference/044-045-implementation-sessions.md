@@ -42,8 +42,8 @@ Already done if you are reading this on the branch that added 044/045:
 ### Session 1 — Passage index (044 R1)
 
 **Files (new):**
-- `MeetMemento/Services/Intelligence/PassageChunker.swift` — `NLTokenizer(unit: .sentence)`, merge to 120–400 chars, never split mid-sentence; `NLLanguageRecognizer` once per entry.
-- `MeetMementoTests/PassageChunkerTests.swift`
+- `withMemento/Services/Intelligence/PassageChunker.swift` — `NLTokenizer(unit: .sentence)`, merge to 120–400 chars, never split mid-sentence; `NLLanguageRecognizer` once per entry.
+- `withMementoTests/PassageChunkerTests.swift`
 
 **Files (edit):**
 - `EmbeddingService.swift` — cache key `(entryID, passageIndex, contentHash)`; keep whole-entry vector as fallback. Re-embed only changed passages.
@@ -59,7 +59,7 @@ Already done if you are reading this on the branch that added 044/045:
 ### Session 2 — RetrievalGate + fitted weights (044 R2)
 
 **Files (new):**
-- `MeetMementoTests/Eval/RetrievalGate.swift` — `TEST_RUNNER_RETRIEVAL_GATE=1`, no model. Load `Fixtures/gold/questions.resolved.json` + `Fixtures/corpus`. Report recall@5, precision@5, MRR, abstention accuracy (`match: "none"` → `.empty` or ambient, never a strong hit). Write `.eval-runs/retrieval/`.
+- `withMementoTests/Eval/RetrievalGate.swift` — `TEST_RUNNER_RETRIEVAL_GATE=1`, no model. Load `Fixtures/gold/questions.resolved.json` + `Fixtures/corpus`. Report recall@5, precision@5, MRR, abstention accuracy (`match: "none"` → `.empty` or ambient, never a strong hit). Write `.eval-runs/retrieval/`.
 - `scripts/eval/fit_retriever.swift` (or `RETRIEVER_GRID=1` on the same test) — grid `RetrieverTuning` + hybrid weights + `themeBoost`.
 
 **Files (edit):**
@@ -94,9 +94,9 @@ questions on the current `ask@15` path. Independent of iOS 27.
 ### Session 4 — InsightEngine + Patterns (045 R1, R2)
 
 **Files (new):**
-- `MeetMemento/Services/Intelligence/Insights/InsightFact.swift`
-- `MeetMemento/Services/Intelligence/Insights/InsightEngine.swift`
-- `MeetMementoTests/InsightEngineTests.swift` — golden cadence / people on `Fixtures/corpus`, including sparse weeks → low-confidence (`n < 4`).
+- `withMemento/Services/Intelligence/Insights/InsightFact.swift`
+- `withMemento/Services/Intelligence/Insights/InsightEngine.swift`
+- `withMementoTests/InsightEngineTests.swift` — golden cadence / people on `Fixtures/corpus`, including sparse weeks → low-confidence (`n < 4`).
 
 **Files (edit):**
 - `WeeklyReflectionView.swift` `PatternsView` — charts from facts; every correlation shows `n`; low-confidence copy.

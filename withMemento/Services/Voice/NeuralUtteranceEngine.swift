@@ -1,6 +1,6 @@
 //
 //  NeuralUtteranceEngine.swift
-//  MeetMemento
+//  withMemento
 //
 //  `UtteranceEngine` over `SupertonicEngine` + `TTSPlayback` (spec 031 R2).
 //  This is the path Narration Mode and per-message read-aloud take.

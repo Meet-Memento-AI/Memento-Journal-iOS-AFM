@@ -145,13 +145,13 @@ status at every release. `specs/021` R7 owns this.
 
 ## 4. Entitlements
 
-Current entitlement surface — `MeetMemento/MeetMemento.entitlements` contains
+Current entitlement surface — `withMemento/withMemento.entitlements` contains
 **exactly one** entry:
 
 ```xml
 <key>keychain-access-groups</key>
 <array>
-    <string>$(AppIdentifierPrefix)com.sebastianmendo.MeetMemento</string>
+    <string>$(AppIdentifierPrefix)com.sebmendo.withMementoAI</string>
 </array>
 ```
 
@@ -185,7 +185,7 @@ default (exclude entirely) is also the lowest-review-risk answer.
 
 | Asset | Rule | Ours |
 |---|---|---|
-| **App ID** | Explicit, matching the bundle ID. Capabilities must be enabled **on the App ID**, not only in Xcode | `com.sebastianmendo.MeetMemento` |
+| **App ID** | Explicit, matching the bundle ID. Capabilities must be enabled **on the App ID**, not only in Xcode | `com.sebmendo.withMementoAI` |
 | **Apple Distribution certificate** | Belongs to the *team*, used for TestFlight and App Store. **Account Holder or Admin only.** Apple documents one per team; tooling docs commonly cite up to three | ☐ Verify one exists and is not expiring |
 | **App Store provisioning profile** | Must reference the distribution certificate and the App ID with matching capabilities | Automatic signing manages it |
 | **Signing style** | `CODE_SIGN_STYLE = Automatic`, no `PROVISIONING_PROFILE_SPECIFIER` | ✅ Fine for Xcode Organizer; insufficient for headless CI — see `07` |

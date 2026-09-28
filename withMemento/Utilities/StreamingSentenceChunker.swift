@@ -1,6 +1,6 @@
 //
 //  StreamingSentenceChunker.swift
-//  MeetMemento
+//  withMemento
 //
 //  Turns the *cumulative* body of a streaming AI reply into newly completed
 //  sentences for per-sentence TTS enqueueing (VoicePlaybackService's

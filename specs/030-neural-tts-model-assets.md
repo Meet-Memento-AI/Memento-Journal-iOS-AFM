@@ -2,7 +2,7 @@
 id: 030
 title: Neural TTS Model Assets — Bundled In-App
 tier: P1
-status: in-progress (2026-09-12) — Weights bundled; Acknowledgments UI landed (DEC-010); CI blocks huggingface.co on the TTS path. R6 closed 2026-09-12: the full BigScience Open RAIL-M text now ships as MeetMemento/Resources/OpenRAIL-M.txt and renders in Acknowledgments (a paraphrase is not the notice — Section III requires recipients receive a copy and that Attachment A's restrictions be passed on), asserted by AcknowledgmentsLicenceTests. R7 size question now measured and gated: 188 MB, 12 MB under the 200 MB cellular threshold (docs/app-store/00 C10)
+status: in-progress (2026-09-12) — Weights bundled; Acknowledgments UI landed (DEC-010); CI blocks huggingface.co on the TTS path. R6 closed 2026-09-12: the full BigScience Open RAIL-M text now ships as withMemento/Resources/OpenRAIL-M.txt and renders in Acknowledgments (a paraphrase is not the notice — Section III requires recipients receive a copy and that Attachment A's restrictions be passed on), asserted by AcknowledgmentsLicenceTests. R7 size question now measured and gated: 188 MB, 12 MB under the 200 MB cellular threshold (docs/app-store/00 C10)
 effort: 2 sessions
 depends_on: [018]
 findings: [bundled-not-downloaded-dec-012, synchronized-group-flattens-to-bundle-root, huggingface-autodownload-in-tts-path, upstream-not-archived-premise-corrected, no-acknowledgments-screen-ofl-unattributed, model-weights-invisible-to-dependency-gate, asset-size-escalation-threshold]
@@ -68,13 +68,13 @@ feature late (app size and a licence nobody read) are decided here.
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | ~~No on-device ML asset machinery exists~~ **PARTLY CLOSED 2026-08-18** — the model is vendored and bundled; no engine code exists yet | `MeetMemento/Resources/Voices/` present (148 MB, four `.mlmodelc` + four style vectors); `grep -rn 'import CoreML' MeetMemento/` still **zero hits** — spec 031 owns that | Medium — assets done, engine greenfield |
-| 2 | The only precedent for app-managed on-device model data is an embedding cache, not a downloaded model | `MeetMemento/Services/Intelligence/EmbeddingService.swift` — `NLEmbedding` + disk cache under Application Support, `.completeFileProtection` | Medium — reusable pattern, wrong scale |
+| 1 | ~~No on-device ML asset machinery exists~~ **PARTLY CLOSED 2026-08-18** — the model is vendored and bundled; no engine code exists yet | `withMemento/Resources/Voices/` present (148 MB, four `.mlmodelc` + four style vectors); `grep -rn 'import CoreML' withMemento/` still **zero hits** — spec 031 owns that | Medium — assets done, engine greenfield |
+| 2 | The only precedent for app-managed on-device model data is an embedding cache, not a downloaded model | `withMemento/Services/Intelligence/EmbeddingService.swift` — `NLEmbedding` + disk cache under Application Support, `.completeFileProtection` | Medium — reusable pattern, wrong scale |
 | 3 | The stock SDK auto-downloads weights from Hugging Face on first run, inside the synthesis path | `technology/13` §1, §6 | **Critical** — violates `REQ-TTS-001` |
-| 4 | **No Acknowledgments screen exists**, and three OFL-licensed font families already ship unattributed | `MeetMemento/Views/Settings/AboutSettingsView.swift` has App Information / Support / Legal / Share only; `MeetMemento/Resources/Fonts/` contains Figtree, Lora, Manrope + an `OFL.txt` referenced by **no** Swift file (`grep -rn "OFL\|Acknowledg" MeetMemento --include="*.swift"` → no attribution surface) | High — a live licence gap, independent of TTS |
+| 4 | **No Acknowledgments screen exists**, and three OFL-licensed font families already ship unattributed | `withMemento/Views/Settings/AboutSettingsView.swift` has App Information / Support / Legal / Share only; `withMemento/Resources/Fonts/` contains Figtree, Lora, Manrope + an `OFL.txt` referenced by **no** Swift file (`grep -rn "OFL\|Acknowledg" withMemento --include="*.swift"` → no attribution surface) | High — a live licence gap, independent of TTS |
 | 5 | Model weights pass the dependency gate invisibly — it reads SPM package identities only | `scripts/ci/check_dependency_allowlist.sh` parses `repositoryURL = "…"` out of `project.pbxproj`; a 200 MB model is not a `repositoryURL` | Medium — governance blind spot |
 | 6 | ~~The dependency gate is still report-only~~ **RESOLVED 2026-08-18** — gate is enforcing and the resolved third-party SPM set is empty | `ALLOWLIST_ENFORCE=1 scripts/ci/check_dependency_allowlist.sh` exits 0; `svgkit/svgkit` removed (linked to no target, imported nowhere) along with its `cocoalumberjack` + `swift-log` pins; `Package.resolved` deleted; build and unit suite green | Closed — see R7 |
-| 7 | The fallback this spec must preserve is real and shipping | `MeetMemento/Services/VoicePlaybackService.swift:709` `bestVoiceIdentifier(from:currentLanguage:)`; `:243/:271/:297` the utterance-session primitives every caller uses | — (asset to protect) |
+| 7 | The fallback this spec must preserve is real and shipping | `withMemento/Services/VoicePlaybackService.swift:709` `bestVoiceIdentifier(from:currentLanguage:)`; `:243/:271/:297` the utterance-session primitives every caller uses | — (asset to protect) |
 
 ## Requirements
 
@@ -127,7 +127,7 @@ violation, per the house rule.
 > **bundled in the app**. There is no asset pack, no manifest served anywhere, no
 > fetch, and no "not downloaded yet" state to design around.
 
-The voice pack lives at `MeetMemento/Resources/Voices/` and ships as ordinary
+The voice pack lives at `withMemento/Resources/Voices/` and ships as ordinary
 app resources. The app target uses a `PBXFileSystemSynchronizedRootGroup`, so
 files bundle **by existing in the folder** — no `project.pbxproj` edit is
 required to add or remove them.
@@ -216,7 +216,7 @@ which is the only enforcement that cannot be bypassed.
 Style vectors are small JSON and sit in the bundle like everything else. Spec
 `033` owns how they are named and presented.
 
-**Acceptance:** given the repository, when `MeetMemento/Resources/Voices/voice_styles/`
+**Acceptance:** given the repository, when `withMemento/Resources/Voices/voice_styles/`
 is listed, then it contains exactly four files; and given the built app, then the
 picker can render no more than those four.
 
@@ -304,7 +304,7 @@ attribution required by the weights' licence.
 
 **This closes a gap that predates TTS.** The app already ships three
 OFL-licensed font families — Figtree, Lora, Manrope — and their `OFL.txt` sits in
-`MeetMemento/Resources/Fonts/` referenced by no Swift file. The SIL Open Font
+`withMemento/Resources/Fonts/` referenced by no Swift file. The SIL Open Font
 Licence requires that its copyright notice and permission notice ship with the
 software. Whatever the current exposure is, the fix is the same screen, so the
 font licences land here too rather than waiting for a spec that would never be
@@ -443,7 +443,7 @@ with its reason, before this spec's status moves to done.
 
 ## Appendix A — shipped bundle layout
 
-Vendored at `MeetMemento/Resources/Voices/`. **Flattened to the bundle root at
+Vendored at `withMemento/Resources/Voices/`. **Flattened to the bundle root at
 build time** — there is no `Voices/` directory at runtime (R2).
 
 ```

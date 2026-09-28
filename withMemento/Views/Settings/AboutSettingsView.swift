@@ -1,6 +1,6 @@
 //
 //  AboutSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  About page with version, legal links, and support options
 //  REQUIRED for App Store submission
@@ -41,7 +41,8 @@ public struct AboutSettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())
@@ -86,7 +87,7 @@ public struct AboutSettingsView: View {
             SettingsRow(
                 icon: "envelope.fill",
                 title: "Contact Support",
-                subtitle: "Get help with MeetMemento",
+                subtitle: "Get help with withMemento",
                 showChevron: false,
                 action: {
                     openContactSupport()
@@ -148,7 +149,7 @@ public struct AboutSettingsView: View {
     }
 
     private var socialSection: some View {
-        SettingsSection(title: "Share MeetMemento") {
+        SettingsSection(title: "Share withMemento") {
             SettingsRow(
                 icon: "star.fill",
                 title: "Rate on App Store",
@@ -189,12 +190,12 @@ public struct AboutSettingsView: View {
 
     private func openContactSupport() {
         let email = Constants.Legal.supportEmail
-        let subject = "MeetMemento Support Request"
+        let subject = "withMemento Support Request"
         let body = """
 
 
         ---
-        App: MeetMemento
+        App: withMemento
         Version: \(appVersion)
         Device: \(deviceInfo)
         ---
@@ -215,7 +216,7 @@ public struct AboutSettingsView: View {
     }
 
     private var shareMessage: String {
-        "Check out MeetMemento - Your space for growth & reflection! 📝✨"
+        "Check out withMemento - Your space for growth & reflection! 📝✨"
     }
 }
 

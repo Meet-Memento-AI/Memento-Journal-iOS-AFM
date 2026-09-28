@@ -180,7 +180,7 @@ session.
 
 **Acceptance:**
 - A static-string lint (grep-based is sufficient — this doesn't need NLP)
-  runs in CI against `MeetMemento/**/*.swift` string literals and
+  runs in CI against `withMemento/**/*.swift` string literals and
   `App Store Connect` metadata source (wherever spec 002 keeps it) for the
   forbidden-phrase list above; a match fails the build/PR check.
 - Given/When/Then: given the forbidden-phrase lint, when a string literal
@@ -197,7 +197,7 @@ session.
 > **R3 landed 2026-08-02:** the forbidden-phrase lint is implemented and wired
 > (`scripts/ci/lint_forbidden_phrases.py`, `.github/workflows/spec-gates.yml`).
 > It is comment-aware (scans string literals only, so a comment *mentioning* a
-> phrase is not a violation), scans `MeetMemento/**/*.swift` plus ASC metadata
+> phrase is not a violation), scans `withMemento/**/*.swift` plus ASC metadata
 > `.txt` if present, and honors a `// REQ-POS-001-EXEMPT` line marker (and
 > `// REQ-POS-001-EXEMPT-FILE`) for the positioning claim. Green on the current
 > tree; verified to fail on a planted forbidden literal and to respect the

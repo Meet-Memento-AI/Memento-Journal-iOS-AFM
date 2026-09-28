@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: does a conversation degrade as it gets longer? Sweeps history
 /// depth against a fixed follow-up and records latency, reply size, citation

@@ -21,8 +21,8 @@
 # Usage: scripts/ci/check_privacy_manifest.sh
 set -euo pipefail
 
-MANIFEST="${MANIFEST:-MeetMemento/PrivacyInfo.xcprivacy}"
-SRC_ROOT="${SRC_ROOT:-MeetMemento}"
+MANIFEST="${MANIFEST:-withMemento/PrivacyInfo.xcprivacy}"
+SRC_ROOT="${SRC_ROOT:-withMemento}"
 
 [ -f "$MANIFEST" ] || { echo "FAIL: privacy manifest not found: $MANIFEST"; exit 1; }
 
@@ -133,6 +133,22 @@ else
     note "Remove the collected-type declarations or restore the verification client."
     fail=1
   fi
+fi
+
+# Spec 021 R3/R5: RevenueCat collects purchase history (its own bundled manifest
+# says so). Declared iff the integration exists, and never linked.
+purchases_dir="${SRC_ROOT}/Services/Purchases"
+if [ -d "$purchases_dir" ]; then
+  if grep -A2 "<string>NSPrivacyCollectedDataTypePurchaseHistory</string>" "$MANIFEST" | grep -A1 "NSPrivacyCollectedDataTypeLinked</key>" | grep -q "<false/>"; then
+    echo "OK   collected type declared: NSPrivacyCollectedDataTypePurchaseHistory (not linked)"
+  else
+    echo "FAIL: $purchases_dir exists but $MANIFEST does not declare PurchaseHistory as not linked"
+    note "RevenueCat's bundled manifest declares it; the app label must match (spec 021 R5)."
+    fail=1
+  fi
+elif grep -q "<string>NSPrivacyCollectedDataTypePurchaseHistory</string>" "$MANIFEST"; then
+  echo "FAIL: PurchaseHistory is declared but $purchases_dir is absent."
+  fail=1
 fi
 
 # --- ATT must be absent ------------------------------------------------------

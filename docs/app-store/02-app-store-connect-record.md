@@ -13,15 +13,27 @@ edit it, and its status.
 
 | Field | Value | Note |
 |---|---|---|
-| **Bundle ID** | `com.sebastianmendo.MeetMemento` | **Immutable after the first build is uploaded.** Already uploaded — locked |
-| **SKU** | *(record the existing value from App Store Connect)* | Internal only, immutable |
-| **Apple ID (app)** | `6754416850` | Recorded in `MeetMemento/Views/Monetization/Configuration.storekit` as `_applicationInternalID` — confirm in App Store Connect |
+| **Bundle ID** | `com.sebmendo.withMementoAI` | **Immutable after the first build is uploaded.** ⚠️ Not yet registered — see the callout below |
+| **SKU** | *(assign when creating the new record)* | Internal only, immutable |
+| **Apple ID (app)** | *(assigned when the new record is created)* | The old record's was `6754416850`. The `Configuration.storekit` file this row used to cite no longer exists — monetization code was removed — so there is nothing in-repo left to update |
 | **Team ID** | `F3NM4HTMW8` | `DEVELOPMENT_TEAM` in `project.pbxproj` |
 | **Primary language** | English (U.S.) | The fallback for every territory without a localization, and the language reviewers read first |
-| **Display name** | **Memento** | `INFOPLIST_KEY_CFBundleDisplayName` — note this differs from the project/target name `MeetMemento` |
+| **Display name** | **Memento** | `INFOPLIST_KEY_CFBundleDisplayName` — note this differs from the project/target name `withMemento` |
 
-> The app record already exists — the November 2025 submission used it. This is a
-> **new version** on an existing record, not a new app.
+> ⚠️ **This is now a new app record, not a new version.** The November 2025
+> submission shipped under bundle ID `com.sebastianmendo.MeetMemento` (App Apple
+> ID `6754416850`). That ID is immutable, so the rename to
+> `com.sebmendo.withMementoAI` cannot reuse it.
+>
+> Before the next upload you must: register the explicit App ID
+> `com.sebmendo.withMementoAI` (with iCloud/CloudKit, Sign in with Apple and the
+> `com.sebmendo.withMementoAI` keychain group enabled on the App ID itself),
+> create the iCloud container `iCloud.com.sebmendo.withMementoAI`, create a fresh
+> App Store Connect record, and regenerate provisioning profiles.
+>
+> Consequences of the switch: the existing listing keeps App Apple ID
+> `6754416850`, existing installs cannot update to the renamed app, and ratings,
+> reviews, rankings and TestFlight testers do not carry over.
 
 ---
 
@@ -74,7 +86,7 @@ Apple's own common-rejection #6 is *unclear data access requests*. These strings
 are the one piece of privacy copy every user actually reads, so they carry the
 on-device boundary too — which also serves Guideline **5.1.2(i)** (`01` §5.1.2).
 
-Defined in **`MeetMemento/Info.plist` only** — the duplicate
+Defined in **`withMemento/Info.plist` only** — the duplicate
 `INFOPLIST_KEY_NS*UsageDescription` build settings were deleted by spec 002 R5
 and must not come back (`GENERATE_INFOPLIST_FILE = YES` merges both, and the
 winner is unpredictable).
@@ -158,7 +170,7 @@ be reviewed in the order submitted."*
       (`SettingsView.swift`).
 - [ ] Category is Lifestyle; neither Health & Fitness nor Medical is selected.
 - [ ] Copyright is `2026 Sebastian Mendoza` with no © symbol.
-- [ ] `grep -c "INFOPLIST_KEY_NSMicrophone\|INFOPLIST_KEY_NSSpeech" MeetMemento.xcodeproj/project.pbxproj` → **0**
+- [ ] `grep -c "INFOPLIST_KEY_NSMicrophone\|INFOPLIST_KEY_NSSpeech" withMemento.xcodeproj/project.pbxproj` → **0**
       (usage strings defined once, in `Info.plist`).
 - [ ] Usage strings match §4 **and** are no more absolute than the code that
       backs them.

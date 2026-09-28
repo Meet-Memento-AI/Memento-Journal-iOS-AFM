@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording, italics for an exact journal quote. Leave citedRefs empty when you did not use an entry. No emoji, no reference markers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by its date or subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -104,6 +104,8 @@ struct AskTurnPerf: Sendable, Equatable {
     let promptVersion: String
     let channel: String
     let speculativeHit: Bool
+    /// `OnDeviceModelTier.rawValue` (spec 051 R4), so latency splits by model.
+    let modelTier: String
 }
 
 /// Closed-vocab onboarding estimate. Theme ids are reconciled against ThemeCatalog in Swift.
@@ -194,6 +196,7 @@ final class SearchJournalTool: Tool {
     private let state: SearchJournalTurnState
     private let ingestPool: @Sendable ([RetrievedEntry]) -> Void
 
+    // periphery:ignore - built when attachSearchOnMiss is wired (044 R4); retained deliberately
     init(
         entries: [Entry],
         limits: RetrievalLimits,
@@ -321,7 +324,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Cached availability. Once the model reports `.available` it stays
     /// available for the process, so we resolve it once instead of querying
-    /// `SystemLanguageModel.default.availability` on every ask/summary/estimate.
+    /// `onDeviceModel().availability` on every ask/summary/estimate.
     private var cachedAvailability: IntelligenceAvailability?
 
     /// Consecutive refusals with no success between (see `RefusalOutageTracker`).
@@ -333,7 +336,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@18` or
+    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@19` or
     /// `chat-companion@1`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
@@ -342,19 +345,24 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var lastTurnPerf: AskTurnPerf?
 
     /// Consumes the speculative session iff its plan fingerprint matches.
+    /// Pool keys carry the model tier (spec 051 R2), so a session prewarmed
+    /// before the tier resolved is never adopted as if it were resolved.
     private func takeSpeculativeSession(matching fingerprint: String) -> LanguageModelSession? {
+        let key = OnDeviceModelTierCache.shared.current.poolKey(for: fingerprint)
         stateLock.lock(); defer { stateLock.unlock() }
-        return speculativePool.take(matching: fingerprint)
+        return speculativePool.take(matching: key)
     }
 
     private func hasSpeculativeSession(matching fingerprint: String) -> Bool {
+        let key = OnDeviceModelTierCache.shared.current.poolKey(for: fingerprint)
         stateLock.lock(); defer { stateLock.unlock() }
-        return speculativePool.has(matching: fingerprint)
+        return speculativePool.has(matching: key)
     }
 
     private func storeSpeculativePair(_ pair: [(fingerprint: String, session: LanguageModelSession)]) {
+        let tier = OnDeviceModelTierCache.shared.current
         stateLock.lock(); defer { stateLock.unlock() }
-        speculativePool.replaceAll(pair.map { ($0.fingerprint, $0.session) })
+        speculativePool.replaceAll(pair.map { (tier.poolKey(for: $0.fingerprint), $0.session) })
     }
 
     /// Monotonic prewarm request counter. A prewarm that queued behind the
@@ -384,7 +392,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         lastTurnPerf = AskTurnPerf(
             promptVersion: promptVersion,
             channel: channel.rawValue,
-            speculativeHit: speculativeHit
+            speculativeHit: speculativeHit,
+            modelTier: OnDeviceModelTierCache.shared.current.tier.rawValue
         )
     }
 
@@ -582,7 +591,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         _ = journal
         _ = limits
-        return LanguageModelSession(transcript: transcript)
+        return LanguageModelSession(model: Self.onDeviceModel(), transcript: transcript)
     }
 
     /// Speculatively builds and prefills sessions for the NEXT turn of a
@@ -599,8 +608,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let generation = bumpPrewarmGeneration()
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+            // Resolves the model tier before any pool key is built.
+            _ = await self.availability()
             let personalization = PromptPersonalization.fromLocalProfile()
-            let budget = ContextBudget(window: Self.currentWindow())
+            let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
 
             var plans: [AskTranscriptPlan] = []
             var seen = Set<String>()
@@ -632,6 +643,20 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
     }
 
+    // MARK: On-device model
+
+    /// The one place the on-device model is chosen (spec 051 R2). Every
+    /// session, availability check, window read, and token count goes
+    /// through here, so they all describe the model that will actually run.
+    ///
+    /// Path B: `.default` is AFM 3 Core Advanced on devices with at least
+    /// 12 GB and AFM 3 Core elsewhere; the OS does the fallback. If spec 051
+    /// R0 finds an SDK tier selector (path A), explicit selection with a
+    /// one-retry fallback to Core lands here and nowhere else.
+    private static func onDeviceModel() -> SystemLanguageModel {
+        SystemLanguageModel.default
+    }
+
     // MARK: Availability
 
     func availability() async -> IntelligenceAvailability {
@@ -644,7 +669,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // governance (spec 017 R2/R3) — is an iOS-27-SDK type; it re-enables when
         // the app builds against Xcode 27 and is approved for PCC. On-device-first.
         let resolved: IntelligenceAvailability
-        switch SystemLanguageModel.default.availability {
+        switch Self.onDeviceModel().availability {
         case .available:
             resolved = .available(.z0Device)
         case .unavailable(let reason):
@@ -656,8 +681,36 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // can flip to available later, so keep re-checking that case.
         if case .available = resolved {
             cachePositiveAvailability(resolved)
+            Self.resolveOnDeviceTierIfNeeded()
         }
         return resolved
+    }
+
+    /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
+    /// `reported` is nil and the tier is inferred from OS and memory. Only
+    /// called after a `.available` result; the cache ignores `.unknown`.
+    /// False on a simulator, where `ProcessInfo.physicalMemory` is the host
+    /// Mac's. Spec 051 R1 infers the tier from the memory class, which is only
+    /// meaningful when the memory is the device's own.
+    private static var physicalMemoryDescribesTheDevice: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return true
+        #endif
+    }
+
+    private static func resolveOnDeviceTierIfNeeded() {
+        let cache = OnDeviceModelTierCache.shared
+        guard !cache.hasResolved else { return }
+        let info = ProcessInfo.processInfo
+        cache.store(OnDeviceModelTierResolver.resolve(
+            reported: nil,
+            modelAvailable: true,
+            osMajorVersion: info.operatingSystemVersion.majorVersion,
+            physicalMemoryBytes: info.physicalMemory,
+            memoryDescribesTheDevice: Self.physicalMemoryDescribesTheDevice
+        ))
     }
 
     // MARK: Prewarm
@@ -698,6 +751,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return ModelRouter.resolve(intent: intent, pinnedToDevice: false, pccCapability: capability)
     }
 
+    /// The resolved on-device model tier; `.unknown` (Core's clamps) until
+    /// the first `.available` result resolves it (spec 051 R5).
+    private static func currentTier() -> OnDeviceModelTier {
+        OnDeviceModelTierCache.shared.current.tier
+    }
+
     /// The model's usable context window (CONSTITUTION §4 rule 5's corollary).
     ///
     /// `SystemLanguageModel.contextSize` is declared in the iOS 27 SDK and
@@ -711,7 +770,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// exact thing this rule forbids.
     private static func currentWindow() -> ContextWindow {
         #if compiler(>=6.3)
-        return .reported(tokens: SystemLanguageModel.default.contextSize)
+        return .reported(tokens: Self.onDeviceModel().contextSize)
         #else
         return .unavailable
         #endif
@@ -743,7 +802,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // latency record (spec 029 R1) and it is content-free by construction,
         // so it is safe as public metadata and useful in release traces.
         PerfSignposts.perfLog.info(
-            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools)"
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools) \(OnDeviceModelTierCache.shared.current.logFields, privacy: .public)"
         )
     }
 
@@ -770,7 +829,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // longer reconciles the two — it reports conflicting bindings for `T`.
         // Spelling the labels on both sides pins `T` to one tuple type.
         return await ModelRuntimeGate.shared.tryWithLock { () -> (prompt: Int?, cached: Int?) in
-            let model = SystemLanguageModel.default
+            let model = Self.onDeviceModel()
             let inst = try await model.tokenCount(for: Instructions(instructions))
             let user = try await model.tokenCount(for: prompt)
             return (prompt: inst + user, cached: nil)
@@ -826,11 +885,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prompt: String
         let resolved: ResolvedPrompt
         let budget: ContextBudget
-        /// The session transcript (instructions + history tail) this turn
-        /// runs against — and the adoption key for speculative sessions.
-        let plan: AskTranscriptPlan
         let generationOptions: GenerationOptions
         let spoken: Bool
+        /// What the prompt carries and the renderer may insert (spec 050).
+        /// `buildAskPrompt` received this exact pack.
+        let pack: EvidencePack
+        /// What the person has said, for quoting and dating their own words.
+        let renderContext: RenderContext
 
         var zone: TrustZone { request.zone }
     }
@@ -843,6 +904,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let entries: [Entry]
         let images: [Data]
         let spoken: Bool
+        /// Suggestion-card analysis path — raises the notebook token cap.
+        let deep: Bool
         let safety: SafetyDecision
         let turn: TurnType
         let channel: ReplyChannel
@@ -859,7 +922,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         func replacingEntries(_ entries: [Entry]) -> AskCore {
             AskCore(
                 question: question, history: history, entries: entries, images: images,
-                spoken: spoken, safety: safety, turn: turn, channel: channel, evidence: evidence, route: route,
+                spoken: spoken, deep: deep, safety: safety, turn: turn, channel: channel, evidence: evidence, route: route,
                 budget: budget, promptCap: promptCap, poolLimits: poolLimits,
                 resolved: resolved, request: request, plan: plan,
                 storedPersonalization: storedPersonalization
@@ -905,7 +968,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     private func prepareAskCore(
-        question: String, history: [ChatTurn], entries: [Entry], images: [Data], spoken: Bool = false
+        question: String, history: [ChatTurn], entries: [Entry], images: [Data],
+        spoken: Bool = false, deep: Bool = false
     ) async throws -> AskCore {
         let signposter = PerfSignposts.chatTurn
         let spid = signposter.makeSignpostID()
@@ -946,7 +1010,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // Statistic never reads SystemLanguageModel — not for availability,
         // not for contextSize. The count is Swift.
         let budget = ContextBudget(
-            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable
+            window: channel.requiresOnDeviceModel ? Self.currentWindow() : .unavailable,
+            tier: Self.currentTier()
         )
         if channel.requiresOnDeviceModel {
             let availability = await availability()
@@ -981,6 +1046,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskCore(
             question: question, history: history, entries: entries, images: images, spoken: spoken,
+            deep: deep,
             safety: safety, turn: turn, channel: channel, evidence: .matched, route: route, budget: budget,
             promptCap: limits.maxEntries,
             poolLimits: RetrievalLimits(
@@ -1075,7 +1141,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         return AskCore(
             question: core.question, history: core.history, entries: core.entries, images: core.images,
-            spoken: core.spoken, safety: core.safety, turn: core.turn, channel: channel,
+            spoken: core.spoken, deep: core.deep, safety: core.safety, turn: core.turn, channel: channel,
             evidence: evidence, route: core.route, budget: core.budget, promptCap: core.promptCap,
             poolLimits: core.poolLimits, resolved: resolved, request: request, plan: plan,
             storedPersonalization: core.storedPersonalization
@@ -1143,10 +1209,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let computed = computedSlice.isEmpty
             ? []
             : InsightEngine.facts(entries: computedSlice, moodLabels: [:])
-        let shape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
-        let policy = ResponsePolicyResolver.policy(shape: shape, evidence: core.evidence)
+        let questionShape = QuestionShapeResolver.shape(of: core.question, turn: core.turn)
+        let policy = ResponsePolicyResolver.policy(shape: questionShape, evidence: core.evidence)
         let retracted = RetractedClaims.claims(in: core.history)
         let interpretationCut = RetractedClaims.interpretationCutActive(in: core.history)
+        let pack = EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: core.channel, archiveEmpty: core.entries.isEmpty
+        )
         let prompt = Self.buildAskPrompt(
             question: core.question,
             history: HistoryWindow.promptHistory(core.history),
@@ -1167,19 +1236,22 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             computedFacts: computed,
             policy: policy,
             retracted: retracted,
-            interpretationCut: interpretationCut
+            interpretationCut: interpretationCut,
+            evidencePack: pack
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
             for: core.channel,
             retrievalRan: retrievalRan,
             spoken: core.spoken,
+            deep: core.deep,
             toolsAttached: toolsAttached
         )
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
             channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
-            budget: core.budget, plan: core.plan, generationOptions: generationOptions, spoken: core.spoken
+            budget: core.budget, generationOptions: generationOptions, spoken: core.spoken,
+            pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
         )
     }
 
@@ -1226,18 +1298,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
     }
 
-    /// Builds the final `AskResult` (citations reconciled, reference markers
-    /// stripped, output safety scanned) from either the whole-answer `respond`
-    /// or the last streamed snapshot.
+    /// Builds the final `AskResult` from either the whole-answer `respond` or
+    /// the last streamed snapshot. The renderer runs first (spec 050): every
+    /// check below — the epistemic guard, output safety, citations — reads
+    /// exactly the body the person will see.
     private func makeResult(heading1: String?, heading2: String?, body: String, citedRefs: [Int],
                             prep: AskPreparation, question: String, latency: Duration,
                             promptTokens: Int? = nil, cachedTokens: Int? = nil) throws -> AskResult {
         // The model produced output, so whatever else this turn does — including
         // an output-safety throw below — the pipeline is not in an outage.
         noteGenerationSucceeded()
-        let cleanedBody = Self.strippingReferenceMarkers(
-            OutputSafetyScanner.strippingHarnessMarkup(body)
-        )
+        let rendered = ReplyRenderer.render(body, pack: prep.pack, context: prep.renderContext)
+        AppLogger.log("[Intelligence] render \(rendered.stats.logLine)", type: .info)
+        let cleanedBody = rendered.body
         let rung = EvidenceLadder.rung(
             stance: prep.stance, retrieval: prep.retrieval, question: question
         )
@@ -1253,10 +1326,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 throw IntelligenceError.safetyRefusal(hit.category)
             }
         }
-        // `cleanedBody`, not `body`: markers are already stripped, and the quote
-        // match should see exactly the text the reader sees.
-        let citations = Self.reconcileCitations(
-            citedRefs, retrieval: prep.retrieval, question: question, body: cleanedBody
+        // What the body shows leads; the model's citedRefs are the backstop.
+        let citations = CitationReconciliation.citations(
+            for: rendered, pack: prep.pack, citedRefs: citedRefs,
+            retrieval: prep.retrieval, question: question
         )
         let toolsCalled = askSearchState?.toolsCalled ?? 0
         Self.logOutcome(intent: prep.request.intent, route: prep.route,
@@ -1275,7 +1348,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: prep.request.promptVersion,
             modelIdentifier: Self.modelIdentifier(for: prep.zone),
             latency: latency,
-            toolsCalled: toolsCalled
+            toolsCalled: toolsCalled,
+            chips: rendered.chips,
+            renderStats: rendered.stats
         )
     }
 
@@ -1398,12 +1473,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 options: Self.askOptions(for: .phatic, retrievalRan: false, spoken: core.spoken),
                 bodyOnly: true
             )
+            let rendered = ReplyRenderer.render(
+                body, pack: .empty, context: RenderContext(question: question, history: core.history)
+            )
             return AskResult(
-                heading1: nil, heading2: nil, body: body, citations: [],
+                heading1: nil, heading2: nil, body: rendered.body, citations: [],
                 zoneUsed: core.route.executionZone, wasDegraded: false,
                 promptVersion: resolved.version,
                 modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
-                latency: clock.now - started
+                latency: clock.now - started,
+                renderStats: rendered.stats
             )
         } catch {
             return nil
@@ -1418,12 +1497,15 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         for channel: ReplyChannel,
         retrievalRan: Bool,
         spoken: Bool,
+        deep: Bool = false,
         toolsAttached: Bool = false
     ) -> GenerationOptions {
         _ = toolsAttached
         return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
-            maximumResponseTokens: channel.maximumResponseTokens(retrievalRan: retrievalRan, spoken: spoken)
+            maximumResponseTokens: channel.maximumResponseTokens(
+                retrievalRan: retrievalRan, spoken: spoken, deep: deep
+            )
         )
     }
 
@@ -1670,6 +1752,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         history: [ChatTurn],
         images: [Data],
         spoken: Bool,
+        deep: Bool,
         loadEntries: @escaping @Sendable () async -> [Entry]
     ) -> AsyncThrowingStream<AskStreamEvent, Error> {
         AsyncThrowingStream { continuation in
@@ -1682,7 +1765,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 do {
                     let prepState = signposter.beginInterval("prep", id: spid)
                     let core = try await prepareAskCore(
-                        question: question, history: history, entries: [], images: images, spoken: spoken
+                        question: question, history: history, entries: [], images: images,
+                        spoken: spoken, deep: deep
                     )
                     coreForRetry = core
                     if core.channel == .statistic {
@@ -1729,9 +1813,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
                     let session = prepared.adopted.session
                     let bodyOnly = prep.channel.usesBodyOnlySchema(spoken: prep.spoken, evidence: prep.evidence)
-                    let reviewed = Self.reconcileCitations(
-                        [], retrieval: prep.retrieval, question: question
-                    )
+                    // Only a matched pack may cite; ambient and miss turns show
+                    // no "Reviewed your journals" link (spec 050 R6).
+                    let reviewed = prep.pack.state == .matched
+                        ? Self.reconcileCitations([], retrieval: prep.retrieval, question: question)
+                        : []
+                    let granularity = ReplyRenderer.granularity(for: prep.channel)
 
                     // Watchdog clock, shared with the watchdog child task.
                     let lastProgress = OSAllocatedUnfairLock(initialState: clock.now)
@@ -1740,8 +1827,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let tail: StreamTail = try await withThrowingTaskGroup(of: StreamTail?.self) { group in
                         group.addTask {
                             var tail = StreamTail()
-                            var lastRawBody = ""
+                            var lastPrefix = ""
                             var lastCleaned = ""
+                            var lastYielded = ""
                             var scannedCount = 0
                             var sawFirstSnapshot = false
                             var streamState: OSSignpostIntervalState?
@@ -1769,12 +1857,19 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 tail.body = body
                                 if let refs = citedRefs { tail.citedRefs = refs }
 
+                                // Buffer-then-render per stable prefix (spec 050 R5):
+                                // whole sentences on journal channels, whole words on
+                                // light ones, never inside an open marker or quote. The
+                                // bubble and TTS only ever see rendered text.
+                                let prefix = ReplyRenderer.stablePrefix(of: tail.body, granularity: granularity)
                                 let cleaned: String
-                                if tail.body == lastRawBody {
+                                if prefix == lastPrefix {
                                     cleaned = lastCleaned
                                 } else {
-                                    cleaned = Self.strippingReferenceMarkers(tail.body)
-                                    lastRawBody = tail.body
+                                    cleaned = ReplyRenderer.render(
+                                        prefix, pack: prep.pack, context: prep.renderContext, isFinal: false
+                                    ).body
+                                    lastPrefix = prefix
                                     lastCleaned = cleaned
                                 }
 
@@ -1793,6 +1888,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                 }
                                 scannedCount = cleaned.count
 
+                                // Nothing settled yet, or nothing new: keep the
+                                // thinking state rather than paint an empty bubble.
+                                guard cleaned != lastYielded else { return }
+                                lastYielded = cleaned
                                 continuation.yield(.delta(
                                     bodySoFar: cleaned,
                                     heading1: nil,
@@ -1915,10 +2014,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
         let route = await resolveRoute(for: .profileEstimate)
         let zone = route.executionZone
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .profileEstimate, zone: zone,
                                               degraded: route.useDegradedPrompt)
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         let prompt = Self.buildProfileEstimatePrompt(reflection: trimmed, budget: budget)
 
         do {
@@ -1991,7 +2090,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
 
         let route = await resolveRoute(for: .summary)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(intent: .summary, zone: route.executionZone,
                                               degraded: route.useDegradedPrompt)
 
@@ -2009,7 +2108,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             break
         }
 
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         // The conversation is bounded by the same history allocation the ask
         // prompt uses, so a long chat can't crowd out the summary itself.
         let conversation = turns.suffix(budget.maxHistoryTurns).map { turn in
@@ -2081,6 +2180,27 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     ///
     /// So the prompt never asks for a denial while holding evidence, and never
     /// promises nearby entries it does not have, whatever the caller passed.
+    /// The model has no clock. Without this it cannot resolve "last Tuesday",
+    /// "yesterday" or "this week" against the dated entries in the context
+    /// block, so it guesses — and a guessed date in a journal reads as fact.
+    ///
+    /// Measured on the 2026-09-20 study: 90 of 3,119 generated replies asserted
+    /// a specific date, 14 of them on the arm with **no journal at all**,
+    /// including "I don't see anything from that stretch — the entry from
+    /// March 12 shows a spike in missed classes". It invented a dated entry in
+    /// the same sentence that admitted it had none.
+    ///
+    /// Same format as `EntryRetriever.formattedDate` plus the weekday, so the
+    /// model can compare this line against `[ref N | March 12, 2026]` directly
+    /// and resolve a weekday name without arithmetic it cannot do.
+    static func todayLine(now: Date = Date(), calendar: Calendar = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE, MMMM d, yyyy"
+        return "[Today: \(formatter.string(from: now))]"
+    }
+
     static func stanceMatchingEvidence(
         _ stance: TurnStance, hasEvidenceBlock: Bool, archiveEmpty: Bool = false
     ) -> TurnStance {
@@ -2106,7 +2226,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        computedFacts: [InsightFact] = [],
                                        policy: ResponsePolicy? = nil,
                                        retracted: [String] = [],
-                                       interpretationCut: Bool = false) -> String {
+                                       interpretationCut: Bool = false,
+                                       evidencePack: EvidencePack? = nil) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
         // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
@@ -2114,7 +2235,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             let fallbackMove: ConversationalMove = channel.usesLightPrompt
                 ? .greetAndAsk : .reflectAndAsk
             let cue = move?.cueLine ?? fallbackMove.cueLine
-            var light: [String] = [cue]
+            var light: [String] = [cue, Self.todayLine()]
             if safetyConstrained {
                 light.insert(SafetyRouter.constrainedStanceLine, at: 0)
             }
@@ -2159,18 +2280,21 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // other direction, so the stance falls back to the honest-empty copy.
         // Every line below reads `effectiveStance`, never `stance`.
         // A miss does not carry the nearest entry. Quoting it and then denying
-        // it is the cite-then-deny hedge.
-        let miss = stance == .noMatch || stance == .nearbyOnly || archiveEmpty
-        let hasEvidenceBlock = channel.allowsRetrieval && !retrieval.contextBlock.isEmpty && !miss
+        // it is the cite-then-deny hedge. The pack makes that call (spec 050),
+        // so the prompt and the renderer agree on what evidence exists; the
+        // live path passes the same pack it renders with.
+        let pack = evidencePack ?? EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: channel, archiveEmpty: archiveEmpty
+        )
+        let hasEvidenceBlock = pack.carriesEvidence
         let effectiveStance = Self.stanceMatchingEvidence(
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
-        var parts: [String] = [effectiveStance.promptLine]
+        var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
         if channel == .notebook || channel == .thread {
-            let rung = EvidenceLadder.rung(
-                stance: effectiveStance, retrieval: hasEvidenceBlock ? retrieval : .empty, question: question
-            )
-            parts.append(EvidenceLadder.promptLine(rung, retrieval: hasEvidenceBlock ? retrieval : .empty))
+            let shipped = hasEvidenceBlock ? retrieval : .empty
+            let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
+            parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
         }
         let grounded = effectiveStance.isGrounded(retrieval: retrieval)
         if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
@@ -2229,13 +2353,16 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // of the ambient text stays in the prompt. Only the instruction
             // that contradicted it changed.
             let framing = "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
-            parts.append(framing + retrieval.contextBlock)
+            parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
         } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
                 parts.append("[No journal entries in the archive]")
             } else {
                 parts.append("[No journal entries matched this topic]")
             }
+        }
+        if let legend = pack.promptLegend(channel: channel) {
+            parts.append(legend)
         }
         // Casual / about-app / outside-scope / sharing-without-context turns get
         // no journal block at all — the stance line already says how to reply.
@@ -2385,12 +2512,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     /// Persisted provenance (`REQ-PRM-004`). Stable strings — the quality study
     /// joins on them, so treat these as a wire format rather than log prose.
-    private static func modelIdentifier(for zone: TrustZone) -> String {
-        switch zone {
-        case .z0Device: return "apple.system.on-device"
-        case .z1AppleContent(let level): return "apple.pcc.\(level.rawValue)"
-        case .z1AppleContentFree: return "apple.cloud.content-free"
-        }
+    /// On-device strings carry the model tier (spec 051 R3).
+    private static func modelIdentifier(
+        for zone: TrustZone,
+        tier: ResolvedOnDeviceModelTier = OnDeviceModelTierCache.shared.current
+    ) -> String {
+        tier.modelIdentifier(for: zone)
     }
 }
 
@@ -2407,7 +2534,7 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .entryReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let cap = max(budget.maxEntryChars, 400)
         let excerpt = String(entry.text.prefix(cap)) // budget-exempt: ContextBudget-derived
         let moodList = MoodLabel.allCases.map(\.rawValue).joined(separator: ", ")
@@ -2419,7 +2546,7 @@ extension FoundationModelsIntelligenceService {
         Entry titled \(entry.title):
         \(excerpt)
         """
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2476,9 +2603,9 @@ extension FoundationModelsIntelligenceService {
         let resolved = PromptRegistry.resolve(
             intent: .weeklyReflection, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let prompt = Self.buildWeeklyPrompt(week: week, entries: inWeek, all: entries, budget: budget)
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2535,7 +2662,7 @@ extension FoundationModelsIntelligenceService {
         let blob = entries.suffix(12).map { "\($0.title) \($0.text)" }.joined(separator: "\n") // budget-exempt: safety-scan cap, not a model payload
         try Self.enforceInputSafety(blob)
         let route = await resolveRoute(for: .profileRefresh)
-        let budget = ContextBudget(window: Self.currentWindow())
+        let budget = ContextBudget(window: Self.currentWindow(), tier: Self.currentTier())
         let resolved = PromptRegistry.resolve(
             intent: .profileRefresh, zone: route.executionZone, degraded: route.useDegradedPrompt
         )
@@ -2555,7 +2682,7 @@ extension FoundationModelsIntelligenceService {
         Recent journal moments:
         \(moments)
         """
-        let session = LanguageModelSession(instructions: resolved.text)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: resolved.text)
         do {
             let response = try await ModelRuntimeGate.shared.withLock(.background) {
                 try await session.respond(
@@ -2671,7 +2798,7 @@ extension FoundationModelsIntelligenceService {
                          prompt: String,
                          temperature: Double = 1.0,
                          maximumResponseTokens: Int = 120) async throws -> String {
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(model: Self.onDeviceModel(), instructions: instructions)
         let response = try await ModelRuntimeGate.shared.withLock {
             try await session.respond(
                 to: prompt,

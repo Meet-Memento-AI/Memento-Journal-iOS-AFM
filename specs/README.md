@@ -40,7 +40,18 @@ specs/
 ├── 049-*.md           ← epistemic voice and response policy (perception ban,
 │                        narrative-join ban, evidence ladder, one-detail reflection,
 │                        history window); voice non-goal; REQ-EPI- — draft
-├── 050-*.md           ← dialogue diffusion (closed-form repair of spans that
+├── 050-*.md           ← evidence pack and reply renderer (the model places
+│                        {{quote:n}} / {{date:n}} markers, Swift inserts the words;
+│                        ask-core@19); REQ-REF- — in progress
+├── 051-*.md           ← on-device model tier (AFM 3 Core Advanced by default on
+│                        ≥12 GB devices, Core otherwise; tier in provenance, perf
+│                        line, and budgets); REQ-TIER- — in progress
+├── 052-*.md           ← CI/CD pipeline + TestFlight release automation (Gate T path)
+├── 053-*.md           ← Day-0 onboarding and first session (quiz, first entry, first
+│                        chat, paywall, reminder opt-in, widget); REQ-ONB- — not started
+├── 054-*.md           ← iPad layout and reading column (two named measures, page-declared
+│                        column, chrome aligned to content); follow-on UI spec to 040
+├── 056-*.md           ← dialogue diffusion (closed-form repair of spans that
 │                        miss the response policy; typed infill not wired)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID

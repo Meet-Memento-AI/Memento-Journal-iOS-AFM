@@ -1,6 +1,6 @@
 //
 //  TranscriptionEngine.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 018 R1: capture seam. SpeechService keeps the published UI surface;
 //  the engine behind it is SpeechAnalyzer / SpeechTranscriber / SpeechDetector.

@@ -1,6 +1,6 @@
 //
 //  WelcomeView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Welcome screen with video background. No account, no sign-in — Get
 //  Started reveals a privacy explainer (Figma 1009:9894), then "Open my
@@ -14,6 +14,7 @@ public struct WelcomeView: View {
     @Environment(\.typography) private var type
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject var appState: AppStateStore
 
     // Video loading and blur states
@@ -67,12 +68,12 @@ public struct WelcomeView: View {
             ZStack {
                 // Plate only while dissolving (intro in / Get Started out).
                 // A standing plate flashes through when the player wraps.
-                // Intro dissolves up from the white LaunchScreen, so that leg
-                // stays white; the exit hands off to onboarding, which paints
-                // `theme.background` — black in dark mode — so it must
-                // dissolve to the same colour or the bridge flashes white.
+                // Both legs use `theme.background`: the intro dissolves up
+                // from LaunchScreen (`LaunchBackground`, white/black by
+                // appearance) and the exit hands off to onboarding, so a
+                // white plate would flash in dark mode either way.
                 if isExiting || videoOpacity < 1 {
-                    (isExiting ? theme.background : Color.white)
+                    theme.background
                         .ignoresSafeArea()
                 }
 
@@ -91,9 +92,23 @@ public struct WelcomeView: View {
                 .opacity(videoOpacity)
                 .ignoresSafeArea()
 
+                // Reduce Transparency drops the blur, which is what kept the
+                // white copy legible over bright frames. Full height: the
+                // privacy step puts its copy near the top.
+                if reduceTransparency {
+                    JournalBackdropShader.scrimColor
+                        .opacity(JournalBackdropShader.scrimCeiling * videoOpacity)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+
                 // Layer 4: Content (appears after video dissolve)
                 if contentCanAppear {
+                    // Copy and CTA take the reading column; the video, the
+                    // scrim and the plate behind them stay full-bleed.
                     contentOverlay
+                        .contentColumn()
                         .opacity(isExiting ? 0 : 1)
                 }
 
@@ -208,8 +223,8 @@ public struct WelcomeView: View {
     /// Matches the launch screen appearance for seamless transition
     private var launchLoadingView: some View {
         ZStack {
-            // White background matching LaunchScreen.storyboard
-            Color.white
+            // Matches LaunchScreen.storyboard's `LaunchBackground`.
+            theme.background
                 .ignoresSafeArea()
 
             // Memento-Logo centered, matching storyboard dimensions
@@ -228,6 +243,7 @@ public struct WelcomeView: View {
     private let welcomeMarkSize: CGFloat = 56
 
     private var welcomeMarkFill: LinearGradient {
+        // overlay-on-video: not canvas
         LinearGradient(
             colors: [
                 Color.white.opacity(0.32),
@@ -251,6 +267,13 @@ public struct WelcomeView: View {
     }
 
     // MARK: - Content Overlay
+
+    /// Figma 905:2054's 24pt sides on iPhone. On regular width the copy and
+    /// CTA sit in the 600pt column, so they take the same 16pt inset as every
+    /// other iPad surface instead of reading 8pt narrower per side.
+    private var introSideInset: CGFloat {
+        horizontalSizeClass == .regular ? AppHeaderMetrics.edgeInset : Spacing.xl
+    }
 
     /// Figma 905:2054 — bottom stack, 24pt sides, 32pt between copy and CTA.
     /// Figma 1009:9894 — privacy explainer after Get Started.
@@ -284,7 +307,7 @@ public struct WelcomeView: View {
             }
             .opacity(step == .privacy || showButtons ? 1 : 0)
             .allowsHitTesting((step == .privacy || showButtons) && !isExiting)
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, introSideInset)
             .padding(.bottom, Spacing.md)
         }
     }
@@ -307,7 +330,7 @@ public struct WelcomeView: View {
                     .accessibilityIdentifier("welcome.positioning")
                     .opacity(showHeadline ? 1 : 0)
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, introSideInset)
         }
     }
 
@@ -465,6 +488,7 @@ public struct WelcomeView: View {
                 .padding(.horizontal, Spacing.xl)
                 .frame(minHeight: AppHeaderMetrics.minimumTapTarget)
                 .background(
+                    // overlay-on-video: not canvas
                     LinearGradient(
                         colors: [
                             Color.white.opacity(Self.ctaFillTopOpacity),
@@ -475,7 +499,7 @@ public struct WelcomeView: View {
                     )
                 )
                 .clipShape(shape)
-                .glassEffect(.regular, in: shape)
+                .mementoChromeGlass(.regular, in: shape)
                 .contentShape(shape)
         }
         .buttonStyle(PrimaryButtonPressStyle())
@@ -484,6 +508,9 @@ public struct WelcomeView: View {
         .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint(hint)
+        // The chip is always light on video; under Reduce Transparency its
+        // plate is `theme.card`, which must stay white under the dark label.
+        .environment(\.theme, .light)
         .environment(\.colorScheme, .light)
         .accessibilityIdentifier(identifier)
     }

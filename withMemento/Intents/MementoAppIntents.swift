@@ -1,6 +1,6 @@
 //
 //  MementoAppIntents.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 020 R1: four App Intents + AppShortcutsProvider. No SiriKit.
 //  Content-returning intents require device authentication (app lock).

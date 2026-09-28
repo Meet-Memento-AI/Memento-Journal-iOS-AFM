@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Throwaway probe: re-runs the three highest-severity defects the streaming
 /// latency probe surfaced, N times each, to separate a one-off sample from a
@@ -10,7 +10,12 @@ import XCTest
 ///  3. casual greeting → unfilled `[Name]` placeholder / invented name
 final class LiveHallucinationRepeatProbe: XCTestCase {
 
-    static let outPath = "/private/tmp/claude-501/-Users-sebastianmendo-Swift-projects-Memento-AI-MeetMemento/094f3be1-69b0-4026-bb20-1aad71a89c42/scratchpad/repeat.md"
+    /// Was an absolute path into one agent session's scratchpad on one
+    /// machine; that directory does not exist here, so the final `try`
+    /// write threw and failed this probe. Routed through `Diag.outDir`,
+    /// which creates the directory and reports a failure instead of
+    /// throwing (046 R1: no more silent or spurious output paths).
+    static let outFile = "repeat.md"
 
     private static let reps = 3
 
@@ -67,10 +72,10 @@ final class LiveHallucinationRepeatProbe: XCTestCase {
                     out += "flags: \(f.isEmpty ? "none" : f.joined(separator: ", "))\n\n"
                     out += "```\n\(body.prefix(900))\n```\n\n"
                 }
-                try? out.write(toFile: Self.outPath, atomically: true, encoding: .utf8)
+                Diag.write(out, Self.outFile)
             }
         }
-        try out.write(toFile: Self.outPath, atomically: true, encoding: .utf8)
+        Diag.write(out, Self.outFile)
         print(out)
     }
 }

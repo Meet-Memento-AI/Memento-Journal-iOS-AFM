@@ -1,6 +1,6 @@
 //
 //  InsightFact.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 045 R1: a Swift-computed fact with a mandatory n. No FoundationModels.
 //

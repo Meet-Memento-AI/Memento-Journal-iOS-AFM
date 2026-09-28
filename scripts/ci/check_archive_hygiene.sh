@@ -7,7 +7,7 @@
 # configuration inside the built app. Shipping schema and internal docs in the
 # binary is information disclosure and submission noise.
 #
-# The MeetMemento/ group is a PBXFileSystemSynchronizedRootGroup: every file in
+# The withMemento/ group is a PBXFileSystemSynchronizedRootGroup: every file in
 # the folder is a target member UNLESS it is listed individually in the
 # membershipExceptions set. Directory-level exceptions DO NOT WORK (spec 002
 # task 9) - so any newly added doc/config/fixture silently starts shipping.
@@ -24,8 +24,8 @@
 #   STOREKIT_ENFORCE=1 -> placeholder product ids fail the build
 set -euo pipefail
 
-PBXPROJ="${PBXPROJ:-MeetMemento.xcodeproj/project.pbxproj}"
-APP_DIR="${APP_DIR:-MeetMemento}"
+PBXPROJ="${PBXPROJ:-withMemento.xcodeproj/project.pbxproj}"
+APP_DIR="${APP_DIR:-withMemento}"
 STOREKIT_ENFORCE="${STOREKIT_ENFORCE:-0}"
 
 [ -f "$PBXPROJ" ] || { echo "FAIL: pbxproj not found: $PBXPROJ"; exit 1; }

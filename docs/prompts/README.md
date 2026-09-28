@@ -1,7 +1,7 @@
 # Memento prompts
 
 Authoritative runtime prompts live in
-[`PromptRegistry.swift`](../../MeetMemento/Services/Intelligence/PromptRegistry.swift).
+[`PromptRegistry.swift`](../../withMemento/Services/Intelligence/PromptRegistry.swift).
 They are bundled Swift constants (spec 017 / REQ-PRM-001). There is **no**
 server-side system prompt and **no** Supabase Edge Function prompt to keep in sync.
 
@@ -67,7 +67,7 @@ via `ExperienceProfileBuilder` for Settings rebuilds.
 
 ## Chat empty-state starters
 
-[`ThemeAwareChatStarters`](../../MeetMemento/Services/ThemeAwareChatStarters.swift)
+[`ThemeAwareChatStarters`](../../withMemento/Services/ThemeAwareChatStarters.swift)
 builds templated suggestions from confirmed theme display names. If the profile
-has no themes, [`AIChatView`](../../MeetMemento/Views/AI-Chat/AIChatView.swift)
+has no themes, [`AIChatView`](../../withMemento/Views/AI-Chat/AIChatView.swift)
 falls back to the default starter set.

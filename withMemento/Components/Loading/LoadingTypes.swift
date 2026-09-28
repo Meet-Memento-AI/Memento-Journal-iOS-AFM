@@ -1,6 +1,6 @@
 //
 //  LoadingTypes.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared types and data for loading screens
 //

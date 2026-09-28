@@ -1,6 +1,6 @@
 //
 //  JournalEmptyMark.swift
-//  MeetMemento
+//  withMemento
 //
 //  Centered empty-journal glyph. Figma 791:2980 — the rebrand mark at 144pt
 //  with a very light inner shadow, not Liquid Glass (this is content).

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Confidence-bar behavior. `semanticThreshold` is pure math and always
 /// deterministic; the retrieve() cases use gibberish/distinct tokens so the

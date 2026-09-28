@@ -6,5 +6,5 @@
 .github/dependabot.yml @Meet-Memento-AI
 
 # Application security-sensitive areas
-MeetMemento/Services/ @Meet-Memento-AI
-MeetMemento/Resources/ @Meet-Memento-AI
+withMemento/Services/ @Meet-Memento-AI
+withMemento/Resources/ @Meet-Memento-AI

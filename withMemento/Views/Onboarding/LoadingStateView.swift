@@ -1,6 +1,6 @@
 //
 //  LoadingStateView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Onboarding completion loading screen with animation
 //
@@ -65,13 +65,14 @@ public struct LoadingStateView: View {
                         message: loadingTips[currentTipIndex].message
                     )
                     .padding(.horizontal, 24)
+                    .contentColumn()
                     .padding(.bottom, 48)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .id(currentTipIndex)
                 }
             }
         }
-        .accessibilityLabel("Loading MeetMemento. \(loadingPhase.message)")
+        .accessibilityLabel("Loading withMemento. \(loadingPhase.message)")
         .onAppear {
             startLoadingSequence()
         }

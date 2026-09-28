@@ -1,6 +1,6 @@
 //
 //  Spacing.swift
-//  MeetMemento
+//  withMemento
 //
 //  Created by Claude Code
 //  Semantic spacing scale and constants for consistent UI spacing

@@ -1,6 +1,6 @@
 //
 //  EmbeddingService.swift
-//  MeetMemento
+//  withMemento
 //
 //  On-device semantic embeddings for journal retrieval, replacing the server's
 //  pgvector/Gemini embeddings. Uses Apple's NaturalLanguage sentence embeddings

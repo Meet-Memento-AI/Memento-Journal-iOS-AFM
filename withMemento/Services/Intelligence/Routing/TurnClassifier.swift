@@ -1,6 +1,6 @@
 //
 //  TurnClassifier.swift
-//  MeetMemento
+//  withMemento
 //
 //  Deterministic classification of the CURRENT chat message into a
 //  conversational turn type. The ~3B on-device model cannot reliably infer

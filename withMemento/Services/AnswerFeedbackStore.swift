@@ -1,6 +1,6 @@
 //
 //  AnswerFeedbackStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  On-device JSON store for spec 041 answer feedback. Mirrors LocalChatStore:
 //  Application Support, complete file protection, lock + write-behind.

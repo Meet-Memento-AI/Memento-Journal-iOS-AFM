@@ -12,7 +12,7 @@ The support.html file has been created. Now upload it:
 
 ```bash
 # Navigate to your GitHub Pages repository
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 
 # Add the support page
 git add support.html
@@ -24,17 +24,17 @@ git commit -m "Add comprehensive support page for App Store requirement"
 git push origin main
 ```
 
-**Verify**: Visit `https://sebmendo1.github.io/MeetMemento/support.html` (may take 2-3 min to go live)
+**Verify**: Visit `https://sebmendo1.github.io/withMemento/support.html` (may take 2-3 min to go live)
 
 ---
 
 ### Step 2: Update App Store Connect - Support URL (2 min)
 
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Navigate to: **My Apps** → **MeetMemento** → **App Information**
+2. Navigate to: **My Apps** → **withMemento** → **App Information**
 3. Find **Support URL** field
-4. Change from: `https://sebmendo1.github.io/MeetMemento/`
-5. Change to: `https://sebmendo1.github.io/MeetMemento/support.html`
+4. Change from: `https://sebmendo1.github.io/withMemento/`
+5. Change to: `https://sebmendo1.github.io/withMemento/support.html`
 6. Click **Save**
 
 ---
@@ -42,7 +42,7 @@ git push origin main
 ### Step 3: Update Privacy Labels in App Store Connect (10 min)
 
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Navigate to: **My Apps** → **MeetMemento** → **App Privacy**
+2. Navigate to: **My Apps** → **withMemento** → **App Privacy**
 3. Click **Edit**
 
 #### For EACH Data Type Listed:
@@ -89,7 +89,7 @@ git push origin main
 ### Step 4: Reply to App Review (5 min)
 
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Navigate to: **My Apps** → **MeetMemento** → **App Store** → **Version 1.0**
+2. Navigate to: **My Apps** → **withMemento** → **App Store** → **Version 1.0**
 3. Find the rejection message
 4. Click **Reply** or **Respond to App Review**
 5. Copy and paste this message:
@@ -103,7 +103,7 @@ We have addressed both issues:
 
 1. Privacy - App Tracking Transparency (Guideline 5.1.2):
    We have updated our App Privacy Information in App Store Connect to accurately
-   reflect that MeetMemento does NOT track users. The previous privacy labels
+   reflect that withMemento does NOT track users. The previous privacy labels
    were incorrectly configured. Our app:
 
    • Does NOT share user data with third parties for advertising
@@ -117,7 +117,7 @@ We have addressed both issues:
 2. Support URL (Guideline 1.5):
    We have created a comprehensive support page with functional contact information
    and updated the Support URL to:
-   https://sebmendo1.github.io/MeetMemento/support.html
+   https://sebmendo1.github.io/withMemento/support.html
 
    This page includes:
    • Email support contact (hello@withmemento.ai)
@@ -150,7 +150,7 @@ Best regards,
 
 Before completing, verify:
 
-- [ ] support.html is live at https://sebmendo1.github.io/MeetMemento/support.html
+- [ ] support.html is live at https://sebmendo1.github.io/withMemento/support.html
 - [ ] Support URL updated in App Store Connect → App Information
 - [ ] Privacy labels updated - NO "Used for Tracking" checkboxes enabled
 - [ ] Performance Data removed from privacy labels (if it was there)

@@ -68,6 +68,12 @@ security setup). The Learn About Yourself reflection is stored only as
 profile preferences (`LocalProfileStore.personalizationText` /
 `ExperienceProfile.reflection`); onboarding does not create a journal entry.
 
+**Amendment (spec 053, 2026-09-26):** the free text and theme chips are now
+collected by the Day-0 quiz (053 R2). Question 2's topic chips seed theme
+estimation, and the optional question 4 is the reflection text. Storage is
+unchanged. The first entry in 053 R3 is written by the user; onboarding
+still never writes one.
+
 ## Acceptance criteria
 
 ### Onboarding estimate + confirm

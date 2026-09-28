@@ -1,6 +1,6 @@
 //
 //  EntryEditorPager.swift
-//  MeetMemento
+//  withMemento
 //
 //  Horizontal paging between saved entries inside the full-page editor
 //  (PRES-023). A thumb swipe walks the journal timeline's own order — newest

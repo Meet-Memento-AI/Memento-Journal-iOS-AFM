@@ -1,6 +1,6 @@
 //
 //  EditAboutYourselfView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Settings editor for the journal-goals reflection. Chrome matches
 //  LearnAboutYourselfView; persist + lens rebuild stay Settings-only.

@@ -1,6 +1,6 @@
 //
 //  AppNavigationState.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 040 R5: bindable section + settings path for a later iPad shell.
 //  Compact UI still uses RootPager; this does not replace it.

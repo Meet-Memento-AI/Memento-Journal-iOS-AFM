@@ -1,6 +1,6 @@
 //
 //  JournalBackdropContrast.swift
-//  MeetMemento
+//  withMemento
 //
 //  Adapts JournalBackdropShader tokens. Dark covers keep a 0 scrim so the
 //  photo reads through. Bright covers get the lightest dark overlay that

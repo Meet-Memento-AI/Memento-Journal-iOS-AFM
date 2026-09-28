@@ -1,6 +1,6 @@
 //
 //  EntryRetriever.swift
-//  MeetMemento
+//  withMemento
 //
 //  On-device retrieval for the Ask surface. Replaces the server's pgvector RAG.
 //  Hybrid ranking = semantic similarity (on-device NaturalLanguage embeddings,

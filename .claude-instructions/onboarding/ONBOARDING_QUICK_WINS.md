@@ -551,7 +551,7 @@ enum DatabaseSetupError: LocalizedError {
 }
 ```
 
-**Files:** `SupabaseService.swift`, call from `MeetMementoApp.swift` on startup
+**Files:** `SupabaseService.swift`, call from `withMementoApp.swift` on startup
 
 ---
 

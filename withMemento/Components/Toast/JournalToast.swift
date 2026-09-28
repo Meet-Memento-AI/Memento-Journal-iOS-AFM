@@ -1,6 +1,6 @@
 //
 //  JournalToast.swift
-//  MeetMemento
+//  withMemento
 //
 //  Toast notification component for journal entry actions.
 //

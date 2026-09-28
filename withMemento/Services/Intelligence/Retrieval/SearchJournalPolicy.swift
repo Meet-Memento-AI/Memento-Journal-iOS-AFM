@@ -1,6 +1,6 @@
 //
 //  SearchJournalPolicy.swift
-//  MeetMemento
+//  withMemento
 //
 //  Session 10 / 044 R4: when the search tool may attach and when a call
 //  is admitted. Pure Swift so tests do not need the iOS 27 Tool type.

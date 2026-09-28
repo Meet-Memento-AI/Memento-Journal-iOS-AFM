@@ -1,6 +1,6 @@
 //
 //  SpeechTextSanitizer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Markdown-bearing chat prose in, speakable plaintext out. A *transformer*,
 //  deliberately distinct from spec 018 R9's `SpeakabilityLinter` (the

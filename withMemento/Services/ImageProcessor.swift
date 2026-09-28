@@ -1,6 +1,6 @@
 //
 //  ImageProcessor.swift
-//  MeetMemento
+//  withMemento
 //
 //  Downscales + compresses a photo before it's encrypted and stored, so a
 //  full-resolution camera/library photo doesn't bloat PhotoStorage or the

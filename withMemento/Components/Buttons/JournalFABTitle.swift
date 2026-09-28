@@ -1,6 +1,6 @@
 //
 //  JournalFABTitle.swift
-//  MeetMemento
+//  withMemento
 //
 //  Journal footer copy. Empty-journal wording is only legal after the first
 //  load has finished — otherwise launch flashes "Write your first entry"

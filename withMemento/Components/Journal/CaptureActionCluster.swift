@@ -1,6 +1,6 @@
 //
 //  CaptureActionCluster.swift
-//  MeetMemento
+//  withMemento
 //
 //  Editor footer Capture control. Same native SwiftUI `Menu` wrapper as
 //  `ReplyOverflowMenu`: the capsule stays put; Take photo / Upload photo
@@ -51,7 +51,10 @@ struct CaptureActionCluster: View {
             }
             .foregroundStyle(foreground)
             .padding(.horizontal, Self.padding)
-            .mementoFooterGlassButtonChrome(interactive: interactive)
+            .mementoFooterGlassButtonChrome(
+                interactive: interactive,
+                opaqueUnderReduceTransparency: false
+            )
         }
         .menuIndicator(.hidden)
         .buttonStyle(.plain)

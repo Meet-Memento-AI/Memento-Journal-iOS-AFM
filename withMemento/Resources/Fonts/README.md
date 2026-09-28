@@ -1,6 +1,6 @@
 # Fonts Directory
 
-This directory contains custom font files for the MeetMemento app.
+This directory contains custom font files for the withMemento app.
 
 ## Installed Fonts
 

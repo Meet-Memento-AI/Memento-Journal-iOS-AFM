@@ -1,17 +1,17 @@
 included:
-  - MeetMemento
+  - withMemento
 
 excluded:
-  - MeetMemento.xcodeproj
-  - MeetMementoTests/Fixtures
+  - withMemento.xcodeproj
+  - withMementoTests/Fixtures
   - UIPlayground
   # Pre-existing oversized types. Phase II only adds a short-circuit / facts
   # field; rewriting them to satisfy file/type length is out of scope.
-  - MeetMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift
-  - MeetMemento/ViewModels/ChatViewModel.swift
-  - MeetMemento/Services/ChatService.swift
+  - withMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift
+  - withMemento/ViewModels/ChatViewModel.swift
+  - withMemento/Services/ChatService.swift
   # Pre-existing oversized view. Phase II only swaps speak over to fact text.
-  - MeetMemento/Components/AIChat/ChatMessagesView.swift
+  - withMemento/Components/AIChat/ChatMessagesView.swift
 
 opt_in_rules:
   - array_init

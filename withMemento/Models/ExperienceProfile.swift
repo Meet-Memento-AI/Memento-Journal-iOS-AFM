@@ -1,6 +1,6 @@
 //
 //  ExperienceProfile.swift
-//  MeetMemento
+//  withMemento
 //
 //  Local per-user personalization produced during onboarding:
 //  reflection seed + confirmed ThemeCatalog ids + bounded prompt lens.

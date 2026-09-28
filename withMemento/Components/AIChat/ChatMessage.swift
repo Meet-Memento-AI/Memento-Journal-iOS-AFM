@@ -1,6 +1,6 @@
 //
 //  ChatMessage.swift
-//  MeetMemento
+//  withMemento
 //
 //  Data model for chat messages in AI Chat interface
 //
@@ -146,6 +146,20 @@ public struct ChatMessage: Identifiable, Hashable {
     public var zone: String?
     public var wasDegraded: Bool?
 
+    /// True for the question a suggestion card asked on the person's behalf.
+    ///
+    /// Such a message renders like a user bubble but **is not a user turn**,
+    /// and `isFromUser` stays `false` for it. The distinction is load-bearing:
+    /// `ChatService.summarizeChat` turns the transcript into a journal entry,
+    /// so a card's question filed as the person's turn would be written into
+    /// their own journal as a sentence they never wrote.
+    ///
+    /// `false` is not the same as "assistant" here either — `summarizeChat`
+    /// drops these messages entirely rather than filing them under either
+    /// role, because the assistant did not say it and neither did the person.
+    /// `StarterOpensConversationTests` pins both halves of that.
+    public var isStarterPrompt: Bool
+
     public init(
         id: UUID = UUID(),
         content: String,
@@ -158,6 +172,7 @@ public struct ChatMessage: Identifiable, Hashable {
         isNew: Bool = false,
         sendFailed: Bool = false,
         isStreaming: Bool = false,
+        isStarterPrompt: Bool = false,
         promptVersion: String? = nil,
         modelIdentifier: String? = nil,
         zone: String? = nil,
@@ -174,10 +189,38 @@ public struct ChatMessage: Identifiable, Hashable {
         self.isNew = isNew
         self.sendFailed = sendFailed
         self.isStreaming = isStreaming
+        self.isStarterPrompt = isStarterPrompt
         self.promptVersion = promptVersion
         self.modelIdentifier = modelIdentifier
         self.zone = zone
         self.wasDegraded = wasDegraded
+    }
+
+    /// A reply the assistant actually generated.
+    ///
+    /// Not the same as `!isFromUser`, which was a safe reading of the
+    /// transcript only while there were exactly two kinds of message. A
+    /// starter prompt is neither the person's turn nor the assistant's, so
+    /// anything that means "an answer" — regenerate, feedback, speak, the
+    /// summarisable-conversation count — must ask this instead.
+    public var isAssistantReply: Bool { !isFromUser && !isStarterPrompt }
+
+    /// The question a suggestion card asked, shown in the transcript.
+    /// Never a user turn — see `isStarterPrompt`.
+    public static func starterPrompt(
+        id: UUID = UUID(),
+        text: String,
+        timestamp: Date = Date(),
+        isNew: Bool = true
+    ) -> ChatMessage {
+        ChatMessage(
+            id: id,
+            content: text,
+            isFromUser: false,
+            timestamp: timestamp,
+            isNew: isNew,
+            isStarterPrompt: true
+        )
     }
 
     // Convenience initializer for AI messages with structured content

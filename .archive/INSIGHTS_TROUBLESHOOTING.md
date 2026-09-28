@@ -40,7 +40,7 @@ if rawJSON.hasPrefix("\"") && rawJSON.hasSuffix("\"") {
 ### **1. Run the App:**
 ```bash
 # Open in Xcode
-open MeetMemento.xcodeproj
+open withMemento.xcodeproj
 
 # Build and run (⌘R)
 ```
@@ -220,7 +220,7 @@ LIMIT 10;
 **Solution:**
 If tables/functions missing, redeploy migrations:
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 supabase db push
 ```
 
@@ -397,7 +397,7 @@ Check Supabase Dashboard:
 
 1. **Redeploy Edge Function:**
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 supabase functions deploy generate-insights --project-ref fhsgvlbedqwxwpubtlls
 ```
 
@@ -410,7 +410,7 @@ AND user_id = 'your-user-id';
 
 3. **Rebuild App:**
 ```bash
-xcodebuild -project MeetMemento.xcodeproj -scheme MeetMemento clean build
+xcodebuild -project withMemento.xcodeproj -scheme withMemento clean build
 ```
 
 4. **Check OpenAI Key:**
@@ -446,8 +446,8 @@ xcodebuild -project MeetMemento.xcodeproj -scheme MeetMemento clean build
 - **Sprint Planning:** `.sprints/SPRINT_PLANNING.md`
 - **Database Schema:** `DATABASE_OPTIMIZATION.md`
 - **Edge Function Code:** `supabase/functions/generate-insights/`
-- **Swift Models:** `MeetMemento/Models/Insight.swift`
-- **Swift ViewModel:** `MeetMemento/ViewModels/InsightViewModel.swift`
+- **Swift Models:** `withMemento/Models/Insight.swift`
+- **Swift ViewModel:** `withMemento/ViewModels/InsightViewModel.swift`
 
 ---
 

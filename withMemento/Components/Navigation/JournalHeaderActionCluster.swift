@@ -1,6 +1,6 @@
 //
 //  JournalHeaderActionCluster.swift
-//  MeetMemento
+//  withMemento
 //
 //  Journal's trailing header control: one Liquid Glass capsule holding
 //  Search and Chat side by side, matching ChatHeaderActionCluster.

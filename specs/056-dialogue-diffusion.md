@@ -1,5 +1,5 @@
 ---
-id: 050
+id: 056
 title: Dialogue Diffusion — Repair the Spans That Miss the Policy
 tier: P2
 status: in-progress (2026-09-22 — closed-form reverse step landed; typed infill not wired)
@@ -14,7 +14,7 @@ source_refs: [REQ-EPI-004, REQ-EPI-005, REQ-EPI-007, REQ-INT-017, REQ-PRM-004]
 tech_refs: [technology/01-foundation-models.md, technology/04-evaluations.md]
 ---
 
-# 050 — Dialogue Diffusion
+# 056 — Dialogue Diffusion
 
 **Traceability:** the expectation is already
 [`049`](049-epistemic-voice-and-response-policy.md)'s `ResponsePolicy`,

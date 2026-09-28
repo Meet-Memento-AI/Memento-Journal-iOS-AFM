@@ -20,7 +20,8 @@
 set -euo pipefail
 
 HOST="${LEGAL_HOST:-https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM}"
-PRIVACY_TMP="$(mktemp -t memento-privacy)"
+# Portable template: GNU mktemp (the Linux runner) rejects BSD's `-t name`.
+PRIVACY_TMP="$(mktemp "${TMPDIR:-/tmp}/memento-privacy.XXXXXX")"
 trap 'rm -f "$PRIVACY_TMP"' EXIT
 fail=0
 
@@ -92,7 +93,7 @@ fi
 # --- Required: the spec 042 opt-in verification disclosure -------------------
 # Present only while the verification client ships. Mirrors the conditional in
 # check_privacy_manifest.sh so the two gates cannot disagree.
-CLIENT="MeetMemento/Services/Feedback/SupabaseFeedbackClient.swift"
+CLIENT="withMemento/Services/Feedback/SupabaseFeedbackClient.swift"
 if [ -f "$CLIENT" ]; then
   if grep -qi 'supabase' "$PRIVACY_TMP" && grep -qi 'quality feedback' "$PRIVACY_TMP"; then
     echo "OK   privacy.html discloses the opt-in verification pipeline (spec 042)"

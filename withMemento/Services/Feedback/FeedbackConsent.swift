@@ -1,6 +1,6 @@
 //
 //  FeedbackConsent.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 042 verification consent. Thumbs need the Settings toggle
 //  (metadata only). Submitting a Report is per-event consent and always

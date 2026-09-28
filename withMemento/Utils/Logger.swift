@@ -1,6 +1,6 @@
 //
 //  Logger.swift
-//  MeetMemento
+//  withMemento
 //
 //  Minimal logging stub (UI boilerplate).
 //

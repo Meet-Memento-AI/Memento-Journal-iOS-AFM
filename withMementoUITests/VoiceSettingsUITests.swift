@@ -5,7 +5,7 @@ import XCTest
 ///
 /// Same launch posture as TTSReadAloudUITests: NO `-UITesting` (that forces
 /// Welcome); seed the simulator once with
-///   xcrun simctl spawn <udid> defaults write com.sebastianmendo.MeetMemento \
+///   xcrun simctl spawn <udid> defaults write com.sebmendo.withMementoAI \
 ///       memento_onboarding_completed -bool true
 final class VoiceSettingsUITests: XCTestCase {
 

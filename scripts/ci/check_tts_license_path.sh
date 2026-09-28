@@ -18,7 +18,7 @@
 # elsewhere is a different question this gate deliberately does not answer.
 set -euo pipefail
 
-roots=(MeetMemento/Services/Voice Packages MeetMemento/Resources/Voices)
+roots=(withMemento/Services/Voice Packages withMemento/Resources/Voices)
 existing=()
 for d in "${roots[@]}"; do
   [ -d "$d" ] && existing+=("$d")
@@ -89,8 +89,8 @@ fi
 # --- 3. The weight attribution must ship in the app --------------------------
 # DEC-010 / R6: where a weight license carries an attribution condition, the
 # attribution is a license term, not a courtesy. Assert the surface exists.
-ACK="MeetMemento/Views/Settings/AcknowledgmentsView.swift"
-if [ -d MeetMemento/Resources/Voices ]; then
+ACK="withMemento/Views/Settings/AcknowledgmentsView.swift"
+if [ -d withMemento/Resources/Voices ]; then
   if [ ! -f "$ACK" ]; then
     echo "FAIL [spec 030 R6 / DEC-010]: voice weights ship but $ACK is missing."
     fail=1

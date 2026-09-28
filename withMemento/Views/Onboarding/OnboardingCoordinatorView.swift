@@ -1,6 +1,6 @@
 //
 //  OnboardingCoordinatorView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Coordinates navigation flow for onboarding steps (UI boilerplate).
 //

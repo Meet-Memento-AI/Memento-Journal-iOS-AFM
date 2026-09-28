@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The prompt may never carry journal evidence and an instruction to deny it.
 ///

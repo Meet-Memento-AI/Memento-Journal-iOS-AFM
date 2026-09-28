@@ -1,6 +1,6 @@
 //
 //  ChatSummarySheet.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bottom sheet modal for summarizing a chat conversation into a journal entry.
 //
@@ -70,7 +70,7 @@ public struct ChatSummarySheet: View {
                     .tint(theme.foreground)
             } else {
                 Image(systemName: "square.and.pencil")
-                    .font(.system(size: 28, weight: .medium))
+                    .font(.system(size: 28, weight: .medium)) // icon-size: not user text
                     .foregroundStyle(theme.foreground)
             }
         }

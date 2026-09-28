@@ -1,6 +1,6 @@
 # Component Template
 
-This template demonstrates best practices for creating new card components using MeetMemento's utility system.
+This template demonstrates best practices for creating new card components using withMemento's utility system.
 
 ## Basic Card Component Template
 

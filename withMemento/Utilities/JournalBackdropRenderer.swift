@@ -1,6 +1,6 @@
 //
 //  JournalBackdropRenderer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Bakes the editor's "Journal backdrop" treatment (blur + saturation) into
 //  one small bitmap, once, off the main thread.

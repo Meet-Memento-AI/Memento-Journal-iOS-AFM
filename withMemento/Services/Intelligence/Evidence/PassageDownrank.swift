@@ -1,6 +1,6 @@
 //
 //  PassageDownrank.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 041 thumbs-down writes an on-device penalty keyed by passage hash.
 //  Purged when the entry is deleted. Nothing leaves the device.

@@ -8,14 +8,14 @@ Reproduce:
 ```
 TEST_RUNNER_CHAT_EVAL=1 \
 DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-xcodebuild test -scheme MeetMemento \
+xcodebuild test -scheme withMemento \
   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
   -parallel-testing-enabled NO \
-  -only-testing:MeetMementoTests/ChatEvalGate
+  -only-testing:withMementoTests/ChatEvalGate
 
 # retrieval-only, no model, seconds instead of minutes:
 TEST_RUNNER_RETRIEVAL_DIAG=1 xcodebuild test … \
-  -only-testing:MeetMementoTests/RetrievalRecallDiag
+  -only-testing:withMementoTests/RetrievalRecallDiag
 ```
 
 ---

@@ -1,6 +1,6 @@
 //
 //  ReflectionContracts.swift
-//  MeetMemento
+//  withMemento
 //
 //  Public entry / weekly reflection types (045 R3–R4 / 017 R5). No
 //  `import FoundationModels` — `@Generable` twins live in the single importer.

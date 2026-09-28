@@ -1,6 +1,6 @@
 //
 //  SpeakabilityLinter.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 018 R9 (REQ-VOX-006, P6): "speakable by construction" enforced
 //  mechanically. Every reflection Memento produces is also spoken by

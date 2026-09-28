@@ -1,6 +1,6 @@
 //
 //  VoiceSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Read-aloud voice and speed. Exactly four voices, bundled in the app
 //  (specs 030 R4, 033 R1/R5; DEC-011/DEC-012).
@@ -19,7 +19,6 @@ import SwiftUI
 
 public struct VoiceSettingsView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var selectedVoiceID: String = VoiceCatalog.default.id
     @State private var selectedRate: SpeechRatePreset = .brisk
@@ -69,7 +68,8 @@ public struct VoiceSettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

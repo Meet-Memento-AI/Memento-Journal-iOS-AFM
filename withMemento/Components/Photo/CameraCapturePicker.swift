@@ -1,6 +1,6 @@
 //
 //  CameraCapturePicker.swift
-//  MeetMemento
+//  withMemento
 //
 //  UIImagePickerController wrapper for camera capture — PhotosUI has no
 //  camera-capture API, so this is the only way to get a native camera sheet.

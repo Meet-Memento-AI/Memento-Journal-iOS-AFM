@@ -1,4 +1,4 @@
-# MeetMemento - Sprint Planning
+# withMemento - Sprint Planning
 ## Database Optimization & AI Insights Caching
 
 **Project Goal**: Optimize database performance and implement intelligent AI insights caching
@@ -66,7 +66,7 @@
 
 ### Files to Create:
 ```
-MeetMemento/
+withMemento/
 ├── ViewModels/
 │   └── InsightsViewModel.swift (NEW)
 └── Models/
@@ -110,7 +110,7 @@ MeetMemento/
 
 ### Files to Modify:
 ```
-MeetMemento/Views/Insights/
+withMemento/Views/Insights/
 └── InsightsView.swift (UPDATE)
 ```
 
@@ -194,7 +194,7 @@ if allText.contains("growth") → Add "Personal growth" theme
 
 ### Files to Create/Modify:
 ```
-MeetMemento/
+withMemento/
 ├── Services/
 │   └── OpenAIService.swift (NEW)
 ├── ViewModels/

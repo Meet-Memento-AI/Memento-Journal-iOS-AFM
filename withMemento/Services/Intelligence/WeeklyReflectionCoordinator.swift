@@ -1,6 +1,6 @@
 //
 //  WeeklyReflectionCoordinator.swift
-//  MeetMemento
+//  withMemento
 //
 //  Session 9 / 045 R4: foreground weekly PeriodReflection. No FoundationModels.
 //

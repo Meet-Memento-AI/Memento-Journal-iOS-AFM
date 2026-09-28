@@ -1,6 +1,6 @@
 //
 //  SafetyClassifier.swift
-//  MeetMemento
+//  withMemento
 //
 //  Deterministic, precision-biased pre-model safety classification (spec 026).
 //  Never calls AFM — lexicon/regex only, same posture as TurnClassifier.

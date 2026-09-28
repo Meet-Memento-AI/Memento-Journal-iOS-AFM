@@ -1,7 +1,7 @@
 import XCTest
 @testable import MeetMemento
 
-/// Spec 050. The closed-form reverse step of dialogue diffusion.
+/// Spec 056. The closed-form reverse step of dialogue diffusion.
 /// No model: a clean reply is returned unchanged, a surplus question is
 /// deleted, and a semantic miss is named for a later infill.
 final class DialogueDiffusionTests: XCTestCase {

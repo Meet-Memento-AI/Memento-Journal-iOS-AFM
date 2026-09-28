@@ -1,6 +1,6 @@
 //
 //  TurnShapeCadence.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 037 R3 / 039 R6: generated Ask turns Open. Overlay says *how* to
 //  ask, never "do not end with a question." Light channels skip the overlay
@@ -50,7 +50,9 @@ struct TurnShapeCadence: Sendable, Equatable {
             return "[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]"
         }
         if stance == .nearbyOnly || stance == .noMatch {
-            return "[Shape: say you can't find an entry that supports that, then one question back toward them. Never a second question. Do not quote a nearer entry.]"
+            return "[Shape: open with \"I can't find an entry that supports that.\" "
+                + "then one question back toward them. Never a second question. "
+                + "Do not quote a nearer entry.]"
         }
         if stance == .outsideScope {
             return "[Shape: that's outside what you can see, then one question toward them. Never a second question.]"

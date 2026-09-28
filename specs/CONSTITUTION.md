@@ -25,11 +25,11 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
 
 - **App**: SwiftUI, **iOS 27.0** deployment target (raised from 17.0 —
   `REQ-PLAT-001`, tracked in spec 015), universal iPhone+iPad. Bundle id
-  `com.sebastianmendo.MeetMemento`, display name "Memento", category Lifestyle.
+  `com.sebmendo.withMementoAI`, display name "Memento", category Lifestyle.
   **Swift 6 language mode, strict concurrency checking = complete** (`REQ-PLAT-002`);
   all model-facing services are `actor`-isolated or `@MainActor`.
 - **Pattern**: MVVM, unchanged by the rewrite. Entry point
-  `MeetMemento/MeetMementoApp.swift`, route enums in `MeetMemento/Models/Routes.swift`
+  `withMemento/withMementoApp.swift`, route enums in `withMemento/Models/Routes.swift`
   — both re-verified, not replaced, as specs 013+ land.
 - **Data layer**: SwiftData is the **authoritative** system of record
   (`StoredEntry`/`StoredReflection`/`StoredCitation`/`StoredConversation`/
@@ -96,10 +96,10 @@ only sanctioned changes are account removal (spec 023) and the contract's own
 
 ### Security
 - **PIN in Keychain**, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
-  (`MeetMemento/Services/SecurityService.swift:134`), with **constant-time
+  (`withMemento/Services/SecurityService.swift:134`), with **constant-time
   comparison** against timing attacks (`SecurityService.swift:171-195`).
 - **Entry encryption**: PBKDF2-SHA256 key derivation with Keychain-stored salt
-  (`MeetMemento/Services/EncryptionService.swift:26,182`).
+  (`withMemento/Services/EncryptionService.swift:26,182`).
 - **Biometrics**: FaceID/TouchID via LocalAuthentication with PIN fallback.
 - ~~**RLS complete**: all 12 tracked tables have `ENABLE ROW LEVEL SECURITY` with
   per-user `auth.uid() = user_id` policies.~~ **Superseded** — Postgres RLS is
@@ -110,7 +110,7 @@ only sanctioned changes are account removal (spec 023) and the contract's own
 - **ATS enabled**: `NSAllowsArbitraryLoads = false`.
 
 ### Store compliance already in place
-- `MeetMemento/PrivacyInfo.xcprivacy` is thorough: tracking=false, collected data
+- `withMemento/PrivacyInfo.xcprivacy` is thorough: tracking=false, collected data
   types (User Content, Email, Name, User ID — all AppFunctionality, none Tracking),
   required-reason APIs declared (UserDefaults CA92.1, File Timestamp C617.1,
   System Boot Time 35F9.1). **Stale for 2.0**: the "collected data types" list
@@ -120,11 +120,11 @@ only sanctioned changes are account removal (spec 023) and the contract's own
   do not hand-edit `.xcprivacy` as part of this specs-only pass.
 - Usage strings present: FaceID, Microphone, Speech Recognition.
 - ~~Sign in with Apple entitlement~~ + keychain access group in
-  `MeetMemento/MeetMemento.entitlements`. **The SIWA entitlement is removed by
+  `withMemento/withMemento.entitlements`. **The SIWA entitlement is removed by
   spec 023** (no accounts); the keychain access group stays — PIN/encryption
   keys live there and are account-independent.
 - Hosted legal pages linked in-app: privacy (`SettingsView.swift`) and terms
-  (`AboutSettingsView.swift`) at `sebmendo1.github.io/MeetMemento/`.
+  (`AboutSettingsView.swift`) at `sebmendo1.github.io/withMemento/`.
 - Automatic signing with real team (F3NM4HTMW8); `LaunchScreen.storyboard` wired.
 
 ### Code quality
@@ -136,7 +136,7 @@ only sanctioned changes are account removal (spec 023) and the contract's own
   with `.alert`-based surfacing.
 - Reduce-motion respected in 8 animation-heavy components.
 - Accessibility labels on 39/151 files (67 `accessibilityLabel`, 19 hints,
-  12 traits) via shared `MeetMemento/Utilities/AccessibilityHelpers.swift`.
+  12 traits) via shared `withMemento/Utilities/AccessibilityHelpers.swift`.
 - Retry-with-backoff on network calls in `JournalService` and `ChatService`.
 - Bundle media modest (`Resources/welcome-bg.mp4` ≈ 2.5 MB).
 - **Audio-session ordering machinery (added 2026-08-18, spec 028 R3).** The
@@ -178,10 +178,10 @@ examples to converge on (do not invent parallel systems):
 
 | Concern | Canonical implementation | Migration spec |
 |---------|--------------------------|----------------|
-| Text styles / Dynamic Type | `MeetMemento/Resources/Typography.swift` (`Font.custom(_:relativeTo:)`) | ~~008~~ — **superseded**, merged into 020 |
-| Logging | `MeetMemento/Utils/Logger.swift` (`AppLogger`, DEBUG-gated) | 005 |
+| Text styles / Dynamic Type | `withMemento/Resources/Typography.swift` (`Font.custom(_:relativeTo:)`) | ~~008~~ — **superseded**, merged into 020 |
+| Logging | `withMemento/Utils/Logger.swift` (`AppLogger`, DEBUG-gated) | 005 |
 | Glass surfaces | one system to be chosen in spec 009 (currently two exist) | 009 |
-| Live journal / chat / profile writes | `MeetMemento/Services/MementoDataStore.swift` + SwiftData `ModelContext` (CloudKit private DB). Do not wrap mirrored rows in the ThisDeviceOnly DEK. | 015 schema / 040 live cutover |
+| Live journal / chat / profile writes | `withMemento/Services/MementoDataStore.swift` + SwiftData `ModelContext` (CloudKit private DB). Do not wrap mirrored rows in the ThisDeviceOnly DEK. | 015 schema / 040 live cutover |
 | ~~Edge-function auth~~ | ~~inline JWT verify pattern in `supabase/functions/chat/index.ts:295-310`~~ | ~~004~~ — **superseded**, spec 004 retired |
 
 New canonical patterns for SwiftData persistence, Core Spotlight donation, and the

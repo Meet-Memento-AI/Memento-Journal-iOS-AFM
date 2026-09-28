@@ -123,7 +123,7 @@ Conventions already in tree: `AccessibilityHelpers`, `Typography` +
 
 | ID | Work | Why |
 |---|---|---|
-| **A5.1** | Empty-state / load flash (`MeetMemento/PLAN.md` race) | Reviewer sees a broken empty journal |
+| **A5.1** | Empty-state / load flash (`withMemento/PLAN.md` race) | Reviewer sees a broken empty journal |
 | **A5.2** | Release logging already gated (spec 005) — spot-check no journal text in OS logs | Privacy |
 | **A5.3** | Metadata drafts in `docs/app-store/metadata/en-US/` — finalize screenshot set (iPhone 6.9″ + iPad 13″) | Upload requirements |
 | **A5.4** | Manual TestFlight path (Gate T) before Submit | Catch Release-only issues |

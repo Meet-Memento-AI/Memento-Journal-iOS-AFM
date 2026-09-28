@@ -1,6 +1,6 @@
 //
 //  QueryDateWindow.swift
-//  MeetMemento
+//  withMemento
 //
 //  The date a question names, resolved to a range over the journal.
 //

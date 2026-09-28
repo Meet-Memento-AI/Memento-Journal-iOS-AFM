@@ -76,7 +76,7 @@ reviewer can tick items off:
 | 3 | **3 — setup and access** | The app-lock skip, the device-passcode fallback, and the exact sample-entries tap path. This is the empty-app defense (2.1) |
 | 4 | **4 — external services** | An explicit list, not prose: Apple Foundation Models, SpeechAnalyzer, NLEmbedding, Vision, CloudKit private DB, MapKit geocoding, bundled CoreML TTS, Supabase (opt-in feedback only). Then the negatives — no auth provider, payment processor, analytics SDK, third-party AI, or third-party packages. Serves 5.1.1 / 5.1.2(i) |
 | 5 | **5 — regional differences** | "Functions consistently across all regions," the language, and *hardware* gating (Apple Intelligence) held separate from *regional* gating |
-| 6 | **6 — regulated industry / protected material** | Not a regulated product. Bundled assets we do not own and their licences: TTS weights (BigScience OpenRAIL-M), its Apache-2.0 runtime fork, SIL OFL fonts — all attributed in `MeetMemento/Views/Settings/AcknowledgmentsView.swift` |
+| 6 | **6 — regulated industry / protected material** | Not a regulated product. Bundled assets we do not own and their licences: TTS weights (BigScience OpenRAIL-M), its Apache-2.0 runtime fork, SIL OFL fonts — all attributed in `withMemento/Views/Settings/AcknowledgmentsView.swift` |
 | 7 | — | Contact |
 
 **Do not mention Private Cloud Compute.** It is stubbed unavailable
@@ -95,8 +95,8 @@ paywall location, and Ready-to-Submit confirmation to be added here.
 ## 3. The seeded-demo decision — ✅ **made and shipped**
 
 **Resolved 2026-08-11, recorded here 2026-09-17.** Option A shipped:
-`MeetMemento/Services/SampleContentService.swift` plus the **"Load Sample
-Entries"** row at `MeetMemento/Views/Settings/SettingsView.swift:317`. The row is
+`withMemento/Services/SampleContentService.swift` plus the **"Load Sample
+Entries"** row at `withMemento/Views/Settings/SettingsView.swift:317`. The row is
 **not** `#if DEBUG` gated, so a reviewer can reach it in the Release build, and
 the notes give the exact tap path. This section is retained for the reasoning,
 not as an open question.

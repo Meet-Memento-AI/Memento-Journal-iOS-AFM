@@ -1,6 +1,6 @@
 //
 //  AppearanceSettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Customize app theme and display settings
 //
@@ -36,7 +36,8 @@ public struct AppearanceSettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

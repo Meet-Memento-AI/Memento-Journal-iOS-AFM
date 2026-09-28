@@ -91,6 +91,11 @@ class ChatViewModel: ObservableObject {
         var userCount = 0
         var assistantCount = 0
         for message in messages {
+            // A starter prompt is neither side's turn, so it counts toward
+            // neither. Counting it as an assistant reply would let Summarize
+            // light up on a card tap plus one answer — a conversation the
+            // person has not yet said anything in.
+            if message.isStarterPrompt { continue }
             if message.isFromUser {
                 if countsAsUserTurn(message) { userCount += 1 }
             } else if countsAsAssistantReply(message) {
@@ -162,11 +167,62 @@ class ChatViewModel: ObservableObject {
 
     init(chatService: ChatServiceProtocol = ChatService.shared,
          feedbackStore: AnswerFeedbackStore = .shared,
-         feedbackSync: FeedbackSyncService = .shared) {
+         feedbackSync: FeedbackSyncService = .shared,
+         allowance: FreeChatAllowance? = nil) {
         self.chatService = chatService
         self.feedbackStore = feedbackStore
         self.feedbackSync = feedbackSync
+        self.allowance = allowance ?? .shared
         seedUITestTranscriptIfRequested()
+    }
+
+    // MARK: - Free tier (spec 021 R4 `REQ-MON-006`)
+
+    /// Set by the chat view from entitlement × device eligibility.
+    @Published private(set) var tier: ChatTier = .pro
+    /// True once a free message was held back by the daily limit. The view
+    /// shows the inline limit note; the text stays in the composer.
+    @Published var dailyLimitReached = false
+
+    private let allowance: FreeChatAllowance
+
+    func setTier(_ tier: ChatTier) {
+        self.tier = tier
+        chatService.setRetrievalScope(tier == .free ? .latestEntry : .wholeJournal)
+        refreshDailyLimit()
+    }
+
+    /// Clears the limit note once a new day starts (or the person upgraded).
+    func refreshDailyLimit() {
+        if tier == .pro || !allowance.isExhausted { dailyLimitReached = false }
+    }
+
+    /// Whether a free message may be sent now, counting it if so.
+    /// Crisis-adjacent text always goes through and never counts (026 R4
+    /// amendment), so the static resource card is never behind the limit.
+    private func admitFreeMessage(_ text: String) -> Bool {
+        if SafetyClassifier.classify(text).category == .selfHarmCrisis { return true }
+        guard !allowance.isExhausted else {
+            dailyLimitReached = true
+            return false
+        }
+        allowance.recordMessage()
+        return true
+    }
+
+    /// Free-tier reset: the conversation is deleted, not kept in history
+    /// ("nothing carried over", spec 021 R4). Pro keeps chats in history.
+    func resetFreeChat() async {
+        if let id = currentSessionId {
+            do {
+                try await chatService.deleteSession(sessionId: id)
+            } catch {
+                AppLogger.log("[ChatViewModel] resetFreeChat delete error: \(error)", type: .error)
+            }
+            messageCache.removeValue(forKey: id)
+            sessions.removeAll { $0.id == id }
+        }
+        startNewChat()
     }
 
     /// Seeds one tall completed turn when launched with `-SeedChatTranscript`.
@@ -333,21 +389,28 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Send Message
 
-    func sendMessage(prompt: String? = nil, images: [Data] = [], origin: SendOrigin = .composer) {
+    /// Returns false when nothing was sent: empty input, a send already in
+    /// flight, or the free daily limit (spec 021 R4). The composer clears its
+    /// own text after `onSend`, so the view restores it on a limit hold.
+    @discardableResult
+    func sendMessage(prompt: String? = nil, images: [Data] = [], origin: SendOrigin = .composer) -> Bool {
         let typed: String
         if let prompt = prompt {
             typed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             typed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        guard !isLoading else { return }
+        guard !isLoading else { return false }
         let modelText: String
         if typed.isEmpty {
-            guard !images.isEmpty else { return }
+            guard !images.isEmpty else { return false }
             modelText = Self.attachedPhotosPrompt(count: images.count)
         } else {
             modelText = typed
         }
+
+        // Held back by the free daily limit: nothing is sent.
+        if tier == .free, !admitFreeMessage(typed) { return false }
 
         if prompt == nil {
             inputText = ""
@@ -357,6 +420,37 @@ class ChatViewModel: ObservableObject {
         appendMessage(userMessage)
 
         performSend(text: modelText, images: images, userMessageId: userMessage.id, origin: origin)
+        return true
+    }
+
+    /// A starter card: the assistant opens, the person has said nothing yet.
+    ///
+    /// `suggestion.seed` is an instruction to the model and is never shown or
+    /// stored as a turn by the person — only the reply it produces enters the
+    /// transcript.
+    func startConversation(about suggestion: ChatSuggestion) {
+        guard !isLoading, messages.isEmpty else { return }
+
+        // Every card shows what it asked, whichever kind it is. The bubble is
+        // never a user turn — `isStarterPrompt` keeps it out of the person's
+        // journal, which is the property that made showing it safe at all.
+        //
+        // Openers used to show nothing, on the reasoning that the assistant was
+        // the one raising the topic. That left the common case — a thin archive,
+        // where openers are all a person ever sees — with a tap that produced no
+        // visible cause for the reply that followed.
+        let prompt = suggestion.promptText ?? suggestion.label
+        appendMessage(ChatMessage.starterPrompt(text: prompt))
+        performSend(
+            text: suggestion.seed,
+            userMessageId: nil,
+            origin: .composer,
+            starterPrompt: prompt,
+            title: suggestion.label,
+            // Only the archive path earns the larger cap: an opener has nothing
+            // retrieved to synthesise from.
+            deep: suggestion.kind == .analysis
+        )
     }
 
     /// Copy the model reads when the person sends photos without typing.
@@ -422,17 +516,39 @@ class ChatViewModel: ObservableObject {
     /// one. On failure, the user's message stays in the transcript marked
     /// `sendFailed` — never rolled back — so retrying doesn't require
     /// retyping.
-    private func performSend(text: String, images: [Data] = [], userMessageId: UUID, origin: SendOrigin) {
+    /// `userMessageId` is nil when the assistant opens the conversation — a
+    /// starter card. Nothing is appended or stored as the person's turn, because
+    /// `ChatService.summarizeChat` maps on-screen messages to `ChatTurn`s by
+    /// `isFromUser` and writes them into a journal entry. A seeded user bubble
+    /// would be summarised back to them as their own words.
+    private func performSend(
+        text: String,
+        images: [Data] = [],
+        userMessageId: UUID?,
+        origin: SendOrigin,
+        starterPrompt: String? = nil,
+        title: String? = nil,
+        deep: Bool = false
+    ) {
         isLoading = true
         let generation = sendGeneration
-        // Prior turns only — the current user message is already appended.
-        let priorHistory: [ChatTurn] = messages.dropLast().map {
-            ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content)
-        }
+        // Prior turns only — the current user message is already appended,
+        // except on an assistant-opened turn where there is no user message.
+        let prior = userMessageId == nil ? Array(messages) : Array(messages.dropLast())
+        // The starter bubble for *this* turn is already on screen and its
+        // question is what `text` is about to ask, so including it here would
+        // hand the model the same question twice — and as an `.assistant` turn,
+        // since `isFromUser` is false for it. Starters from earlier turns come
+        // back through the store's `starter` role instead.
+        let priorHistory: [ChatTurn] = prior
+            .filter { !$0.isStarterPrompt }
+            .map { ChatTurn(role: $0.isFromUser ? .user : .assistant, text: $0.content) }
+        // Ungated on `origin` as of origin/main: a typed reply to a question
+        // the assistant just asked is a follow-up too, not only a spoken one.
         let answeringLastQuestion = ConversationalMove.lastAssistantQuestion(in: priorHistory) != nil
         let turn = TurnClassifier.classify(
             text,
-            hasHistory: messages.count > 1,
+            hasHistory: !priorHistory.isEmpty,
             lastAssistantAskedQuestion: answeringLastQuestion
         )
         loadingPhrase = LoadingStatus.phrase(for: turn, history: priorHistory)
@@ -456,7 +572,8 @@ class ChatViewModel: ObservableObject {
         // which fires twice per send and whose second firing points at the
         // empty assistant placeholder rather than the user's message.
         sendSeq += 1
-        lastSend = SendTicket(userMessageID: userMessageId, origin: origin, seq: sendSeq)
+        // No user bubble means no send choreography to drive off one.
+        lastSend = userMessageId.map { SendTicket(userMessageID: $0, origin: origin, seq: sendSeq) }
 
         track(Task { [weak self] in
             guard let self else { return }
@@ -513,9 +630,19 @@ class ChatViewModel: ObservableObject {
             }
 
             do {
-                for try await event in chatService.sendMessageStream(
-                    text, sessionId: currentSessionId, images: images, spoken: origin == .narration
-                ) {
+                let events = userMessageId == nil
+                    ? chatService.openConversationStream(
+                        seed: text,
+                        sessionId: currentSessionId,
+                        starterPrompt: starterPrompt,
+                        title: title,
+                        deep: deep
+                    )
+                    : chatService.sendMessageStream(
+                        text, sessionId: currentSessionId, images: images,
+                        spoken: origin == .narration
+                    )
+                for try await event in events {
                     // Cancelled or superseded mid-flight (user left / switched
                     // conversations): stop writing into whatever is on screen now.
                     guard generation == sendGeneration, !Task.isCancelled else { return }
@@ -621,7 +748,7 @@ class ChatViewModel: ObservableObject {
                     // left a red retry row on a message that was never rejected.
                     if generation == sendGeneration, !Task.isCancelled,
                        !(error is CancellationError) {
-                        setSendFailed(true, forMessageId: userMessageId)
+                        if let userMessageId { setSendFailed(true, forMessageId: userMessageId) }
                         errorMessage = chatErrorMessage(for: error)
                         showingError = true
                     }
@@ -735,6 +862,13 @@ class ChatViewModel: ObservableObject {
                         zone: extracted.zone,
                         wasDegraded: extracted.wasDegraded
                     )
+                }
+
+                // A suggestion card's question. Restored as a starter, never
+                // as a user turn, so reopening the thread cannot turn it into
+                // something the person said.
+                if dto.role == "starter" {
+                    return ChatMessage.starterPrompt(id: dto.id, text: dto.content, isNew: false)
                 }
 
                 // User messages: isNew = false (default)
@@ -1050,7 +1184,9 @@ class ChatViewModel: ObservableObject {
         }
         let assistant = messages[index]
         let prompt: String
-        if index > 0, messages[index - 1].isFromUser {
+        // A starter prompt is the question this reply answers, so a reported
+        // answer is attributed to it exactly as a typed question would be.
+        if index > 0, messages[index - 1].isFromUser || messages[index - 1].isStarterPrompt {
             prompt = messages[index - 1].content
         } else {
             prompt = ""

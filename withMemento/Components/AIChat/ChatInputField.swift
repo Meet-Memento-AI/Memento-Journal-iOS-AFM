@@ -1,6 +1,6 @@
 //
 //  ChatInputField.swift
-//  MeetMemento
+//  withMemento
 //
 //  The chat composer: one glass capsule that morphs between three states.
 //  Figma 433:1077 (Default), 976:2838 (single-line typing), 976:2850
@@ -63,8 +63,6 @@ struct ChatInputField: View {
     /// before it clears the text and collapses the field, and geometry
     /// callbacks are post-layout.
     var onComposerFrame: ((CGRect) -> Void)?
-    /// For preview purposes - allows setting initial state
-    var initialState: InputState
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -131,11 +129,6 @@ struct ChatInputField: View {
     /// from every other state change. They share this curve now.
     private static let stateChange: Animation = .easeOut(duration: 0.25)
 
-    /// Whether the input is in an expanded state (chatActive or narrateActive)
-    var isExpanded: Bool {
-        inputState == .chatActive || inputState == .narrateActive
-    }
-
     private var isTextEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -173,7 +166,6 @@ struct ChatInputField: View {
         self.onDismiss = onDismiss
         self.onNarrate = onNarrate
         self.isInteractive = isInteractive
-        self.initialState = initialState
         self.onComposerFrame = onComposerFrame
         self._inputState = State(initialValue: initialState)
     }
@@ -265,7 +257,7 @@ struct ChatInputField: View {
         .padding(.top, attachedPhotos.isEmpty ? 0 : Spacing.sm)
         .padding(.bottom, 0)
         .frame(maxWidth: .infinity)
-        .rootEdgeInset()
+        .pageColumnRelative()
         // Liquid Glass, `.regular` — the frosted variant, which is what spec 024
         // and the API reference both assign to this surface. `.clear` has
         // refraction but no frost, and this capsule floats over a scrolling
@@ -283,6 +275,8 @@ struct ChatInputField: View {
         // is the HIGH-severity row in spec 024's audit. A light canvas tint
         // through the material (same pattern as Welcome's Get Started) densifies
         // the frost so placeholder and typed text stay readable over the thread.
+        // Reduce Transparency is the one exception: `mementoChromeGlass` swaps
+        // the glass for an opaque `theme.card` plate.
         //
         // No `GlassEffectContainer`: containers exist to blend *multiple*
         // neighbouring glass effects, and this is a single surface — the trailing
@@ -296,7 +290,7 @@ struct ChatInputField: View {
         // Rest / single-line stays 32pt (a pill at the 64pt well). Wrapped
         // typing (Figma 976:2850) pins 24pt so the corners don't swell with
         // five lines — and so attachments don't turn the bar into a capsule.
-        .glassEffect(
+        .mementoChromeGlass(
             .regular.tint(theme.background.opacity(Self.glassFrostTintOpacity)),
             in: .rect(
                 cornerRadius: isParagraphLayout ? theme.radius.xl : theme.radius.xxl,
@@ -402,10 +396,15 @@ struct ChatInputField: View {
             isFocused = true
         } label: {
             HStack(spacing: 0) {
-                Text("Chat with Memento")
-                    .font(type.inputLarge)
-                    .foregroundStyle(composerPlaceholder)
-                    .lineLimit(1)
+                // At accessibility sizes the full prompt truncated to
+                // "Chat w…"; a whole shorter word reads better than a cut one.
+                ViewThatFits(in: .horizontal) {
+                    Text("Chat with Memento")
+                    Text("Chat")
+                }
+                .font(type.inputLarge)
+                .foregroundStyle(composerPlaceholder)
+                .lineLimit(1)
                 Spacer(minLength: Spacing.xs)
             }
             .padding(.horizontal, Spacing.xs)
@@ -642,6 +641,7 @@ struct ChatInputField: View {
     /// Shown above the capsule while dictating so a mishearing is visible
     /// before the user commits it (REQ-CAP-003 honesty signal). This used to
     /// sit inside the 280pt listening panel; the panel is gone, the signal isn't.
+    // periphery:ignore - not mounted since the listening panel went; re-mounting is a product call
     @ViewBuilder
     private var liveTranscriptLabel: some View {
         let live = speechService.partialTranscribedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -884,7 +884,7 @@ private struct SpeechAlertsModifier: ViewModifier {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text(
-                    "MeetMemento needs microphone access to transcribe your voice. "
+                    "withMemento needs microphone access to transcribe your voice. "
                     + "Enable it in Settings > Privacy > Microphone."
                 )
             }
@@ -955,6 +955,7 @@ private struct SpeechAlertsModifier: ViewModifier {
         .useTypography()
 }
 
+// periphery:ignore - constructed only by #Preview
 private struct ChatInputFieldPreview: View {
     let initialState: ChatInputField.InputState
     @State private var text: String

@@ -1,6 +1,6 @@
 //
 //  SearchResultCard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Lightweight card for displaying search results in journal search
 //

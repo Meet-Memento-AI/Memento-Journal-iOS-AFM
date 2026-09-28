@@ -1,6 +1,6 @@
 //
 //  SendFlightGhost.swift
-//  MeetMemento
+//  withMemento
 //
 //  The transient bubble that travels from the chat composer to the transcript
 //  pin. Stands in for the real row for the length of the flight, then hands off.

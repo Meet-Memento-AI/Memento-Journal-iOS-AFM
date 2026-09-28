@@ -1,16 +1,44 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Shared corpus + automatic scoring for the iOS 27 chat diagnostics.
 /// Throwaway diagnostics, not regression tests.
 enum Diag {
 
-    static let outDir = "/private/tmp/claude-501/-Users-sebastianmendo-Swift-projects-Memento-AI-MeetMemento/094f3be1-69b0-4026-bb20-1aad71a89c42/scratchpad/diag"
+    /// Resolved from `#filePath`, the way `ChatEvalCorpus.fixturesURL()` and
+    /// `ConversationSimulation.outputDirectory()` already do it.
+    ///
+    /// This was previously an absolute path into a scratchpad directory from one
+    /// agent session on one machine layout. That directory does not exist here,
+    /// and `write` swallowed the failure with `try?` — so every `Diag*` report
+    /// has been producing no file at all, silently, for as long as the constant
+    /// has been wrong. Same failure shape as the `hall.fabricatedQuote` pattern
+    /// (046 R1): a `try?` turning a broken thing into a clean-looking pass.
+    static let outDir: String = {
+        let environment = ProcessInfo.processInfo.environment
+        if let override = environment["DIAG_OUT"], !override.isEmpty { return override }
+        // withMementoTests/DiagSupport.swift → withMementoTests → repo root
+        return URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".eval-runs/diag")
+            .path
+    }()
 
-    static func write(_ text: String, _ file: String) {
-        try? FileManager.default.createDirectory(atPath: outDir,
-                                                 withIntermediateDirectories: true)
-        try? text.write(toFile: "\(outDir)/\(file)", atomically: true, encoding: .utf8)
+    /// Reports rather than throws — these are diagnostics, and a failed write
+    /// must not fail a suite. But it says so, because the alternative is what
+    /// this file did before.
+    @discardableResult
+    static func write(_ text: String, _ file: String) -> Bool {
+        do {
+            try FileManager.default.createDirectory(atPath: outDir,
+                                                    withIntermediateDirectories: true)
+            try text.write(toFile: "\(outDir)/\(file)", atomically: true, encoding: .utf8)
+            return true
+        } catch {
+            print("[Diag] could not write \(file) to \(outDir): \(error)")
+            return false
+        }
     }
 
     static func day(_ daysAgo: Int) -> Date {

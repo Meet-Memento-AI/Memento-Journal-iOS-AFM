@@ -13,6 +13,10 @@
 #
 # --prompt-version and --model are REQUIRED for model-running kinds: spec 022
 # R1 discards a run that cannot name them, and the DB enforces it.
+#
+# A row's own modelIdentifier, when the harness wrote one, overrides --model
+# for that row. That is how the on-device model tier (spec 051 R3, e.g.
+# apple.system.on-device.afm3-core-advanced) reaches eval.generation.
 set -euo pipefail
 
 KIND=""; LABEL=""; PROMPT=""; MODEL=""; PROV="captured"; TARGET="local"
@@ -97,6 +101,7 @@ normalize() {
         chars: .chars, words: .words, seconds: .seconds,
         outcome: (if (.error // "") != "" then "error" else "ok" end),
         error: .error, prompt_version: .promptVersion, zone: .zone,
+        model_identifier: .modelIdentifier,
         degraded: .degraded, has_history: .hasHistory,
         citation_count: .citationCount,
         citation_fixture_ids: [(.citations // [])[] | .id],
@@ -114,6 +119,7 @@ normalize() {
         chars: .chars, seconds: .seconds,
         outcome: (if (.error // "") != "" then "error" else "ok" end),
         error: .error, prompt_version: .promptVersion,
+        model_identifier: .modelIdentifier,
         passed: .passed, citation_count: (.citations // 0),
         gating_violation_count: ([(.violations // [])[] | select((.code|split(".")[0]) != "gen")] | length),
         violations: (.violations // [])

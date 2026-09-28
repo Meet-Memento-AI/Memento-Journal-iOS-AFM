@@ -42,13 +42,13 @@ Low risk (it gates a convenience logout, not data access). Move to Keychain or a
 and document. Effort: trivial; bundle with any future SecurityService work.
 
 ### 3. Re-enable UITests in CI
-`MeetMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
+`withMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
 self-hosted-runner flakiness. Beta-period crash/regression coverage would benefit from
 at least the launch smoke test running. Investigate simulator stability on the runner.
 
 ### 4. Color-contrast audit
 Theme palette (light + dark) has not been audited against WCAG AA. Fix surface is the
-token definitions in `MeetMemento/Resources/Theme.swift` (single point of change).
+token definitions in `withMemento/Resources/Theme.swift` (single point of change).
 Flagged during spec 008's design; deferred because it may nudge brand colors.
 
 ### 5. ~~Chat response streaming~~ — removed 2026-07-23

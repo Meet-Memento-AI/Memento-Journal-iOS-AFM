@@ -162,6 +162,13 @@ respecting PRES-020/PRES-009). Readable and **listenable**: audio via spec
 the listenable surfaces; 018 owns playback mechanics), available within 5
 seconds of opening.
 
+**Amendment (DEC-013, spec 021 R9, 2026-09-26):** Weekly is Pro. For a free
+user, the Sunday card still appears atop the timeline, but **locked**: one
+teaser line computed in Swift from `InsightEngine` facts (for example, "You
+wrote 5 entries this week"). **No model generation runs for free users, and
+the weekly-ready notification never fires for locked content.** Tapping the
+card is re-offer moment 5.
+
 - **Citations with tap-through:** every claim traces to `groundedEntryIDs`
   (017 R5); the rendered card exposes citations that navigate to the cited
   entry — the one sanctioned *upgrade* to PRES-044's sheet-based citations
@@ -276,6 +283,39 @@ intact: PRES-040 (empty state + suggestion cards), 041 (three-state input),
 entry-summary row), 047 (failure/retry), 048 (honest gating). This closes the
 preservation contract's end-state window that opened when Phase 1 deleted the
 edge functions.
+
+**Amendment (DEC-013, spec 021 R4 `REQ-MON-006`, 2026-09-26): free and Pro
+Ask.**
+- **Free Ask** is one chat, grounded in the **entry it opened on plus the
+  current conversation**.
+  - No journal-wide retrieval: `EntryRetriever` and `SearchJournalTool`
+    don't run.
+  - It has a daily message limit, which Memento owns and counts on the
+    device.
+  - Clearing starts over with nothing carried over.
+  - Grounded-or-silent applies within that scope.
+- **Pro Ask** is what this section describes: the whole journal, multiple
+  chats with history (PRES-045), and summarize-to-entry (PRES-046).
+- **Invariants:**
+  - The limit is checked **after** 026 R4's safety gate.
+  - Reaching it shows an inline note (a 021 R9 moment), never 014 R2's
+    quota component.
+  - Apple's PCC quota states never show purchase UI (017 R3).
+  - For free users, PRES-045 and PRES-046 are reached through the offer
+    rather than removed.
+  - Earlier chats stay readable after a downgrade.
+- **RetrievalGate** (022) asserts retrieval on notebook runs **for Pro
+  only**. For free runs it asserts that **no retrieval happens beyond the
+  opened entry**.
+- **Free chat screen (Figma 1177:3147, 2026-09-26):**
+  - The header is Journal and an **✦ Upgrade** pill on the left, and a
+    **reset** button on the right. No history or summarize.
+  - The empty state is the mark and headline only, with no starter cards.
+  - Reset asks "Start over?", offering **Start over** (deletes the
+    conversation) or **Keep it with Pro**.
+  - Opened from the tab, the free scope is the latest entry.
+  - `ContentView` no longer wraps Ask in `.proGated`; it resolves a
+    `ChatTier` instead.
 
 - **Tool-calling loop:** **Amendment 2026-09-06 (016 Branch B / DEC-002 /
   specs 044–045):** Ask retrieval is `EntryRetriever` plus, on iOS 27,
@@ -473,6 +513,10 @@ foregroundFallbackPending ──next launch──▶ running(fg)  (R3's card sho
   Nothing else, ever: no "you haven't written in N days," no re-engagement
   campaigns (NON-GOAL: notification-driven engagement loops). Preference UI
   mounts per ATTACH-08.
+  **Amendment (DEC-013, 2026-09-26): still exactly two.** The daily reminder
+  can also be turned on from onboarding, by explicit opt-in (053 R6). There
+  is no trial and so no trial reminder (DEC-014). The weekly-ready
+  notification fires only for entitled users (R3 amendment).
 
 **Acceptance (Given/When/Then):**
 - Given a simulated background failure chain (network drop, quota exhaustion,
@@ -500,7 +544,7 @@ first would leave the end-state contract with no source of truth to restore
 *from*.
 
 **Acceptance:** after Task 7,
-`grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no app-target
+`grep -rn 'ChatService\|InsightsService' withMemento/` returns no app-target
 matches, and no §4 reuse-ledger row remains unclaimed-and-undeleted (spec
 001's hygiene standard: no zombie code).
 
@@ -600,7 +644,7 @@ extraction, not a rewrite.
       silently skipped week; notification audit finds exactly two
       identifiers app-wide (opt-in daily reminder, weekly-ready).
 - [ ] Legacy deletion (R9, after Task 7 only):
-      `grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no
+      `grep -rn 'ChatService\|InsightsService' withMemento/` returns no
       app-target matches.
 
 ## Regression Guards

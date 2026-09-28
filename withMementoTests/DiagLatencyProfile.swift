@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: where the wait actually goes on the streaming path AIChatView
 /// uses — time-to-first-token vs total, per channel, with percentiles, plus
@@ -11,9 +11,9 @@ import XCTest
 ///
 /// Spec 029 R2 gates to read off the table:
 /// - phatic/continuer: version `chat-light@4`, high speculative hit rate, TTFT p50 < 1.2 s
-/// - companion/share: version `chat-companion@1`, TTFT down vs ask-core@18 prefill
+/// - companion/share: version `chat-companion@1`, TTFT down vs ask-core@19 prefill
 /// - spoken companion / spoken no-RAG follow-up: `chat-companion@1`, 80 tok, LightAskAnswer
-/// - notebook: version `ask-core@18`, 512 typed / 256 spoken; do not raise caps
+/// - notebook: version `ask-core@19`, 512 typed / 256 spoken; do not raise caps
 ///
 /// Size sweep is empty / ~50 / fixture 262 / ~500+. Attribute
 /// `retrieve` vs `ttft` vs `stream` from `LiveTurnClock.snapshot()`.
@@ -29,6 +29,7 @@ final class DiagLatencyProfile: XCTestCase {
         let promptVersion: String
         let speculativeHit: Bool?
         let channel: String
+        let modelTier: String
         let retrieve: Double
         let ttftStage: Double
         let stream: Double
@@ -70,6 +71,7 @@ final class DiagLatencyProfile: XCTestCase {
             promptVersion: perf?.promptVersion ?? "—",
             speculativeHit: perf?.speculativeHit,
             channel: perf?.channel ?? "—",
+            modelTier: perf?.modelTier ?? "—",
             retrieve: retrieve,
             ttftStage: ttftStage,
             stream: stream,
@@ -98,6 +100,8 @@ final class DiagLatencyProfile: XCTestCase {
         out += "| condition | TTFT s | total s |\n|---|---|---|\n"
         out += "| first call of the process | \(String(format: "%.2f", coldRun.ttft)) | \(String(format: "%.2f", coldRun.total)) |\n"
         out += "| after prewarm() + 2s | \(String(format: "%.2f", warmRun.ttft)) | \(String(format: "%.2f", warmRun.total)) |\n"
+        // Spec 051 R4: latency differs by on-device model; name the one measured.
+        out += "\nOn-device model: \(OnDeviceModelTierCache.shared.current.logFields)\n"
 
         // MARK: per-channel distribution
         let companionHistory = [
@@ -114,13 +118,13 @@ final class DiagLatencyProfile: XCTestCase {
             ("companion / share (chat-companion@1, 128 tok)", "I had a rough day at work today", [], c, false),
             ("spoken companion (chat-companion@1, 80 tok)", "I had a rough day at work today", [], c, true),
             ("spoken no-RAG follow-up (companion, 80 tok)", "it was actually pretty heavy", companionHistory, c, true),
-            ("notebook (ask-core@18, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
+            ("notebook (ask-core@19, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
             ("thread / follow-up (journal-anchored)", "Tell me more about that.", journalFollowHistory, c, false)
         ]
 
         out += "\n## Per-channel distribution (n=\(Self.reps))\n\n"
-        out += "| scenario | prompt | hit rate | TTFT p50 | TTFT p95 | total p50 | mean chars |\n"
-        out += "|---|---|---|---|---|---|---|\n"
+        out += "| scenario | prompt | channel | model | hit rate | TTFT p50 | TTFT p95 | total p50 | mean chars | mean deltas |\n"
+        out += "|---|---|---|---|---|---|---|---|---|---|\n"
 
         var rawTTFT: [String: [Double]] = [:]
         for (label, q, hist, entries, spoken) in scenarios {
@@ -134,21 +138,25 @@ final class DiagLatencyProfile: XCTestCase {
             let t = runs.map(\.ttft), tot = runs.map(\.total)
             rawTTFT[label] = t
             let meanChars = Double(runs.map(\.chars).reduce(0, +)) / Double(runs.count)
+            let meanDeltas = Double(runs.map(\.deltas).reduce(0, +)) / Double(runs.count)
             let hits = runs.compactMap(\.speculativeHit)
             let hitRate = hits.isEmpty ? "—" : String(format: "%.0f%%", 100 * Double(hits.filter { $0 }.count) / Double(hits.count))
             let version = runs.last?.promptVersion ?? "—"
-            out += "| \(label) | \(version) | \(hitRate) "
+            let channel = runs.last?.channel ?? "—"
+            let model = runs.last?.modelTier ?? "—"
+            out += "| \(label) | \(version) | \(channel) | \(model) | \(hitRate) "
             out += "| \(String(format: "%.2f", Diag.pct(t, 0.5))) "
             out += "| \(String(format: "%.2f", Diag.pct(t, 0.95))) "
             out += "| \(String(format: "%.2f", Diag.pct(tot, 0.5))) "
-            out += "| \(String(format: "%.0f", meanChars)) |\n"
+            out += "| \(String(format: "%.0f", meanChars)) "
+            out += "| \(String(format: "%.0f", meanDeltas)) |\n"
             Diag.write(out, "03-latency.md")
         }
 
         // MARK: context scaling — empty / ~50 / fixture 262 / ~500+
         out += "\n## TTFT vs journal size (notebook turn, warm embeddings, n=3)\n\n"
-        out += "| entries | retrieve p50 | ttft p50 | stream p50 | total p50 | first-delta ≤1s | version | hit |\n"
-        out += "|---|---|---|---|---|---|---|---|\n"
+        out += "| entries | retrieve p50 | ttft p50 | model ttft p50 | stream p50 | total p50 | first-delta ≤1s | version | hit |\n"
+        out += "|---|---|---|---|---|---|---|---|---|\n"
         let sizes: [Int] = [0, 50, 262, 500]
         for n in sizes {
             let entries: [Entry]
@@ -168,6 +176,7 @@ final class DiagLatencyProfile: XCTestCase {
             }
             let t = runs.map(\.ttft), tot = runs.map(\.total)
             let retrieve = runs.map(\.retrieve), stream = runs.map(\.stream)
+            let modelTTFT = runs.map(\.ttftStage)
             let under1s = runs.filter(\.firstDeltaUnder1s).count
             let version = runs.last?.promptVersion ?? "—"
             let hits = runs.compactMap(\.speculativeHit)
@@ -176,6 +185,7 @@ final class DiagLatencyProfile: XCTestCase {
             )
             out += "| \(n) | \(String(format: "%.3f", Diag.pct(retrieve, 0.5))) "
             out += "| \(String(format: "%.2f", Diag.pct(t, 0.5))) "
+            out += "| \(String(format: "%.2f", Diag.pct(modelTTFT, 0.5))) "
             out += "| \(String(format: "%.2f", Diag.pct(stream, 0.5))) "
             out += "| \(String(format: "%.2f", Diag.pct(tot, 0.5))) "
             out += "| \(under1s)/\(runs.count) | \(version) | \(hitRate) |\n"

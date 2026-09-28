@@ -1,6 +1,6 @@
 //
 //  ConversationalMove.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 039 R9: short warm cues for the kind of turn, not scripts. AFM
 //  writes the reply. Light user prompts are cue + latest message +

@@ -1,6 +1,6 @@
 //
 //  WelcomeMarkShape.swift
-//  MeetMemento
+//  withMemento
 //
 //  Rebrand mark paths (hexagon body + sparkle) from AppIcon-Transparent.svg,
 //  viewBox 72×72, for Liquid Glass clipping.

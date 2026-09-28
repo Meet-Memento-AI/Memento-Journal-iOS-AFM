@@ -1,6 +1,6 @@
 //
 //  ChatHeaderActionCluster.swift
-//  MeetMemento
+//  withMemento
 //
 //  Chat's trailing header control: one Liquid Glass capsule that always
 //  shows history, then expands to reveal the write (summarize) glyph.

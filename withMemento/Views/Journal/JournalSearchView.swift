@@ -1,6 +1,6 @@
 //
 //  JournalSearchView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Full-screen search overlay for journal entries
 //
@@ -13,7 +13,6 @@ struct JournalSearchView: View {
 
     @EnvironmentObject private var entryViewModel: EntryViewModel
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var searchQuery = ""
 
@@ -34,6 +33,10 @@ struct JournalSearchView: View {
             // Search header
             searchHeader
                 .padding(.horizontal, Spacing.md)
+                // Search results are journal cards, so they inherit the
+                // timeline's measure from the page. The enclosing VStack is
+                // `.center`-aligned, so a plain clamp centres both bands.
+                .pageColumn()
                 .padding(.top, safeAreaTop + Spacing.md)
                 .padding(.bottom, Spacing.md)
 
@@ -49,13 +52,19 @@ struct JournalSearchView: View {
                     }
                 }
                 .padding(.horizontal, Spacing.md)
+                .contentColumn()
+                .frame(maxWidth: .infinity)
                 .padding(.bottom, Spacing.xxxl)
             }
+            .pageColumn()
             .animation(.easeInOut(duration: 0.2), value: searchResults.count)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.background)
         .ignoresSafeArea()
+        // Regular width hosts Journal in a navigation bar; this full-screen
+        // overlay carries its own header, so the bar steps aside while it's up.
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Subviews
@@ -179,4 +188,16 @@ struct JournalSearchView: View {
         .preferredColorScheme(.dark)
         .useTheme()
         .useTypography()
+}
+
+#Preview("JournalSearchView - AX5") {
+    @Previewable @StateObject var viewModel = EntryViewModel.withPreviewEntries()
+    @Previewable @State var isPresented = true
+    @Previewable @State var navPath = NavigationPath()
+
+    JournalSearchView(isPresented: $isPresented, navigationPath: $navPath)
+        .environmentObject(viewModel)
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }

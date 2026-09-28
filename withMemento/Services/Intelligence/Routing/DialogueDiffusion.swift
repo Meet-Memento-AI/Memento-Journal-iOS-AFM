@@ -2,7 +2,7 @@
 //  DialogueDiffusion.swift
 //  MeetMemento
 //
-//  Spec 050. Discrete diffusion over a finished reply.
+//  Spec 056. Discrete diffusion over a finished reply.
 //
 //  The harness already decided how this turn should talk (`ResponsePolicy`).
 //  The on-device render drifts by a few spans: a question on a goodbye, a

@@ -1,6 +1,6 @@
 //
 //  SelectableThemeTag.swift
-//  MeetMemento
+//  withMemento
 //
 //  Capsule tag for the onboarding theme picker (Figma 618:3691 / 608:2240).
 //  Two states: unselected (sunken gray) and selected (brand copper tint with a

@@ -1,6 +1,6 @@
 //
 //  FaceIDView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Onboarding screen for biometric authentication setup (Figma 617:3655).
 //

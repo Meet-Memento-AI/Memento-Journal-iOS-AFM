@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// The chat quality gate (spec 022 R1/R2): ~100 live generations through the
 /// path `AIChatView` actually uses, scored mechanically, all-or-nothing.
@@ -8,10 +8,10 @@ import XCTest
 /// ```
 /// TEST_RUNNER_CHAT_EVAL=1 \
 /// DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-/// xcodebuild test -scheme MeetMemento \
+/// xcodebuild test -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,id=<iOS 27 device>' \
 ///   -parallel-testing-enabled NO \
-///   -only-testing:MeetMementoTests/ChatEvalGate
+///   -only-testing:withMementoTests/ChatEvalGate
 /// ```
 ///
 /// Skipped by default so it never runs on the merge lane — it needs a live
@@ -139,7 +139,7 @@ final class ChatEvalGate: XCTestCase {
             }
         }
 
-        let report = Self.render(samples, fixtureIDs: fixtureIDs, goldCount: gold.count)
+        let report = Self.render(samples, goldCount: gold.count)
         Self.write(report, samples)
         print(report)
 
@@ -202,6 +202,7 @@ final class ChatEvalGate: XCTestCase {
             + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: index)
             + ChatEvalScoring.fabricatedQuotes(result.body, index: index)
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
+            + ChatEvalScoring.unbackedDate(result.body, citations: result.citations)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
             + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
@@ -236,7 +237,7 @@ final class ChatEvalGate: XCTestCase {
             .joined(separator: "\n")
     }
 
-    private static func render(_ samples: [Sample], fixtureIDs: [UUID: String], goldCount: Int) -> String {
+    private static func render(_ samples: [Sample], goldCount: Int) -> String {
         let passed = samples.filter(\.passed).count
         var out = "# Chat eval gate\n\n"
         out += "**\(passed)/\(samples.count) passed** "

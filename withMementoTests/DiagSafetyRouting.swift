@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: SafetyClassifier → SafetyRouter routing. Pure Swift, no model.
 ///

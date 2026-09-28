@@ -1,6 +1,6 @@
 //
 //  AddEntryView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Notion-style full-page journal entry editor with title and body fields.
 //  A cover photo becomes a full-bleed max-blur backdrop (Figma 818:4006).
@@ -260,6 +260,15 @@ public struct AddEntryView: View {
                 }
                 .padding(.top, AppHeaderMetrics.headerClearance + Spacing.xxl)
                 .padding(.horizontal, AppHeaderMetrics.edgeInset)
+                // The editor is prose end to end. All three of its bands (this,
+                // the header row, the footer) read the page's column, and the
+                // editor is pushed on ContentView's overlay stack — a *sibling*
+                // of the pager — so that resolves to the prose measure. A header
+                // at the wider one would sit 60pt outside the text.
+                // The cover photo stays full-bleed behind this: the backdrop
+                // layers are `.ignoresSafeArea()` siblings and read no content
+                // width, so `shaderRevealProgress` is untouched.
+                .pageColumnCentered()
                 .opacity(hasCoverPhoto ? entryContentOpacity : 1)
                 // Title and body are one field in both modes so glyphs do not
                 // jump. Chrome still springs via `modeTransition`.
@@ -496,6 +505,8 @@ public struct AddEntryView: View {
                 }
             }
             .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            // Inside a `.center`-aligned safeAreaInset, so a plain clamp places it.
+            .pageColumn()
             .padding(.bottom, keyboardBottomPadding)
             .accessibleAnimation(Self.modeTransition, value: isViewingExisting)
         }
@@ -540,7 +551,9 @@ public struct AddEntryView: View {
                     trailingHeaderButton
                 }
                 .padding(.bottom, AppHeaderMetrics.rowBottomPadding)
-                .rootEdgeInset()
+                // Keeps the relative form: padding around glass is unreliable
+                // under `.ignoresSafeArea()` (see `rootEdgeInset`).
+                .pageColumnRelative()
             }
         }
         .frame(maxWidth: .infinity)
@@ -555,7 +568,10 @@ public struct AddEntryView: View {
                 if isSaving {
                     ProgressView()
                         .tint(chromeForeground)
-                        .mementoGlassButtonChrome(interactive: false)
+                        .mementoGlassButtonChrome(
+                            interactive: false,
+                            opaqueUnderReduceTransparency: false
+                        )
                         .accessibilityLabel("Saving entry")
                         .accessibilityIdentifier("journal.entryEditor.save")
                 } else {
@@ -1133,6 +1149,7 @@ public struct AddEntryView: View {
 extension AddEntryView {
     /// Seeds a cover so canvas hosts can show photo-backed chrome.
     /// `fileprivate` is enough: only `AddEntryPreviewHost` in this file calls it.
+    // periphery:ignore - preview-only
     fileprivate init(
         state: EntryState,
         previewPhoto: UIImage,
@@ -1164,6 +1181,7 @@ extension AddEntryView {
     }
 }
 
+// periphery:ignore - preview-only
 private enum AddEntryPreviewAssets {
     static let photo: UIImage = {
         let size = CGSize(width: 8, height: 12)
@@ -1176,6 +1194,7 @@ private enum AddEntryPreviewAssets {
 
 /// Canvas host. `#Preview` only constructs this type so the generated thunk
 /// never calls the photo init or `AddEntryPreviewAssets` directly.
+// periphery:ignore - constructed only by #Preview
 struct AddEntryPreviewHost: View {
     enum Kind {
         case create

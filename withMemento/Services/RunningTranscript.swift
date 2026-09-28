@@ -1,6 +1,6 @@
 //
 //  RunningTranscript.swift
-//  MeetMemento
+//  withMemento
 //
 //  Accumulates SpeechAnalyzer segment finals + the current volatile tail
 //  into one utterance. Last-final-wins dropped earlier words and flashed

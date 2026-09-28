@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class SecurityServiceTests: XCTestCase {
     private func makeService(now: @escaping () -> Date = Date.init) -> SecurityService {

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 030 R6 / DEC-010 / spec 018 R12: attribution is a **licence term**, not
 /// a courtesy, so it ships with the engine rather than in a follow-up. R6's

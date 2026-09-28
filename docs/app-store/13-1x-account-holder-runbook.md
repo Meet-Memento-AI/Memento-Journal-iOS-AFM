@@ -31,7 +31,7 @@ which is the A6 root cause. Verified passing 2026-09-12.
 ```sh
 sudo xcodebuild -license accept
 xcodebuild -version   # expect 26.x
-xcodebuild -project MeetMemento.xcodeproj -scheme MeetMemento -showdestinations
+xcodebuild -project withMemento.xcodeproj -scheme withMemento -showdestinations
 ```
 
 **Found 2026-09-17: the third command returns ZERO available destinations.**
@@ -118,7 +118,10 @@ App Store Connect → App Information → Age Rating. Worked answers from `05`:
 
 ## D — App Store Connect record (paste)
 
-Bundle ID `com.sebastianmendo.MeetMemento`. App Apple ID `6754416850`.
+Bundle ID `com.sebmendo.withMementoAI` — ⚠️ a **new** record; the old
+`com.sebastianmendo.MeetMemento` / App Apple ID `6754416850` listing is not
+reusable after the rename (see `02-app-store-connect-record.md`). App Apple ID is
+assigned when the new record is created.
 Display name **Memento**. Version **1.0**, build must be **≥ 3**.
 
 | Field | Value |
@@ -173,16 +176,16 @@ or purchased data. Match `PrivacyInfo.xcprivacy` and the live privacy policy.
 
 ## Archive (after A1)
 
-Xcode **26 GA** (not 27 beta). Scheme MeetMemento, Release, generic iOS.
+Xcode **26 GA** (not 27 beta). Scheme withMemento, Release, generic iOS.
 
 ```sh
 xcodebuild -version   # expect 26.x
 xcodebuild \
-  -project MeetMemento.xcodeproj \
-  -scheme MeetMemento \
+  -project withMemento.xcodeproj \
+  -scheme withMemento \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -archivePath build/MeetMemento.xcarchive \
+  -archivePath build/withMemento.xcarchive \
   archive
 ```
 
@@ -190,7 +193,7 @@ Then Organizer → Distribute App → App Store Connect → Upload, or
 `xcodebuild -exportArchive` + `xcrun altool --validate-app` per `07`.
 
 **Evidence 2026-08-17:** `xcodebuild -version` → **Xcode 26.0.1 (17A400)**.
-`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/MeetMemento.xcarchive`.
+`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/withMemento.xcarchive`.
 Product contains no `.xcconfig`, `.storekit`, or `.md` files.
 
 **Export is blocked on signing, not the binary.**

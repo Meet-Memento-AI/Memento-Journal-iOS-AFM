@@ -1,6 +1,6 @@
 //
 //  TypographyExtensions.swift
-//  MeetMemento
+//  withMemento
 //
 //  Created by Claude Code
 //  Convenience modifiers for Typography environment access

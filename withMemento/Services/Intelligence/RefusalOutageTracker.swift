@@ -1,6 +1,6 @@
 //
 //  RefusalOutageTracker.swift
-//  MeetMemento
+//  withMemento
 //
 //  Tells a run of refusals apart from a content decision. No
 //  `import FoundationModels` — pure Swift, so the rule is testable without a

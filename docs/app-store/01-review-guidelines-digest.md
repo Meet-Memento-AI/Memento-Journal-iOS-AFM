@@ -63,7 +63,7 @@ ability to block abusive users, and published contact information.
 on-device; there is no feed, no comments, no shared workspace, no public link, no
 server-side representation of any entry. The only outbound surfaces are a
 user-driven `UIActivityViewController` share sheet
-(`MeetMemento/Views/Settings/SettingsView.swift:274-292`) and clipboard copies
+(`withMemento/Views/Settings/SettingsView.swift:274-292`) and clipboard copies
 (`AIChat/AIOutputComponent.swift:181`, `AboutSettingsView.swift:253`). Those are
 the user exporting their own words, not publishing to a service.
 
@@ -258,7 +258,7 @@ with no account and no external setup.
 | **2.5.1** public APIs, current OS | ✅ — all Apple frameworks; no private API |
 | **2.5.2** self-contained, no downloading executable code | ✅ **today** — no model is downloaded, no remote prompt manifest (`DEC-003` explicitly defers that to 2.1). **Guard:** if a downloaded model or remote prompt manifest ever ships, 2.5.2 and 4.2.3(ii) attach — disclose the download size, prompt the user, and explain it in the review notes |
 | **2.5.4** background modes for intended purposes only (VoIP, audio, location, task completion, local notifications) | N/A today — **no background modes are declared**. Attaches if spec 018/020 add `audio` for long capture. Using `audio` as a keep-alive for inference rather than for playback/recording would be a violation |
-| **2.5.5** IPv6-only network functionality | ✅ vacuously — `grep -rn "URLSession" MeetMemento --include="*.swift"` returns **zero** hits |
+| **2.5.5** IPv6-only network functionality | ✅ vacuously — `grep -rn "URLSession" withMemento --include="*.swift"` returns **zero** hits |
 | **2.5.9** don't alter standard switches or native UI behavior | ✅ |
 | **2.5.11 SiriKit & Shortcuts** — register only intents you can handle without launching the app; vocabulary must relate to your app, not generic terms | Attaches when spec 020 R1's four App Intents ship. Constraint: no generic phrases like "start recording" that a system-wide vocabulary would claim |
 | **2.5.13** facial recognition for auth must use LocalAuthentication, not ARKit | ✅ — Face ID via `LocalAuthentication` |
@@ -441,7 +441,7 @@ third party receiving user data provides equal protection; explain retention and
 deletion; and describe how a user revokes consent or requests deletion.
 
 **Current state.** The **published** policy at
-`https://sebmendo1.github.io/MeetMemento/privacy.html` describes **OpenAI,
+`https://sebmendo1.github.io/withMemento/privacy.html` describes **OpenAI,
 Google, and Supabase**, none of which the app uses. `PRIVACY_POLICY.md` at the
 repo root is equally stale (it has a "Google Gemini 2.5 Flash" section).
 `docs/privacy.html` in this repository *is* clean — it was simply never
@@ -472,7 +472,7 @@ depend on granting data access**; consent must be withdrawable; *"Ensure your
 purpose strings clearly and completely describe your use of the data."*
 
 Apple's own common-rejection #6 is unclear data-access requests. Current strings
-(`MeetMemento/Info.plist`):
+(`withMemento/Info.plist`):
 
 | Key | Current | Assessment |
 |---|---|---|
@@ -569,7 +569,7 @@ off-device path for the most sensitive data the app touches. It offered three
 resolutions, the first being migration to `SpeechAnalyzer`/`SpeechTranscriber`
 per spec 018 R1.
 
-**Resolution 1 shipped.** `MeetMemento/Services/SpeechAnalyzerEngine.swift` runs
+**Resolution 1 shipped.** `withMemento/Services/SpeechAnalyzerEngine.swift` runs
 `SpeechAnalyzer` + `SpeechTranscriber` against assets installed locally via
 `AssetInventory`; there is no `SFSpeechAudioBufferRecognitionRequest` and no
 `recognitionTask` in the target. `SFSpeechRecognizer` remains only as the
@@ -656,7 +656,7 @@ enabling it, never at launch.
 - [x] One of the three off-device-speech resolutions has shipped (§5.1.2) —
       resolution 1, the `SpeechAnalyzer`/`SpeechTranscriber` migration. Verify by
       grep: `SFSpeechAudioBufferRecognitionRequest` and `recognitionTask` must
-      return **zero** hits in `MeetMemento/`.
+      return **zero** hits in `withMemento/`.
 - [ ] `NSUserTrackingUsageDescription` is absent from every plist (§5.1.2).
 - [ ] A "Report a problem with this response" affordance exists on each
       generative surface (§1.2).

@@ -1,6 +1,6 @@
 //
 //  ThemeFlowLayout.swift
-//  MeetMemento
+//  withMemento
 //
 //  Wrapping chip/tag flow used by onboarding ThemeConfirmationView and the
 //  Settings journal-themes editor.

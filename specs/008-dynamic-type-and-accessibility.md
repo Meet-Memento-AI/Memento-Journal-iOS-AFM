@@ -32,12 +32,12 @@ immediately. Gate 3.
 ## Current State (evidence)
 
 > Re-verify each row before starting work — line numbers rot. Update stale refs.
-> Regenerate the inventory first: `grep -rn "\.system(size:" MeetMemento/ --include="*.swift"`
+> Regenerate the inventory first: `grep -rn "\.system(size:" withMemento/ --include="*.swift"`
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
 | 1 | 97 `.system(size:)` uses; body-text offenders include `SettingsView.swift:171` (16pt semibold), `:177` (14pt), `EditAboutYourselfView.swift:170,180,188` (15–17pt), `ProfileSettingsView.swift:84` (14pt). Only 14 `ScaledMetric`/`dynamicTypeSize` usages compensate anywhere. | grep inventory | HIGH (body text) / LOW (icons) |
-| 2 | A11y labels cover 39/151 files (67 labels, 19 hints, 12 traits) — good on components (JournalCard, chat input, FAB), unaudited on several full screens (onboarding steps, insights detail, settings leaf views). | `MeetMemento/Utilities/AccessibilityHelpers.swift` + audit | MEDIUM |
+| 2 | A11y labels cover 39/151 files (67 labels, 19 hints, 12 traits) — good on components (JournalCard, chat input, FAB), unaudited on several full screens (onboarding steps, insights detail, settings leaf views). | `withMemento/Utilities/AccessibilityHelpers.swift` + audit | MEDIUM |
 | 3 | Reduce-motion already respected in 8 components — pattern exists to copy where new animation is touched. | e.g. `SkeletonView.swift` | baseline |
 
 ## Requirements
@@ -84,7 +84,7 @@ existing JournalCard pattern).
 
 ## Verification
 
-- [ ] `grep -rn "\.system(size:" MeetMemento/ --include="*.swift" | grep -v "icon-size:"`
+- [ ] `grep -rn "\.system(size:" withMemento/ --include="*.swift" | grep -v "icon-size:"`
       → 0.
 - [ ] Simulator at AX5: walk Settings → Profile → Edit About Yourself → journal list →
       entry detail → chat; screenshot each; no truncation/overlap.

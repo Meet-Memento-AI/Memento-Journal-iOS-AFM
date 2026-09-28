@@ -1,6 +1,6 @@
 //
 //  InsightEngine+Clusters.swift
-//  MeetMemento
+//  withMemento
 //
 //  Embedding clusters labeled with TF-IDF. No FoundationModels.
 //

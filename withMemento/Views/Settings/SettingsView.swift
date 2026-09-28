@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI
@@ -20,6 +20,10 @@ struct SettingsView: View {
     @ObservedObject private var sampleContent = SampleContentService.shared
     #if MEMENTO_AI
     @ObservedObject private var syncStatus = SyncStatusStore.shared
+    @ObservedObject private var entitlements = EntitlementStore.shared
+    @State private var intelligenceAvailability: IntelligenceAvailability?
+    @State private var showPaywall = false
+    @State private var showCustomerCenter = false
     #endif
     @State private var isSampleWorking = false
 
@@ -37,18 +41,40 @@ struct SettingsView: View {
                 #endif
                 notificationsSection
                 securitySection
+                proSection
                 aboutSection
                 syncStatusSection
                 yourDataSection
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())
         #if MEMENTO_AI
         .task { await syncStatus.refresh() }
+        .task {
+            intelligenceAvailability = await FoundationModelsIntelligenceService.shared.availability()
+        }
+        .sheet(isPresented: $showPaywall) {
+            MementoProPaywall()
+        }
+        .sheet(isPresented: $showCustomerCenter) {
+            MementoProCustomerCenter()
+        }
+        .alert(
+            "Memento Pro",
+            isPresented: Binding(
+                get: { entitlements.lastError != nil && !showPaywall },
+                set: { if !$0 { entitlements.lastError = nil } }
+            )
+        ) {
+            Button("OK") { entitlements.lastError = nil }
+        } message: {
+            Text(entitlements.lastError ?? "")
+        }
         #endif
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
@@ -218,6 +244,64 @@ struct SettingsView: View {
         case .none: return "Off — anyone with your phone can read your journal"
         }
     }
+
+    /// Memento Pro (spec 021). Hidden on devices without Apple Intelligence —
+    /// the paywall is unreachable there (R2) — and when the SDK isn't
+    /// configured. Restore sits beside the offer: with no accounts it is the
+    /// only way to bring a purchase to a new device (R3).
+    @ViewBuilder
+    private var proSection: some View {
+        #if MEMENTO_AI
+        let offerable = entitlements.isConfigured
+            && intelligenceAvailability.map {
+                ProAccess.decide(isPro: false, availability: $0) == .showPaywall
+            } == true
+        if entitlements.isPro && entitlements.isConfigured {
+            SettingsSection(title: "Memento Pro") {
+                SettingsRow(
+                    icon: "sparkles",
+                    title: "Manage Subscription",
+                    subtitle: proPlanSubtitle,
+                    showChevron: true,
+                    accessibilityIdentifier: "settings.managePro",
+                    action: { showCustomerCenter = true }
+                )
+            }
+        } else if offerable {
+            SettingsSection(title: "Memento Pro") {
+                SettingsRow(
+                    icon: "sparkles",
+                    title: "Memento Pro",
+                    subtitle: "Pro brings memory to every entry.",
+                    showChevron: true,
+                    accessibilityIdentifier: "settings.mementoPro",
+                    action: { showPaywall = true }
+                )
+
+                SettingsRowDivider()
+
+                SettingsRow(
+                    icon: "arrow.clockwise",
+                    title: "Restore Purchases",
+                    subtitle: "Already bought Memento Pro? Bring it to this device",
+                    showProgress: entitlements.isRestoring,
+                    accessibilityIdentifier: "settings.restorePurchases",
+                    action: { Task { await entitlements.restore() } }
+                )
+            }
+        }
+        #endif
+    }
+
+    #if MEMENTO_AI
+    private var proPlanSubtitle: String {
+        guard let active = entitlements.activeEntitlement else { return "Active" }
+        let plan = active.productIdentifier == "monthly" ? "Monthly" : "Yearly"
+        guard let date = active.expirationDate else { return plan }
+        let verb = active.willRenew ? "Renews" : "Ends"
+        return "\(plan) · \(verb) \(date.formatted(date: .abbreviated, time: .omitted))"
+    }
+    #endif
 
     private var aboutSection: some View {
         SettingsSection(title: "About") {
@@ -472,4 +556,15 @@ struct ShareSheet: UIViewControllerRepresentable {
             .useTheme()
             .useTypography()
     }
+}
+
+#Preview("AX5") {
+    NavigationStack {
+        SettingsView()
+            .environmentObject(EntryViewModel())
+            .environmentObject(AppStateStore())
+            .useTheme()
+            .useTypography()
+    }
+    .environment(\.dynamicTypeSize, .accessibility5)
 }

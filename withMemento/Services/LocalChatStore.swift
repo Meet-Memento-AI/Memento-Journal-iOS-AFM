@@ -1,6 +1,6 @@
 //
 //  LocalChatStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  On-device persistence for chat sessions and messages, replacing the former
 //  server chat tables. Turns used to be persisted server-side; with native

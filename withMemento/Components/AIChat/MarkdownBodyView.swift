@@ -1,6 +1,6 @@
 //
 //  MarkdownBodyView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Figtree-only renderer for assistant markdown blocks (ask@11). Never uses
 //  Typography.h1 / h2 (Lora display). Headings map ###→h3 … ######→h6.

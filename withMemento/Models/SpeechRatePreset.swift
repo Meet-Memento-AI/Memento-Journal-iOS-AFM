@@ -1,6 +1,6 @@
 //
 //  SpeechRatePreset.swift
-//  MeetMemento
+//  withMemento
 //
 //  Named speaking-rate presets for read-aloud (spec 018 R7). Discrete rows
 //  rather than a slider: consistent with the hand-built settings cards and

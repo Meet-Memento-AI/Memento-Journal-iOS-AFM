@@ -1,6 +1,6 @@
 //
 //  InsightEngine+Entities.swift
-//  MeetMemento
+//  withMemento
 //
 //  NLTagger people / places. No FoundationModels.
 //

@@ -1,6 +1,6 @@
 //
 //  AcknowledgmentsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 030 R6 / DEC-010: OFL fonts + neural TTS model attribution.
 //
@@ -9,13 +9,14 @@ import SwiftUI
 
 struct AcknowledgmentsView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 SettingsSection(title: "Typefaces") {
                     Text(fontAttribution)
-                        .font(.footnote)
+                        .font(type.caption)
                         .foregroundStyle(theme.mutedForeground)
                         .padding(.vertical, Spacing.sm)
                         .accessibilityIdentifier("acknowledgments.fonts")
@@ -23,7 +24,7 @@ struct AcknowledgmentsView: View {
 
                 SettingsSection(title: "Voice model") {
                     Text(modelAttribution)
-                        .font(.footnote)
+                        .font(type.caption)
                         .foregroundStyle(theme.mutedForeground)
                         .padding(.vertical, Spacing.sm)
                         .accessibilityIdentifier("acknowledgments.model")
@@ -32,7 +33,7 @@ struct AcknowledgmentsView: View {
                 if let openRAIL = openRAILText {
                     SettingsSection(title: "BigScience Open RAIL-M License") {
                         Text(openRAIL)
-                            .font(.caption2)
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                             .padding(.vertical, Spacing.sm)
                             .textSelection(.enabled)
@@ -43,7 +44,7 @@ struct AcknowledgmentsView: View {
                 if let ofl = oflText {
                     SettingsSection(title: "SIL Open Font License") {
                         Text(ofl)
-                            .font(.caption2)
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                             .padding(.vertical, Spacing.sm)
                             .textSelection(.enabled)
@@ -53,7 +54,8 @@ struct AcknowledgmentsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

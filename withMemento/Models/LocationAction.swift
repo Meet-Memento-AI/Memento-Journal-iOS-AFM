@@ -1,6 +1,6 @@
 //
 //  LocationAction.swift
-//  MeetMemento
+//  withMemento
 //
 //  What AddEntryView's composer did to an entry's place name this session.
 //

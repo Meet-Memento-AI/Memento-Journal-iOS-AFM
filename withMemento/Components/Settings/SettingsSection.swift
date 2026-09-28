@@ -1,6 +1,6 @@
 //
 //  SettingsSection.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared Settings section: h5 title, optional subtitle, and card chrome.
 //

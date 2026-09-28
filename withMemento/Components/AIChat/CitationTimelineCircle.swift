@@ -1,6 +1,6 @@
 //
 //  CitationTimelineCircle.swift
-//  MeetMemento
+//  withMemento
 //
 //  Atom: hollow circle marker on the citations timeline
 //

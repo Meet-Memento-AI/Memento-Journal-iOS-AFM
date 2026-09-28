@@ -138,6 +138,15 @@ Guided `AskAnswer.body` is the complete spoken reply; `heading1` /
 **Amendment (2026-09-01, narration):** Spoken turns decode `LightAskAnswer`
 (body only). Schema split and spoken no-RAG follow-up → companion are 039.
 
+**Amendment (spec 050, 2026-09-22):** The Notebook moment's quote and date
+are inserted by Swift, not written by the model. The model places
+`{{date:N}}` / `{{quote:N}}` markers from the turn's `[Evidence]` list and
+`ReplyRenderer` expands them from the `EvidencePack`; italics in the model's
+own text are unwrapped, or dropped with their sentence when they claim
+someone's words the pack cannot back. The ask@11 "italic quotes" grant and
+"reproduce any quoted field exactly" are retired. Shipping versions:
+`ask-core@19` / `ask-degraded@19` (`+p4` when personalized).
+
 ### R2. Turn shapes A–D
 
 | Shape | When | Behavior |

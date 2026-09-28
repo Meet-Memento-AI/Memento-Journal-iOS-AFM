@@ -1,6 +1,6 @@
 import NaturalLanguage
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Which guard actually blocks a cold-start question?
 ///
@@ -24,9 +24,9 @@ import XCTest
 ///
 /// ```
 /// COLD_START_DIAG=1 DEVELOPER_DIR=~/Downloads/Xcode-beta.app/Contents/Developer \
-/// xcodebuild test -scheme MeetMemento \
+/// xcodebuild test -scheme withMemento \
 ///   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-///   -only-testing:MeetMementoTests/ColdStartRetrievalDiag
+///   -only-testing:withMementoTests/ColdStartRetrievalDiag
 /// ```
 final class ColdStartRetrievalDiag: XCTestCase {
 
@@ -177,7 +177,7 @@ final class ColdStartRetrievalDiag: XCTestCase {
     private static func write(_ report: String) {
         let dir = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Eval
-            .deletingLastPathComponent()   // MeetMementoTests
+            .deletingLastPathComponent()   // withMementoTests
             .deletingLastPathComponent()   // repo
             .appendingPathComponent(".eval-runs/cold-start")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

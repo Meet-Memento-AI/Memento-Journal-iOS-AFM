@@ -1,6 +1,6 @@
 //
 //  OnboardingPageScaffold.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared vertical rhythm for onboarding steps: header → content → footer.
 //  Keeps pages in frame with consistent Spacing tokens across OnboardingViews.
@@ -65,6 +65,7 @@ struct OnboardingBackHeader<Trailing: View>: View {
             }
         }
         .padding(.horizontal, OnboardingLayout.headerHorizontal)
+        .contentColumn()
         .padding(.top, OnboardingLayout.headerTop)
         .padding(.bottom, OnboardingLayout.headerBottom)
         .frame(maxWidth: .infinity)
@@ -93,6 +94,11 @@ extension OnboardingBackHeader where Trailing == OnboardingHeaderSpacer {
 ///
 /// Footer is a `safeAreaInset` so it stays above the home indicator **and** the
 /// keyboard, and the content band always lays out in the remaining frame.
+///
+/// Header, content and footer each carry `contentColumn()`, so on iPad the whole
+/// page reads as one centred column instead of a 600pt paragraph under a
+/// window-wide button. The page background stays full-bleed. On iPhone the cap
+/// is never reached, so every band lays out exactly as it did before.
 struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
@@ -134,6 +140,7 @@ struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View
                 OnboardingBackHeader(onBack: { onBack?() ?? dismiss() }, trailing: trailing)
 
                 contentBand
+                    .contentColumn()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: centersContent ? .center : .top)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -175,6 +182,7 @@ struct OnboardingPageScaffold<Trailing: View, Content: View, Footer: View>: View
     private var footerBar: some View {
         footer()
             .padding(.horizontal, OnboardingLayout.footerHorizontal)
+            .contentColumn()
             .padding(.top, OnboardingLayout.footerTop)
             .padding(.bottom, OnboardingLayout.footerBottom)
             .frame(maxWidth: .infinity)

@@ -1,6 +1,6 @@
 //
 //  HistoryWindow.swift
-//  MeetMemento
+//  withMemento
 //
 //  A short rolling summary plus the last four turns. Notebook prompts also
 //  receive evidence passages from retrieval, not two dozen raw messages.

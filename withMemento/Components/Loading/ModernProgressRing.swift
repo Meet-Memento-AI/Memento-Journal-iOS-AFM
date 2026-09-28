@@ -1,6 +1,6 @@
 //
 //  ModernProgressRing.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared animated progress ring component
 //

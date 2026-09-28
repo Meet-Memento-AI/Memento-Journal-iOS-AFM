@@ -1,6 +1,6 @@
 //
 //  LockScreenView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Lock screen that protects app content with FaceID or PIN.
 //  Designed to match the LaunchScreen for seamless transition.
@@ -41,7 +41,7 @@ struct LockScreenView: View {
             VStack {
 
                 // App logo - half size of LaunchScreen
-                Image("MeetMemento-AppIcon")
+                Image("withMemento-AppIcon")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 70, height: 64)
@@ -60,6 +60,7 @@ struct LockScreenView: View {
                         .padding(.bottom, 60)
                 }
             }
+            .contentColumn()
 
             // Hidden TextField for iOS keyboard (PIN mode only)
             if viewModel.showPINFallback {
@@ -297,21 +298,24 @@ struct LockScreenView: View {
                     isPinFieldFocused = true
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(GrayScale.gray200)
-                        // AX5: minHeight lets the box grow instead of overlapping
-                        // neighbors when the digit (type.h2) scales up at large
-                        // Dynamic Type sizes.
-                        .frame(minWidth: 60, maxWidth: 60, minHeight: 70)
-                        .overlay(
-                            Group {
-                                if index < enteredPIN.count {
-                                    Text(String(enteredPIN[enteredPIN.index(enteredPIN.startIndex, offsetBy: index)]))
-                                        .font(type.h2)
-                                        .foregroundStyle(theme.foreground)
-                                }
-                            }
-                        )
+                    // Sized by the (hidden) digit rather than a greedy shape:
+                    // 70pt normally, taller only when type.h2 outgrows it at
+                    // AX sizes. A bare RoundedRectangle with only minHeight
+                    // stretched to fill the screen before the keyboard showed.
+                    ZStack {
+                        Text("0").hidden()
+                        if index < enteredPIN.count {
+                            Text(String(enteredPIN[enteredPIN.index(enteredPIN.startIndex, offsetBy: index)]))
+                                .foregroundStyle(theme.foreground)
+                        }
+                    }
+                    .font(type.h2)
+                    .frame(width: 60)
+                    .frame(minHeight: 70)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(theme.border)
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("PIN digit \(index + 1) of \(pinLength)")
@@ -383,4 +387,20 @@ struct LockScreenView: View {
     return LockScreenView(viewModel: viewModel)
         .useTheme()
         .useTypography()
+}
+
+#Preview("Face ID Mode · AX5") {
+    LockScreenView(viewModel: LockScreenViewModel())
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
+}
+
+#Preview("PIN Mode · AX5") {
+    let viewModel = LockScreenViewModel()
+    viewModel.showPINFallback = true
+    return LockScreenView(viewModel: viewModel)
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }

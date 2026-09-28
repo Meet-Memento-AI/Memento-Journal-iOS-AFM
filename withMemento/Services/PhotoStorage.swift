@@ -1,6 +1,6 @@
 //
 //  PhotoStorage.swift
-//  MeetMemento
+//  withMemento
 //
 //  Stores encrypted journal entry photos on device — one file per entry, keyed
 //  by the entry's own UUID. Deliberately mirrors LocalJournalStorage's shape,

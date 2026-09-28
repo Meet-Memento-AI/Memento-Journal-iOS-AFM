@@ -1,6 +1,6 @@
 //
 //  EntrySpotlightIndexer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 016 Plan B (DEC-002): donation is opt-in, default off.
 //  Retrieval uses EntryRetriever (REQ-IDX-007), not SpotlightSearchTool.
@@ -23,7 +23,7 @@ enum IndexingPreferences {
 }
 
 enum EntrySpotlightIndexer {
-    static let domainIdentifier = "com.sebastianmendo.MeetMemento.entries"
+    static let domainIdentifier = "com.sebmendo.withMementoAI.entries"
     static let namedIndex = "memento-entries"
 
     static func donate(_ entry: Entry) async {

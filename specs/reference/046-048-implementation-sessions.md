@@ -73,8 +73,8 @@ behaviour.
 a body with no italics; a deliberately broken pattern fails a named test.
 
 **Done when:** replaying `.eval-runs/convo-sim/full-2026-09-20.jsonl` through the
-repaired scorer fires on the 202 empty-arm turns carrying a matching span, and the
-count is recorded in the PR body. Expect a burst of cold-arm findings too — that is
+repaired scorer fires on 200 empty-arm turns (measured 2026-09-21), and the count is
+recorded in the PR body. Expect a burst of cold-arm findings too — that is
 detection appearing, not quality regressing. Say so in the PR description.
 
 ### Session 2 — Empty-corpus semantics (046 R2)

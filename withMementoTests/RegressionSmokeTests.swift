@@ -1,8 +1,8 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class RegressionSmokeTests: XCTestCase {
-    func test_testTarget_linksMeetMemento() {
+    func test_testTarget_linkswithMemento() {
         let _: ChatServiceProtocol = ChatService.shared
     }
 }

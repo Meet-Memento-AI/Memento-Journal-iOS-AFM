@@ -3,7 +3,7 @@ import XCTest
 /// AddEntryView is a zooming NavigationStack page, not a 95% sheet.
 ///
 /// Launches WITHOUT `-UITesting`: that flag forces Welcome. Seed the simulator:
-///   xcrun simctl spawn <udid> defaults write com.sebastianmendo.MeetMemento \
+///   xcrun simctl spawn <udid> defaults write com.sebmendo.withMementoAI \
 ///       memento_onboarding_completed -bool true
 final class EntryZoomPageUITests: XCTestCase {
 

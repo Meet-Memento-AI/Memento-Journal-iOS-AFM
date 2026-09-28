@@ -1,6 +1,6 @@
 //
 //  SettingsInfoRow.swift
-//  MeetMemento
+//  withMemento
 //
 //  Non-tappable informational row used in Data Usage and similar screens.
 //

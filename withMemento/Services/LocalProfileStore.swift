@@ -1,6 +1,6 @@
 //
 //  LocalProfileStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  Local-only storage for personalization text, journal themes, and the
 //  ExperienceProfile used to refine on-device prompts (spec 023 / 024).

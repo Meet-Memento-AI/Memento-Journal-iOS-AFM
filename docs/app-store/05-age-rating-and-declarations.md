@@ -112,7 +112,7 @@ costs a submission cycle. `00` A8.
 
 ### Our declaration and its reasoning
 
-`MeetMemento/Info.plist` already contains:
+`withMemento/Info.plist` already contains:
 
 ```xml
 <key>ITSAppUsesNonExemptEncryption</key>
@@ -212,9 +212,9 @@ third-party works bundled in the binary:
 
 | Asset | Location | Licence | Status |
 |---|---|---|---|
-| Lora (4 weights) | `MeetMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
-| Sora (5 weights) | `MeetMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
-| Manrope (3 weights) | `MeetMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
+| Lora (4 weights) | `withMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
+| Sora (5 weights) | `withMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
+| Manrope (3 weights) | `withMemento/Resources/Fonts/` | SIL Open Font License 1.1 — verify | ☐ Record |
 | `welcome-bg.mp4` | app bundle | Unknown — must be original, licensed, or replaced | ☐ **Verify** |
 | `SVGKit`, `ProgressiveBlurHeader` | SPM | Open source — record licence in the allowlist decision record | ☐ Record |
 

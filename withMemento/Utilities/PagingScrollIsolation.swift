@@ -1,6 +1,6 @@
 //
 //  PagingScrollIsolation.swift
-//  MeetMemento
+//  withMemento
 //
 //  Nested horizontal ScrollViews inside RootPager (TabView + `.page`) share an
 //  axis with the paging UIScrollView. UIKit transfers leftover pan — especially

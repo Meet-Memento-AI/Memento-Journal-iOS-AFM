@@ -1,6 +1,6 @@
 //
 //  ChatMessagesView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared thread for Chat's typing and narration modes: empty state, bubbles,
 //  loading row, header clearance, and footer reserve.
@@ -13,19 +13,22 @@ struct ChatMessagesView: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var voiceService: VoicePlaybackService
     @ObservedObject var choreographer: ChatSendChoreographer
-    var hasEntries: Bool
     var bottomReserve: CGFloat
     var followTail: Bool
     /// Starter prompts for the empty state. The three tiles always render
     /// under the headline; this array supplies prompts and theme pills.
     var suggestions: [ChatSuggestion] = []
+    /// False on the free tier (Figma 1177:3156): the empty state is the mark
+    /// and headline only, with no starter tiles.
+    var showsStarters: Bool = true
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
-    var onSuggestionTap: (String) -> Void = { _ in }
+    var onSuggestionTap: (ChatSuggestion) -> Void = { _ in }
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     /// Visible content height — container minus both safe-area insets. Read
     /// from `ScrollGeometry` rather than derived by hand.
@@ -105,7 +108,10 @@ struct ChatMessagesView: View {
     /// The reply Regenerate applies to — the last one, and only when it is the
     /// final row in the transcript.
     private var lastAssistantMessageID: UUID? {
-        guard let last = viewModel.messages.last, !last.isFromUser else { return nil }
+        // `isAssistantReply`, not `!isFromUser`: a starter prompt is the last
+        // row for the moment between the card tap and the reply landing, and
+        // Regenerate must not offer to regenerate the question.
+        guard let last = viewModel.messages.last, last.isAssistantReply else { return nil }
         return last.id
     }
 
@@ -228,16 +234,29 @@ struct ChatMessagesView: View {
         // than only the first.
         .safeAreaInset(edge: .top, spacing: 0) {
             Color.clear
-                .frame(height: AppHeaderMetrics.chatPinTopInset)
+                .frame(height: RootContentInsets.chatPinTopInset(hosted: navigationBarHosted))
                 // `Color` is hit-testable. Without this, a drag started
                 // anywhere in the top band would never reach the scroll view.
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
         .scrollIndicators(.hidden)
-        // Same 16pt gutter as header/footer. Padding is ignored
-        // under RootPageScaffold's `.ignoresSafeArea()`.
-        .rootEdgeInset()
+        // Same 16pt gutter as header/footer, now bounded by the page's column.
+        // Padding is ignored under RootPageScaffold's `.ignoresSafeArea()`.
+        //
+        // This must stay ON the ScrollView, and the reporter below must stay
+        // OUTSIDE it, because `columnFrame` *is* this rect — and it is the only
+        // width the send flight has. `ChatTranscriptMetrics.landingRect` places
+        // the ghost at `column.maxX` and `SendFlightGhost` wraps its text at
+        // `UserBubbleSurface.maxWidth(inColumnWidth: column.width)`. Move the
+        // inset onto the scroll *content* and this reports the whole window: on a
+        // 13" iPad the ghost would land 323pt right of the row it hands off to
+        // and wrap at 1294pt instead of 648pt — the reflow bug documented at
+        // `UserBubbleSurface.maxWidth(inColumnWidth:)`, scaled up 600pt.
+        // Re-measuring from the content is not an alternative: a `.page` reporter
+        // inside the scroll content fires every scroll frame (see `ChatSpace`),
+        // and the landing y is a viewport offset that would then scroll.
+        .pageColumnRelative()
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { choreographer.columnFrame = $0 }
         .onScrollGeometryChange(for: ScrollSnapshot.self) { geometry in
@@ -317,7 +336,9 @@ struct ChatMessagesView: View {
     /// draws no content, and padding it would open a visible gap above the
     /// "thinking" indicator. Mirrors `ChatMessageBubble`'s own emptiness rule.
     private func turnTrailingGap(for message: ChatMessage) -> CGFloat {
-        guard !message.isFromUser else { return 0 }
+        // A starter prompt is a question, so it takes the question's spacing:
+        // it sits tight against the answer below it, like a user turn.
+        guard message.isAssistantReply else { return 0 }
 
         if let ai = message.aiOutputContent {
             let isEmpty = ai.body.isEmpty
@@ -344,7 +365,9 @@ struct ChatMessagesView: View {
         // that circularly depends on content width and collapses to zero.
         emptyState
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .rootEdgeInset()
+            // Same measure as the transcript, so the suggestion tiles share the
+            // left edge the first reply will land on.
+            .pageColumnRelative()
             .opacity(showsEmptyState ? 1 : 0)
             .allowsHitTesting(showsEmptyState)
             .accessibilityHidden(!showsEmptyState)
@@ -643,7 +666,7 @@ struct ChatMessagesView: View {
                     onCitations(citations)
                 }
             },
-            onSpeak: message.isFromUser ? nil : {
+            onSpeak: message.isAssistantReply ? {
                 if let ai = message.aiOutputContent {
                     voiceService.toggleSpeech(
                         messageID: message.id,
@@ -652,7 +675,7 @@ struct ChatMessagesView: View {
                         body: ai.speakableBody
                     )
                 }
-            },
+            } : nil,
             // Last reply only. Regenerating an older one re-sends it, which
             // appends at the end — so offering it mid-transcript promised a
             // reordering nobody wants (and `regenerateResponse` now refuses it,
@@ -661,23 +684,55 @@ struct ChatMessagesView: View {
                 voiceService.stopIfSpeaking(messageID: message.id)
                 viewModel.regenerateResponse(for: message.id)
             } : nil,
-            onThumbsUp: message.isFromUser ? nil : {
+            onThumbsUp: message.isAssistantReply ? {
                 viewModel.toggleThumbsUp(for: message.id)
-            },
-            onThumbsDown: message.isFromUser ? nil : {
+            } : nil,
+            onThumbsDown: message.isAssistantReply ? {
                 viewModel.toggleThumbsDown(for: message.id)
-            },
+            } : nil,
             isReported: viewModel.isReported(message.id),
-            onReportAnswer: message.isFromUser ? nil : {
+            onReportAnswer: message.isAssistantReply ? {
                 viewModel.beginFeedback(messageID: message.id, source: .report)
-            },
+            } : nil,
             onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil,
             isUnanswered: message.isFromUser && viewModel.isUnansweredUserMessage(message),
             onAnimationComplete: { viewModel.markMessageSeen(message.id) }
         )
     }
 
+    @ViewBuilder
     private var emptyState: some View {
+        if showsStarters {
+            startersEmptyState
+        } else {
+            freeEmptyState
+        }
+    }
+
+    /// Free tier (Figma 1177:3156): the mark and headline, centred in the
+    /// space between the header and the composer.
+    private var freeEmptyState: some View {
+        VStack(spacing: 10) {
+            Image("ChatEmptyMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64) // icon-size: brand mark, not user text
+                .accessibilityHidden(true)
+
+            Text("Let\u{2019}s dive deeper\ninto your journal")
+                .font(type.h2)
+                .foregroundStyle(PrimaryScale.primary600)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .padding(.bottom, bottomReserve)
+        .accessibilityIdentifier("chat.emptyState.free")
+    }
+
+    private var startersEmptyState: some View {
         GeometryReader { geo in
             let height = geo.size.height
             ScrollView(.vertical, showsIndicators: false) {
@@ -700,14 +755,14 @@ struct ChatMessagesView: View {
                     VStack(spacing: ChatEmptyHeroMetrics.cardGap) {
                         ForEach(displayedSuggestions) { suggestion in
                             AISuggestionCard(suggestion) {
-                                onSuggestionTap(suggestion.prompt)
+                                onSuggestionTap(suggestion)
                             }
                         }
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, AppHeaderMetrics.contentTopPadding)
+                .padding(.top, RootContentInsets.contentTopPadding(hosted: navigationBarHosted))
                 .padding(.bottom, bottomReserve)
             }
             .scrollIndicators(.hidden)
@@ -718,8 +773,11 @@ struct ChatMessagesView: View {
     /// Empty chat always shows three starter tiles under the headline.
     /// Falls back to the generic pool if rotation has not landed yet.
     private var displayedSuggestions: [ChatSuggestion] {
-        if !suggestions.isEmpty { return Array(suggestions.prefix(3)) }
-        return ChatSuggestion.fallbackStarters
+        // Backstop, not the primary guarantee: whatever reaches this view —
+        // a short deep-card set, a seeded preview list, an empty first frame —
+        // renders as three tiles with three different faces. `filled` only
+        // reads static constants, so this stays cheap on every redraw.
+        ThemeAwareChatStarters.filled(suggestions)
     }
 }
 

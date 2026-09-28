@@ -1,6 +1,6 @@
 //
 //  InsightEngine+Cadence.swift
-//  MeetMemento
+//  withMemento
 //
 //  Week / month / streak / gap / hour facts. No FoundationModels.
 //

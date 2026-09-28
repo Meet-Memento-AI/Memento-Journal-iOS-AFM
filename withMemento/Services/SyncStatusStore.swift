@@ -1,6 +1,6 @@
 //
 //  SyncStatusStore.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 015 R2 / 040: passive CloudKit status. Never blocks capture.
 //

@@ -1,6 +1,6 @@
 //
 //  FeedbackSyncService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 042 sync: local AnswerFeedbackStore stays the source of truth.
 //  Network never blocks a thumb. Durable outbox + idempotent retries.

@@ -1,6 +1,6 @@
 //
 //  NewEntryFAB.swift
-//  MeetMemento
+//  withMemento
 //
 //  Floating Action Button for creating new journal entries.
 //  Icon-only: plain, untinted Liquid Glass — no `.glassProminent`, no brand
@@ -78,7 +78,7 @@ public struct NewEntryFAB: View {
             .font(AppHeaderMetrics.controlSymbolFont)
             .foregroundStyle(theme.foreground)
             .mementoGlassButtonChrome(
-                .regular.interactive(),
+                interactive: true,
                 shape: .circle,
                 minLength: AppHeaderMetrics.footerGlassButtonLength(size)
             )

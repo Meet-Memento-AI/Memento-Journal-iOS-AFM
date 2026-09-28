@@ -1,6 +1,6 @@
 //
 //  LockScreenViewModel.swift
-//  MeetMemento
+//  withMemento
 //
 //  Manages app lock/unlock state separate from authentication state.
 //

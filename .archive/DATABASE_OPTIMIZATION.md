@@ -8,7 +8,7 @@
 
 ## Overview
 
-This document describes the database schema optimizations implemented for MeetMemento. These changes improve performance, reduce AI API costs, and prepare the database for scale.
+This document describes the database schema optimizations implemented for withMemento. These changes improve performance, reduce AI API costs, and prepare the database for scale.
 
 ---
 

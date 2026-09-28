@@ -1,6 +1,6 @@
 //
 //  FeedbackDeviceIdentity.swift
-//  MeetMemento
+//  withMemento
 //
 //  Install-scoped UUID used only as the spec 042 erase key. Created on first
 //  consented enqueue. Not an account.

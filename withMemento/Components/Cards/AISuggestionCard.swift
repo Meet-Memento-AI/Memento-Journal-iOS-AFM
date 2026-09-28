@@ -1,6 +1,6 @@
 //
 //  AISuggestionCard.swift
-//  MeetMemento
+//  withMemento
 //
 //  Chat empty-state starter. Figma 395:5565 — theme pill and arrow on one
 //  row, prompt below. Height hugs content. Colors follow the current build.
@@ -26,7 +26,7 @@ public struct AISuggestionCard: View {
     }
 
     init(_ suggestion: ChatSuggestion, onTap: (() -> Void)? = nil) {
-        self.init(suggestion: suggestion.prompt, themeName: suggestion.themeName, onTap: onTap)
+        self.init(suggestion: suggestion.label, themeName: suggestion.themeName, onTap: onTap)
     }
 
     public var body: some View {
@@ -66,7 +66,7 @@ public struct AISuggestionCard: View {
             }
             Spacer(minLength: 0)
             Image(systemName: "arrow.right")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold)) // icon-size: not user text
                 .foregroundStyle(chromeInk)
                 .frame(width: 24, height: 24)
         }
@@ -130,12 +130,13 @@ private struct AISuggestionCardAccessibility: ViewModifier {
         content
             .accessibilityElement(children: .combine)
             .accessibilityLabel(label)
-            .accessibilityHint("Sends this suggestion to AI")
+            .accessibilityHint("Starts a conversation about this")
     }
 }
 
 // MARK: - Previews
 
+// periphery:ignore - instantiated only by #Preview canvases
 private struct AISuggestionCardHarness: View {
     var body: some View {
         VStack(spacing: Spacing.md) {

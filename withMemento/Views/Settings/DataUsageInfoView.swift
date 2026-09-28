@@ -1,6 +1,6 @@
 //
 //  DataUsageInfoView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Information about what data is collected and how it's used
 //  Required for iOS App Store transparency
@@ -27,7 +27,8 @@ public struct DataUsageInfoView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())

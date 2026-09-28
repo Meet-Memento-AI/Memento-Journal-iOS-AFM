@@ -1,4 +1,4 @@
-# MeetMemento Utilities
+# withMemento Utilities
 
 This directory contains reusable utilities and helper functions that promote code consistency and reduce duplication across the app.
 
@@ -287,4 +287,4 @@ For a template on how to create new components using these utilities, see `COMPO
 ---
 
 **Last Updated:** February 2026
-**Maintained By:** MeetMemento Engineering Team
+**Maintained By:** withMemento Engineering Team

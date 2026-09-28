@@ -1,6 +1,6 @@
 //
 //  EditJournalGoalsView.swift
-//  MeetMemento
+//  withMemento
 //
 //  Settings editor for ThemeCatalog themes. Chrome matches
 //  ThemeConfirmationView; persist + lens rebuild stay Settings-only.

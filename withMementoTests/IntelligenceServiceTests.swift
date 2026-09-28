@@ -1,6 +1,6 @@
 //
 //  IntelligenceServiceTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Online-safe suites (retriever, embeddings availability, local chat store)
 //  always run. Live Foundation Models generation belongs on a physical
@@ -14,7 +14,7 @@
 //
 
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class IntelligenceServiceTests: XCTestCase {
 

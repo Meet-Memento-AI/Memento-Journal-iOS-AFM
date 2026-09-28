@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Drives VoicePlaybackService's state machine through the `UtteranceEngine`
 /// seam — no real audio (simulator TTS is unreliable; CI is headless).

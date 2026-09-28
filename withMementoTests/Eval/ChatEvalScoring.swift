@@ -1,5 +1,5 @@
 import Foundation
-@testable import MeetMemento
+@testable import withMemento
 
 /// Mechanical scoring for the chat evaluation gate.
 ///
@@ -121,12 +121,12 @@ enum ChatEvalScoring {
             v.append(.init(code: "leak.ctrlToken", detail: "\(n) token(s)"))
         }
         // [Name] / [Alex] style placeholders.
-        if let m = body.range(of: #"\[[A-Za-z][A-Za-z ]{1,20}\]"#, options: .regularExpression) {
+        if let m = body.range(of: placeholderPattern, options: .regularExpression) {
             v.append(.init(code: "leak.placeholder", detail: String(body[m])))
         }
         // Bracket pairs the marker stripper cannot see: its patterns all require
         // \d+ inside the brackets, so `[,]`, `[]` and `[ref]` survive to screen.
-        if let m = body.range(of: #"\[\s*[^\]\d]{0,6}\s*\]"#, options: .regularExpression) {
+        if let m = body.range(of: emptyBracketPattern, options: .regularExpression) {
             v.append(.init(code: "leak.emptyBracket", detail: String(body[m])))
         }
         if body.contains("*italic*") || body.contains("*bold*") {
@@ -138,7 +138,7 @@ enum ChatEvalScoring {
                 break
             }
         }
-        if body.range(of: #"\[Turn:|\[Shape:|\[Name:|\[Safety:"#, options: .regularExpression) != nil {
+        if body.range(of: promptTagPattern, options: .regularExpression) != nil {
             v.append(.init(code: "leak.promptTag", detail: "prompt tag echoed"))
         }
         // Evidence-block chrome.
@@ -179,27 +179,27 @@ enum ChatEvalScoring {
             v.append(.init(code: "rule.multipleQuestions", detail: "\(questionCount) questions"))
         }
 
-        if body.range(of: #"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+entries\b"#,
+        if body.range(of: entryCountPattern,
                       options: [.regularExpression, .caseInsensitive]) != nil {
             v.append(.init(code: "rule.entryCount", detail: "states a count of entries"))
         }
 
         let h3 = body.components(separatedBy: "###").count - 1
         if h3 > 1 { v.append(.init(code: "rule.multipleH3", detail: "\(h3) ### headings")) }
-        if body.range(of: #"(^|\n)#{1,2}[^#]"#, options: .regularExpression) != nil {
+        if body.range(of: badHeadingPattern, options: .regularExpression) != nil {
             v.append(.init(code: "rule.badHeading", detail: "# or ## used"))
         }
-        if body.range(of: #"###\s*($|\n)"#, options: .regularExpression) != nil {
+        if body.range(of: emptyHeadingPattern, options: .regularExpression) != nil {
             v.append(.init(code: "rule.emptyHeading", detail: "dangling ###"))
         }
         if body.contains("```") { v.append(.init(code: "rule.codeFence", detail: "code fence")) }
-        if body.contains("|---") || body.range(of: #"\|.+\|.+\|"#, options: .regularExpression) != nil {
+        if body.contains("|---") || body.range(of: tablePattern, options: .regularExpression) != nil {
             v.append(.init(code: "rule.table", detail: "table"))
         }
-        if body.range(of: #"[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]"#, options: .regularExpression) != nil {
+        if body.range(of: emojiPattern, options: .regularExpression) != nil {
             v.append(.init(code: "rule.emoji", detail: "emoji"))
         }
-        if body.range(of: #"\bthe user\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
+        if body.range(of: thirdPersonPattern, options: [.regularExpression, .caseInsensitive]) != nil {
             v.append(.init(code: "rule.thirdPerson", detail: "\"the user\""))
         }
         // The ban is on the assistant's own register — "obviously, you're
@@ -219,17 +219,81 @@ enum ChatEvalScoring {
         if isCasual {
             if body.contains("###") { v.append(.init(code: "rule.casualHeading", detail: "### on casual turn")) }
             if body.contains("**") { v.append(.init(code: "rule.casualBold", detail: "bold on casual turn")) }
-            if body.range(of: #"(^|\n)- "#, options: .regularExpression) != nil {
+            if body.range(of: casualListPattern, options: .regularExpression) != nil {
                 v.append(.init(code: "rule.casualList", detail: "list on casual turn"))
             }
         }
         return v
     }
 
+    // MARK: - Patterns
+
+    // Named so `ChatEvalScoringTests` can compile every one of them. Inline
+    // literals cannot be reached by a test, and an unreachable pattern that
+    // fails to compile is indistinguishable from a clean reply (046 R1).
+
+    static let placeholderPattern = #"\[[A-Za-z][A-Za-z ]{1,20}\]"#
+    static let emptyBracketPattern = #"\[\s*[^\]\d]{0,6}\s*\]"#
+    static let promptTagPattern = #"\[Turn:|\[Shape:|\[Name:|\[Safety:"#
+    static let entryCountPattern =
+        #"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+entries\b"#
+    static let badHeadingPattern = #"(^|\n)#{1,2}[^#]"#
+    static let emptyHeadingPattern = #"###\s*($|\n)"#
+    static let tablePattern = #"\|.+\|.+\|"#
+    static let emojiPattern = #"[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]"#
+    static let thirdPersonPattern = #"\bthe user\b"#
+    static let casualListPattern = #"(^|\n)- "#
+    static let boldPattern = #"\*\*([^*\n]{8,200}?)\*\*"#
+    static let digitPattern = #"\b(\d+)\b"#
+    /// A month-and-day assertion in the reply: "March 12", "on March 12, 2026".
+    /// Capture group 1 is the whole date so `spans` can return it.
+    ///
+    /// Study III measured these more than doubling on the seeded arm once
+    /// `{{date:N}}` made dating salient — 118 to 290, with 250 passing every
+    /// check the suite had. Nothing scored them.
+    static let assertedDatePattern =
+        #"((?:January|February|March|April|May|June|July|August|September|October|November|December)"#
+        + #"\s+\d{1,2}(?:,?\s+\d{4})?)"#
+
+    /// `\x{201C}`, not `\u{201C}`. This is a Swift *raw* string, so backslash
+    /// escapes reach ICU untouched, and ICU accepts `\uhhhh` and `\x{hhhh}` but
+    /// rejects `\u{hhhh}`. With the old spelling `NSRegularExpression.init` threw,
+    /// `spans` swallowed it, and this scorer returned no violations for every
+    /// input it was ever given. The emoji pattern above is the in-file precedent
+    /// for the working form. Do not "simplify" this back.
+    static let fabricatedQuotePattern =
+        #"(?<!\*)\*(?!\*)[\x{201C}"]?([^*\n]{12,200}?)[\x{201D}"]?(?<!\*)\*(?!\*)"#
+
     // MARK: - hall.*
 
+    /// Every pattern this file compiles, so `ChatEvalScoringTests` can prove each
+    /// one is valid. A scorer whose pattern does not compile returns no
+    /// violations and reads as a pass — which is how `hall.fabricatedQuote` went
+    /// undetected for its entire life (046 R1).
+    static let regexPatterns: [String: String] = [
+        "leak.placeholder": placeholderPattern,
+        "leak.emptyBracket": emptyBracketPattern,
+        "leak.promptTag": promptTagPattern,
+        "rule.entryCount": entryCountPattern,
+        "rule.badHeading": badHeadingPattern,
+        "rule.table": tablePattern,
+        "rule.emoji": emojiPattern,
+        "rule.emptyHeading": emptyHeadingPattern,
+        "rule.thirdPerson": thirdPersonPattern,
+        "rule.casualList": casualListPattern,
+        "hall.fabricatedQuote": fabricatedQuotePattern,
+        "rule.boldNotTheirWords": boldPattern,
+        "insight.digitDisagrees": digitPattern,
+        "hall.unbackedDate": assertedDatePattern
+    ]
+
     private static func spans(_ body: String, pattern: String) -> [String] {
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
+        guard let re = try? NSRegularExpression(pattern: pattern) else {
+            // Unreachable once `ChatEvalScoringTests.test_everyPattern_compiles`
+            // holds; kept as a guard rather than a crash so a scoring bug can
+            // never take a long eval run down with it.
+            return []
+        }
         let ns = body as NSString
         return re.matches(in: body, range: NSRange(location: 0, length: ns.length)).compactMap { m in
             guard m.numberOfRanges > 1 else { return nil }
@@ -264,7 +328,8 @@ enum ChatEvalScoring {
         italicQuotePattern,
         #"\*\*([^*\n]{8,200}?)\*\*"#,
         perceptionPattern,
-        #"\b(\d+)\b"#
+        #"\b(\d+)\b"#,
+        assertedDatePattern
     ]
 
     static let narrativeJoinPhrases = [
@@ -339,6 +404,60 @@ enum ChatEvalScoring {
         return [.init(code: "hall.uncitedQuote", detail: "\"\(span.prefix(50))\" with 0 citations")]
     }
 
+    /// A date the reply asserts that no cited entry carries.
+    ///
+    /// The third reference class, after quotes and counts. Spec 050 gave dates a
+    /// marker and the renderer expands `{{date:N}}` from the entry's own
+    /// timestamp, so a *marked* date is correct by construction. A date the
+    /// model typed itself is not, and until now nothing looked.
+    ///
+    /// `AskCitation` already carries `entryDate`, so this needs no new plumbing —
+    /// the same shape as `uncitedQuote`, which takes citations for the same
+    /// reason. A date is backed when it names the same day as some cited entry;
+    /// the year is optional in the reply, so a match on month and day is enough
+    /// and a stated year must agree if present.
+    ///
+    /// Report-only on arrival (046 R1): measure first, threshold after two
+    /// warehoused runs.
+    static func unbackedDate(_ body: String, citations: [AskCitation],
+                             calendar: Calendar = .current) -> [Violation] {
+        let asserted = spans(body, pattern: assertedDatePattern)
+        guard !asserted.isEmpty else { return [] }
+        let backing = citations.map { calendar.dateComponents([.year, .month, .day], from: $0.entryDate) }
+        return asserted.compactMap { span -> Violation? in
+            guard let parsed = parseAssertedDate(span) else { return nil }
+            let backed = backing.contains { cited in
+                cited.month == parsed.month && cited.day == parsed.day
+                    && (parsed.year == nil || cited.year == parsed.year)
+            }
+            guard !backed else { return nil }
+            return .init(code: "hall.unbackedDate",
+                         detail: "\"\(span.prefix(40))\" with \(citations.count) citation(s)")
+        }
+    }
+
+    /// Month name, day, optional year. Deliberately its own parser rather than a
+    /// `DateFormatter`: the reply's year is often absent, and a formatter would
+    /// silently supply 2000 for a bare "March 12".
+    ///
+    /// The renderer has an equivalent in `ReplyRenderer+Strict.swift`
+    /// (`RenderPass.parse`), but it is `private` and the test target's
+    /// `@testable import` does not reach `private`. Keep the two adjacent in
+    /// review: if one learns a new date shape, the other should.
+    private static func parseAssertedDate(_ span: String) -> (month: Int, day: Int, year: Int?)? {
+        let months = ["january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+                      "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
+                      "december": 12]
+        let parts = span.lowercased()
+            .replacingOccurrences(of: ",", with: " ")
+            .split(whereSeparator: { $0 == " " })
+            .map(String.init)
+        guard let first = parts.first, let month = months[first], parts.count >= 2,
+              let day = Int(parts[1]), (1...31).contains(day) else { return nil }
+        let year = parts.count >= 3 ? Int(parts[2]) : nil
+        return (month, day, year)
+    }
+
     // MARK: - gold.* — is the answer right, not just well-formed?
 
     /// Scores a reply's citations against the gold set's `expectedEntryIDs`.
@@ -404,7 +523,7 @@ enum ChatEvalScoring {
     /// phrase absent from the journal is the model's own prose dressed as the
     /// user's words. Noisy enough to report rather than gate.
     static func boldNotTheirWords(_ body: String, index: QuoteIndex) -> [Violation] {
-        spans(body, pattern: #"\*\*([^*\n]{8,200}?)\*\*"#)
+        spans(body, pattern: boldPattern)
             .filter { span in
                 guard span.count >= 8, !index.contains(span) else { return false }
                 let words = span.split(separator: " ").map(String.init).filter { $0.count > 3 }
@@ -435,7 +554,7 @@ enum ChatEvalScoring {
             if let parsed = Int(fact.value) { nums.append(parsed) }
             return nums
         })
-        guard let re = try? NSRegularExpression(pattern: #"\b(\d+)\b"#) else { return [] }
+        guard let re = try? NSRegularExpression(pattern: digitPattern) else { return [] }
         let ns = body as NSString
         var flagged: [Violation] = []
         re.enumerateMatches(in: body, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
@@ -486,7 +605,8 @@ enum ChatEvalScoring {
     static let reportOnlyCodes: Set<String> = [
         "hall.fabricatedQuote",
         "hall.firstPersonPerception",
-        "hall.narrativeJoin"
+        "hall.narrativeJoin",
+        "hall.unbackedDate"
     ]
 
     static func gating(_ violations: [Violation]) -> [Violation] {

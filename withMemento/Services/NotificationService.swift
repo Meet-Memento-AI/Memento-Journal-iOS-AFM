@@ -1,6 +1,6 @@
 //
 //  NotificationService.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 019 R8 / ATTACH-08: exactly two local notifications — an opt-in daily
 //  reminder and a weekly-ready one-shot. No engagement nags.

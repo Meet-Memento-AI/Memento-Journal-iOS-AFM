@@ -7,7 +7,7 @@ import XCTest
 /// Launches WITHOUT `-UITesting`: that flag deliberately forces the Welcome
 /// screen (AppStateStore's determinism gate), but this test needs the real
 /// post-onboarding app. Seed the simulator once before running:
-///   xcrun simctl spawn <udid> defaults write com.sebastianmendo.MeetMemento \
+///   xcrun simctl spawn <udid> defaults write com.sebmendo.withMementoAI \
 ///       memento_onboarding_completed -bool true
 final class TTSReadAloudUITests: XCTestCase {
 

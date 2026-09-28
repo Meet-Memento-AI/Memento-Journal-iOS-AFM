@@ -1,6 +1,6 @@
 //
 //  ThemeCatalog.swift
-//  MeetMemento
+//  withMemento
 //
 //  Product-owned, closed vocabulary of journaling themes.
 //  AFM theme estimation may only return IDs from this catalog.

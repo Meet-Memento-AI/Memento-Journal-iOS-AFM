@@ -1,6 +1,6 @@
 //
 //  VoicePack.swift
-//  MeetMemento
+//  withMemento
 //
 //  Locates the bundled neural-voice assets (spec 030 R2).
 //
@@ -8,7 +8,7 @@
 //  binary. What this type exists to absorb is one non-obvious fact about how it
 //  gets there: the app target uses a PBXFileSystemSynchronizedRootGroup, which
 //  **flattens every resource into the bundle root**. The files live at
-//  MeetMemento/Resources/Voices/ in the repository, but at runtime there is no
+//  withMemento/Resources/Voices/ in the repository, but at runtime there is no
 //  Voices/ directory and no voice_styles/ subdirectory — VectorEstimator.mlmodelc
 //  and F1.json sit at the top level beside Figtree-Regular.ttf.
 //

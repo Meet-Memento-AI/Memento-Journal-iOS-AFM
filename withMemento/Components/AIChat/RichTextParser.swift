@@ -1,6 +1,6 @@
 //
 //  RichTextParser.swift
-//  MeetMemento
+//  withMemento
 //
 //  Parses assistant chat markdown into a block AST (ask@11): ATX headings
 //  (###–######; leaked # / ## demoted to h3), paragraphs, ordered and

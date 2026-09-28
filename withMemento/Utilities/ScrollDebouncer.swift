@@ -1,6 +1,6 @@
 //
 //  ScrollDebouncer.swift
-//  MeetMemento
+//  withMemento
 //
 //  Utility for debouncing scroll updates to reduce per-pixel tracking overhead.
 //

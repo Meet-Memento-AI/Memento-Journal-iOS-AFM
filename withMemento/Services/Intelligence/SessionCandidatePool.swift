@@ -1,6 +1,6 @@
 //
 //  SessionCandidatePool.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 037 follow-on: retrieve-wide (up to 20), reveal-narrow (3–5 in the
 //  Ask prompt). Session-scoped; reset when Ask history is empty.

@@ -1,13 +1,13 @@
 //
 //  RichTextParserTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 //  Block AST + streaming splice for ask@11 markdown.
 //
 
 import XCTest
 import SwiftUI
-@testable import MeetMemento
+@testable import withMemento
 
 final class RichTextParserTests: XCTestCase {
 

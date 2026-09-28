@@ -1,6 +1,6 @@
 //
 //  InsightEngine.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 045 R1: cadence, people/places, clusters — arithmetic only.
 //  No `import FoundationModels`.

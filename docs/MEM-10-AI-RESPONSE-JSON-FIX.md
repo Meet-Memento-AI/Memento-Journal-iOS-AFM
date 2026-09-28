@@ -33,12 +33,12 @@ AI responses were sometimes:
 
 ### 3. Swift Client Defensive Parsing
 
-**AIOutputContent** (`MeetMemento/Components/AIChat/AIOutputComponent.swift`):
+**AIOutputContent** (`withMemento/Components/AIChat/AIOutputComponent.swift`):
 - Added `sanitizeBody()` to strip leaked JSON from the `body` field
 - Custom `init(from decoder:)` applies sanitization during decode
 - If `body` looks like `{"body": "actual content"}`, extracts the inner content
 
-**JournalCitation** (`MeetMemento/Components/AIChat/ChatMessage.swift`):
+**JournalCitation** (`withMemento/Components/AIChat/ChatMessage.swift`):
 - Custom `init(from decoder:)` for lenient decoding
 - Handles missing `id`, invalid `entry_id` UUIDs, and date format variations
 

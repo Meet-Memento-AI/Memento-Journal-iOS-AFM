@@ -1,4 +1,4 @@
-# MeetMemento
+# withMemento
 
 A private journaling app with an on-device AI companion. Journal entries
 stay on device — there are no accounts. Submitting a Report sends that
@@ -11,15 +11,15 @@ No accounts are required. A fresh clone builds without API keys (verification
 upload is a no-op until you add them).
 
 To send volunteered chat feedback to the live evaluations project, copy
-`MeetMemento/Config/Supabase.xcconfig.example` to
-`MeetMemento/Config/Supabase.xcconfig` and fill the publishable anon key.
+`withMemento/Config/Supabase.xcconfig.example` to
+`withMemento/Config/Supabase.xcconfig` and fill the publishable anon key.
 Never put a `service_role` key in the app or the repo.
 
 Keep the `SUPABASE_URL` line exactly as the example writes it — the slashes are
 composed through `$(SUPABASE_SLASH)` because xcconfig treats `//` as the start
 of a comment, so a literal `https://host` is silently truncated to `https:`.
 
-1. Open `MeetMemento.xcodeproj` in Xcode.
+1. Open `withMemento.xcodeproj` in Xcode.
 2. Select a device or simulator.
 3. Build and run (⌘R).
 
@@ -30,7 +30,7 @@ the app degrades gracefully.
 ## Project Structure
 
 ```
-MeetMemento/
+withMemento/
 ├── Components/          # Reusable UI components
 ├── Models/              # Data models
 ├── Resources/           # Fonts, themes, configurations
@@ -71,9 +71,9 @@ MeetMemento/
 Online suite (matches merge CI — skips UITests and live FM generation):
 
 ```bash
-CI_ONLINE=1 xcodebuild -scheme MeetMemento \
+CI_ONLINE=1 xcodebuild -scheme withMemento \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-  -skip-testing:MeetMementoUITests test
+  -skip-testing:withMementoUITests test
 ```
 
 Device/eval (optional): run without `CI_ONLINE`, or dispatch

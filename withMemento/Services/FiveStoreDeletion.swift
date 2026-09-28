@@ -1,6 +1,6 @@
 //
 //  FiveStoreDeletion.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 015 R6 / 040 / REQ-DATA-013: Delete everything across the five stores.
 //  (1) SwiftData  (2) audio files  (3) Spotlight  (4) TTS cache  (5) CloudKit

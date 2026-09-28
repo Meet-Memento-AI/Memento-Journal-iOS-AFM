@@ -2,11 +2,11 @@
 id: 021
 title: Monetization and Store Compliance
 tier: P1
-status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-004 = $9.99/mo and $79/yr; Support URL / privacy policy P0s closed in docs/app-store
+status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-013 (2026-09-26) = Monetization Strategy: $59.99/yr, $9.99/mo, free chat with a daily limit, Day-0 offer (supersedes DEC-004's prices); DEC-014 (2026-09-26) = no free trial, the free tier is the trial; Support URL / privacy policy P0s closed in docs/app-store
 effort: 2 sessions
 depends_on: [017]
 findings: [dec-004-pricing-open, dec-001-reduced-tier-open, revenuecat-z2-data-diet, privacy-label-verify-first, dependency-allowlist-ci-lint, sbp-pcc-eligibility-ops]
-source_refs: [REQ-MON-001, REQ-MON-002, REQ-MON-003, REQ-MON-004, REQ-MON-005, DEC-001, DEC-004]
+source_refs: [REQ-MON-001, REQ-MON-002, REQ-MON-003, REQ-MON-004, REQ-MON-005, REQ-MON-006, REQ-MON-007, REQ-MON-008, REQ-MON-009, DEC-001, DEC-004, DEC-013, DEC-014]
 tech_refs: [technology/10-monetization-and-privacy.md]
 ---
 
@@ -35,9 +35,9 @@ worth more than RevenueCat's subscriber-analytics dashboard if the two conflict.
 
 ## Current State (evidence)
 
-Existing monetization code (`MeetMemento/Views/.../Monetization`,
+Existing monetization code (`withMemento/Views/.../Monetization`,
 `SubscriptionPlan.swift` model) targets the current $9.99/mo /$79/yr plan against
-the pre-2.0 backend; `MeetMemento/PrivacyInfo.xcprivacy` currently declares
+the pre-2.0 backend; `withMemento/PrivacyInfo.xcprivacy` currently declares
 collected data types (User Content, Email, Name, User ID) that describe the
 Supabase backend being deleted — flagged stale in `CONSTITUTION.md` §2 *Store
 compliance*, to be corrected by this spec.
@@ -56,6 +56,11 @@ does not renegotiate it. Quota/upsell copy rules are owned by spec 017 R3
 (`REQ-INT-008`); R4 constrains the paywall so it can never blend with them.
 
 ### R1. Pricing posture — `DEC-004` OPEN, do not resolve here silently
+**Resolved (DEC-013 and DEC-014, 2026-09-26):** $59.99 a year, preselected,
+and $9.99 a month. **No free trial:** the free tier is the trial.
+Annual-first holds. See the two decision records and R10. The rest of this
+section is kept as history.
+
 Source doc §12.1 gives **observations, not a conclusion** — this spec records
 the decision space and the constraint set; the decision itself is a product
 call still pending:
@@ -168,7 +173,13 @@ offline loop; gating checks never require a network round-trip).
   string derived from user content — a grep/lint over the integration module
   for the attribute-setting API surface backs the audit.
 - Given the paywall UI, when it renders, then Restore Purchases is visible
-  without scrolling — UI test.
+  without scrolling — UI test (`PaywallUITests`, including at the largest
+  accessibility text size).
+- Given a selected plan, when the paywall renders, then the terms sit next to
+  the purchase button (App Review 3.1.2): price and period, any free trial and
+  what is charged after it, automatic renewal and where to cancel. Terms and
+  Privacy links are one tap away. All of it is built from store data, never a
+  literal (`PaywallPlan.disclosure`, `PaywallPlanTests`).
 
 ### R4. `REQ-MON-003` — free/paid feature gating
 The split, verbatim from §12.2 / `technology/10` §3:
@@ -180,6 +191,59 @@ The split, verbatim from §12.2 / `technology/10` §3:
 | Timeline | Ask (chat) |
 | Search | Personal Voice |
 | **Export (Markdown + JSON)** | |
+
+**Amendment (DEC-013, Monetization Strategy, 2026-09-26): the split
+becomes the table below.** It replaces the table above. The principle
+("never hold a user's own words hostage") and the one central gate are
+unchanged.
+
+| Free, forever | Pro (subscription) |
+|---|---|
+| Unlimited journaling: capture, transcription, timeline, search | Everything in Free |
+| **Reading and exporting every entry. Never locked** | Ask across the **whole journal** ("memory across all entries") |
+| Journaling Suggestions and the Day-0 prompt (053 R3) | Unlimited chats, kept in history, with a quiet fair-use limit |
+| **One chat**, grounded in the **current entry and the current conversation**, with a **daily message limit** | Chat summaries (summarize-to-entry, PRES-046) |
+| Clear the chat and start over, with nothing carried over | Weekly review (Sunday) |
+| Entry reflections (019 R2, unchanged) | Monthly insights / Patterns |
+| Read Aloud, the voice catalog, and Personal Voice (018, 033) | |
+
+Where this departs from the strategy text, and why:
+- **Personal Voice moves out of Paid.** 018 R8 (`REQ-VOX-003`) says
+  "never a gate, never monetization bait". The old table contradicted it.
+- **"Journal narrations" are not gated.** Read Aloud stays free (033: "no
+  gating … none is added"). Narration Mode (028) is spoken chat, so it
+  follows the chat rules.
+- **No blurred insight previews on entries.** 019 R2 says the suppressed
+  state has "no empty slot", and a blur would also reveal whether an
+  observation exists.
+- **No streaks.** Architecture NON-GOAL. Prompts are kept.
+
+**Free chat rules (`REQ-MON-006`):**
+- **Scope.** Free Ask is grounded in the entry it opened on plus the
+  current conversation. It runs **no journal-wide retrieval**
+  (`EntryRetriever` / `SearchJournalTool` stay Pro). Grounded-or-silent
+  (`REQ-SUR-003`) still applies inside that scope. When a question needs the
+  whole journal, the answer says honestly what it can see, and MAY add one
+  inline line that Pro searches everything.
+  **Opened from the Chat tab (2026-09-26):** there is no entry the chat
+  "opened on", so the anchor is the **latest entry**.
+  `ChatRetrievalScope.latestEntry` in `ChatService` scopes every retrieval
+  path through `loadLocalEntries()`.
+- **Daily limit.** The limit starts at about 10 user messages per local day.
+  - It is **Memento's own entitlement limit**, counted on the device. It is
+    **not** Apple's PCC quota, and the two MUST never blend: the limit copy
+    never mentions Apple, iCloud+ or quota, and the PCC degradation copy never
+    mentions Pro (see below, and 017 R3).
+  - The value comes from RevenueCat offering metadata `free_daily_messages`,
+    with a bundled default of 10, so R12 can test it without a release.
+  - No running "N left" count. The limit is shown only when it is reached.
+- **Safety comes first.** The limit is checked **after** the
+  `SafetyClassifier` (026 R4). A crisis-adjacent message always gets the
+  static card and is not counted.
+- **One chat.** Starting a second chat is a re-offer moment (R9). After a
+  downgrade, earlier chats stay readable but cannot be continued.
+- **Pro fair use** is `REQ-INT-006`'s soft local limit. Reaching it degrades
+  per 017 R4, **never** with purchase UI.
 
 **The principle: never hold a user's own words hostage.** The words are
 theirs; the intelligence is the product. Export in particular MUST never be
@@ -208,6 +272,11 @@ entry points.
   reachable (Regression Guards below).
 - Given no entitlement on a `.full`/`.local` device, when a paid surface
   (weekly/monthly/ask/Personal Voice) is opened, then the paywall presents.
+  **Amended (DEC-013):** paid surfaces are weekly, Patterns, whole-journal
+  Ask, unlimited chats and summaries. Personal Voice is free. A free user
+  opening Ask gets the free chat, not the paywall.
+- Given a free user at the daily limit, when they send a crisis-adjacent
+  message, then the resource card shows and the limit does not block it.
 - Given an active entitlement and an exhausted PCC quota, when a Z1 surface
   degrades per spec 017 R4, then the user sees 014 R2's degradation
   disclosure and **no purchase UI of any kind**.
@@ -238,7 +307,7 @@ Corollaries:
 - **No analytics SDK, at all.** Study telemetry is manually collected via
   surveys and interviews (`REQ-EVAL-005`) — slower, and the price of the
   label.
-- `MeetMemento/PrivacyInfo.xcprivacy` currently declares User Content, Email,
+- `withMemento/PrivacyInfo.xcprivacy` currently declares User Content, Email,
   Name, and User ID — describing the Supabase backend being deleted, flagged
   stale in `CONSTITUTION.md` §2. It is rewritten by this spec **after** V8
   resolves (the verdict determines the final declaration), not before.
@@ -321,7 +390,7 @@ demonstrated once with a throwaway fixture branch/package and recorded here.
 >
 > **Re-verified 2026-08-18 — the cost of fixing this has collapsed.** The partial
 > note above lists three off-allowlist packages. Only **one** remains:
-> `grep -oE 'repositoryURL = "[^"]+"' MeetMemento.xcodeproj/project.pbxproj`
+> `grep -oE 'repositoryURL = "[^"]+"' withMemento.xcodeproj/project.pbxproj`
 > now returns `SVGKit/SVGKit` alone. `supabase/supabase-swift` went with spec
 > 015's decommission and `dominikmartn/progressiveblurheader` is gone too —
 > neither this spec nor `ROADMAP.md` records when. Update this partial note when
@@ -410,6 +479,162 @@ against the §16 numbering map and `technology/11-verification-queue.md`).
 updated (🔴 → ✅ with the verdict, or still-open with findings) before this
 spec's status moves to done.
 
+### R9. `REQ-MON-007` — re-offer moments (DEC-013)
+Pro is offered on Day 0 (053 R5) and again **only where the user
+reaches for something Pro does**. This keeps the ProGate rule "opened by
+the user, never pushed at them on entry" (017 R3 "never nag").
+
+| # | Moment | What shows | RevenueCat placement |
+|---|---|---|---|
+| 1 | Tries to start a second chat | The offer | `second_chat` |
+| 2 | Hits the free daily message limit | Inline limit note, with one tap to the offer | `daily_limit` |
+| 3 | Clears the chat | A confirmation: "Start over?", with **Start over** or **Keep it with Pro** | `clear_chat` |
+| 4 | Taps chat summary | The offer | `chat_summary` |
+| 5 | First Sunday: taps the weekly review card | A **locked card** with one teaser line computed in Swift from `InsightEngine` facts (for example, "You wrote 5 entries this week"). **No model generation for free users, and no weekly-ready notification** for locked content (019 R8). | `weekly_review` |
+| 6 | Opens any other locked Pro surface (Patterns, whole-journal Ask) | The existing `.proGated` card and offer | `locked_surface` |
+| — | Day 0 | The onboarding paywall (053 R5) | `onboarding` |
+
+**Not adopted** (governance): the 5th-entry moment, which is an unprompted
+offer not tied to a paid feature; the 7-day streak (NON-GOAL); and blurred
+insight previews (019 R2).
+
+Rules:
+- **At most one full-screen offer per local day**, the Day-0 paywall
+  included. After that, a moment shows its inline form instead: the
+  `ProOfferCard` style, or the inline note for moment 2.
+- **Every offer is the same straight offer:** the plans at their store
+  price. There is no trial (DEC-014).
+- **The one-a-day cap applies to offers the app raises on its own.** An
+  offer the person opens by tapping is never held back, whether from the
+  free chat's **Upgrade** pill (placement `locked_surface`), a lock card, the
+  reset dialog's **Keep it with Pro**, or the daily-limit note's
+  **Upgrade** (2026-09-26).
+- **Never** on a `.reduced` device (R2), **never** straight after a crisis
+  card (019 R7), and **never** on any PCC quota state (R4).
+
+**Acceptance:**
+- Given two moments on one day, then the second is inline.
+- Given any offer, then no copy mentions a trial
+  (`PaywallPlanTests.testNoCopyPromisesATrial`).
+- Given each moment, then its purchase carries the placement in the table
+  (the RevenueCat `presentedOfferingContext`).
+
+### R10. `REQ-MON-008` — paywall structure and copy (DEC-013, amended by DEC-014)
+**There is no free trial (DEC-014, 2026-09-26).** The free tier is the
+trial: journaling and a daily chat work fully without Pro, so the paywall is
+a straight conversion.
+
+**Two presentations of `PaywallView`:**
+1. **Onboarding (053 R5): two pages.**
+   - **What you get:** memory and insights first. Ask across your journal,
+     the weekly review, Patterns, chat summaries.
+   - **Plans:** Annual preselected, with Monthly beside it.
+   - **Primary:** the subscribe button (below). **Secondary:** **Continue
+     free**, a clearly visible action, not fine print.
+2. **Re-offer (R9): one screen.** The Free / Pro comparison table plus the
+   plans.
+
+**Copy** (`PaywallTrigger` in `PaywallPlan.swift`, 2026-09-26):
+- **The headline follows the entry point and the journal.** It's short and
+  declarative, ends in a full stop or a question mark, and **never shows a
+  number**. Entry counts and the day (`PaywallContext`, local and
+  content-free) only choose the phrase that is true right now.
+
+  | Opened from | Headline | Description |
+  |---|---|---|
+  | Settings | Your journal, remembered. | Pro brings memory to every entry. Your writing stays free. |
+  | Onboarding | This is just the beginning. | Pro remembers every entry. Journaling stays free. |
+  | Chat Upgrade pill, 2+ entries | Every entry. One conversation. | Free chat sees your latest entry. Pro sees them all. |
+  | Chat Upgrade pill, 0–1 entries | A chat that remembers. | As you write, Pro remembers every entry. |
+  | Second chat | More to talk about. | Pro gives you unlimited chats. |
+  | Daily limit | More to say? | Your messages return tomorrow. Or go unlimited with Pro. |
+  | Reset | Worth keeping. | Pro saves every conversation. |
+  | Chat summary | From chat to journal. | Pro turns your conversations into entries. |
+  | Weekly, 2+ entries this week | Your week, in focus. | Pro turns this week's writing into today's / a Sunday recap. |
+  | Weekly, quiet week | One week at a time. | Pro writes a short recap of your week, today / every Sunday. |
+  | Patterns, 10+ entries | See what repeats. | Pro finds the people, places and moods that return. |
+  | Patterns, fewer | Patterns take time. | Keep writing. Pro will show you what repeats. |
+
+- **The lock cards on Weekly and Patterns** use the same headline and
+  description as the paywall they open, with an **Upgrade** button.
+- **Primary button:** frames Pro as an upgrade and names exactly what is
+  charged and how often, from the store: "Upgrade for $59.99 a year" /
+  "Upgrade for $9.99 a month".
+- **Terms line:** "Auto-renews yearly. Cancel anytime." (or monthly).
+- **Enforced by `PaywallPlanTests`,** across 200+ journal states:
+  - no trial
+  - no digits in any headline or description
+  - headlines are complete lines, at most 30 characters
+  - descriptions are at most 60 characters
+  - no two entry points share a headline
+
+**Plan picker.** DEC-013 banned toggles because Monthly had no trial, so a
+Yearly / Monthly toggle turned a trial on and off, which reads as the
+free-trial toggle pattern Apple rejects. **With no trial on either plan,
+that reason is gone.** The toggle only switches the billing period, so the
+billing pill (`PaywallBillingToggle`) is allowed again.
+
+**Dropped with the trial:** the timeline page, the day-25 reminder card,
+and the cancel-during-trial win-back offer.
+
+### R11. `REQ-MON-009` — measuring without analytics (DEC-013)
+The strategy's metrics come from **server-side sources that already exist**:
+- RevenueCat, under the anonymous app-user ID (R3). Placements and
+  Experiments are allowed.
+- App Store Connect (installs, conversion, proceeds, refunds).
+- The Apple Search Ads console.
+
+No new client events are added.
+
+| Metric | Source |
+|---|---|
+| **Revenue per install at day 60** (main metric) | RevenueCat revenue for a first-seen cohort ÷ App Store Connect first-time downloads in the same window |
+| Day-0 conversion rate | RevenueCat purchases on the first-seen day ÷ new customers (DEC-014: there is no trial to start) |
+| Free-to-paid | RevenueCat purchases by first-seen cohort over time |
+| Re-offer conversion | RevenueCat purchases grouped by placement (R9) |
+| Refund rate | App Store Connect / RevenueCat refunds. Budget **3–5% of revenue** |
+| AI cost per user | **Not measured.** Inference is on-device or Apple PCC at about zero marginal cost (R7, `REQ-MON-002`). The free limit and fair use are tuned for conversion and PCC headroom, not margin |
+
+**Forbidden:**
+- analytics SDKs, custom RevenueCat attributes, and email
+- the AdServices attribution token
+- any per-user event log leaving the device
+
+These follow `REQ-MON-004`, `REQ-EVAL-005` and spec 023.
+
+**Apple Search Ads** runs on the keywords "ai journal" and "rosebud
+alternative", measured in the Search Ads console only. The store metadata
+still never names competitors (`docs/app-store/04`).
+
+**Unit economics** after the 15% Small Business rate: an annual subscriber
+brings in about $4.25 a month, a monthly subscriber about $8.49.
+
+**Billing:**
+- Turn on App Store Connect's **Billing Grace Period**; billing retry is
+  automatic on iOS.
+- The strategy's Android items don't apply: Android is an architecture
+  NON-GOAL.
+
+### R12. Tests and when to change (DEC-013)
+One test at a time, **run as RevenueCat Experiments at the offering level**,
+never client-side:
+1. ~~Trial length: 7 vs 30 days on annual.~~ **Dropped with the trial
+   (DEC-014).** Testing any trial again needs its own decision record.
+2. Free daily message limit: the `free_daily_messages` offering metadata.
+3. First-chat placement and length: the `first_chat_mode` offering metadata,
+   read by 053 R4, with a bundled default.
+4. Monthly at $9.99 vs $7.99: two monthly products.
+5. A $99.99 lifetime plan offered only to people who decline or cancel.
+   **This needs its own decision record first**, because it reverses the
+   2026-09-26 "no lifetime" decision, and `PaywallPlan.ordered` ignores
+   lifetime packages today.
+
+**When to change:** the strategy planned to shorten the trial once installs
+are paid for. With no trial (DEC-014), the question for paid acquisition
+becomes whether the free tier converts fast enough to pay back ad spend.
+Reintroducing a trial for that reason needs a decision record that reverses
+DEC-014.
+
 ## Out of Scope
 
 - Which specific surfaces are gated behind the paywall beyond the free/paid split
@@ -439,16 +664,174 @@ spec's status moves to done.
     bundled privacy manifest *and* a signature**, so landing it adds an upload
     obligation (`ITMS-91061`) on top of the V8 label question.
 
+## Decision record — RevenueCat integration (2026-09-24)
+
+- **V8 verdict (R5): disclosure triggered.** The bundled manifest of
+  purchases-ios-spm 5.91.0 (`Sources/PrivacyInfo.xcprivacy`) declares
+  `NSPrivacyCollectedDataTypePurchaseHistory`: Linked = false,
+  Tracking = false, purpose App Functionality.
+  - **Product owner's decision: keep RevenueCat anyway.** This overrides R5's
+    "StoreKit 2 direct" fallback.
+  - The label target is now **Purchases → Purchase History, not linked to
+    the user**, alongside the spec 042 feedback types the manifest already
+    declared.
+  - `PrivacyInfo.xcprivacy` mirrors the declaration, and
+    `check_privacy_manifest.sh` enforces the pairing.
+  - Still open: confirming against App Store Connect's aggregated report on
+    an archived build.
+- **Products:** `monthly` and `yearly`, both granting entitlement
+  `memento_ai_pro`. The non-consumable `lifetime` was dropped on 2026-09-26
+  (product owner's call): Memento Pro is a subscription only, and the paywall
+  ignores a lifetime package even if an offering carries one.
+  - Prices come only from the store. The paywall draws the current
+    offering annual-first (see *Paywall UI* below).
+  - Setup steps: `docs/app-store/revenuecat-setup.md`.
+- **Integration (R3):**
+  - `Services/Purchases/EntitlementStore` is the single observable source.
+    It uses the anonymous ID only and has no `logIn` or attributes, which
+    `RevenueCatConfigTests` enforces.
+  - The last known state is cached so gates work offline.
+  - Restore Purchases is in the paywall template and in Settings.
+- **Gating (R4):** `ProAccess.decide` is the one gate. It is applied through
+  `.proGated(_:)` inside `WeeklyReflectionView`, `PatternsView`, and on
+  `AIChatView`.
+  - It never looks at quota.
+  - Ineligible devices never see purchase UI (R2, `ProAccessTests`).
+  - Personal Voice has no user-facing surface yet. Gate it through the same
+    call once it has one.
+  - Export and the other free surfaces do not import the module.
+- **Switched off (2026-09-25):** product owner's call, pending the paywall
+  design fixes and `DEC-004`. `RevenueCatConfig.isPaywallEnabled = false`
+  skips `Purchases.configure`, so every paid surface is open and Settings
+  has no Pro section. The integration stays in place. Setting the flag to
+  `true` turns it back on.
+- **Paywall UI (2026-09-26): the app draws its own.** `PaywallView`
+  (`Views/Purchases/`) renders the current offering from `EntitlementStore`.
+  It replaces RevenueCatUI's template, whose copy contradicted R4 and which
+  had no dark mode and broke at large text sizes.
+  - RevenueCatUI is kept only for the Customer Center.
+  - The plan and copy rules live in `PaywallPlan`. (Trial eligibility was
+    removed with the trial, DEC-014.)
+  - `PaywallPlanTests.testNoPriceLiteralsInThePaywallModule` runs R1's check
+    against string literals only. The raw `grep '\$[0-9]'` also matches
+    Swift's `$0` closure shorthand, so it can't return nothing.
+  - A DEBUG-only harness (`-UITesting -PaywallPreview`) presents it over
+    `TestStoreProduct` data without configuring the SDK. This is how it is
+    reviewed and UI-tested while the switch is off.
+
+## Decision record — `DEC-004` pricing (2026-09-26)
+
+> **Superseded the same day by DEC-013** (below): $9.99 a month with no
+> trial, and $59.99 a year with a 30-day trial. Kept for history.
+
+- **Prices: $5.99 a month and $59.99 a year**, set by the product owner.
+  Other storefronts use Apple's equivalent price points.
+  - This is below the reference competitor Slate ($7.99 / $59.99) on
+    monthly and matches it on annual. It is close to R1's Option A (match
+    Slate), with a cheaper monthly plan.
+  - The annual plan saves about 16% against twelve monthly payments. The
+    paywall computes that figure from store prices and rounds it down.
+  - Annual-first presentation holds (R1).
+- **No lifetime purchase.** See the RevenueCat decision record above.
+- **Still open: trial length.** The paywall shows whatever free
+  introductory offer App Store Connect carries, and only to eligible
+  accounts. The DEBUG preview data uses 14 days as a placeholder.
+- The prices live in App Store Connect and in RevenueCat's Test Store, never
+  in code (R1). Setup: `docs/app-store/revenuecat-setup.md`.
+
+## Decision record — `DEC-013` Monetization Strategy (2026-09-26)
+
+The product owner adopted the **Memento Monetization Strategy (September
+2026)**: "Journaling in Memento is free forever. The AI is what people pay
+for." The trial is offered on Day 0, right after Memento responds to the
+user's first entry.
+
+The strategy is applied **within the specs' governance**. The owner decided
+that privacy and the architecture NON-GOALs rule where they conflict, and
+that growth is simplified to fit.
+
+| Strategy item | Where it lives | How it's applied |
+|---|---|---|
+| Day-0 quiz, first entry, first chat, paywall, reminder, widget | **053** (new) | Adopted. Contract amended (PRES-061/063, 023 R3, 038) |
+| Annual $59.99 with 30-day trial, preselected; Monthly $9.99 with no trial | R1, R10 | Adopted. **Supersedes DEC-004's $5.99 monthly** |
+| No weekly plan, no lifetime | R10, R12 | Adopted. Lifetime appears only as a gated test |
+| Free / paid table | R4 | Adopted, except narrations, Personal Voice, blurred previews and streaks (reasons in R4) |
+| Free chat: one chat, daily limit, current entry and chat only | R4, 019 R5, 017 R3 | Adopted. The limit never blends with Apple's quota and never blocks safety |
+| Re-offer moments | R9 | Adopted for the six moments that start from a Pro feature. 5th entry and 7-day streak dropped |
+| At most one full-screen offer a day; trial until used | R9 | Adopted |
+| No toggle paywall | R10 | Adopted. Also replaces the 2026-09-26 billing pill |
+| Day-25 reminder by notification and email | R10 | **Adapted:** in-app card only. No third notification (019 R8), and no email (023) |
+| Discount when cancelling during the trial | R10 | Adopted as an App Store win-back offer |
+| Server-side subscription tracking | R3, R11 | Already true (RevenueCat, anonymous ID) |
+| Android grace period and retry | R11 | Not applicable (NON-GOAL). Billing Grace Period turned on for iOS |
+| Refund budget, unit economics | R11 | Recorded |
+| AI cost per user | R11 | **Dropped:** about zero cost; tuning is for conversion |
+| Shareable insight cards | — | **Dropped:** NON-GOAL "sharing". Growth relies on the widget, Search Ads, privacy-first positioning and word of mouth |
+| Apple Search Ads | R11 | Adopted, without attribution SDKs |
+| No clinical claims, privacy up front | 002, `docs/app-store/04` | Already true |
+| Metrics | R11 | Adopted from RevenueCat, App Store Connect and Search Ads only |
+| Test roadmap, when to change | R12 | Adopted as RevenueCat Experiments; lifetime test needs a decision first |
+
+> **Amended the same day by DEC-014** (below): no free trial. The rows on
+> the 30-day trial, "trial until used", the day-25 reminder and the
+> cancel-during-trial discount no longer apply, and the toggle ban is lifted.
+
+## Decision record — `DEC-014` No free trial (2026-09-26)
+
+The product owner removed the free trial: **the free tier is the trial.**
+Journaling, reading, export and a daily chat work fully without Pro, so
+the paywall is a straight conversion that says exactly what is charged.
+
+- **Prices unchanged:** $59.99 a year (preselected) and $9.99 a month.
+  **No introductory offer on either product.**
+- **Copy** (R10): no copy mentions a trial, and a test enforces it. The
+  terms line is "Auto-renews yearly. Cancel anytime." (The title and button
+  have since moved on: see R10's copy table and "Upgrade for {price}".)
+- **Dropped from DEC-013:**
+  - the 30-day trial, and "trial until used" (R9)
+  - the onboarding timeline page and the "Start your 30 days of Memento"
+    title (R10, 053 R5)
+  - the day-25 in-app reminder card (R10)
+  - the cancel-during-trial win-back offer (R10)
+  - the trial-length test and the plan to shorten the trial later (R12)
+- **Toggle ban lifted** (R10). DEC-013 banned toggles only because Monthly
+  had no trial, so the toggle turned a trial on and off. With no trial on
+  either plan, the Yearly / Monthly pill only changes the billing period.
+- **Code:** trial eligibility (`EntitlementStore.trialEligibleProductIDs`,
+  `PaywallModel.isTrialEligible`) and every trial string were removed from
+  `Views/Purchases/`.
+
 ## Tasks
-- [ ] 1. Resolve `DEC-004` (pricing/trial).
+- [x] 1. Resolve `DEC-004`: superseded by DEC-013 and DEC-014 (2026-09-26). $59.99/yr and $9.99/mo, no free trial.
 - [ ] 2. Resolve `DEC-001` (Reduced-tier shipping posture).
-- [ ] 3. Implement StoreKit 2 + RevenueCat per `REQ-MON-001`.
+- [x] 3. Implement StoreKit 2 + RevenueCat per `REQ-MON-001` (2026-09-24; see decision record).
 - [ ] 4. Confirm Small Business Program enrollment status against spec 013's
       filing (`REQ-MON-002`).
 - [ ] 5. Implement free/paid feature gating (`REQ-MON-003`).
 - [ ] 6. ⚠️ VERIFY item 12: RevenueCat SDK vs. "Data Not Collected" label;
       update `PrivacyInfo.xcprivacy` accordingly (`REQ-MON-004`).
 - [ ] 7. Document the dependency allowlist governance process (`REQ-MON-005`).
+- [ ] 8. `PaywallView` to R10:
+      - [ ] the two-page onboarding presentation with **Continue free**
+      - [x] the one-screen re-offer, with the billing pill (allowed again, DEC-014)
+      - [x] copy per R10 and preview data at $9.99 / $59.99 with no trial (2026-09-26)
+- [x] 9. Free chat scope and daily limit (R4 `REQ-MON-006`; 019 R5 and 017 R3
+      amendments). The limit comes after the safety classifier. (2026-09-26:
+      the free chat from Figma 1177:3147 — `ChatTier`, `FreeChatAllowance`,
+      `ChatRetrievalScope`, `UpgradePill`, reset dialog, `DailyLimitNote`;
+      `FreeChatTests`, `FreeChatUITests`.)
+- [ ] 10. Re-offer moments with the once-a-day cap and RevenueCat placements
+      (R9). **Done (2026-09-26):** moments 2 (daily limit) and 3 (reset), and
+      the free chat's Upgrade pill. **Open:** moments 1 and 4 have no entry
+      point yet (the free header has no history or summary), moment 5 (weekly
+      card), the cap for app-raised offers, and passing each trigger's
+      placement to RevenueCat.
+- ~~11. Day-25 in-app trial card and the win-back offer (R10).~~ Dropped with the trial (DEC-014).
+- [ ] 12. App Store Connect:
+      - `yearly` 59.99 USD and `monthly` 9.99 USD, **no introductory offer on either**
+      - Billing Grace Period on
+      - mirror the prices in RevenueCat's Test Store
+- [ ] 13. Day-0 onboarding: spec 053.
 
 ## Verification
 - [ ] `DEC-004` decision record exists in this spec (final price, trial

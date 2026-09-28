@@ -1,6 +1,6 @@
 //
 //  EntryEditorDestination.swift
-//  MeetMemento
+//  withMemento
 //
 //  Shared NavigationStack destination for AddEntryView. ContentView's overlay
 //  stack and JournalView's standalone stack both use this so save, dismiss,

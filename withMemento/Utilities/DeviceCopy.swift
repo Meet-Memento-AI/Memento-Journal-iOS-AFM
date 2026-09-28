@@ -1,6 +1,6 @@
 //
 //  DeviceCopy.swift
-//  MeetMemento
+//  withMemento
 //
 //  Spec 040 R6: device-neutral / idiom-aware user-facing copy.
 //

@@ -1,6 +1,6 @@
 //
 //  YourEntriesView.swift
-//  MeetMemento
+//  withMemento
 //
 //  "Your Entries" tab - displays journal entries grouped by month
 //
@@ -43,6 +43,7 @@ struct YourEntriesView: View {
     @Environment(\.typography) private var type
     @Environment(\.tabBarHidden) private var tabBarHidden
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     init(
         entryViewModel: EntryViewModel,
@@ -141,18 +142,32 @@ struct YourEntriesView: View {
             .padding(.top, 8)
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             Spacer()
-            JournalEmptyMark()
+            VStack(spacing: 12) {
+                JournalEmptyMark()
+                Text("Nothing here yet. A few lines about today is a good start.")
+                    .font(type.body1)
+                    .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("No journal entries yet. A few lines about today is a good start.")
+            Button("Start writing") {
+                onNavigateToEntry(.create)
+            }
+            .padding(.top, 8)
+            .accessibilityIdentifier("journal.empty.startWriting")
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("No journal entries yet")
     }
 
     private var entriesList: some View {
@@ -192,7 +207,7 @@ struct YourEntriesView: View {
                                 .font(type.h3)
                                 .foregroundStyle(theme.foreground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.top, 16)
+                                .padding(.top, monthHeaderTopPadding(for: monthGroup))
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Double-tap to jump to another month")
@@ -220,9 +235,18 @@ struct YourEntriesView: View {
                     .onAppear { onMonthVisibilityChanged(monthGroup.monthStart) }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            .contentColumn()
+            .frame(maxWidth: .infinity)
             .padding(.top, topContentPadding)
             .padding(.bottom, bottomContentPadding)
+            // Timeline measure. Safe as a centred clamp because this subtree is
+            // already full-width on iPhone — the month header forces
+            // `frame(maxWidth: .infinity, alignment: .leading)` and the cards
+            // fill — so the outer expansion frame changes nothing there. The
+            // scroll-offset reporter below reads `minY` only, so it is
+            // indifferent to where this sits relative to it.
+            .pageColumnCentered()
             .background(
                 GeometryReader { geometry in
                     Color.clear
@@ -260,6 +284,17 @@ struct YourEntriesView: View {
             scrollToMonth = nil
         }
         }
+    }
+
+    /// Under a native nav bar, `topContentPadding` already gives the first
+    /// line its 16pt of air; the header's own 16pt would double it. Later
+    /// headers keep it — it is part of the gap between month groups.
+    private func monthHeaderTopPadding(for monthGroup: MonthGroup) -> CGFloat {
+        let isFirst: Bool = monthGroup.id == monthGroups.first?.id
+        if navigationBarHosted && isFirst {
+            return 0
+        }
+        return 16
     }
 
     /// Year-month key so picker `DateComponents(day: 1)` matches

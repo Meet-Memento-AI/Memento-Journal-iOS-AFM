@@ -9,7 +9,7 @@ Successfully implemented AboutSettingsView - **REQUIRED for App Store submission
 ## ✅ What Was Implemented
 
 ### **1. AboutSettingsView.swift** (NEW)
-**Location:** `MeetMemento/Views/Settings/AboutSettingsView.swift`
+**Location:** `withMemento/Views/Settings/AboutSettingsView.swift`
 
 **Purpose:** Comprehensive About page meeting App Store requirements
 
@@ -59,14 +59,14 @@ Successfully implemented AboutSettingsView - **REQUIRED for App Store submission
 
 - **Share App**
   - Native iOS share sheet
-  - Pre-written message: "Check out MeetMemento - Your space for growth & reflection! 📝✨"
+  - Pre-written message: "Check out withMemento - Your space for growth & reflection! 📝✨"
   - Can share via Messages, Mail, Social, etc.
   - Helps with organic growth
 
 ---
 
 ### **2. SettingsView.swift** (UPDATED)
-**Location:** `MeetMemento/Views/Settings/SettingsView.swift`
+**Location:** `withMemento/Views/Settings/SettingsView.swift`
 
 **Changes:**
 - Added new "About" section
@@ -87,7 +87,7 @@ private var aboutSection: some View {
             NavigationLink(value: SettingsRoute.about) {
                 SettingsRow(
                     icon: "info.circle.fill",
-                    title: "About MeetMemento",
+                    title: "About withMemento",
                     subtitle: "Version, legal, and support",
                     showChevron: true,
                     action: nil
@@ -104,7 +104,7 @@ private var aboutSection: some View {
 ---
 
 ### **3. ContentView.swift** (UPDATED)
-**Location:** `MeetMemento/ContentView.swift`
+**Location:** `withMemento/ContentView.swift`
 
 **Changes:**
 - Added `.about` to `SettingsRoute` enum
@@ -152,7 +152,7 @@ Settings
 │   └── Theme & Display
 │
 ├── About → AboutSettingsView ✅ NEW
-│   └── About MeetMemento
+│   └── About withMemento
 │
 ├── Development (hide in production)
 │   ├── Test Supabase
@@ -171,7 +171,7 @@ Settings
 ```
 ┌─────────────────────────────────────┐
 │ About                               │
-│ MeetMemento                         │
+│ withMemento                         │
 ├─────────────────────────────────────┤
 │ App Information                     │
 │ ┌─────────────────────────────────┐ │
@@ -186,7 +186,7 @@ Settings
 │ Support                             │
 │ ┌─────────────────────────────────┐ │
 │ │ ✉️  Contact Support            │ │
-│ │    Get help with MeetMemento   │ │
+│ │    Get help with withMemento   │ │
 │ └─────────────────────────────────┘ │
 ├─────────────────────────────────────┤
 │ Legal                               │
@@ -196,7 +196,7 @@ Settings
 │ │ ✋ Privacy Policy            → │ │
 │ └─────────────────────────────────┘ │
 ├─────────────────────────────────────┤
-│ Share MeetMemento                   │
+│ Share withMemento                   │
 │ ┌─────────────────────────────────┐ │
 │ │ ⭐ Rate on App Store           │ │
 │ │    Share your experience       │ │
@@ -328,7 +328,7 @@ let email = "your-actual-support@email.com"
 ### **Accessing About:**
 1. User opens Settings from Journal
 2. User scrolls to "About" section
-3. User taps "About MeetMemento"
+3. User taps "About withMemento"
 4. AboutSettingsView opens
 
 ### **Copying Version:**
@@ -342,7 +342,7 @@ let email = "your-actual-support@email.com"
 2. Mail.app opens (if available)
 3. Email pre-filled with:
    - To: hello@withmemento.ai
-   - Subject: "MeetMemento Support Request"
+   - Subject: "withMemento Support Request"
    - Body: App version, device info
 4. User writes issue and sends
 

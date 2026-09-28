@@ -1,10 +1,10 @@
 //
 //  PlaceNameFormatterTests.swift
-//  MeetMementoTests
+//  withMementoTests
 //
 
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 final class PlaceNameFormatterTests: XCTestCase {
     func test_format_localityAndAdministrativeArea() {
@@ -32,7 +32,7 @@ final class PlaceNameFormatterTests: XCTestCase {
             .deletingLastPathComponent()
 
         let schema = try String(
-            contentsOf: repo.appendingPathComponent("MeetMemento/Models/JournalSchema.swift"),
+            contentsOf: repo.appendingPathComponent("withMemento/Models/JournalSchema.swift"),
             encoding: .utf8
         )
         XCTAssertTrue(schema.contains("placeName"))
@@ -41,7 +41,7 @@ final class PlaceNameFormatterTests: XCTestCase {
         XCTAssertFalse(schema.contains("CLLocation"))
 
         let envelope = try String(
-            contentsOf: repo.appendingPathComponent("MeetMemento/Services/JournalService.swift"),
+            contentsOf: repo.appendingPathComponent("withMemento/Services/JournalService.swift"),
             encoding: .utf8
         )
         XCTAssertTrue(envelope.contains("placeName"))

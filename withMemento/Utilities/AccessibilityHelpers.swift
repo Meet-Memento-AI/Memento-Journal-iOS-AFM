@@ -1,6 +1,6 @@
 //
 //  AccessibilityHelpers.swift
-//  MeetMemento
+//  withMemento
 //
 //  Accessibility utilities for WCAG 2.1 AA compliance and VoiceOver support.
 //

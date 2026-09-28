@@ -1,9 +1,9 @@
 //
 //  ProductCapabilities.swift
-//  MeetMemento
+//  withMemento
 //
 //  Compile-time product flavor. `includesGenerativeAI` is true only when the
-//  MeetMemento target sets SWIFT_ACTIVE_COMPILATION_CONDITIONS = MEMENTO_AI.
+//  withMemento target sets SWIFT_ACTIVE_COMPILATION_CONDITIONS = MEMENTO_AI.
 //  The flag is reserved for a future journal-only flavor that would leave it
 //  absent so coordinators and Foundation Models never ship. Do not use
 //  PreferencesService.aiEnabled as this gate.

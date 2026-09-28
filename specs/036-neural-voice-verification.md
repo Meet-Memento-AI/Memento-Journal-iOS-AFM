@@ -51,8 +51,8 @@ regression the mask hides is still caught.
 | 1 | **There is no device CI.** Every measurement in this family is a human on a phone | Spec 025 replaced `ios-tests.yml` with `ios-build-online.yml` (+ optional `ios-device-eval.yml`); `.github/workflows/spec-gates.yml` gates are source-level only | High — shapes what can be a CI gate |
 | 2 | The gate-naming convention is established and must be matched | `.github/workflows/spec-gates.yml:24` `Single FoundationModels importer (spec 017 R1 / P3)`; `:46` `Positioning-claim lint (spec 014 R3 / REQ-POS-001)`; `:54` `Speakability linter selftest (spec 018 R9 / REQ-VOX-006)`; `:64` `Dependency allowlist (spec 021 R6 / REQ-MON-005) [report-only]` | — (convention to follow) |
 | 3 | The privacy-claim lint already exists and will police this feature's copy | `scripts/ci/lint_forbidden_phrases.py`; spec 014 R3 forbids "nothing leaves your phone", "no network calls", "airplane mode proves it" and equivalents | High — the obvious marketing line for this feature is a **forbidden phrase** |
-| 4 | The repo is **XCTest-only** despite specs naming Swift Testing | `grep -rn 'import Testing' MeetMementoTests MeetMementoUITests` → zero; 47 files `import XCTest` | Medium — write gates in the framework that exists |
-| 5 | Latency instrumentation exists and is the right foundation | `MeetMemento/Utils/TurnTimings.swift:22–25`, `MeetMemento/Utils/PerfSignposts.swift:25`; extended by 032 R6 and 029 R1 | — (asset) |
+| 4 | The repo is **XCTest-only** despite specs naming Swift Testing | `grep -rn 'import Testing' withMementoTests withMementoUITests` → zero; 47 files `import XCTest` | Medium — write gates in the framework that exists |
+| 5 | Latency instrumentation exists and is the right foundation | `withMemento/Utils/TurnTimings.swift:22–25`, `withMemento/Utils/PerfSignposts.swift:25`; extended by 032 R6 and 029 R1 | — (asset) |
 | 6 | **Two** verification items are open and block their owning specs | V29 (ANE, 031) and V30 (roster under AEC, 033). V31 (asset hosting) **withdrawn 2026-08-18** — `DEC-012` bundles the model | High — Gate V cannot close over them |
 
 ## Release gates — Gate V
@@ -232,7 +232,7 @@ on a planted violation; the dependency allowlist gate is enforcing and green.
    violation.
 6. `Positioning-claim lint` green over all voice-feature copy; no absolute-privacy
    phrasing introduced.
-7. Full `MeetMementoTests` and `MeetMementoUITests` suites green.
+7. Full `withMementoTests` and `withMementoUITests` suites green.
 
 ## Regression Guards
 

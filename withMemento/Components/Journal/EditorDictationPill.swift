@@ -1,6 +1,6 @@
 //
 //  EditorDictationPill.swift
-//  MeetMemento
+//  withMemento
 //
 //  Voice-dictation control for the journal editor (PRES-024): mic at rest,
 //  red stop plus live duration while listening.
@@ -70,7 +70,10 @@ struct EditorDictationPill: View {
         Button(action: toggle) {
             label
                 .padding(.horizontal, 12)
-                .mementoFooterGlassButtonChrome(interactive: interactive ?? !reduceMotion)
+                .mementoFooterGlassButtonChrome(
+                    interactive: interactive ?? !reduceMotion,
+                    opaqueUnderReduceTransparency: false
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

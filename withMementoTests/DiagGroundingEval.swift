@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Diagnostic: grounding accuracy, with the emphasis on *attribution* —
 /// round one showed the model does not invent facts so much as reassign them,
