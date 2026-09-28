@@ -18,6 +18,9 @@ struct ChatMessagesView: View {
     /// Starter prompts for the empty state. The three tiles always render
     /// under the headline; this array supplies prompts and theme pills.
     var suggestions: [ChatSuggestion] = []
+    /// False on the free tier (Figma 1177:3156): the empty state is the mark
+    /// and headline only, with no starter tiles.
+    var showsStarters: Bool = true
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
     var onSuggestionTap: (ChatSuggestion) -> Void = { _ in }
@@ -238,9 +241,22 @@ struct ChatMessagesView: View {
                 .accessibilityHidden(true)
         }
         .scrollIndicators(.hidden)
-        // Same 16pt gutter as header/footer. Padding is ignored
-        // under RootPageScaffold's `.ignoresSafeArea()`.
-        .rootEdgeInset()
+        // Same 16pt gutter as header/footer, now bounded by the page's column.
+        // Padding is ignored under RootPageScaffold's `.ignoresSafeArea()`.
+        //
+        // This must stay ON the ScrollView, and the reporter below must stay
+        // OUTSIDE it, because `columnFrame` *is* this rect — and it is the only
+        // width the send flight has. `ChatTranscriptMetrics.landingRect` places
+        // the ghost at `column.maxX` and `SendFlightGhost` wraps its text at
+        // `UserBubbleSurface.maxWidth(inColumnWidth: column.width)`. Move the
+        // inset onto the scroll *content* and this reports the whole window: on a
+        // 13" iPad the ghost would land 323pt right of the row it hands off to
+        // and wrap at 1294pt instead of 648pt — the reflow bug documented at
+        // `UserBubbleSurface.maxWidth(inColumnWidth:)`, scaled up 600pt.
+        // Re-measuring from the content is not an alternative: a `.page` reporter
+        // inside the scroll content fires every scroll frame (see `ChatSpace`),
+        // and the landing y is a viewport offset that would then scroll.
+        .pageColumnRelative()
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(ChatSpace.page)) }
             action: { choreographer.columnFrame = $0 }
         .onScrollGeometryChange(for: ScrollSnapshot.self) { geometry in
@@ -349,7 +365,9 @@ struct ChatMessagesView: View {
         // that circularly depends on content width and collapses to zero.
         emptyState
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .rootEdgeInset()
+            // Same measure as the transcript, so the suggestion tiles share the
+            // left edge the first reply will land on.
+            .pageColumnRelative()
             .opacity(showsEmptyState ? 1 : 0)
             .allowsHitTesting(showsEmptyState)
             .accessibilityHidden(!showsEmptyState)
@@ -682,7 +700,39 @@ struct ChatMessagesView: View {
         )
     }
 
+    @ViewBuilder
     private var emptyState: some View {
+        if showsStarters {
+            startersEmptyState
+        } else {
+            freeEmptyState
+        }
+    }
+
+    /// Free tier (Figma 1177:3156): the mark and headline, centred in the
+    /// space between the header and the composer.
+    private var freeEmptyState: some View {
+        VStack(spacing: 10) {
+            Image("ChatEmptyMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64) // icon-size: brand mark, not user text
+                .accessibilityHidden(true)
+
+            Text("Let\u{2019}s dive deeper\ninto your journal")
+                .font(type.h2)
+                .foregroundStyle(PrimaryScale.primary600)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .padding(.bottom, bottomReserve)
+        .accessibilityIdentifier("chat.emptyState.free")
+    }
+
+    private var startersEmptyState: some View {
         GeometryReader { geo in
             let height = geo.size.height
             ScrollView(.vertical, showsIndicators: false) {

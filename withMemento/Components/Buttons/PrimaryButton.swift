@@ -37,11 +37,13 @@ public struct PrimaryButton: View {
                 }
                 Text(title)
                     .typographyH5()
+                    .multilineTextAlignment(.center)
                 if let systemImage, imagePlacement == .trailing {
                     Image(systemName: systemImage)
                 }
                 if isLoading { ProgressView().tint(theme.primaryForeground) }
             }
+            .padding(.vertical, Spacing.xs)
             // AX5: minHeight lets the label grow instead of clipping at large Dynamic Type sizes.
             .frame(minHeight: 48)
             .frame(maxWidth: .infinity)

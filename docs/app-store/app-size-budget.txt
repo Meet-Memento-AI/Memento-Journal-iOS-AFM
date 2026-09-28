@@ -21,8 +21,10 @@ CEILING_MB 200
 # three different numbers.
 #
 #   2026-09-12  189 MB  Release, iOS Simulator arm64, unthinned .app
-#   2026-09-28  193 MB  Release, iOS Simulator `build` (last run of the old step)
-#   2026-09-28  From here CI measures a Release ARCHIVE: device arm64,
-#               stripped, unthinned — closer to what a person downloads.
-#               The same method read 172 MB on the RevenueCat branch (#41).
-#               The ceiling did not move.
+#   2026-09-28  172 MB  Release ARCHIVE, device arm64, stripped, unthinned
+#                       — with RevenueCat (spec 021). This is what CI measures
+#                       from now on. The same tree measured 272 MB as a fat,
+#                       unstripped iOS Simulator `build` product, which is the
+#                       artifact CI used until today: 116 MB of that was the
+#                       executable's second architecture and its symbols, not
+#                       anything a person downloads. The ceiling did not move.
