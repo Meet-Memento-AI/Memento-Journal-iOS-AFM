@@ -19,7 +19,7 @@ struct MementoProPaywall: View {
     /// What opened it (spec 021 R9). Settings when nothing more specific.
     var trigger: PaywallTrigger = .settings
     /// Nil uses the live store; the DEBUG harness passes preview data.
-    var model: PaywallModel? = nil
+    var model: PaywallModel?
 
     @ObservedObject private var store = EntitlementStore.shared
 

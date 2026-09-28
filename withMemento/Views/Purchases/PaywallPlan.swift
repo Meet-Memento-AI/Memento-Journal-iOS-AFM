@@ -33,7 +33,7 @@ struct PaywallPlan: Identifiable, Equatable {
         guard let offering else { return [] }
         let packages: [(PaywallPlanKind, Package?)] = [
             (.annual, offering.annual),
-            (.monthly, offering.monthly),
+            (.monthly, offering.monthly)
         ]
         return packages.compactMap { kind, package in
             package.map { PaywallPlan(kind: kind, package: $0) }
@@ -121,7 +121,7 @@ struct PaywallFeature: Equatable {
         PaywallFeature(name: "Sunday weekly review", inFree: false),
         PaywallFeature(name: "Unlimited chats and summaries", inFree: false),
         PaywallFeature(name: "Unlimited journaling", inFree: true),
-        PaywallFeature(name: "Read and export every entry", inFree: true),
+        PaywallFeature(name: "Read and export every entry", inFree: true)
     ]
 
     static var proOnly: [PaywallFeature] { all.filter { !$0.inFree } }

@@ -126,7 +126,7 @@ enum PaywallFixtures {
         // 9.99 a month. No trial on either: the free tier is the trial.
         let packages = [
             package("$rc_monthly", .monthly, product("monthly", 9.99, .init(value: 1, unit: .month))),
-            package("$rc_annual", .annual, product("yearly", 59.99, .init(value: 1, unit: .year))),
+            package("$rc_annual", .annual, product("yearly", 59.99, .init(value: 1, unit: .year)))
         ]
         return Offering(
             identifier: "default",
