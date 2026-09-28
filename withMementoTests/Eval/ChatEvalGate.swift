@@ -139,7 +139,7 @@ final class ChatEvalGate: XCTestCase {
             }
         }
 
-        let report = Self.render(samples, fixtureIDs: fixtureIDs, goldCount: gold.count)
+        let report = Self.render(samples, goldCount: gold.count)
         Self.write(report, samples)
         print(report)
 
@@ -237,7 +237,7 @@ final class ChatEvalGate: XCTestCase {
             .joined(separator: "\n")
     }
 
-    private static func render(_ samples: [Sample], fixtureIDs: [UUID: String], goldCount: Int) -> String {
+    private static func render(_ samples: [Sample], goldCount: Int) -> String {
         let passed = samples.filter(\.passed).count
         var out = "# Chat eval gate\n\n"
         out += "**\(passed)/\(samples.count) passed** "
