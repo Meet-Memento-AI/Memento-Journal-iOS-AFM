@@ -9,6 +9,8 @@ struct ChatResponse: Codable {
     let reply: String
     let heading1: String?
     let heading2: String?
+    /// Inline citations with ref number, entry UUID, theme, and date.
+    let inlineCitations: [InlineCitation]?
     /// Entry UUIDs the model cited; mirrors server `cited_entry_ids` (optional for backward compatibility).
     let citedEntryIds: [String]?
     let sources: [ChatSource]
@@ -16,6 +18,7 @@ struct ChatResponse: Codable {
 
     enum CodingKeys: String, CodingKey {
         case reply, heading1, heading2, sources, sessionId
+        case inlineCitations = "inline_citations"
         case citedEntryIds = "cited_entry_ids"
     }
 }
@@ -29,6 +32,21 @@ struct ChatSource: Codable, Equatable {
         case id
         case createdAt = "created_at"
         case preview
+    }
+}
+
+/// Inline citation from the backend: maps a ref number to a journal entry UUID + theme.
+struct InlineCitation: Codable, Hashable {
+    let ref: Int
+    let entryId: String
+    let theme: String
+    let date: String?
+
+    enum CodingKeys: String, CodingKey {
+        case ref
+        case entryId = "entry_id"
+        case theme
+        case date
     }
 }
 

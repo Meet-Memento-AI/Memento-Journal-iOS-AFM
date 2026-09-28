@@ -10,12 +10,16 @@ import SwiftUI
 /// Coordinate space name used so items can report circle position for timeline line
 let citationListCoordinateSpace = "citationList"
 
-/// Single citation row: timeline circle, pill date tag, and excerpt text below
+/// Single citation row: timeline circle, pill date tag, optional ref badge + theme, and excerpt text below
 struct CitationTimelineItem: View {
     let citation: JournalCitation
     var index: Int = 0
+    /// Optional inline citation ref number (e.g. 1 for [1])
+    var refNumber: Int?
+    /// Optional theme label from inline citation (e.g. "work stress")
+    var theme: String?
 
-    @Environment(\.theme) private var theme
+    @Environment(\.theme) private var themeEnv
     @Environment(\.typography) private var type
 
     private let circleToPillSpacing: CGFloat = 5
@@ -37,12 +41,28 @@ struct CitationTimelineItem: View {
                         }
                     )
 
+                // Ref badge (if inline citation)
+                if let ref = refNumber {
+                    InlineCitationBadge(ref: ref)
+                }
+
                 CitationDateTag(date: citation.entryDate)
+
+                // Theme tag (if inline citation)
+                if let themeLabel = theme, !themeLabel.isEmpty {
+                    Text(themeLabel)
+                        .font(type.caption)
+                        .foregroundStyle(themeEnv.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(themeEnv.primary.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
             }
 
             Text(citation.excerpt)
                 .font(type.body2)
-                .foregroundStyle(theme.mutedForeground)
+                .foregroundStyle(themeEnv.mutedForeground)
                 .lineSpacing(type.bodyLineSpacing)
                 .padding(.leading, excerptLeadingPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -12,28 +12,69 @@ export interface ChatMessageRow {
   content: string;
 }
 
-export function buildContextBlock(entries: MatchedEntry[]): string {
+export interface ContextBlockResult {
+  block: string;
+  /** Maps citation number (1-based) → entry UUID. */
+  indexMap: Map<number, string>;
+}
+
+export interface ResolvedCitation {
+  ref: number;
+  entryId: string;
+  theme: string;
+}
+
+export function buildContextBlock(entries: MatchedEntry[]): ContextBlockResult {
   if (entries.length === 0) {
-    return '[No journal entries matched this topic]';
+    return {
+      block: '[No journal entries matched this topic]',
+      indexMap: new Map(),
+    };
   }
 
-  const formatted = entries.map((e) => {
+  const indexMap = new Map<number, string>();
+  const formatted = entries.map((e, i) => {
+    const num = i + 1;
+    indexMap.set(num, e.id);
     const date = new Date(e.created_at);
     const label = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-    return `[${label}] ${e.content}`;
+    return `[${num}] [${label}] ${e.content}`;
   });
 
-  return [
-    '[Journal context — reference these naturally, do not quote them verbatim]',
+  const block = [
+    '[Journal context — use [N] inline when referencing a specific entry]',
     '',
     ...formatted,
     '',
     '[End of journal context]',
   ].join('\n');
+
+  return { block, indexMap };
+}
+
+/** Resolve model's citation refs against the indexMap, filtering out invalid refs. */
+export function resolveInlineCitations(
+  citations: Array<{ ref: number; theme: string }> | null | undefined,
+  indexMap: Map<number, string>,
+): ResolvedCitation[] {
+  if (!citations || !Array.isArray(citations)) return [];
+  const seen = new Set<number>();
+  return citations
+    .filter((c) => {
+      if (typeof c.ref !== 'number' || !indexMap.has(c.ref)) return false;
+      if (seen.has(c.ref)) return false;
+      seen.add(c.ref);
+      return true;
+    })
+    .map((c) => ({
+      ref: c.ref,
+      entryId: indexMap.get(c.ref)!,
+      theme: typeof c.theme === 'string' ? c.theme.trim() : '',
+    }));
 }
 
 export function buildGeminiContents(

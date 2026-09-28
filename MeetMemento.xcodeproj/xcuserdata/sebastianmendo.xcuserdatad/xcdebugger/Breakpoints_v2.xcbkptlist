@@ -64,8 +64,38 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "105"
             endingLineNumber = "105"
-            landmarkName = "messagesScrollView"
+            landmarkName = "body"
             landmarkType = "24">
+            <Locations>
+               <Location
+                  uuid = "68BB15A6-9CBE-4966-809A-C184E55F6FC1 - d35880d8187ee009"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #4 () -&gt; MeetMemento.ChatHistorySheet in MeetMemento.AIChatView.body.getter : some"
+                  moduleName = "MeetMemento.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/sebastianmendo/Swift-projects/Memento-AI/MeetMemento/.claude/worktrees/practical-khorana/MeetMemento/Views/AI-Chat/AIChatView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "105"
+                  endingLineNumber = "105">
+               </Location>
+               <Location
+                  uuid = "68BB15A6-9CBE-4966-809A-C184E55F6FC1 - 971ba22d466460c9"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #2 () -&gt; () in closure #4 () -&gt; MeetMemento.ChatHistorySheet in MeetMemento.AIChatView.body.getter : some"
+                  moduleName = "MeetMemento.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/sebastianmendo/Swift-projects/Memento-AI/MeetMemento/.claude/worktrees/practical-khorana/MeetMemento/Views/AI-Chat/AIChatView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "105"
+                  endingLineNumber = "105">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

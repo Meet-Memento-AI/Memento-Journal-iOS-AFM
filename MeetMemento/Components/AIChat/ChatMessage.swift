@@ -38,6 +38,31 @@ public struct JournalCitation: Identifiable, Hashable, Codable {
     }
 }
 
+/// Resolved inline citation data for UI rendering.
+/// Maps a ref number (e.g. [1]) to its journal entry, theme, and excerpt.
+public struct InlineCitationInfo: Identifiable, Hashable {
+    public var id: Int { ref }
+    public let ref: Int
+    public let entryId: UUID
+    public let theme: String
+    public let entryDate: Date
+    public let excerpt: String
+
+    public init(
+        ref: Int,
+        entryId: UUID,
+        theme: String,
+        entryDate: Date,
+        excerpt: String
+    ) {
+        self.ref = ref
+        self.entryId = entryId
+        self.theme = theme
+        self.entryDate = entryDate
+        self.excerpt = excerpt
+    }
+}
+
 /// Chat message model for AI Chat interface
 public struct ChatMessage: Identifiable, Hashable {
     public let id: UUID
@@ -78,6 +103,7 @@ public struct ChatMessage: Identifiable, Hashable {
         heading2: String? = nil,
         body: String,
         citations: [JournalCitation]? = nil,
+        inlineCitations: [InlineCitationInfo]? = nil,
         timestamp: Date = Date(),
         isNew: Bool = false
     ) -> ChatMessage {
@@ -85,7 +111,8 @@ public struct ChatMessage: Identifiable, Hashable {
             heading1: heading1,
             heading2: heading2,
             body: body,
-            citations: citations
+            citations: citations,
+            inlineCitations: inlineCitations
         )
         return ChatMessage(
             id: id,

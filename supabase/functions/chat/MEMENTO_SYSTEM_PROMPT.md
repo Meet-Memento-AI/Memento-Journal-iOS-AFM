@@ -42,8 +42,11 @@ You MUST respond with valid JSON only (no markdown fences), matching this shape:
 {
   "heading1": "Short section title or null",
   "heading2": "Sub-heading or null",
-  "body": "Your full reply text here",
-  "cited_entry_ids": ["uuid-from-context-only", "..."]
+  "body": "Your full reply with [N] inline citations. Use **bold** and *italic*.",
+  "citations": [
+    { "ref": 1, "theme": "work stress" },
+    { "ref": 2, "theme": "self-care" }
+  ]
 }
 
 Put the Acknowledge, Insight, and Reflect sections inside "body", separated by line breaks.
@@ -52,4 +55,11 @@ Put the Acknowledge, Insight, and Reflect sections inside "body", separated by l
 - Use heading2 for a subsection when needed; otherwise null.
 - For short or casual replies, heading1 and heading2 are usually null.
 
-**cited_entry_ids:** Include the journal entry UUID(s) you actually relied on when your answer references specific journal content. Only use IDs that appear in the journal context block for this turn — never invent UUIDs. Use an empty array `[]` when the reply does not need journal-specific grounding, when no context was provided, or when you are answering generally without pointing at particular entries.
+**Inline citations:**
+- Each journal entry in the context block is numbered [1], [2], etc.
+- Insert [N] right after a claim that draws on that entry. Example: "You felt stressed at work [1] but found relief through walks [2]."
+- Use 1-3 word theme labels (e.g. "work stress", "relationships", "self-care").
+- Only cite entries from the context block. Never invent numbers.
+- Multiple claims can cite the same entry.
+- If no entries are relevant, use an empty array [].
+- Maximum 5 citations per response.

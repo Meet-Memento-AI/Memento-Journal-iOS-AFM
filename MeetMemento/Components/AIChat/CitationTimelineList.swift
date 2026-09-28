@@ -29,16 +29,33 @@ struct CircleCenterYPreferenceKey: PreferenceKey {
 /// Vertical timeline with hollow circle markers and list of citations
 struct CitationTimelineList: View {
     let citations: [JournalCitation]
+    /// Inline citation data with ref numbers and themes (optional).
+    var inlineCitations: [InlineCitationInfo]?
+    /// If set, auto-scroll to and highlight this citation ref.
+    var highlightedRef: Int?
 
     @Environment(\.theme) private var theme
     @State private var firstCircleY: CGFloat?
     @State private var lastCircleY: CGFloat?
 
+    /// Finds inline citation info for a given JournalCitation by matching entryId.
+    private func inlineCitationFor(_ citation: JournalCitation) -> InlineCitationInfo? {
+        inlineCitations?.first { $0.entryId == citation.entryId }
+    }
+
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: itemSpacing) {
                 ForEach(Array(citations.enumerated()), id: \.element.id) { index, citation in
-                    CitationTimelineItem(citation: citation, index: index)
+                    let inlineInfo = inlineCitationFor(citation)
+                    CitationTimelineItem(
+                        citation: citation,
+                        index: index,
+                        refNumber: inlineInfo?.ref,
+                        theme: inlineInfo?.theme
+                    )
+                    .id(inlineInfo?.ref ?? -index)
                 }
             }
             .padding(.leading, contentLeading)
@@ -63,6 +80,17 @@ struct CitationTimelineList: View {
             }
         }
         .scrollIndicators(.hidden)
+        .onAppear {
+            // Auto-scroll to highlighted citation if set
+            if let ref = highlightedRef {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo(ref, anchor: .center)
+                    }
+                }
+            }
+        }
+        } // ScrollViewReader
     }
 }
 

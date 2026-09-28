@@ -13,6 +13,8 @@ public struct AIOutputContent: Hashable, Codable {
     public let heading2: String?
     public let body: String
     public let citations: [JournalCitation]?
+    /// Inline citations with ref numbers, themes, and source entry data.
+    public let inlineCitations: [InlineCitationInfo]?
 
     enum CodingKeys: String, CodingKey {
         case heading1
@@ -25,12 +27,32 @@ public struct AIOutputContent: Hashable, Codable {
         heading1: String? = nil,
         heading2: String? = nil,
         body: String,
-        citations: [JournalCitation]? = nil
+        citations: [JournalCitation]? = nil,
+        inlineCitations: [InlineCitationInfo]? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
         self.body = body
         self.citations = citations
+        self.inlineCitations = inlineCitations
+    }
+
+    // Custom Codable: inlineCitations is not persisted in JSON (populated at runtime)
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        heading1 = try container.decodeIfPresent(String.self, forKey: .heading1)
+        heading2 = try container.decodeIfPresent(String.self, forKey: .heading2)
+        body = try container.decode(String.self, forKey: .body)
+        citations = try container.decodeIfPresent([JournalCitation].self, forKey: .citations)
+        inlineCitations = nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(heading1, forKey: .heading1)
+        try container.encodeIfPresent(heading2, forKey: .heading2)
+        try container.encode(body, forKey: .body)
+        try container.encodeIfPresent(citations, forKey: .citations)
     }
 }
 
@@ -39,6 +61,7 @@ public struct AIOutputComponent: View {
     var animate: Bool
     var onCitationsTapped: (() -> Void)?
     var onRedo: (() -> Void)?
+    var onInlineCitationTapped: ((Int) -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -68,12 +91,14 @@ public struct AIOutputComponent: View {
         content: AIOutputContent,
         animate: Bool = true,
         onCitationsTapped: (() -> Void)? = nil,
-        onRedo: (() -> Void)? = nil
+        onRedo: (() -> Void)? = nil,
+        onInlineCitationTapped: ((Int) -> Void)? = nil
     ) {
         self.content = content
         self.animate = animate
         self.onCitationsTapped = onCitationsTapped
         self.onRedo = onRedo
+        self.onInlineCitationTapped = onInlineCitationTapped
     }
 
     /// Full text for copy (heading1 + heading2 + body).
@@ -115,12 +140,26 @@ public struct AIOutputComponent: View {
                 }
             }
 
-            // Body text with typewriter effect
+            // Body text with typewriter effect and inline citation support
             if !displayedBody.isEmpty || !animate {
-                Text(LocalizedStringKey(animate ? displayedBody : content.body))
-                    .font(type.body1)
-                    .foregroundStyle(GrayScale.gray800)
-                    .lineSpacing(type.bodyLineSpacing)
+                Text(RichTextParser.parse(
+                    animate ? displayedBody : content.body,
+                    validCitationRefs: Set((content.inlineCitations ?? []).map(\.ref)),
+                    baseFont: type.body1,
+                    boldFont: type.body1Bold,
+                    citationFont: type.captionBold,
+                    textColor: GrayScale.gray800,
+                    citationColor: theme.primary
+                ))
+                .lineSpacing(type.bodyLineSpacing)
+                .environment(\.openURL, OpenURLAction { url in
+                    if url.scheme == "memento",
+                       url.host == "citation",
+                       let ref = Int(url.lastPathComponent) {
+                        onInlineCitationTapped?(ref)
+                    }
+                    return .handled
+                })
             }
 
             // Action bar (copy, thumbs up, thumbs down, re-do) — appears gently after message has finished loading

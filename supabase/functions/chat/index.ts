@@ -27,10 +27,12 @@ import {
   extractGeminiResponseText,
   filterCitedIdsToAllowed,
   parseCitedEntryIds,
+  resolveInlineCitations,
   sanitizeResponseBody,
   shouldSkipJournalRetrieval,
   type MatchedEntry,
   type ChatMessageRow,
+  type ResolvedCitation,
 } from './lib.ts';
 
 // ============================================================
@@ -94,6 +96,18 @@ const RESPONSE_SCHEMA = {
     heading1: { type: "string", nullable: true },
     heading2: { type: "string", nullable: true },
     body: { type: "string" },
+    citations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          ref: { type: "integer" },
+          theme: { type: "string" },
+        },
+        required: ["ref", "theme"],
+      },
+      nullable: true,
+    },
     cited_entry_ids: {
       type: "array",
       items: { type: "string" },
@@ -178,7 +192,7 @@ async function generateGeminiChat(
 ): Promise<{ ok: boolean; data?: unknown; errorText?: string }> {
   const generationConfig = {
     temperature: 0.7,
-    maxOutputTokens: 800,
+    maxOutputTokens: 900,
     responseMimeType: 'application/json',
     responseSchema: RESPONSE_SCHEMA,
   };
@@ -273,6 +287,8 @@ interface StructuredReply {
   heading1: string | null;
   heading2: string | null;
   body: string;
+  /** Model-produced inline citations with ref number and theme label. */
+  citations: Array<{ ref: number; theme: string }>;
   /** Journal entry UUIDs this reply draws on; only these become client `sources`. */
   cited_entry_ids: string[];
 }
@@ -427,7 +443,7 @@ serve(async (req) => {
     // 8. BUILD CONTEXT BLOCK
     // ============================================================
 
-    const contextBlock = buildContextBlock(entries);
+    const { block: contextBlock, indexMap } = buildContextBlock(entries);
 
     // ============================================================
     // 9. ASSEMBLE & CALL GEMINI 2.5 FLASH
@@ -447,6 +463,7 @@ serve(async (req) => {
         heading1: null,
         heading2: null,
         body: "I'm having trouble connecting right now. Please try again in a moment.",
+        citations: [],
         cited_entry_ids: [],
       };
     } else {
@@ -464,6 +481,9 @@ serve(async (req) => {
 
         const parsedRec = parsed as Record<string, unknown>;
         const citedIds = parseCitedEntryIds(parsedRec);
+        const rawCitations = Array.isArray(parsedRec.citations)
+          ? (parsedRec.citations as Array<{ ref: number; theme: string }>)
+          : [];
 
         if (extractedBody) {
           // Clean up body (unwrap nested JSON if needed)
@@ -472,16 +492,17 @@ serve(async (req) => {
             heading1: (parsed.heading1 as string | null) || null,
             heading2: (parsed.heading2 as string | null) || null,
             body: cleanedBody,
+            citations: rawCitations,
             cited_entry_ids: citedIds,
           };
         } else {
           // JSON parsed but no usable body found - log and use raw text as body
           console.warn('No body extracted from parsed response:', JSON.stringify(parsed).substring(0, 300));
-          // Last resort: try to use the raw text itself if it doesn't look like JSON
           structuredReply = {
             heading1: null,
             heading2: null,
             body: sanitizeResponseBody(rawText),
+            citations: [],
             cited_entry_ids: [],
           };
         }
@@ -491,6 +512,7 @@ serve(async (req) => {
           heading1: null,
           heading2: null,
           body: sanitizeResponseBody(rawText),
+          citations: [],
           cited_entry_ids: [],
         };
       }
@@ -500,12 +522,34 @@ serve(async (req) => {
     // 10. PERSIST MESSAGES
     // ============================================================
 
+    // Resolve inline citations: map ref numbers to entry UUIDs
+    const resolvedCitations = resolveInlineCitations(structuredReply.citations, indexMap);
+
+    // Build inline_citations payload for the client
+    interface InlineCitationPayload {
+      ref: number;
+      entry_id: string;
+      theme: string;
+      date: string;
+    }
+    const inlineCitationsPayload: InlineCitationPayload[] = resolvedCitations.map((c) => {
+      const e = entries.find((x) => x.id === c.entryId);
+      return {
+        ref: c.ref,
+        entry_id: c.entryId,
+        theme: c.theme,
+        date: e?.created_at ?? '',
+      };
+    });
+
     // Store full JSON structure for assistant messages to preserve headings when loading history
     const assistantContent = JSON.stringify({
       heading1: structuredReply.heading1,
       heading2: structuredReply.heading2,
       body: structuredReply.body,
+      citations: structuredReply.citations,
       cited_entry_ids: structuredReply.cited_entry_ids,
+      inline_citations: inlineCitationsPayload,
     });
 
     const { error: insertError } = await supabase.from('chat_messages').insert([
@@ -521,12 +565,14 @@ serve(async (req) => {
     // 11. RETURN RESPONSE
     // ============================================================
 
+    // Build sources from resolved inline citations (primary) + legacy cited_entry_ids (fallback)
     const maxCit = chatMaxCitations();
-    const allowedSourceIds = filterCitedIdsToAllowed(
-      structuredReply.cited_entry_ids,
-      entries,
-    ).slice(0, maxCit);
-    const sources: ChatSource[] = allowedSourceIds.map((id) => {
+    const inlineCitedIds = resolvedCitations.map((c) => c.entryId);
+    const legacyAllowed = filterCitedIdsToAllowed(structuredReply.cited_entry_ids, entries);
+    // Merge: inline citation IDs first, then legacy IDs not already included
+    const mergedIds = [...new Set([...inlineCitedIds, ...legacyAllowed])].slice(0, maxCit);
+
+    const sources: ChatSource[] = mergedIds.map((id) => {
       const e = entries.find((x) => x.id === id);
       if (!e) return null;
       return {
@@ -540,7 +586,8 @@ serve(async (req) => {
       reply: structuredReply.body,
       heading1: structuredReply.heading1,
       heading2: structuredReply.heading2,
-      cited_entry_ids: structuredReply.cited_entry_ids,
+      inline_citations: inlineCitationsPayload,
+      cited_entry_ids: mergedIds,
       sources,
       sessionId,
     }, 200);

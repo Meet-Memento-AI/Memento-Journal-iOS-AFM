@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "supabase-local",
+      "runtimeExecutable": "supabase",
+      "runtimeArgs": ["start"],
+      "port": 54321
+    },
+    {
+      "name": "supabase-functions",
+      "runtimeExecutable": "supabase",
+      "runtimeArgs": ["functions", "serve", "--no-verify-jwt"],
+      "port": 54321
+    }
+  ]
+}

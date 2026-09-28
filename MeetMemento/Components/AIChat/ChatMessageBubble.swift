@@ -12,6 +12,7 @@ public struct ChatMessageBubble: View {
     var animate: Bool
     var onCitationsTapped: (() -> Void)?
     var onRedo: (() -> Void)?
+    var onInlineCitationTapped: ((Int) -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -20,12 +21,14 @@ public struct ChatMessageBubble: View {
         message: ChatMessage,
         animate: Bool = true,
         onCitationsTapped: (() -> Void)? = nil,
-        onRedo: (() -> Void)? = nil
+        onRedo: (() -> Void)? = nil,
+        onInlineCitationTapped: ((Int) -> Void)? = nil
     ) {
         self.message = message
         self.animate = animate
         self.onCitationsTapped = onCitationsTapped
         self.onRedo = onRedo
+        self.onInlineCitationTapped = onInlineCitationTapped
     }
     
     public var body: some View {
@@ -64,7 +67,8 @@ public struct ChatMessageBubble: View {
                 content: aiContent,
                 animate: animate,
                 onCitationsTapped: onCitationsTapped,
-                onRedo: onRedo
+                onRedo: onRedo,
+                onInlineCitationTapped: onInlineCitationTapped
             )
         } else {
             // AI messages: support markdown/rich text (fallback)

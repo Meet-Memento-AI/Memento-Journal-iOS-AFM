@@ -19,6 +19,8 @@ public struct AIChatView: View {
     @ObservedObject var viewModel: ChatViewModel
 
     @State private var selectedCitations: [JournalCitation]? = nil
+    @State private var selectedInlineCitations: [InlineCitationInfo]? = nil
+    @State private var highlightedCitationRef: Int? = nil
     @State private var showCitationsSheet = false
     @State private var showChatHistorySheet = false
     @State private var scrollTask: Task<Void, Never>?
@@ -86,7 +88,11 @@ public struct AIChatView: View {
         }
         .sheet(isPresented: $showCitationsSheet) {
             if let citations = selectedCitations {
-                CitationsBottomSheet(citations: citations)
+                CitationsBottomSheet(
+                    citations: citations,
+                    inlineCitations: selectedInlineCitations,
+                    highlightedRef: highlightedCitationRef
+                )
             }
         }
         .sheet(isPresented: $showChatHistorySheet) {
@@ -172,10 +178,20 @@ public struct AIChatView: View {
                                     onCitationsTapped: {
                                         if let citations = message.citations, !citations.isEmpty {
                                             selectedCitations = citations
+                                            selectedInlineCitations = message.aiOutputContent?.inlineCitations
+                                            highlightedCitationRef = nil
                                             showCitationsSheet = true
                                         }
                                     },
-                                    onRedo: message.isFromUser ? nil : { viewModel.regenerateResponse(for: message.id) }
+                                    onRedo: message.isFromUser ? nil : { viewModel.regenerateResponse(for: message.id) },
+                                    onInlineCitationTapped: { ref in
+                                        if let citations = message.citations, !citations.isEmpty {
+                                            selectedCitations = citations
+                                            selectedInlineCitations = message.aiOutputContent?.inlineCitations
+                                            highlightedCitationRef = ref
+                                            showCitationsSheet = true
+                                        }
+                                    }
                                 )
                                 .id(message.id)
                             }

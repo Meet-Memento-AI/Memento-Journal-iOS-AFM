@@ -9,12 +9,22 @@ import SwiftUI
 
 public struct CitationsBottomSheet: View {
     let citations: [JournalCitation]
+    /// Inline citation data with ref numbers and themes (optional, for enhanced display).
+    var inlineCitations: [InlineCitationInfo]?
+    /// If set, auto-scroll to and highlight this citation ref.
+    var highlightedRef: Int?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
 
-    public init(citations: [JournalCitation]) {
+    public init(
+        citations: [JournalCitation],
+        inlineCitations: [InlineCitationInfo]? = nil,
+        highlightedRef: Int? = nil
+    ) {
         self.citations = citations
+        self.inlineCitations = inlineCitations
+        self.highlightedRef = highlightedRef
     }
 
     public var body: some View {
@@ -36,7 +46,11 @@ public struct CitationsBottomSheet: View {
                 .padding(.bottom, 24)
 
             // Timeline list
-            CitationTimelineList(citations: citations)
+            CitationTimelineList(
+                citations: citations,
+                inlineCitations: inlineCitations,
+                highlightedRef: highlightedRef
+            )
         }
         .background(theme.background.ignoresSafeArea())
         .presentationDetents([.medium, .large])

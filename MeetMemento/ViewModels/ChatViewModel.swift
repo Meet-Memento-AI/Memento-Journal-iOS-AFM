@@ -73,7 +73,33 @@ class ChatViewModel: ObservableObject {
            let body = json["body"] as? String {
             let heading1 = json["heading1"] as? String
             let heading2 = json["heading2"] as? String
-            let aiContent = AIOutputContent(heading1: heading1, heading2: heading2, body: body)
+
+            // Extract inline citations from stored history JSON
+            var inlineCitationInfos: [InlineCitationInfo]?
+            if let rawCitations = json["inline_citations"] as? [[String: Any]] {
+                inlineCitationInfos = rawCitations.compactMap { dict -> InlineCitationInfo? in
+                    guard let ref = dict["ref"] as? Int,
+                          let entryIdStr = dict["entry_id"] as? String,
+                          let entryId = UUID(uuidString: entryIdStr),
+                          let theme = dict["theme"] as? String else { return nil }
+                    let dateStr = dict["date"] as? String ?? ""
+                    return InlineCitationInfo(
+                        ref: ref,
+                        entryId: entryId,
+                        theme: theme,
+                        entryDate: Self.parseISO8601Date(dateStr),
+                        excerpt: ""
+                    )
+                }
+                if inlineCitationInfos?.isEmpty == true { inlineCitationInfos = nil }
+            }
+
+            let aiContent = AIOutputContent(
+                heading1: heading1,
+                heading2: heading2,
+                body: body,
+                inlineCitations: inlineCitationInfos
+            )
             return (body, aiContent)
         }
 
@@ -152,11 +178,16 @@ class ChatViewModel: ObservableObject {
                 }
 
                 let citations = mapSourcesToCitations(response.sources)
+                let inlineCitationInfos = mapInlineCitations(
+                    response.inlineCitations ?? [],
+                    sources: response.sources
+                )
                 let aiMessage = ChatMessage.aiMessage(
                     heading1: response.heading1,
                     heading2: response.heading2,
                     body: response.reply,
                     citations: citations.isEmpty ? nil : citations,
+                    inlineCitations: inlineCitationInfos.isEmpty ? nil : inlineCitationInfos,
                     isNew: true
                 )
                 appendMessage(aiMessage)
@@ -343,6 +374,34 @@ class ChatViewModel: ObservableObject {
             return nil
         }
         return nil
+    }
+
+    private func mapInlineCitations(
+        _ inlineCitations: [InlineCitation],
+        sources: [ChatSource]
+    ) -> [InlineCitationInfo] {
+        inlineCitations.compactMap { citation in
+            guard let entryId = UUID(uuidString: citation.entryId) else { return nil }
+            let source = sources.first { $0.id == citation.entryId }
+            let dateString = citation.date ?? source?.createdAt ?? ""
+            let date = Self.parseISO8601Date(dateString)
+            return InlineCitationInfo(
+                ref: citation.ref,
+                entryId: entryId,
+                theme: citation.theme,
+                entryDate: date,
+                excerpt: source?.preview ?? ""
+            )
+        }
+    }
+
+    private static func parseISO8601Date(_ string: String) -> Date {
+        if let parsed = ISO8601DateFormatter().date(from: string) {
+            return parsed
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: string) ?? Date()
     }
 
     private func mapSourcesToCitations(_ sources: [ChatSource]) -> [JournalCitation] {
