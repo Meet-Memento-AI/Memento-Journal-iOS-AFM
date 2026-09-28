@@ -240,6 +240,13 @@ struct YourEntriesView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, topContentPadding)
             .padding(.bottom, bottomContentPadding)
+            // Timeline measure. Safe as a centred clamp because this subtree is
+            // already full-width on iPhone — the month header forces
+            // `frame(maxWidth: .infinity, alignment: .leading)` and the cards
+            // fill — so the outer expansion frame changes nothing there. The
+            // scroll-offset reporter below reads `minY` only, so it is
+            // indifferent to where this sits relative to it.
+            .pageColumnCentered()
             .background(
                 GeometryReader { geometry in
                     Color.clear

@@ -25,8 +25,13 @@ fi
 
 app="${1:-${APP_PATH:-}}"
 if [ -z "$app" ]; then
-  # Prefer an archive product (closest to what ships), then any Release build.
-  app="$(find build -name 'withMemento.app' -maxdepth 6 2>/dev/null | head -1 || true)"
+  # Prefer an archive product: it is the device .app, arm64 and stripped, and
+  # so the only local artifact whose size resembles what a person downloads.
+  # A Release *build* product is the fallback, but on a simulator destination
+  # it is fat and unstripped and reads ~100 MB heavier than the truth — treat
+  # a number from it as an upper bound, not a measurement.
+  app="$(find . -path '*.xcarchive/Products/Applications/withMemento.app' -maxdepth 6 2>/dev/null | head -1 || true)"
+  [ -z "$app" ] && app="$(find build -name 'withMemento.app' -maxdepth 6 2>/dev/null | head -1 || true)"
   [ -z "$app" ] && app="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Build/Products/Release*/withMemento.app' -maxdepth 5 2>/dev/null | head -1 || true)"
 fi
 

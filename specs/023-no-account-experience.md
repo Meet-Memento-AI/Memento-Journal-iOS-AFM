@@ -90,6 +90,13 @@ FaceID/PIN step defaults **on** but gains an explicit-friction skip ("Your
 journal will open without protection") per `REQ-DATA-004` — with no account,
 mandatory lock plus a forgotten PIN would mean data loss. Back from the first
 step returns to Welcome (no sign-out concept exists).
+**Amendment (spec 053, DEC-013, 2026-09-26):** the step order and end state
+are now 053 R1. The quiz replaces LearnAboutYourself and YourGoals, with the
+same local storage. Onboarding ends in the Journal showing **one entry the
+user wrote** (053 R3), not an empty journal; still no entry is created
+without the user writing it. If the user skips writing, the acceptance below
+still holds as written. The `My First Reflection` purge and the app-lock
+friction skip are unchanged.
 **Acceptance:** completing onboarding in airplane mode yields: populated name
 cache (avatar initial renders, PRES-006), empty journal with the footer pill
 **Write your first entry** (PRES-007 / PRES-020), lock

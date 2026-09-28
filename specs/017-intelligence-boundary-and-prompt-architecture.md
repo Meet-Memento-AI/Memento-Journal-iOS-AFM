@@ -217,6 +217,15 @@ render through spec 014 R2's component — persistent inline UI, never an
 alert (Apple's explicit guidance, `technology/02` §6). `REQ-INT-007`'s
 ⚠️ VERIFY is exactly V4 + V13, tracked in R10.
 
+**Amendment (DEC-013, 021 R4 `REQ-MON-006`, 2026-09-26):** Memento's **free
+daily message limit** is a separate thing from this section.
+- It is an entitlement limit, counted locally. It is not a model of PCC
+  budget, and nothing about it assumes a knowable PCC remainder.
+- Its copy never mentions Apple, iCloud+ or quota. PCC quota copy never
+  mentions Pro.
+- For Pro users, `REQ-INT-006`'s soft local limit *is* the "quiet fair-use
+  limit" the strategy names. It degrades per R4 and never shows purchase UI.
+
 **Acceptance:**
 - `QuotaGovernor` is an `actor`; unit tests drive it through
   available → approachingLimit → limitReached → reset using a stubbed quota

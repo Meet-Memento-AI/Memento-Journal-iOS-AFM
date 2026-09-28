@@ -188,6 +188,10 @@ shows every shipped intent declared on-device.
   signed off against the gamification NON-GOAL; otherwise omitted entirely.
   `technology/07` §2's prohibition list is adopted verbatim: no streak
   counters, no scores, no "days since" framed as failure.
+  **Amendment (spec 053 R7, 2026-09-26):** onboarding ends with a page that
+  shows how to add this widget. It stays flagged off until the WidgetKit
+  extension target exists; today only `MementoLockWidgetView` does. DEC-013
+  keeps streaks out, so this prohibition list is unchanged.
 - **Control Center control (`REQ-SYS-007`):** `ControlWidget` wrapping R1's
   start-recording intent — the fastest capture path on the device, nearly
   free once the intent exists.

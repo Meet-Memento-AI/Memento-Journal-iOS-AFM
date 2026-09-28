@@ -49,6 +49,10 @@ public struct AIChatView: View {
     /// with the keyboard up).
     @State private var footerHeight: CGFloat = 80
     @State private var showChatHistorySheet = false
+    /// Free tier: the paywall trigger to present, if any (spec 021 R9).
+    @State private var paywallTrigger: PaywallTrigger?
+    /// Free tier: "Start over?" before a reset deletes the conversation.
+    @State private var showResetConfirmation = false
     @State private var showSummarySheet = false
     @State private var summaryError: String?
     @State private var currentSuggestions: [ChatSuggestion] = []
@@ -60,6 +64,8 @@ public struct AIChatView: View {
     @State private var suggestionGeneration: Int = 0
 
     private let hasEntries: Bool
+    /// Free or Pro, from entitlement × device eligibility (`ChatTier`).
+    private let tier: ChatTier
     /// When set, the view opens already in Narration Mode with this phase —
     /// used by canvas previews so QA does not have to start the mic.
     private let narrationPreview: AIChatNarrationPreviewConfiguration?
@@ -76,6 +82,7 @@ public struct AIChatView: View {
 
     init(
         viewModel: ChatViewModel,
+        tier: ChatTier = .pro,
         isEmbedded: Bool = false,
         hasEntries: Bool = true,
         onOpenJournal: (() -> Void)? = nil,
@@ -84,6 +91,7 @@ public struct AIChatView: View {
         seededSuggestions: [ChatSuggestion]? = nil
     ) {
         self.viewModel = viewModel
+        self.tier = tier
         self.isEmbedded = isEmbedded
         self.hasEntries = hasEntries
         self.onOpenJournal = onOpenJournal
@@ -174,6 +182,33 @@ public struct AIChatView: View {
                 }
             )
         }
+        .sheet(item: $paywallTrigger) { trigger in
+            MementoProPaywall(trigger: trigger)
+        }
+        .confirmationDialog(
+            "Start over?",
+            isPresented: $showResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Start over", role: .destructive) {
+                stopNarration()
+                Task { await viewModel.resetFreeChat() }
+            }
+            Button("Keep it with Pro") { paywallTrigger = .clearChat }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Free chats aren't kept when you start over.")
+        }
+        .onChange(of: tier, initial: true) { _, newTier in
+            viewModel.setTier(newTier)
+        }
+        .onChange(of: viewModel.dailyLimitReached) { _, reached in
+            // A held-back spoken turn would leave narration waiting forever.
+            if reached { stopNarration() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { viewModel.refreshDailyLimit() }
+        }
         .sheet(isPresented: $showSummarySheet) {
             ChatSummarySheet(
                 onSummarize: { handleSummarize() },
@@ -255,28 +290,68 @@ public struct AIChatView: View {
             // measures from process start to this point of interest.
             PerfSignposts.appLoad.emitEvent("chat.appeared")
             viewModel.prewarm()
-            refreshSuggestionsIfNeeded()
+            viewModel.refreshDailyLimit()
+            if tier == .pro { refreshSuggestionsIfNeeded() }
             Task {
                 await viewModel.fetchSessions()
             }
         }
         .onChange(of: viewModel.messages.isEmpty) { _, isEmpty in
-            if isEmpty { refreshSuggestionsIfNeeded(force: true) }
+            if isEmpty, tier == .pro { refreshSuggestionsIfNeeded(force: true) }
         }
     }
 
     // MARK: - Header
 
+    @ViewBuilder
     private var chatHeader: some View {
+        switch tier {
+        case .pro: proHeader
+        case .free: freeHeader
+        }
+    }
+
+    private var journalButton: some View {
+        HeaderIconButton(
+            systemName: "book",
+            accessibilityLabel: "Journal",
+            accessibilityHint: "Double-tap to go back to your journal, or swipe right"
+        ) {
+            dismissKeyboard()
+            onOpenJournal?()
+        }
+        .accessibilityIdentifier("chat.header.journal")
+    }
+
+    /// Free tier (Figma 1177:3148): Journal and Upgrade on the left, reset on
+    /// the right. History, new chat and summaries are Pro (spec 021 R4).
+    private var freeHeader: some View {
         AppHeader {
+            HStack(spacing: Spacing.md) {
+                journalButton
+                UpgradePill {
+                    stopNarration()
+                    dismissKeyboard()
+                    paywallTrigger = .askWholeJournal
+                }
+            }
+        } trailing: {
             HeaderIconButton(
-                systemName: "book",
-                accessibilityLabel: "Journal",
-                accessibilityHint: "Double-tap to go back to your journal, or swipe right"
+                assetName: "ChatReset",
+                accessibilityLabel: "Reset chat",
+                accessibilityHint: "Asks before clearing this conversation"
             ) {
                 dismissKeyboard()
-                onOpenJournal?()
+                showResetConfirmation = true
             }
+            .disabled(viewModel.messages.isEmpty)
+            .accessibilityIdentifier("chat.header.reset")
+        }
+    }
+
+    private var proHeader: some View {
+        AppHeader {
+            journalButton
         } trailing: {
             ChatHeaderActionCluster(
                 showsSummarize: viewModel.canSummarizeChat,
@@ -323,6 +398,7 @@ public struct AIChatView: View {
                         bottomReserve: bottomReserve,
                         followTail: followTail,
                         suggestions: currentSuggestions,
+                        showsStarters: tier == .pro,
                         onCitations: { selectedCitations = CitationsWrapper(citations: $0) },
                         onDismissKeyboard: dismissKeyboard,
                         onSuggestionTap: { suggestion in
@@ -381,7 +457,18 @@ public struct AIChatView: View {
 
     @ViewBuilder
     private var chatFooter: some View {
+        // Both guards, from either side of the merge: #47 hides the composer
+        // when the companion is unavailable, and the free limit note sits above
+        // it when the allowance is spent.
         if preferences.aiEnabled, companionUnavailableReason == nil {
+            VStack(spacing: Spacing.sm) {
+            if tier == .free && viewModel.dailyLimitReached && !isNarrating {
+                DailyLimitNote {
+                    dismissKeyboard()
+                    paywallTrigger = .dailyLimit
+                }
+                .transition(.opacity)
+            }
             ZStack(alignment: .bottom) {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
@@ -392,7 +479,12 @@ public struct AIChatView: View {
                     // is the last moment the composer's pre-send frame is
                     // the one on screen.
                     choreographer.captureOrigin()
-                    viewModel.sendMessage(images: images)
+                    let pending = viewModel.inputText
+                    if !viewModel.sendMessage(images: images), viewModel.dailyLimitReached {
+                        // The composer clears itself after `onSend`; a
+                        // message held back by the free limit keeps its text.
+                        DispatchQueue.main.async { viewModel.inputText = pending }
+                    }
                 },
                     onNarrate: startNarration,
                     onComposerFrame: { choreographer.composerFrame = $0 }
@@ -405,6 +497,8 @@ public struct AIChatView: View {
                 )
                 .narrationDissolve(isVisible: isNarrating, blurs: false)
             }
+            }
+            .animation(.easeOut(duration: Spacing.Duration.standard), value: viewModel.dailyLimitReached)
             .background(
                 GeometryReader { proxy in
                     Color.clear.preference(
@@ -561,140 +655,5 @@ public struct AIChatView: View {
                 }
             }
         }
-    }
-}
-
-private struct ChatFooterHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-#Preview("Empty State") {
-    @Previewable @StateObject var viewModel = ChatViewModel()
-    NavigationStack {
-        AIChatView(
-            viewModel: viewModel,
-            isEmbedded: true,
-            hasEntries: true,
-            seededSuggestions: ChatSuggestion.previewSamples
-        )
-    }
-    .useTheme()
-    .useTypography()
-}
-
-#Preview("With Messages") {
-    @Previewable @StateObject var viewModel = ChatViewModel()
-    NavigationStack {
-        AIChatView(viewModel: viewModel)
-    }
-    .useTheme()
-    .useTypography()
-}
-
-#Preview("Dark Mode") {
-    @Previewable @StateObject var viewModel = ChatViewModel()
-    NavigationStack {
-        AIChatView(
-            viewModel: viewModel,
-            isEmbedded: true,
-            hasEntries: true,
-            seededSuggestions: ChatSuggestion.previewSamples
-        )
-    }
-    .useTheme()
-    .useTypography()
-    .preferredColorScheme(.dark)
-}
-
-#Preview("Narration · Listening") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(phase: .listening)
-    )
-}
-
-#Preview("Narration · Live transcript") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .listening,
-            liveTranscript: "I’ve been thinking about how last week felt heavier than I expected, especially around work."
-        )
-    )
-}
-
-#Preview("Narration · Thinking") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .awaitingResponse,
-            isLoading: true,
-            messages: AIChatNarrationPreviewConfiguration.sampleTurn
-        )
-    )
-}
-
-#Preview("Narration · Speaking") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .speaking,
-            messages: AIChatNarrationPreviewConfiguration.sampleTurn
-        )
-    )
-}
-
-#Preview("Narration · Voice nudge") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .listening,
-        )
-    )
-}
-
-#Preview("Narration · Dark") {
-    AIChatNarrationPreview(
-        configuration: AIChatNarrationPreviewConfiguration(
-            phase: .listening,
-            liveTranscript: "What have I been writing about lately?"
-        )
-    )
-    .preferredColorScheme(.dark)
-}
-
-/// Canvas seed for Narration Mode. Does not arm the mic or TTS.
-struct AIChatNarrationPreviewConfiguration {
-    var phase: NarrationCoordinator.Phase = .listening
-    var liveTranscript: String = ""
-    var isLoading: Bool = false
-    var messages: [ChatMessage] = []
-
-    // periphery:ignore - read only by #Preview canvases
-    static var sampleTurn: [ChatMessage] {
-        [
-            ChatMessage(
-                content: "What have I been writing about lately?",
-                isFromUser: true
-            ),
-            ChatMessage(
-                content: "You’ve been circling work pressure and how evenings feel shorter than they used to. A few entries come back to wanting more quiet, not more advice.",
-                isFromUser: false
-            )
-        ]
-    }
-}
-
-// periphery:ignore - instantiated only by #Preview canvases
-private struct AIChatNarrationPreview: View {
-    let configuration: AIChatNarrationPreviewConfiguration
-    @StateObject private var viewModel = ChatViewModel()
-
-    var body: some View {
-        AIChatView(
-            viewModel: viewModel,
-            isEmbedded: true,
-            narrationPreview: configuration
-        )
-        .useTheme()
-        .useTypography()
     }
 }
