@@ -164,7 +164,7 @@ list from the bundle's localizations, so the two must move together.
 
 | Requirement | Status |
 |---|---|
-| 1024×1024 PNG in the asset catalog | ✅ `MeetMemento/Assets.xcassets/AppIcon.appiconset/AppIcon.png` |
+| 1024×1024 PNG in the asset catalog | ✅ `withMemento/Assets.xcassets/AppIcon.appiconset/AppIcon.png` |
 | Fully opaque, **no alpha channel** | ✅ Verified by spec 002 R2 (`sips -g hasAlpha` → `no`) |
 | **Square, 90° corners** — do not pre-round | ✅ The system applies the mask |
 | RGB | ✅ |

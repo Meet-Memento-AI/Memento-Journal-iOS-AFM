@@ -35,7 +35,7 @@
 
 #### Contact Email Addresses Updated
 - **Status:** ✅ Complete
-- **Changed:** sebastian.mendo@example.com → support@sebastianmendo.com
+- **Changed:** sebastian.mendo@example.com → hello@withmemento.ai
 - **Files:**
   - `PRIVACY_POLICY.md`
   - `TERMS_OF_SERVICE.md`
@@ -45,8 +45,8 @@
 #### Legal Documents Hosted on GitHub Pages
 - **Status:** ✅ Complete
 - **URLs:**
-  - Privacy: https://sebmendo1.github.io/MeetMemento/privacy.html
-  - Terms: https://sebmendo1.github.io/MeetMemento/terms.html
+  - Privacy: https://sebmendo1.github.io/withMemento/privacy.html
+  - Terms: https://sebmendo1.github.io/withMemento/terms.html
 - **Verified:** Both pages live and accessible
 - **App Updated:** AboutSettingsView now links to hosted URLs
 - **Impact:** Meets Apple Sign In and Google OAuth requirements
@@ -59,8 +59,8 @@
 
 #### 1. Bundle Identifier Fixed
 - **Status:** ✅ Complete
-- **Changed:** All bundle IDs updated from `com.testing.*` to `com.sebastianmendo.MeetMemento`
-- **Files:** `project.pbxproj`, `MeetMemento.entitlements`
+- **Changed:** All bundle IDs updated from `com.testing.*` to `com.sebmendo.withMementoAI`
+- **Files:** `project.pbxproj`, `withMemento.entitlements`
 - **Impact:** App can now be uploaded to App Store Connect
 
 #### 2. Debug Views Removed from Production
@@ -78,7 +78,7 @@
   - `SupabaseService.swift` (39 statements)
   - `EntryViewModel.swift` (24 statements)
   - `AuthViewModel.swift` (13 statements)
-  - `MeetMementoApp.swift` (6 statements)
+  - `withMementoApp.swift` (6 statements)
 - **Remaining (non-critical):**
   - `ThemeAnalysisService.swift` (23) - diagnostic service
   - `FontDebugger.swift` (10) - debug tool
@@ -97,7 +97,7 @@
   - **How to rotate:**
     1. Go to Supabase Dashboard > Settings > API
     2. Generate new anon key
-    3. Update `MeetMemento/Resources/SupabaseConfig.swift` locally
+    3. Update `withMemento/Resources/SupabaseConfig.swift` locally
     4. Test authentication still works
   - **Alternative:** Use `git-filter-repo` to purge from history (advanced)
 - **Impact:** Future commits won't expose credentials, but history still contains them
@@ -158,7 +158,7 @@
 #### 8. Draft App Store Metadata
 - **Status:** ⏳ Pending
 - **Required:**
-  - App name: "MeetMemento"
+  - App name: "withMemento"
   - Subtitle (30 chars): "AI-Powered Journal"
   - Description (4000 chars max)
   - Keywords (100 chars max): "journal, diary, ai, insights, reflection, mood, therapy, mental health"
@@ -287,7 +287,7 @@ Privacy Policy and ToS must be publicly accessible URLs for:
 # Option 1: GitHub Pages (Free, Easy)
 # 1. Create gh-pages branch
 # 2. Add PRIVACY_POLICY.md and TERMS_OF_SERVICE.md
-# 3. URLs: https://yourusername.github.io/MeetMemento/privacy
+# 3. URLs: https://yourusername.github.io/withMemento/privacy
 
 # Option 2: Simple Website
 # Host on Vercel, Netlify, or CloudFlare Pages (all free)

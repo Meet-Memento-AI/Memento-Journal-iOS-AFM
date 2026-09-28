@@ -11,6 +11,9 @@
 #
 # --- TARGET (2.0 end state) ---
 revenuecat/purchases-ios
+# The official SPM mirror of purchases-ios (same source, faster resolution);
+# the one RevenueCat's install docs point at. Linked 2026-09-24, spec 021 R3.
+revenuecat/purchases-ios-spm
 #
 # --- NEURAL VOICE (spec 030; decision record: spec 021 R6 amendment 2026-08-18) ---
 # The on-device TTS integration surface. Admitted under REQ-TTS-001 (runs entirely
@@ -34,7 +37,7 @@ meet-memento-ai/speech-swift
 # is visible rather than silent.
 #
 # UPDATED 2026-08-18 (DEC-012): the neural TTS weights are no longer downloaded
-# at all. They are vendored at MeetMemento/Resources/Voices/ (~148 MB, Git LFS)
+# at all. They are vendored at withMemento/Resources/Voices/ (~148 MB, Git LFS)
 # and ship INSIDE the app binary. Governed instead by:
 #   - integrity  -> build-time: scripts/build_voice_pack.sh pins the source
 #                   checksum; the bundle is code-signed with the app (REQ-TTS-002)

@@ -1,0 +1,66 @@
+[
+  {
+    "id": "cs-01",
+    "daysAgo": 1,
+    "source": "text",
+    "transcript": "First pottery class tonight. The wheel is harder than it looks and everything I touched went lopsided. Going back on Thursday anyway.",
+    "seedMoods": ["hopeful"],
+    "seedTopics": ["hobbies"]
+  },
+  {
+    "id": "cs-02",
+    "daysAgo": 3,
+    "source": "voice",
+    "transcript": "Argument with Dario about the move. He wants to decide by the end of the month and I am not ready to say yes or no. We left it unresolved, which is the part that sits badly.",
+    "seedMoods": ["restless"],
+    "seedTopics": ["relationships"]
+  },
+  {
+    "id": "cs-03",
+    "daysAgo": 5,
+    "source": "voice",
+    "transcript": "Slept badly three nights running now. Wired at two in the morning, staring at the ceiling, then useless by the afternoon.",
+    "seedMoods": ["tired"],
+    "seedTopics": ["health"]
+  },
+  {
+    "id": "cs-04",
+    "daysAgo": 8,
+    "source": "text",
+    "transcript": "Long walk out on the headland. Fog came in off the water and swallowed the path ahead of me. Calmer afterwards than I had been all week.",
+    "seedMoods": ["calm"],
+    "seedTopics": ["outdoors"]
+  },
+  {
+    "id": "cs-05",
+    "daysAgo": 11,
+    "source": "voice",
+    "transcript": "Standup went badly. The Atlas deadline slipped again and nobody in the room wanted to be the one to say it out loud. I said it.",
+    "seedMoods": ["frustrated"],
+    "seedTopics": ["career"]
+  },
+  {
+    "id": "cs-06",
+    "daysAgo": 15,
+    "source": "text",
+    "transcript": "Dinner with Nonna. She told the boat story again, the one about her father and the crossing, and I let her tell all of it.",
+    "seedMoods": ["connected"],
+    "seedTopics": ["family"]
+  },
+  {
+    "id": "cs-07",
+    "daysAgo": 20,
+    "source": "voice",
+    "transcript": "Started running again after months off. Two miles, slow, and the knee held up better than I expected it to.",
+    "seedMoods": ["energized"],
+    "seedTopics": ["health"]
+  },
+  {
+    "id": "cs-08",
+    "daysAgo": 26,
+    "source": "text",
+    "transcript": "Quit the second coffee. Headaches for two solid days and then, suddenly, nothing. I am counting that as a win.",
+    "seedMoods": ["content"],
+    "seedTopics": ["health"]
+  }
+]

@@ -167,7 +167,7 @@ Before deployment, verify:
 If issues arise, restore backups:
 
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento/supabase/functions/generate-follow-up
+cd /Users/sebastianmendo/Swift-projects/withMemento/supabase/functions/generate-follow-up
 
 # Restore tfidf.ts
 cp tfidf-backup.ts tfidf.ts
@@ -179,7 +179,7 @@ cp precompute-backup.ts precompute.ts
 git checkout index.ts
 
 # Redeploy
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 supabase functions deploy generate-follow-up
 ```
 
@@ -238,7 +238,7 @@ tokenize("I'm feeling stressed about deadlines")
 
 2. **Deploy** (2 min)
    ```bash
-   cd /Users/sebastianmendo/Swift-projects/MeetMemento
+   cd /Users/sebastianmendo/Swift-projects/withMemento
    bash DEPLOY_WEEKLY_QUESTIONS.sh
    ```
 

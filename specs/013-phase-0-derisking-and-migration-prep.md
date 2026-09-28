@@ -282,7 +282,7 @@ made and already reflected in each spec's front-matter/body:
 ## Tasks
 - [ ] 1. Investigate and resolve `DEC-002` (R1); record verdict and cite sources.
       **Spike C harness built + automatable half run 2026-07-26**
-      (`MeetMementoTests/SpikeC_NamedIndexVisibilityTests.swift`, env-gated
+      (`withMementoTests/SpikeC_NamedIndexVisibilityTests.swift`, env-gated
       `TEST_RUNNER_SPIKE_C=1`; manual device steps documented in the file
       header). Simulator result: a sentinel donated to
       `CSSearchableIndex(name: "memento-spike-c")` **is retrievable by
@@ -300,7 +300,7 @@ made and already reflected in each spec's front-matter/body:
       2026-07-23** — 262 entries, 45 gold questions, `validate_corpus.py`
       passing.
 - [ ] 3. Run Spike A (Spotlight donation + retrieval) and record recall@5 (R2).
-      **Simulator half done 2026-07-26** — `MeetMementoTests/SpikeA_SpotlightRecallTests.swift`
+      **Simulator half done 2026-07-26** — `withMementoTests/SpikeA_SpotlightRecallTests.swift`
       (env-gated: `TEST_RUNNER_SPIKE_A=1` + `TEST_RUNNER_SPIKE_A_FIXTURES=<path>`;
       never runs in normal suites). Full 262-entry corpus donated to Core
       Spotlight on the iOS 27.0 simulator; all 45 resolved gold questions run

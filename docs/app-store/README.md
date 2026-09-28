@@ -1,9 +1,11 @@
 # docs/app-store/ — App Store Connect submission and review readiness
 
 **Compiled 2026-08-07** against Apple's published documentation; **1.x submit
-path updated 2026-08-17.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
-on-device Foundation Models, "Data Not Collected" privacy label.** iOS 27 GA,
-SwiftData/CloudKit, PCC, and RevenueCat are **2.0** and do not block this submit.
+path updated 2026-09-12.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
+on-device Foundation Models.** The privacy label is **not** “Data Not Collected”:
+opt-in quality feedback is declared (spec 042); the journal itself is not
+collected; CloudKit, when the user is signed into iCloud, is a private replica
+we cannot read. PCC and RevenueCat are **2.0** and do not block this submit.
 Account Holder clicks live in [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md).
 
 This folder is the **single source of truth for everything Apple requires before
@@ -66,6 +68,7 @@ the same status board as the engineering phases. Gate S sits after Phase 5.
 | [`11-rejection-playbook.md`](11-rejection-playbook.md) | Our rejection history, metadata vs binary rejection, Resolution Center, expedited review, appeals | [App Review](https://developer.apple.com/distribute/app-review/) |
 | [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md) | Prioritized product enhancement plan (data-layer honesty, dark mode, accessibility) sequenced for Gate S | — (aggregates repo scan + specs) |
 | [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md) | 1.x click path: Apple's clock, ASC paste values, screenshot sizes, archive | — |
+| [`14-orientation-decision.md`](14-orientation-decision.md) | 1.x orientation contract: iPhone portrait-only, iPad rotates | — |
 
 Plus two data files:
 
@@ -99,7 +102,7 @@ Plus two data files:
 | Pricing (`DEC-004`), Reduced-tier posture (`DEC-001`), StoreKit/RevenueCat integration, the **decision** on the privacy label (`REQ-MON-004` / V8) | `specs/021-monetization-and-store-compliance.md` |
 | The positioning claim `REQ-POS-001` and the `TrustZone` disclosure UI | `specs/014-privacy-model-and-trust-boundary.md` |
 | Small Business Program and Private Cloud Compute filings | `specs/013-phase-0-derisking-and-migration-prep.md` R5 |
-| On-device transcription (`requiresOnDeviceRecognition`), Personal Voice posture | `specs/018-capture-and-voice-output.md` |
+| On-device transcription (`SpeechAnalyzer`/`SpeechTranscriber`), Personal Voice posture | `specs/018-capture-and-voice-output.md` |
 | Accessibility conformance that Accessibility Nutrition Labels would claim | `specs/020-system-integration-and-accessibility.md` R8 |
 | Export and deletion (what a reviewer asks about instead of account deletion) | `specs/015-data-layer-swiftdata-cloudkit.md` `REQ-DATA-013` |
 | **Everything Apple requires in App Store Connect, and whether we have it** | **this library** |

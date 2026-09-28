@@ -6,7 +6,7 @@
 
 ## Step 1: Create VoiceFAB Component (5 min)
 
-**File**: `MeetMemento/Components/Buttons/VoiceFAB.swift`
+**File**: `withMemento/Components/Buttons/VoiceFAB.swift`
 
 Copy the code from [JOURNAL_ENTRY_IMPLEMENTATION.md](./JOURNAL_ENTRY_IMPLEMENTATION.md#step-1-create-voicefab-component)
 
@@ -19,7 +19,7 @@ Copy the code from [JOURNAL_ENTRY_IMPLEMENTATION.md](./JOURNAL_ENTRY_IMPLEMENTAT
 
 ## Step 2: Create JournalEntryView (15 min)
 
-**File**: `MeetMemento/Views/Journal/JournalEntryView.swift`
+**File**: `withMemento/Views/Journal/JournalEntryView.swift`
 
 Copy the code from [JOURNAL_ENTRY_IMPLEMENTATION.md](./JOURNAL_ENTRY_IMPLEMENTATION.md#step-2-create-journalentryview)
 
@@ -34,7 +34,7 @@ Copy the code from [JOURNAL_ENTRY_IMPLEMENTATION.md](./JOURNAL_ENTRY_IMPLEMENTAT
 
 ## Step 3: Wire Up ContentView (2 min)
 
-**File**: `MeetMemento/ContentView.swift`
+**File**: `withMemento/ContentView.swift`
 
 ### Add state variable (after line 38):
 ```swift

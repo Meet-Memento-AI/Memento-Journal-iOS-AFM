@@ -45,21 +45,21 @@ supabase/functions/generate-insights/
 ### Files Modified/Created:
 
 #### Models (NEW):
-- `MeetMemento/Models/Insight.swift` (199 lines)
+- `withMemento/Models/Insight.swift` (199 lines)
   - JournalInsights struct
   - InsightTheme struct with icon/explanation
   - ThemeSourceEntry struct
   - Full Codable support + sample data
 
 #### ViewModels (UPDATED):
-- `MeetMemento/ViewModels/InsightViewModel.swift` (266 lines)
+- `withMemento/ViewModels/InsightViewModel.swift` (266 lines)
   - Async edge function calls
   - Loading/error state management
   - Cache freshness detection
   - Comprehensive error handling
 
 #### Views (UPDATED):
-- `MeetMemento/Views/Insights/InsightsView.swift` (336 lines)
+- `withMemento/Views/Insights/InsightsView.swift` (336 lines)
   - Dynamic insights display
   - Pull-to-refresh support
   - Loading/error/empty states
@@ -117,7 +117,7 @@ supabase/functions/generate-insights/
 
 ### 1. Via Swift App (Recommended):
 ```
-1. Open MeetMemento app in Xcode
+1. Open withMemento app in Xcode
 2. Sign in with test account
 3. Create 3-5 journal entries with meaningful content
 4. Navigate to Insights tab
@@ -333,9 +333,9 @@ Cache HIT (< 7 days)         Cache MISS
 ## 📚 Documentation References
 
 - **Edge Function Code:** `supabase/functions/generate-insights/`
-- **Swift Models:** `MeetMemento/Models/Insight.swift`
-- **Swift ViewModel:** `MeetMemento/ViewModels/InsightViewModel.swift`
-- **Swift View:** `MeetMemento/Views/Insights/InsightsView.swift`
+- **Swift Models:** `withMemento/Models/Insight.swift`
+- **Swift ViewModel:** `withMemento/ViewModels/InsightViewModel.swift`
+- **Swift View:** `withMemento/Views/Insights/InsightsView.swift`
 - **Database Schema:** `DATABASE_OPTIMIZATION.md`
 - **Sprint Planning:** `.sprints/SPRINT_PLANNING.md`
 
@@ -360,5 +360,5 @@ The AI Insights feature is **fully deployed and ready for production use**. The 
 
 **Deployed by:** Claude Code
 **Deployment Date:** October 23, 2025
-**Project:** MeetMemento v1.0
+**Project:** withMemento v1.0
 **Status:** 🟢 Live in Production

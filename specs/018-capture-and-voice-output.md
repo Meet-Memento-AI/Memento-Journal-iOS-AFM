@@ -2,7 +2,7 @@
 id: 018
 title: Capture and Voice Output
 tier: P1
-status: in-progress (2026-08-19) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only
+status: in-progress (2026-09-12) — SpeechAnalyzer + SpeechTranscriber + SpeechDetector engine; SFSpeechRecognizer remains permission-only. R12's CI gate now exists (scripts/ci/check_tts_license_path.sh, wired into spec-gates.yml): it was specified in August but never written, so the GPL/G2P property held only by construction. Verified to fail on planted GPL text and on a planted espeak call site
 effort: 3 sessions
 depends_on: [013, 015, 017]
 findings: [sfspeechrecognizer-migration-not-carry-forward, journal-capability-not-gated-filing, weatherkit-content-free-zone, speakability-linter-ci-gate, tts-complete-text-constraint, personal-voice-verify-first, tts-vendor-rule-was-a-privacy-rule, phonemizer-gpl-contamination-gate]
@@ -39,7 +39,7 @@ surface — the long-term differentiator versus Slate, and the reason reflection
 ## Current State (evidence)
 
 Speech-to-text is already fully native/on-device:
-`MeetMemento/Services/SpeechService.swift` uses Apple's `Speech` + `AVFoundation`
+`withMemento/Services/SpeechService.swift` uses Apple's `Speech` + `AVFoundation`
 frameworks directly, with no Gemini Audio fallback found anywhere (confirmed
 2026-07-23) — this piece may already satisfy `REQ-CAP-001`/`002`/`003`/`004`
 largely as-is; verify against the requirement list rather than rebuilding. No
@@ -159,7 +159,7 @@ owned by design):
 - Given volatile results streaming in, when rendered, then they are visually
   distinct (opacity/weight/color) from finalized text (`REQ-CAP-003`).
 - Given the completed migration, when
-  `grep -rn 'SFSpeechRecognizer' MeetMemento/` runs, then it returns no
+  `grep -rn 'SFSpeechRecognizer' withMemento/` runs, then it returns no
   app-target matches (`REQ-CAP-001` as a checkable criterion).
 - Given the migrated engine, when PRES-024 (editor dictation FAB) and PRES-063
   (onboarding dictation) flows run, then observable behavior is unchanged —
@@ -474,6 +474,9 @@ for reflection playback. Generation is fully on-device — `.z0Device`.
 
 `REQ-VOX-003` product rules (normative, `technology/06` B3):
 1. Delighter tier — never a default, never a gate, never monetization bait.
+   **(Confirmed by DEC-013, 2026-09-26:** 021 R4's amended table moves
+   Personal Voice out of Paid. Read Aloud and the voice catalog stay free
+   too; the strategy's "journal narrations" are not gated.)
 2. Onboarding MUST NOT mention it.
 3. Discovered late, at demonstrated engagement: surfaced only after the
    user's third or fourth weekly reflection (Task 5's trigger).
@@ -680,7 +683,7 @@ may run.
       both specs' halves exist (landed as a pair).
 - [ ] Task 1 audit recorded in this spec: R1's per-`REQ-CAP-` verdict table
       re-confirmed against current `SpeechService.swift` before any code
-      change; after migration, `grep -rn 'SFSpeechRecognizer' MeetMemento/`
+      change; after migration, `grep -rn 'SFSpeechRecognizer' withMemento/`
       returns no app-target matches, and PRES-024/PRES-063 dictation flows
       behave identically (R1).
 - [ ] Interruption tests pass: simulated `.began`/`.ended + .shouldResume`

@@ -35,9 +35,9 @@ this fast).
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
 | 1 | No `NWPathMonitor` / reachability anywhere; `grep -ri "NWPathMonitor\|Reachability\|isConnected\|offline"` over app code → nothing. | codebase-wide | HIGH |
-| 2 | Entry saves are network-first; a failed save surfaces an error but nothing guarantees the draft survives (no durable queue). | `MeetMemento/Services/JournalService.swift` (retry loop `:45`), `EntryViewModel` | HIGH |
+| 2 | Entry saves are network-first; a failed save surfaces an error but nothing guarantees the draft survives (no durable queue). | `withMemento/Services/JournalService.swift` (retry loop `:45`), `EntryViewModel` | HIGH |
 | 3 | Chat/insights spinners have no "you're offline" affordance — failures read as the app being broken. | `AIChatView`, `InsightsView` | MEDIUM |
-| 4 | An unused/underused local persistence layer already exists to build on. | `MeetMemento/Services/LocalJournalStorage.swift` | leverage |
+| 4 | An unused/underused local persistence layer already exists to build on. | `withMemento/Services/LocalJournalStorage.swift` | leverage |
 
 ## Requirements
 

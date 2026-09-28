@@ -42,10 +42,10 @@ pre-2.0): this spec's `REQ-A11Y-001`–`003` work should re-run 008's
 ## Current State (evidence)
 
 No `CoreSpotlight`, `AppIntent`, `INIntent`, or `NSUserActivity` usage found
-anywhere in `MeetMemento/`; no Spotlight-related keys in `Info.plist` or
-`MeetMemento.entitlements` (confirmed 2026-07-23) — fully greenfield.
+anywhere in `withMemento/`; no Spotlight-related keys in `Info.plist` or
+`withMemento.entitlements` (confirmed 2026-07-23) — fully greenfield.
 Accessibility labels currently exist on 39/151 files via
-`MeetMemento/Utilities/AccessibilityHelpers.swift` (per `CONSTITUTION.md` §2) —
+`withMemento/Utilities/AccessibilityHelpers.swift` (per `CONSTITUTION.md` §2) —
 this baseline was spec 008's pre-2.0 evidence table. Spec 008 is now obsolete
 (2026-07-23), fully absorbed into this spec (see "Absorbs spec 008" above): this
 spec's `REQ-A11Y-*` work supersedes 008's — re-run its `.system(size:)`/
@@ -188,6 +188,10 @@ shows every shipped intent declared on-device.
   signed off against the gamification NON-GOAL; otherwise omitted entirely.
   `technology/07` §2's prohibition list is adopted verbatim: no streak
   counters, no scores, no "days since" framed as failure.
+  **Amendment (spec 053 R7, 2026-09-26):** onboarding ends with a page that
+  shows how to add this widget. It stays flagged off until the WidgetKit
+  extension target exists; today only `MementoLockWidgetView` does. DEC-013
+  keeps streaks out, so this prohibition list is unchanged.
 - **Control Center control (`REQ-SYS-007`):** `ControlWidget` wrapping R1's
   start-recording intent — the fastest capture path on the device, nearly
   free once the intent exists.
@@ -337,7 +341,7 @@ spec adds (widgets, Live Activity, intent dialogs).
 - Given AX5 text size, when walking the named surfaces (capture composer,
   entry detail, weekly card, Patterns tab, Ask, Settings, lock screen, plus
   this spec's widgets/intent dialogs), then no clipped or overlapping text —
-  and `grep -rn "\.system(size:" MeetMemento/ --include="*.swift" | grep -v "icon-size:"`
+  and `grep -rn "\.system(size:" withMemento/ --include="*.swift" | grep -v "icon-size:"`
   returns 0 (008's absorbed guard, re-run post-2.0).
 - Given VoiceOver on, when traversing each surface above, then every
   interactive element is announced meaningfully and decorative images are
@@ -403,7 +407,7 @@ and is **open**.
 - [ ] App Intents Testing suite green for all four intents (real system
       pathways, no UI automation), including the locked-device test proving
       no journal content in any Siri response while locked.
-- [ ] `grep -rn "import Intents\|INIntent" MeetMemento/` → zero app-target
+- [ ] `grep -rn "import Intents\|INIntent" withMemento/` → zero app-target
       matches (`REQ-SYS-004`).
 - [ ] Widget redaction (R4), real device: locked-device screenshots show the
       redacted state on Lock Screen and Home Screen widgets; widget-gallery

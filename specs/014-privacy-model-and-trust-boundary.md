@@ -180,7 +180,7 @@ session.
 
 **Acceptance:**
 - A static-string lint (grep-based is sufficient — this doesn't need NLP)
-  runs in CI against `MeetMemento/**/*.swift` string literals and
+  runs in CI against `withMemento/**/*.swift` string literals and
   `App Store Connect` metadata source (wherever spec 002 keeps it) for the
   forbidden-phrase list above; a match fails the build/PR check.
 - Given/When/Then: given the forbidden-phrase lint, when a string literal
@@ -197,7 +197,7 @@ session.
 > **R3 landed 2026-08-02:** the forbidden-phrase lint is implemented and wired
 > (`scripts/ci/lint_forbidden_phrases.py`, `.github/workflows/spec-gates.yml`).
 > It is comment-aware (scans string literals only, so a comment *mentioning* a
-> phrase is not a violation), scans `MeetMemento/**/*.swift` plus ASC metadata
+> phrase is not a violation), scans `withMemento/**/*.swift` plus ASC metadata
 > `.txt` if present, and honors a `// REQ-POS-001-EXEMPT` line marker (and
 > `// REQ-POS-001-EXEMPT-FILE`) for the positioning claim. Green on the current
 > tree; verified to fail on a planted forbidden literal and to respect the
@@ -216,7 +216,10 @@ session.
   `.z1AppleContent`/`.z1AppleContentFree` (Apple infrastructure), or is
   RevenueCat's explicit, spec-021-owned Z2 exception (receipts + anonymous ID
   only — never a `TrustZone`-tagged call at all, since it never carries
-  content) — there is no fourth category.
+  content), or spec 042's named `Z2ContentException.answerFeedbackVerification`
+  (volunteered answer feedback for quality verification — not a
+  `GenerationRequest`, not a TrustZone case). There is no unclassified
+  fourth category.
 
 **Test plan** (Swift Testing, naming the specific fixture this spec
 introduces): a `NetworkCallSiteAudit` test (or CI-run script, whichever the
@@ -244,6 +247,18 @@ unaddressed.
   that's `REQ-INT-003`, owned by spec 017 (this spec defines the zones and the
   disclosure contract; 017 decides which surface uses which zone by default).
 - RevenueCat's Z2 exception (purchase receipts + anonymous ID) — owned by spec 021.
+- **`Z2ContentException.answerFeedbackVerification` (added 2026-09-11, spec
+  [042](042-feedback-telemetry-supabase.md)).** A named, bounded exception
+  for volunteered in-app chat feedback (thumbs, why-reasons, Report). It
+  may carry journal-derived `userPrompt` / `assistantReply` **only** on an
+  explicit Report with a per-submission include-text switch, and only when
+  the Settings toggle (off by default) is on. Thumbs-only is metadata
+  (rating, category, volunteered note, prompt/model/zone, citation
+  **count**). Write-only RPC; no client SELECT; no journal sync; remote
+  erase on Delete Everything / toggle off. This is **not** a
+  `GenerationRequest` and must not be tagged with `TrustZone`. When R4's
+  `NetworkCallSiteAudit` is built, `SupabaseFeedbackClient` is allowlisted
+  beside RevenueCat with the consent gate asserted.
 
 ## Tasks
 - [x] 1. Define the `TrustZone` interface contract and where it's declared on

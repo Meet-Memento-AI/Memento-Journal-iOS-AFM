@@ -95,7 +95,7 @@ This system automatically generates personalized follow-up questions for users *
 
 ```bash
 # Navigate to project root
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 
 # Link to Supabase project (if not already linked)
 supabase link --project-ref YOUR_PROJECT_REF
@@ -219,7 +219,7 @@ Expected response:
 
 #### Step 4.1: Create Swift Models
 
-Create `MeetMemento/Models/FollowUpQuestion.swift`:
+Create `withMemento/Models/FollowUpQuestion.swift`:
 
 ```swift
 import Foundation
@@ -271,7 +271,7 @@ struct GeneratedQuestionsResponse: Codable {
 
 #### Step 4.2: Add SupabaseService Methods
 
-Add to `MeetMemento/Services/SupabaseService.swift`:
+Add to `withMemento/Services/SupabaseService.swift`:
 
 ```swift
 // MARK: - Follow-Up Questions
@@ -343,7 +343,7 @@ private func getCurrentUserId() throws -> String {
 
 #### Step 4.3: Create ViewModel
 
-Create `MeetMemento/ViewModels/FollowUpQuestionsViewModel.swift`:
+Create `withMemento/ViewModels/FollowUpQuestionsViewModel.swift`:
 
 ```swift
 import Foundation
@@ -438,7 +438,7 @@ class FollowUpQuestionsViewModel: ObservableObject {
 
 #### Step 4.4: Update JournalView
 
-Update `MeetMemento/Views/Journal/JournalView.swift`:
+Update `withMemento/Views/Journal/JournalView.swift`:
 
 ```swift
 @StateObject private var followUpViewModel = FollowUpQuestionsViewModel()

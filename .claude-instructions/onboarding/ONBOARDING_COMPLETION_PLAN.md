@@ -36,7 +36,7 @@
 - **New users** (not authenticated) → Start at `WelcomeView` ✅
 - **Existing users** (authenticated, incomplete onboarding) → Start at `OnboardingCoordinatorView` (skips WelcomeView) ❌
 
-**Current Flow from MeetMementoApp.swift:**
+**Current Flow from withMementoApp.swift:**
 ```swift
 if authViewModel.isAuthenticated {
     if authViewModel.hasCompletedOnboarding {
@@ -186,7 +186,7 @@ if authViewModel.isAuthenticated {
 
 ## 📋 Complete Implementation Plan
 
-### **Phase 1: Fix MeetMementoApp Entry Point**
+### **Phase 1: Fix withMementoApp Entry Point**
 
 **Goal:** ALL users start at WelcomeView, then route based on state
 
@@ -394,7 +394,7 @@ private func verifyCode() {
                 isVerifying = false
 
                 if authViewModel.isAuthenticated {
-                    // Don't dismiss - let MeetMementoApp handle routing
+                    // Don't dismiss - let withMementoApp handle routing
                     // OR navigate to onboarding flow
                     // The key is DON'T return to WelcomeView
                 }
@@ -457,7 +457,7 @@ private func checkOnboardingStatus() async {
 4. Enter email → Tap "Continue"
 5. OTPVerificationView (full screen)
 6. Verify code → Authenticated
-7. MeetMementoApp detects authenticated + no onboarding
+7. withMementoApp detects authenticated + no onboarding
 8. Shows WelcomeView → Auto-routes to OnboardingCoordinatorView
 9. OnboardingCoordinatorView checks state → No profile data
 10. Shows CreateAccountView (first/last name)
@@ -476,7 +476,7 @@ private func checkOnboardingStatus() async {
 5. Apple auth → Authenticated
 6. Extract name from Apple (if available) → Save to metadata
 7. Dismiss sheet
-8. MeetMementoApp detects authenticated + no onboarding
+8. withMementoApp detects authenticated + no onboarding
 9. Shows WelcomeView → Auto-routes to OnboardingCoordinatorView
 10. OnboardingCoordinatorView checks state:
     - If name exists: Skip to LearnAboutYourselfView
@@ -488,7 +488,7 @@ private func checkOnboardingStatus() async {
 ```
 1. User previously authenticated, saved name, closed app
 2. Reopen app
-3. MeetMementoApp checks: Authenticated = YES, Onboarding = NO
+3. withMementoApp checks: Authenticated = YES, Onboarding = NO
 4. Shows WelcomeView
 5. WelcomeView.onAppear checks auth state
 6. Detects authenticated → Auto-routes to OnboardingCoordinatorView
@@ -502,7 +502,7 @@ private func checkOnboardingStatus() async {
 ```
 1. User completed all onboarding
 2. Reopen app
-3. MeetMementoApp checks: Authenticated = YES, Onboarding = YES
+3. withMementoApp checks: Authenticated = YES, Onboarding = YES
 4. Shows ContentView (main app) immediately
 5. No WelcomeView, no OnboardingCoordinatorView
 ```
@@ -512,7 +512,7 @@ private func checkOnboardingStatus() async {
 ## 🔧 Implementation Checklist
 
 ### **Phase 1: Entry Point Fix**
-- [ ] Update `MeetMementoApp.swift` logic
+- [ ] Update `withMementoApp.swift` logic
 - [ ] Remove OnboardingCoordinatorView from top-level routing
 - [ ] Ensure WelcomeView is shown for incomplete onboarding
 
@@ -633,4 +633,4 @@ private func checkOnboardingStatus() async {
 
 ## 🎯 Next Step
 
-**Start with Phase 1:** Fix the entry point in MeetMementoApp.swift to ensure all users start at WelcomeView. This is the foundation for all other fixes.
+**Start with Phase 1:** Fix the entry point in withMementoApp.swift to ensure all users start at WelcomeView. This is the foundation for all other fixes.

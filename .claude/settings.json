@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "revenuecat@claude-plugins-official": true
+  }
+}

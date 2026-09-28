@@ -10,7 +10,7 @@
 App Store Connect privacy labels indicate tracking (Performance Data, Email Address, Name), but the app doesn't implement App Tracking Transparency (ATT) framework.
 
 ### Root Cause Analysis
-**MeetMemento does NOT track users**. The app:
+**withMemento does NOT track users**. The app:
 - ✅ Collects email, name for authentication (Supabase Auth)
 - ✅ Stores journal entries in user's private database
 - ✅ Does NOT share data with third parties for advertising
@@ -22,7 +22,7 @@ App Store Connect privacy labels indicate tracking (Performance Data, Email Addr
 
 The privacy labels were **incorrectly configured**. Here's what to update:
 
-#### Data Collection (What MeetMemento Actually Collects)
+#### Data Collection (What withMemento Actually Collects)
 
 1. **Contact Info**
    - Email Address: ✅ Collected
@@ -64,7 +64,7 @@ The privacy labels were **incorrectly configured**. Here's what to update:
 ### Steps to Fix in App Store Connect
 
 1. Log in to [App Store Connect](https://appstoreconnect.apple.com)
-2. Go to: **My Apps** → **MeetMemento** → **App Privacy**
+2. Go to: **My Apps** → **withMemento** → **App Privacy**
 3. Click **Edit** on the privacy section
 4. **Remove or uncheck "Used for Tracking"** for ALL data types
 5. Ensure only the following are marked as collected:
@@ -86,7 +86,7 @@ Hello App Review Team,
 Thank you for your feedback. We have reviewed our app privacy information and found
 it was incorrectly configured.
 
-MeetMemento does NOT track users. The app:
+withMemento does NOT track users. The app:
 - Does NOT share user data with third parties for advertising
 - Does NOT link data with third-party data for tracking purposes
 - Does NOT use any third-party analytics or tracking SDKs
@@ -106,11 +106,11 @@ Thank you,
 ## Issue 2: Support URL (Guideline 1.5)
 
 ### Problem
-Support URL `https://sebmendo1.github.io/MeetMemento/` is just a landing page without functional support information.
+Support URL `https://sebmendo1.github.io/withMemento/` is just a landing page without functional support information.
 
 ### Solution: Create Dedicated Support Page
 
-I'll create a new support page at: `https://sebmendo1.github.io/MeetMemento/support.html`
+I'll create a new support page at: `https://sebmendo1.github.io/withMemento/support.html`
 
 #### Support Page Must Include:
 - ✅ Contact email address
@@ -123,11 +123,11 @@ I'll create a new support page at: `https://sebmendo1.github.io/MeetMemento/supp
 ### Steps to Fix
 
 1. **Create support.html** (see next file)
-2. **Upload to GitHub Pages** (sebmendo1/MeetMemento repository)
+2. **Upload to GitHub Pages** (sebmendo1/withMemento repository)
 3. **Update App Store Connect**:
    - Go to **App Information** → **Support URL**
-   - Change from: `https://sebmendo1.github.io/MeetMemento/`
-   - Change to: `https://sebmendo1.github.io/MeetMemento/support.html`
+   - Change from: `https://sebmendo1.github.io/withMemento/`
+   - Change to: `https://sebmendo1.github.io/withMemento/support.html`
 4. **Save and resubmit**
 
 ---

@@ -8,7 +8,7 @@
 set -euo pipefail
 
 app_roots=()
-for d in MeetMemento MeetMementoTests MeetMementoUITests; do
+for d in withMemento withMementoTests withMementoUITests; do
   [ -d "$d" ] && app_roots+=("$d")
 done
 
@@ -24,7 +24,7 @@ echo "App-target CoreML importers found: ${#app_importers[@]}"
 for f in "${app_importers[@]:-}"; do [ -n "$f" ] && echo "  - $f"; done
 
 if [ "${#app_importers[@]}" -ne 0 ]; then
-  echo "FAIL [spec 031]: MeetMemento app/tests import CoreML. Route through Packages/SupertonicTTS."
+  echo "FAIL [spec 031]: withMemento app/tests import CoreML. Route through Packages/SupertonicTTS."
   exit 1
 fi
 

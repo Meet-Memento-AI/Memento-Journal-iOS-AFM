@@ -24,7 +24,7 @@
 ### **Step 1: Build & Run**
 ```bash
 # Open Xcode
-open MeetMemento.xcodeproj
+open withMemento.xcodeproj
 
 # Build: ⌘ + B
 # Run: ⌘ + R

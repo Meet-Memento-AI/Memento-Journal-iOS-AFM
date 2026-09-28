@@ -40,7 +40,7 @@ donation.
 
 ## Current State (evidence)
 
-No Core Spotlight or App Intents integration exists anywhere in `MeetMemento/`
+No Core Spotlight or App Intents integration exists anywhere in `withMemento/`
 (confirmed 2026-07-23) — this is fully greenfield. Spec 013's Spike A is a
 throwaway prototype; this spec builds the real, incremental-on-save/delete
 pipeline.

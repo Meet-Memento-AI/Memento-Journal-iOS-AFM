@@ -70,12 +70,12 @@ if let insights = insightsViewModel.cachedInsights {
 
 ## 📦 Step 1: Create InsightsViewModel
 
-Create a new file: `MeetMemento/ViewModels/InsightsViewModel.swift`
+Create a new file: `withMemento/ViewModels/InsightsViewModel.swift`
 
 ```swift
 //
 //  InsightsViewModel.swift
-//  MeetMemento
+//  withMemento
 //
 //  Manages AI-generated journal insights with intelligent caching
 //
@@ -309,7 +309,7 @@ Update your `InsightsView.swift` to use the new ViewModel:
 ```swift
 //
 //  InsightsView.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI

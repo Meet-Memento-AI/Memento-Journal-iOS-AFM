@@ -19,7 +19,7 @@
 ## 📋 Tasks Breakdown
 
 ### Task 2.1: Add ViewModel to View (30 mins)
-**File**: `MeetMemento/Views/Insights/InsightsView.swift`
+**File**: `withMemento/Views/Insights/InsightsView.swift`
 
 - [ ] Add `@StateObject` for InsightsViewModel
 - [ ] Keep existing `@EnvironmentObject` for EntryViewModel
@@ -281,7 +281,7 @@ HStack(spacing: 6) {
 
 ### Files Modified:
 ```
-MeetMemento/Views/Insights/
+withMemento/Views/Insights/
 └── InsightsView.swift (MAJOR UPDATE)
 ```
 

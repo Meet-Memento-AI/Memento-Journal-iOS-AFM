@@ -107,7 +107,7 @@ Channel is not a TrustZone. No new `ModelRouter` row.
 - [ ] Five-store deletion: SwiftData counts zero; CloudKit wipe issued or queued.
 - [ ] `EntryRoute.edit(UUID)` resolves from `EntryViewModel`; `selectedEntryId` / `currentSessionId` update without a split-view shell.
 
-**User action:** confirm iCloud container `iCloud.com.sebastianmendo.MeetMemento`
+**User action:** confirm iCloud container `iCloud.com.sebmendo.withMementoAI`
 exists for team `F3NM4HTMW8`.
 
 ## Regression Guards

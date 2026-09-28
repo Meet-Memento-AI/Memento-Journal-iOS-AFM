@@ -38,7 +38,7 @@ AddEntryView → EntryViewModel → Supabase
 ## 📦 Phase 1: UI Implementation (Current Focus)
 
 ### Step 1: Update Entry Model ✅ NEEDED
-**File**: `MeetMemento/Models/Entry.swift`
+**File**: `withMemento/Models/Entry.swift`
 
 **Current**:
 ```swift
@@ -72,7 +72,7 @@ struct Entry: Identifiable, Codable {
 ---
 
 ### Step 2: Create EntryViewModel ✅ NEEDED
-**File**: `MeetMemento/ViewModels/EntryViewModel.swift`
+**File**: `withMemento/ViewModels/EntryViewModel.swift`
 
 **Purpose**: Manage entry state and operations
 
@@ -86,7 +86,7 @@ struct Entry: Identifiable, Codable {
 ---
 
 ### Step 3: Update JournalView ✅ NEEDED
-**File**: `MeetMemento/Views/Journal/JournalView.swift`
+**File**: `withMemento/Views/Journal/JournalView.swift`
 
 **Changes**:
 - Remove empty state (or show conditionally)
@@ -98,7 +98,7 @@ struct Entry: Identifiable, Codable {
 ---
 
 ### Step 4: Create JournalPageView ✅ NEEDED
-**File**: `MeetMemento/Views/Journal/JournalPageView.swift`
+**File**: `withMemento/Views/Journal/JournalPageView.swift`
 
 **Design**: Similar to AddEntryView but for viewing/editing
 
@@ -139,7 +139,7 @@ struct Entry: Identifiable, Codable {
 ```swift
 //
 //  Entry.swift
-//  MeetMemento
+//  withMemento
 //
 
 import Foundation
@@ -200,7 +200,7 @@ extension Entry {
         ),
         Entry(
             title: "Project Planning",
-            text: "Working on the MeetMemento journal feature. The UI is coming together nicely. Need to focus on database integration next week.",
+            text: "Working on the withMemento journal feature. The UI is coming together nicely. Need to focus on database integration next week.",
             mood: "😐",
             createdAt: Date().addingTimeInterval(-3600), // 1 hour ago
             updatedAt: Date().addingTimeInterval(-3600)
@@ -223,7 +223,7 @@ extension Entry {
 ```swift
 //
 //  EntryViewModel.swift
-//  MeetMemento
+//  withMemento
 //
 
 import Foundation
@@ -304,7 +304,7 @@ class EntryViewModel: ObservableObject {
 ```swift
 //
 //  JournalView.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI
@@ -437,7 +437,7 @@ public struct JournalView: View {
 ```swift
 //
 //  JournalPageView.swift
-//  MeetMemento
+//  withMemento
 //
 
 import SwiftUI
@@ -639,7 +639,7 @@ struct JournalPageView: View {
 
 ### 5. Update ContentView to Pass EntryViewModel
 
-**File**: `MeetMemento/ContentView.swift`
+**File**: `withMemento/ContentView.swift`
 
 **Changes**:
 ```swift

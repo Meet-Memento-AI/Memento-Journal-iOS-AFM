@@ -23,7 +23,7 @@ JournalView (Top Tabs)
 ## Files Created
 
 ### 1. MonthlyInsightCard.swift
-**Location:** `/MeetMemento/Components/Cards/MonthlyInsightCard.swift`
+**Location:** `/withMemento/Components/Cards/MonthlyInsightCard.swift`
 
 A reusable card component featuring:
 - Purple gradient background (primary700 → primary800)
@@ -41,7 +41,7 @@ A reusable card component featuring:
 - Gradient: `PrimaryScale.primary700` → `primary800`
 
 ### 2. MonthlyInsightsView.swift
-**Location:** `/MeetMemento/Views/Insights/MonthlyInsightsView.swift`
+**Location:** `/withMemento/Views/Insights/MonthlyInsightsView.swift`
 
 A scrollable list view that:
 - Displays MonthlyInsightCard for each month

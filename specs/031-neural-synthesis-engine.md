@@ -50,12 +50,12 @@ intent, and why a play button must never be the thing that triggers a first load
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | The existing "engine seam" is not an engine seam — it is typed on AVFoundation and can only ever hold an `AVSpeechSynthesizer` | `MeetMemento/Services/VoicePlaybackService.swift:22` `protocol SpeechSynthesizing` declares `speak(_ utterance: AVSpeechUtterance)`, `stopSpeaking(at: AVSpeechBoundary)`, `synthesizerDelegate: AVSpeechSynthesizerDelegate?` | High — a second engine cannot be injected here without a new boundary |
-| 2 | There is **no audio output graph at all** — no `AVAudioPlayerNode`, no engine output chain. `AVAudioEngine` exists only on the capture side | `grep -rn 'AVAudioPlayerNode' MeetMemento/` → zero hits; `MeetMemento/Services/SpeechService.swift` owns the only `AVAudioEngine` (input tap) | High — greenfield playback path |
+| 1 | The existing "engine seam" is not an engine seam — it is typed on AVFoundation and can only ever hold an `AVSpeechSynthesizer` | `withMemento/Services/VoicePlaybackService.swift:22` `protocol SpeechSynthesizing` declares `speak(_ utterance: AVSpeechUtterance)`, `stopSpeaking(at: AVSpeechBoundary)`, `synthesizerDelegate: AVSpeechSynthesizerDelegate?` | High — a second engine cannot be injected here without a new boundary |
+| 2 | There is **no audio output graph at all** — no `AVAudioPlayerNode`, no engine output chain. `AVAudioEngine` exists only on the capture side | `grep -rn 'AVAudioPlayerNode' withMemento/` → zero hits; `withMemento/Services/SpeechService.swift` owns the only `AVAudioEngine` (input tap) | High — greenfield playback path |
 | 3 | Warm-up today is a zero-volume utterance — a trick that has no analogue for a model that must be compiled and loaded | `VoicePlaybackService.swift:434` `warmSynthesizer()` speaks `" "` at zero volume | Medium — concept survives, mechanism does not |
 | 4 | The session-ordering machinery that makes turn two work is subtle and was expensive to get right | `VoicePlaybackService.swift:648` `waitForSessionRelease()`; `shouldReleaseAudioSession(...)` pure guard; `sessionGeneration` counters; utterances buffered until activation lands (`:271` `enqueue`) — all per spec 028 R3 | **Critical** — subsume, never bypass (CONSTITUTION §2) |
 | 5 | Callers speak through three primitives and know nothing about the engine — the property that makes this whole family cheap | `VoicePlaybackService.swift:243/:271/:297`; callers: `NarrationCoordinator.consumeReplyProgress`, `toggleSpeech`, `speakPreview` | — (asset to protect) |
-| 6 | No CoreML anywhere; nothing establishes where model code is allowed to live | `grep -rn 'import CoreML' MeetMemento/` → zero hits (2026-08-18) | Medium — rule 11 exists to answer this before the first import |
+| 6 | No CoreML anywhere; nothing establishes where model code is allowed to live | `grep -rn 'import CoreML' withMemento/` → zero hits (2026-08-18) | Medium — rule 11 exists to answer this before the first import |
 
 ## Requirements
 
@@ -331,7 +331,7 @@ pure-logic or fake-driven.
 Anything requiring the real model is a device task, marked in-source with a
 `MEASURE-ON-DEVICE` comment so it is greppable rather than forgotten.
 
-**Acceptance:** the `MeetMementoTests` suite stays green and gains no CoreML
+**Acceptance:** the `withMementoTests` suite stays green and gains no CoreML
 dependency; every device-only measurement carries a `MEASURE-ON-DEVICE` marker.
 
 ## Non-goals

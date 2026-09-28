@@ -42,13 +42,13 @@ Low risk (it gates a convenience logout, not data access). Move to Keychain or a
 and document. Effort: trivial; bundle with any future SecurityService work.
 
 ### 3. Re-enable UITests in CI
-`MeetMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
+`withMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
 self-hosted-runner flakiness. Beta-period crash/regression coverage would benefit from
 at least the launch smoke test running. Investigate simulator stability on the runner.
 
 ### 4. Color-contrast audit
 Theme palette (light + dark) has not been audited against WCAG AA. Fix surface is the
-token definitions in `MeetMemento/Resources/Theme.swift` (single point of change).
+token definitions in `withMemento/Resources/Theme.swift` (single point of change).
 Flagged during spec 008's design; deferred because it may nudge brand colors.
 
 ### 5. ~~Chat response streaming~~ — removed 2026-07-23
@@ -64,6 +64,41 @@ require PrivacyInfo.xcprivacy updates). **2026-07-23:** any such addition now al
 requires going through spec [021](021-monetization-and-store-compliance.md)'s
 `REQ-MON-005` dependency-allowlist governance (the 2.0 allowlist is currently just
 RevenueCat).
+
+**RESOLVED 2026-08-27 for 1.x — Apple-native crash reporting only. No SDK.**
+
+Crash visibility comes from **Xcode Organizer**, **TestFlight**, and the App Store
+Connect crash-rate metric. Apple gathers and symbolicates; **Apple is the collector,
+not us**, so the App Privacy label stays **Data Not Collected**. No code, no package,
+no manifest change. Triage runbook: `docs/app-store/10-release-and-availability.md`
+§7.1.
+
+The weighing this section asked for, done:
+
+| Against a third-party SDK | Evidence |
+|---|---|
+| Breaks the privacy label | 1.x target is Data Not Collected (`docs/app-store/03` §Target); `PrivacyInfo.xcprivacy` ships `NSPrivacyCollectedDataTypes = []`. A collection disclosure lands in the exact category Apple rejected v1.0 on (5.1.2, ITMS-91055) |
+| Fails CI | `specs/dependency-allowlist.txt` runs **enforcing** (`ALLOWLIST_ENFORCE=1`) with an empty resolved third-party set |
+| Not actually required | Nothing in `docs/app-store/00-readiness-checklist.md` asks for a crash SDK. Apple does not require, check for, or reward one — the claim that "App Store reviewers expect production crash handling" (MEM-31) is false |
+
+Accepted costs, both deliberate:
+
+- **Partial coverage.** Organizer only receives reports from users who left Share
+  iPhone Analytics *and* Share With App Developers on. A quiet Organizer means few
+  reports shared, not no crashes.
+- **No log alongside the crash.** `AppLogger` is an `@autoclosure` no-op in release
+  (spec 029 Amendment A), so the crash report is the whole picture. Release logging
+  of journal content is what spec 005 existed to remove.
+
+**To reconsider**, all four are required together: a `REQ-MON-005` decision record in
+spec 021, a `PrivacyInfo.xcprivacy` collected-data entry, an App Privacy label
+change, and a privacy-policy rewrite. **MEM-39** (analytics) and spec
+[042](042-feedback-telemetry-supabase.md) (feedback telemetry) are the same trade —
+revisit all three together or none.
+
+Next step when it is wanted, and it is *not* an SDK: **MetricKit
+`MXCrashDiagnostic`**, captured on-device and shared only at the user's initiative.
+Still no collection, still no label change.
 
 ### 7. ~~Deno handler-level test harness~~ — removed 2026-07-23
 The Deno/edge-function runtime this would test is deleted entirely in Phase 1 of

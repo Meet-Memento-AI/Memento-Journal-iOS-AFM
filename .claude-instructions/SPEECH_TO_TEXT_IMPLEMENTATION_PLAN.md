@@ -6,7 +6,7 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 ## Current State
 
-- **SpeechService** (`MeetMemento/Services/SpeechService.swift`): Stub only. `startRecording()` / `stopRecording()` are no-ops. `transcribedText` is never set. `currentDuration` is never updated.
+- **SpeechService** (`withMemento/Services/SpeechService.swift`): Stub only. `startRecording()` / `stopRecording()` are no-ops. `transcribedText` is never set. `currentDuration` is never updated.
 - **AddEntryView**: Already wires the FAB to `SpeechService`; on stop (when `isRecording` goes from true to false), it calls `insertTranscribedText(speechService.transcribedText)` to append the transcript to the body `TextEditor`. Alerts for permission denied and recording failed are in place.
 - **Info.plist**: Already has `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription`.
 
@@ -20,7 +20,7 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 ### Phase 1: Permissions and Availability
 
-**File:** `MeetMemento/Services/SpeechService.swift`
+**File:** `withMemento/Services/SpeechService.swift`
 
 1. **Import frameworks**
    - Add `import Speech` and `import AVFoundation`.
@@ -44,7 +44,7 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 ### Phase 2: Audio Capture with AVAudioEngine
 
-**File:** `MeetMemento/Services/SpeechService.swift`
+**File:** `withMemento/Services/SpeechService.swift`
 
 1. **AVAudioSession configuration**
    - In `startRecording()`, configure the shared session for recording:
@@ -65,7 +65,7 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 ### Phase 3: Speech Recognition (SFSpeechRecognizer + Buffer Request)
 
-**File:** `MeetMemento/Services/SpeechService.swift`
+**File:** `withMemento/Services/SpeechService.swift`
 
 1. **Create SFSpeechRecognizer**
    - Use `SFSpeechRecognizer(locale: Locale.current)` (or a specific locale). Store in a private property or create when needed. Guard that it is non-nil and `isAvailable` before starting.
@@ -101,7 +101,7 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 ### Phase 4: AddEntryView Integration (Minimal Changes)
 
-**File:** `MeetMemento/Views/Journal/AddEntryView.swift`
+**File:** `withMemento/Views/Journal/AddEntryView.swift`
 
 1. **Keep existing flow**
    - Leave `onChange(of: speechService.isRecording)` as is: when transitioning from true to false, call `insertTranscribedText(speechService.transcribedText)` so the final transcript is appended to the body field with `"\n\n"` when body is non-empty.
@@ -144,8 +144,8 @@ Implement native iOS speech-to-text so that when the user taps the microphone FA
 
 | File | Action |
 |------|--------|
-| `MeetMemento/Services/SpeechService.swift` | Implement full STT: imports (Speech, AVFoundation), SFSpeechRecognizer, SFSpeechAudioBufferRecognitionRequest, AVAudioEngine tap, recognition task callback, requestAuthorization + microphone permission, duration timer, stop/cleanup, set transcribedText and errorMessage on main actor. |
-| `MeetMemento/Views/Journal/AddEntryView.swift` | No structural change required; optional: add live partial text binding. Keep onChange(isRecording) and insertTranscribedText(transcribedText). |
+| `withMemento/Services/SpeechService.swift` | Implement full STT: imports (Speech, AVFoundation), SFSpeechRecognizer, SFSpeechAudioBufferRecognitionRequest, AVAudioEngine tap, recognition task callback, requestAuthorization + microphone permission, duration timer, stop/cleanup, set transcribedText and errorMessage on main actor. |
+| `withMemento/Views/Journal/AddEntryView.swift` | No structural change required; optional: add live partial text binding. Keep onChange(isRecording) and insertTranscribedText(transcribedText). |
 | `Info.plist` | Already has NSMicrophoneUsageDescription and NSSpeechRecognitionUsageDescription; no change. |
 
 ## Order of Work

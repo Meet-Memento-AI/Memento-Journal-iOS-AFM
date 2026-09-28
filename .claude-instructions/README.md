@@ -1,6 +1,6 @@
 # Claude Instructions Documentation
 
-This folder contains all instruction files and guides for Claude Code to help with development, debugging, and implementation tasks for the MeetMemento project.
+This folder contains all instruction files and guides for Claude Code to help with development, debugging, and implementation tasks for the withMemento project.
 
 ## 📁 Folder Structure
 
@@ -96,7 +96,7 @@ Performance optimizations, code reviews, and best practices.
 ## 🎯 Usage Guidelines
 
 ### For Claude Code
-When working on MeetMemento, reference these instruction files for:
+When working on withMemento, reference these instruction files for:
 - Implementation guidance for specific features
 - Debugging strategies for known issues
 - Setup and configuration steps

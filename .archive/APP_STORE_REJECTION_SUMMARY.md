@@ -22,11 +22,11 @@
 - ⏳ ACTION REQUIRED: Update labels in App Store Connect
 
 ### Issue 2: Support URL (Guideline 1.5)
-**Problem**: Support URL (https://sebmendo1.github.io/MeetMemento/) was just a landing page without support information.
+**Problem**: Support URL (https://sebmendo1.github.io/withMemento/) was just a landing page without support information.
 
 **Resolution**:
 - ✅ Created comprehensive support.html page
-- ✅ Added contact email: support@meetmemento.app
+- ✅ Added contact email: hello@withmemento.ai
 - ✅ Added 10+ FAQ questions
 - ✅ Added troubleshooting guides
 - ✅ Professional responsive design
@@ -39,7 +39,7 @@
 
 ### 1. Support Page Created ✅
 **File**: `support.html`
-**Live URL**: https://sebmendo1.github.io/MeetMemento/support.html
+**Live URL**: https://sebmendo1.github.io/withMemento/support.html
 **Status**: Pushed to GitHub (main branch)
 
 **Features**:
@@ -88,14 +88,14 @@
 
 ### Action 1: Update Support URL in App Store Connect (2 min)
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. **My Apps** → **MeetMemento** → **App Information**
+2. **My Apps** → **withMemento** → **App Information**
 3. Find **Support URL**
-4. Change to: `https://sebmendo1.github.io/MeetMemento/support.html`
+4. Change to: `https://sebmendo1.github.io/withMemento/support.html`
 5. Click **Save**
 
 ### Action 2: Update Privacy Labels (10 min)
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. **My Apps** → **MeetMemento** → **App Privacy**
+2. **My Apps** → **withMemento** → **App Privacy**
 3. Click **Edit**
 4. For EACH data type, ensure "Used for Tracking" is **UNCHECKED**:
    - Contact Info (Email, Name) → NOT for tracking
@@ -108,7 +108,7 @@
 
 ### Action 3: Reply to App Review (5 min)
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. **My Apps** → **MeetMemento** → **App Store** → **Version 1.0**
+2. **My Apps** → **withMemento** → **App Store** → **Version 1.0**
 3. Find rejection message and click **Reply**
 4. Copy text from `APP_REVIEW_RESPONSE_TEMPLATE.txt`
 5. Paste and click **Send**
@@ -155,7 +155,7 @@ grep -r "Analytics|Tracking|Firebase|Mixpanel" . --type swift
 ```
 
 ### Support Page Live ✅
-- URL: https://sebmendo1.github.io/MeetMemento/support.html
+- URL: https://sebmendo1.github.io/withMemento/support.html
 - Status: Pushed to GitHub main branch
 - Expected live: 2-3 minutes after push
 - Last commit: e9d6795
@@ -179,7 +179,7 @@ grep -r "Analytics|Tracking|Firebase|Mixpanel" . --type swift
 ## 🚨 Important Notes
 
 ### About the Support Email
-The support page uses: `support@meetmemento.app`
+The support page uses: `hello@withmemento.ai`
 
 **You need to either**:
 1. Set up this email (purchase domain + email hosting), OR
