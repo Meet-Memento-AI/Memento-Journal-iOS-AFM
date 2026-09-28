@@ -2,11 +2,11 @@
 id: 017
 title: Intelligence Boundary and Prompt Architecture
 tier: P0
-status: in-progress (2026-07-24) — Requirements derived; latency validation and quota-scope verification gated on Xcode 27 beta
+status: in-progress (2026-08-23) — Ask pipeline shipping (`ask@14` + spec 039 `chat-light@4`); `[Turn:]` is stance guidance; DEC-003 = bundled prompts only; provider-swap seam is `IntelligenceService`
 effort: 3 sessions
 depends_on: [014, 015, 016]
 findings: [single-importer-boundary, table-driven-router-with-reasoning-column, quota-governor-reactive-first, degradation-prompt-variants, provider-swap-seam, prompt-registry-dec-003-open]
-source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003]
+source_refs: [REQ-INT-001, REQ-INT-002, REQ-INT-003, REQ-INT-004, REQ-INT-005, REQ-INT-006, REQ-INT-007, REQ-INT-008, REQ-INT-009, REQ-INT-010, REQ-INT-011, REQ-INT-012, REQ-INT-013, REQ-INT-014, REQ-INT-015, REQ-INT-016, REQ-INT-017, REQ-PRM-001, REQ-PRM-002, REQ-PRM-003, REQ-PRM-004, REQ-PRM-005, DEC-003]
 tech_refs: [technology/01-foundation-models.md, technology/02-private-cloud-compute.md, technology/04-evaluations.md]
 ---
 
@@ -45,7 +45,7 @@ versioned Markdown prompts with an optional signed remote manifest.
 
 No direct Gemini SDK/HTTP calls exist in Swift — all LLM calls currently happen
 server-side in Deno edge functions, called via `ChatService.swift`
-(`MeetMemento/Services/ChatService.swift`) and `InsightsService.swift`. No
+(`withMemento/Services/ChatService.swift`) and `InsightsService.swift`. No
 `IntelligenceService`-shaped protocol, no `@Generable`/guided generation, no
 prompt registry exists client-side; prompt "versioning" today is an informally
 synced Markdown file (`supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` +
@@ -56,7 +56,8 @@ synced Markdown file (`supabase/functions/chat/MEMENTO_SYSTEM_PROMPT.md` +
 **Traceability:** R1 → `REQ-INT-001`, `REQ-INT-002`; R2 → `REQ-INT-003`,
 `REQ-INT-004`; R3 → `REQ-INT-005`–`008`; R4 → `REQ-INT-009`–`011`; R5 →
 `REQ-INT-012`, `REQ-INT-013`; R6 → `REQ-INT-014`; R7 → `REQ-INT-015`,
-`REQ-INT-016`; R8 → `REQ-PRM-001`–`005`, `DEC-003` (OPEN); R9 → context-budget
+`REQ-INT-016`; R8 → `REQ-PRM-001`–`005`, `DEC-003` (OPEN), spec 039 /
+`REQ-INT-017`; R9 → context-budget
 and session-architecture contracts supporting R1/R2; R10 → source doc §16
 items 4 and 14. Zone semantics and the disclosure UI are **not** redefined
 here: spec 014 R1 owns the `TrustZone`/`PCCReasoningLevel` contract and
@@ -110,7 +111,7 @@ method returns the zone actually used and callers MUST surface it
 where generation happened.
 
 **Acceptance:**
-- `grep -rl --include='*.swift' 'import FoundationModels' MeetMemento MeetMementoTests MeetMementoUITests | wc -l` returns exactly **1**, and that
+- `grep -rl --include='*.swift' 'import FoundationModels' withMemento withMementoTests withMementoUITests | wc -l` returns exactly **1**, and that
   one file is in the intelligence module. This exact check runs in CI as a
   lint step (satisfying the Regression Guards' "checkable by build
   configuration, not just code review" demand — the grep is the checkable
@@ -216,6 +217,15 @@ render through spec 014 R2's component — persistent inline UI, never an
 alert (Apple's explicit guidance, `technology/02` §6). `REQ-INT-007`'s
 ⚠️ VERIFY is exactly V4 + V13, tracked in R10.
 
+**Amendment (DEC-013, 021 R4 `REQ-MON-006`, 2026-09-26):** Memento's **free
+daily message limit** is a separate thing from this section.
+- It is an entitlement limit, counted locally. It is not a model of PCC
+  budget, and nothing about it assumes a knowable PCC remainder.
+- Its copy never mentions Apple, iCloud+ or quota. PCC quota copy never
+  mentions Pro.
+- For Pro users, `REQ-INT-006`'s soft local limit *is* the "quiet fair-use
+  limit" the strategy names. It degrades per R4 and never shows purchase UI.
+
 **Acceptance:**
 - `QuotaGovernor` is an `actor`; unit tests drive it through
   available → approachingLimit → limitReached → reset using a stubbed quota
@@ -240,7 +250,7 @@ Z1→Z0 degradation is attempted automatically, completed successfully, and
 disclosed (`REQ-INT-009`): persisted in spec 015's `Reflection.zone` /
 `Turn.wasDegraded` fields and rendered via spec 014 R2's
 zone-at-point-of-use component. The canonical degradation copy is **owned
-by 014 R2's error-taxonomy table** ("Written on your iPhone. Shorter than
+by 014 R2's error-taxonomy table** ("Written on this device. Shorter than
 usual — your daily reflection allowance is used up until tomorrow.") — this
 spec consumes it, never forks it per surface.
 
@@ -250,8 +260,10 @@ a smaller model behind it (which produces confident, ungrounded, badly
 structured output — the worst failure mode available). Mechanically: R8's
 `PromptRegistry` holds a degraded variant for every Z1-capable intent, and
 the degraded artifact's persisted `promptVersion` identifies that variant —
-which is also how tests prove the right prompt ran. This is the procedural
-half of the contract 014 R2 states declaratively; the disclosure UI is only
+which is also how tests prove the right prompt ran. The same rule applies to
+**work-proportional prompts** (spec 039 / `REQ-INT-017`): phatic and continuer
+turns MUST run `chat-light@4`, never ask@14 with a smaller token cap. This is
+the procedural half of the contract 014 R2 states declaratively; the disclosure UI is only
 honest if this variant actually exists.
 
 `REQ-INT-011` — the error taxonomy is design copy, not developer strings,
@@ -397,6 +409,15 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   present; always the fallback. The registry resolves
   `(intent, zone, degraded?) → (prompt text, promptVersion)` — the degraded
   variants R4 requires are registry entries, not string mutations.
+  **Channel (spec 039):** resolution also selects the prompt **family**.
+  Shipping companion/notebook Ask is `ask@14` / `ask-degraded@14`: `[Turn:]`
+  tags are stance **guidance** (prefer the intent), not a script the model
+  must follow exactly. Phatic and continuer turns resolve to `chat-light@4`
+  / `chat-light-degraded@4` — a distinct bundled prompt (`REQ-INT-010`: do
+  not put ask@14 behind the light path). `GenerationIntent` stays `.ask`
+  (no new ModelRouter row). Exhaustiveness tests cover both families for
+  every zone/degraded combination the router can emit. `promptVersion` on
+  `GenerationOutcome` distinguishes the families (`REQ-PRM-004`).
 - `REQ-PRM-002` — an optional remote prompt manifest MAY be fetched from a
   static host: signed JSON, CDN, no server logic; the request carries **no
   user data, no identifier, no query parameters**; fetch is weekly at most;
@@ -422,10 +443,11 @@ capability regression of the rewrite (source doc §11.1, this spec's Why):
   by version so the harness can pin what it tests.
 
 **Acceptance:**
-- Given any intent/zone/degraded combination the router can produce, when
-  the registry resolves it, then a bundled prompt with a version identifier
-  is returned — exhaustiveness unit test; a missing combination is a test
-  failure, not a runtime fallback to a "closest" prompt.
+- Given any intent/zone/degraded/**channel** combination the router and
+  spec 039 can produce, when the registry resolves it, then a bundled prompt
+  with a version identifier is returned (`ask@14` or `chat-light@4` families)
+  — exhaustiveness unit test; a missing combination is a test failure,
+  not a runtime fallback to a "closest" prompt.
 - Given a remote manifest with an invalid or missing signature (tampered
   fixture), when fetch completes, then the manifest is discarded and bundled
   prompts serve — silent fallthrough, no user-visible error, one log line

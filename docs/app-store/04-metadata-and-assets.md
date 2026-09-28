@@ -22,6 +22,9 @@ Compute, so absolute-privacy claims are false. Forbidden, verbatim from
 
 > ❌ "Nothing leaves your phone" · ❌ "No network calls" · ❌ "Turn on airplane
 > mode and everything still works" · ❌ "There is no server" · ❌ "100% on-device"
+>
+> iCloud private-DB replica (spec 040) is the user's Apple ID, not a Memento
+> account. Do not claim the journal never leaves this device.
 
 Permitted, and used verbatim in the description:
 
@@ -161,7 +164,7 @@ list from the bundle's localizations, so the two must move together.
 
 | Requirement | Status |
 |---|---|
-| 1024×1024 PNG in the asset catalog | ✅ `MeetMemento/Assets.xcassets/AppIcon.appiconset/AppIcon.png` |
+| 1024×1024 PNG in the asset catalog | ✅ `withMemento/Assets.xcassets/AppIcon.appiconset/AppIcon.png` |
 | Fully opaque, **no alpha channel** | ✅ Verified by spec 002 R2 (`sips -g hasAlpha` → `no`) |
 | **Square, 90° corners** — do not pre-round | ✅ The system applies the mask |
 | RGB | ✅ |

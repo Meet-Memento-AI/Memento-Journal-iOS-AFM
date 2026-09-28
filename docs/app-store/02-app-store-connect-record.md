@@ -13,15 +13,27 @@ edit it, and its status.
 
 | Field | Value | Note |
 |---|---|---|
-| **Bundle ID** | `com.sebastianmendo.MeetMemento` | **Immutable after the first build is uploaded.** Already uploaded — locked |
-| **SKU** | *(record the existing value from App Store Connect)* | Internal only, immutable |
-| **Apple ID (app)** | `6754416850` | Recorded in `MeetMemento/Views/Monetization/Configuration.storekit` as `_applicationInternalID` — confirm in App Store Connect |
+| **Bundle ID** | `com.sebmendo.withMementoAI` | **Immutable after the first build is uploaded.** ⚠️ Not yet registered — see the callout below |
+| **SKU** | *(assign when creating the new record)* | Internal only, immutable |
+| **Apple ID (app)** | *(assigned when the new record is created)* | The old record's was `6754416850`. The `Configuration.storekit` file this row used to cite no longer exists — monetization code was removed — so there is nothing in-repo left to update |
 | **Team ID** | `F3NM4HTMW8` | `DEVELOPMENT_TEAM` in `project.pbxproj` |
 | **Primary language** | English (U.S.) | The fallback for every territory without a localization, and the language reviewers read first |
-| **Display name** | **Memento** | `INFOPLIST_KEY_CFBundleDisplayName` — note this differs from the project/target name `MeetMemento` |
+| **Display name** | **Memento** | `INFOPLIST_KEY_CFBundleDisplayName` — note this differs from the project/target name `withMemento` |
 
-> The app record already exists — the November 2025 submission used it. This is a
-> **new version** on an existing record, not a new app.
+> ⚠️ **This is now a new app record, not a new version.** The November 2025
+> submission shipped under bundle ID `com.sebastianmendo.MeetMemento` (App Apple
+> ID `6754416850`). That ID is immutable, so the rename to
+> `com.sebmendo.withMementoAI` cannot reuse it.
+>
+> Before the next upload you must: register the explicit App ID
+> `com.sebmendo.withMementoAI` (with iCloud/CloudKit, Sign in with Apple and the
+> `com.sebmendo.withMementoAI` keychain group enabled on the App ID itself),
+> create the iCloud container `iCloud.com.sebmendo.withMementoAI`, create a fresh
+> App Store Connect record, and regenerate provisioning profiles.
+>
+> Consequences of the switch: the existing listing keeps App Apple ID
+> `6754416850`, existing installs cannot update to the renamed app, and ratings,
+> reviews, rankings and TestFlight testers do not carry over.
 
 ---
 
@@ -31,13 +43,13 @@ edit it, and its status.
 |---|---|---|---|
 | **Primary category** | **Lifestyle** (`public.app-category.lifestyle`) | Account Holder / Admin / App Manager | ✅ Set in project; confirm in ASC |
 | **Secondary category** | **Productivity** *(recommended)* | same | ☐ Decide |
-| **Privacy Policy URL** | `https://<published-host>/privacy.html` | same | 🔴 Blocked — `00` A6, B2 |
+| **Privacy Policy URL** | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` | same | Paste in ASC (`00` D1; `13`) |
 | **User Privacy Choices URL** | *(leave blank)* | same | Optional; the in-app export/delete path serves this purpose |
 | **Content Rights** | **No** third-party content | same | ☐ Confirm asset provenance first — `05` §5 |
 | **Age Rating** | Expect **9+** | same | ☐ `05` §1 |
-| **License Agreement** | Apple's standard EULA | same | ✅ Default. `TERMS_OF_SERVICE.md` is our own terms, published at `/terms.html`, and is additional to — not a replacement for — the EULA |
+| **License Agreement** | Apple's standard EULA | same | ✅ Default. `docs/terms.html` is our own terms, additional to — not a replacement for — the EULA |
 | **Routing App Coverage File** | N/A | — | Not a routing app |
-| **DSA trader status** | *(decision pending)* | Account Holder / Admin | 🔴 `05` §4, `00` A5 |
+| **DSA trader status** | **1.x: deselect EU** | Account Holder / Admin | Recorded 2026-08-17 in `13`; reversible |
 
 ### Why not Health & Fitness
 
@@ -54,17 +66,17 @@ an individual developer."* Memento is enrolled as an individual. **Lifestyle**
 | Field | Value | Status |
 |---|---|---|
 | **Version** | `1.0` | `MARKETING_VERSION` in `project.pbxproj`. Still usable — 1.0 was uploaded and rejected but **never released**, and Apple compares against the last *released* version |
-| **Build** | must exceed **2** | `CURRENT_PROJECT_VERSION = 2` was consumed by the rejected upload. See `07` |
+| **Build** | must exceed **2** | `CURRENT_PROJECT_VERSION = 3` (floor is `1.0 2` in `last-uploaded-build.txt`) |
 | **Copyright** | `2026 Sebastian Mendoza` | Year rights were obtained, then the owner's name. **No © symbol** — Apple adds it |
-| **Support URL** | `https://<published-host>/support.html` | 🔴 Currently 404 in production — `00` B1 |
-| **Marketing URL** | `https://<published-host>/` | Optional; the landing page is live |
+| **Support URL** | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` | Paste in ASC (`00` D2; `13`) |
+| **Marketing URL** | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/` | Optional |
 | **Name / Subtitle / Keywords / Promotional Text / Description / What's New** | see `04` and `docs/app-store/metadata/en-US/` | ☐ Drafts written, not entered |
 | **Screenshots** | iPhone 6.9″ + iPad 13″ | ☐ `04` §5 |
 | **App Previews** | Optional for 1.0 | ☐ `04` §6 |
 | **App Review Information** | contact, notes, attachments | ☐ `08` |
 | **Version Release option** | **Manually release this version** | ☐ `10` §3 |
-| **Price and tax category** | 🔒 Blocked on `DEC-004` | `specs/021` R1 |
-| **Availability / territories** | 🔒 Blocked on the EU decision; exclude mainland China | `05` §7, `10` |
+| **Price and tax category** | Free **or** paid download (no IAP) | 1.x; subscription `DEC-004` deferred. `13` |
+| **Availability / territories** | Exclude mainland China; 1.x default also exclude EU | `05` §7, `10`, `13` |
 
 ---
 
@@ -74,7 +86,7 @@ Apple's own common-rejection #6 is *unclear data access requests*. These strings
 are the one piece of privacy copy every user actually reads, so they carry the
 on-device boundary too — which also serves Guideline **5.1.2(i)** (`01` §5.1.2).
 
-Defined in **`MeetMemento/Info.plist` only** — the duplicate
+Defined in **`withMemento/Info.plist` only** — the duplicate
 `INFOPLIST_KEY_NS*UsageDescription` build settings were deleted by spec 002 R5
 and must not come back (`GENERATE_INFOPLIST_FILE = YES` merges both, and the
 winner is unpredictable).
@@ -82,19 +94,16 @@ winner is unpredictable).
 | Key | Current | Recommended |
 |---|---|---|
 | `NSFaceIDUsageDescription` | "Memento uses Face ID to protect your private journal entries." | **Keep as is.** Specific, accurate, states what and why |
-| `NSMicrophoneUsageDescription` | "Memento needs microphone access to transcribe your voice into journal entries." | "Memento uses the microphone to record voice entries. Your recordings are transcribed on your iPhone and are not stored on any server." |
-| `NSSpeechRecognitionUsageDescription` | "Memento uses speech recognition to convert your voice to text for journaling." | "Memento uses speech recognition to turn your voice into journal text on your iPhone." |
+| `NSMicrophoneUsageDescription` | "Memento needs microphone access to transcribe your voice into journal entries." | Keep — transcription is `SpeechTranscriber` against local assets, no server fallback (`00` C4) |
+| `NSSpeechRecognitionUsageDescription` | "Memento uses speech recognition to convert your voice to text for journaling." | Keep |
+| `NSCameraUsageDescription` | "Memento needs camera access to add a photo to your journal entries." | **Keep.** PhotosPicker does not need a library string; camera does |
 
-> ⚠️ **The recommended microphone and speech strings are only true once
-> `requiresOnDeviceRecognition` is resolved** (`00` C4, `specs/018` R1). Do not
-> ship a purpose string that is more absolute than the code. If the
-> `SpeechAnalyzer` migration has not landed, keep the current, weaker wording —
-> an accurate vague string beats an inaccurate specific one.
-
-**Strings to add only when the feature ships** (`01` §5.1.1(iii) — data
-minimization): `NSPhotoLibraryUsageDescription` with spec 018 R5,
-`NSLocationWhenInUseUsageDescription` with spec 018 R6. Never add
-`NSUserTrackingUsageDescription` — see `03`.
+> ⚠️ Camera, microphone, speech, and Face ID strings are already in `Info.plist`
+> and match the 1.x binary. Speech runs on `SpeechAnalyzer`/`SpeechTranscriber`
+> against locally installed assets — `requiresOnDeviceRecognition` is not set
+> because the request type it belongs to is never constructed (`00` C4).
+> Do not add `NSPhotoLibraryUsageDescription` unless we leave PhotosPicker for a
+> full-library grant. Never add `NSUserTrackingUsageDescription`.
 
 ---
 
@@ -161,7 +170,7 @@ be reviewed in the order submitted."*
       (`SettingsView.swift`).
 - [ ] Category is Lifestyle; neither Health & Fitness nor Medical is selected.
 - [ ] Copyright is `2026 Sebastian Mendoza` with no © symbol.
-- [ ] `grep -c "INFOPLIST_KEY_NSMicrophone\|INFOPLIST_KEY_NSSpeech" MeetMemento.xcodeproj/project.pbxproj` → **0**
+- [ ] `grep -c "INFOPLIST_KEY_NSMicrophone\|INFOPLIST_KEY_NSSpeech" withMemento.xcodeproj/project.pbxproj` → **0**
       (usage strings defined once, in `Info.plist`).
 - [ ] Usage strings match §4 **and** are no more absolute than the code that
       backs them.

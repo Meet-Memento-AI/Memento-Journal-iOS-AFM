@@ -127,7 +127,7 @@ Contact me - migrations can be reversed safely
 
 All documentation is in your project root:
 ```
-/Users/sebastianmendo/Swift-projects/MeetMemento/
+/Users/sebastianmendo/Swift-projects/withMemento/
 ├── DEPLOYMENT_COMPLETE.md          ← Deployment summary
 ├── DATABASE_OPTIMIZATION.md        ← Technical details
 ├── INSIGHTS_CACHING_INTEGRATION.md ← Integration guide

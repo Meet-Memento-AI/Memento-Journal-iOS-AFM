@@ -25,17 +25,24 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
 
 - **App**: SwiftUI, **iOS 27.0** deployment target (raised from 17.0 —
   `REQ-PLAT-001`, tracked in spec 015), universal iPhone+iPad. Bundle id
-  `com.sebastianmendo.MeetMemento`, display name "Memento", category Lifestyle.
+  `com.sebmendo.withMementoAI`, display name "Memento", category Lifestyle.
   **Swift 6 language mode, strict concurrency checking = complete** (`REQ-PLAT-002`);
   all model-facing services are `actor`-isolated or `@MainActor`.
 - **Pattern**: MVVM, unchanged by the rewrite. Entry point
-  `MeetMemento/MeetMementoApp.swift`, route enums in `MeetMemento/Models/Routes.swift`
+  `withMemento/withMementoApp.swift`, route enums in `withMemento/Models/Routes.swift`
   — both re-verified, not replaced, as specs 013+ land.
 - **Data layer**: SwiftData is the **authoritative** system of record
-  (`Entry`/`Reflection`/`Citation`/`Conversation`/`Turn` — see
-  `specs/reference/memento-2.0-architecture-spec.md` §5.2), mirrored to the
-  **CloudKit private database** for replication/durability only. No server-side
-  representation of any journal entry, at rest, anywhere (P2). Owned by spec 015.
+  (`StoredEntry`/`StoredReflection`/`StoredCitation`/`StoredConversation`/
+  `StoredTurn`/`StoredProfile` — see
+  `specs/reference/memento-2.0-architecture-spec.md` §5.2 and spec 040).
+  **Live writes** go through `ModelContext` + CloudKit **private** DB
+  (spec [040](040-ipad-backend-readiness.md) executes the cutover that
+  spec [015](015-data-layer-swiftdata-cloudkit.md) scaffolded). CloudKit is
+  replication/durability only — no Memento account, no server-side
+  representation of any journal entry (P2). Mirrored rows MUST NOT be
+  wrapped in the `ThisDeviceOnly` DEK (that key cannot decrypt on a second
+  device). Compact chrome remains spec 027 + `ChatHeaderActionCluster`;
+  regular-width selection IDs are spec 040.
 - **Retrieval**: entries donated to **Core Spotlight**'s semantic index; a
   `SpotlightSearchTool`-equipped `LanguageModelSession` authors its own queries. No
   embedding pipeline, no vector store. Contingent on `DEC-002` (can donation be
@@ -45,7 +52,9 @@ spec's `tech_refs:` front-matter names before implementing against P1–P7 below
 - **Intelligence boundary**: exactly one Swift module imports `FoundationModels`
   (P3). Every AI surface calls the `IntelligenceService` protocol; routing between
   on-device (Z0) and Private Cloud Compute (Z1) is table-driven (`REQ-INT-003`), never
-  scattered conditionals. Owned by spec 017.
+  scattered conditionals. Ask **generation work** is channelled (`REQ-INT-017`,
+  spec 039): phatic/continuer use `chat-light@4`; journal RAG remains ask@14.
+  Channel is not a TrustZone. Owned by spec 017 (boundary) and 039 (channels).
 - **Capture/voice**: `SpeechAnalyzer`/`SpeechTranscriber` for on-device transcription,
   no cloud fallback of any kind (`REQ-CAP-001` — note: the source document's "Gemini
   Audio fallback" concern doesn't apply to this codebase; `SpeechService.swift`
@@ -87,10 +96,10 @@ only sanctioned changes are account removal (spec 023) and the contract's own
 
 ### Security
 - **PIN in Keychain**, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
-  (`MeetMemento/Services/SecurityService.swift:134`), with **constant-time
+  (`withMemento/Services/SecurityService.swift:134`), with **constant-time
   comparison** against timing attacks (`SecurityService.swift:171-195`).
 - **Entry encryption**: PBKDF2-SHA256 key derivation with Keychain-stored salt
-  (`MeetMemento/Services/EncryptionService.swift:26,182`).
+  (`withMemento/Services/EncryptionService.swift:26,182`).
 - **Biometrics**: FaceID/TouchID via LocalAuthentication with PIN fallback.
 - ~~**RLS complete**: all 12 tracked tables have `ENABLE ROW LEVEL SECURITY` with
   per-user `auth.uid() = user_id` policies.~~ **Superseded** — Postgres RLS is
@@ -101,7 +110,7 @@ only sanctioned changes are account removal (spec 023) and the contract's own
 - **ATS enabled**: `NSAllowsArbitraryLoads = false`.
 
 ### Store compliance already in place
-- `MeetMemento/PrivacyInfo.xcprivacy` is thorough: tracking=false, collected data
+- `withMemento/PrivacyInfo.xcprivacy` is thorough: tracking=false, collected data
   types (User Content, Email, Name, User ID — all AppFunctionality, none Tracking),
   required-reason APIs declared (UserDefaults CA92.1, File Timestamp C617.1,
   System Boot Time 35F9.1). **Stale for 2.0**: the "collected data types" list
@@ -111,11 +120,11 @@ only sanctioned changes are account removal (spec 023) and the contract's own
   do not hand-edit `.xcprivacy` as part of this specs-only pass.
 - Usage strings present: FaceID, Microphone, Speech Recognition.
 - ~~Sign in with Apple entitlement~~ + keychain access group in
-  `MeetMemento/MeetMemento.entitlements`. **The SIWA entitlement is removed by
+  `withMemento/withMemento.entitlements`. **The SIWA entitlement is removed by
   spec 023** (no accounts); the keychain access group stays — PIN/encryption
   keys live there and are account-independent.
 - Hosted legal pages linked in-app: privacy (`SettingsView.swift`) and terms
-  (`AboutSettingsView.swift`) at `sebmendo1.github.io/MeetMemento/`.
+  (`AboutSettingsView.swift`) at `sebmendo1.github.io/withMemento/`.
 - Automatic signing with real team (F3NM4HTMW8); `LaunchScreen.storyboard` wired.
 
 ### Code quality
@@ -127,9 +136,25 @@ only sanctioned changes are account removal (spec 023) and the contract's own
   with `.alert`-based surfacing.
 - Reduce-motion respected in 8 animation-heavy components.
 - Accessibility labels on 39/151 files (67 `accessibilityLabel`, 19 hints,
-  12 traits) via shared `MeetMemento/Utilities/AccessibilityHelpers.swift`.
+  12 traits) via shared `withMemento/Utilities/AccessibilityHelpers.swift`.
 - Retry-with-backoff on network calls in `JournalService` and `ChatService`.
 - Bundle media modest (`Resources/welcome-bg.mp4` ≈ 2.5 MB).
+- **Audio-session ordering machinery (added 2026-08-18, spec 028 R3).** The
+  half-duplex handoff between `VoicePlaybackService` and `SpeechService` is
+  correct and was expensive to make correct: `sessionGeneration` staleness
+  counters, `waitForSessionRelease()`, the pure `shouldReleaseAudioSession`
+  decision, and utterance buffering until activation lands. Every one of those
+  exists because a specific silent failure was traced to its absence — a
+  late-landing `setActive(false)` that dead-mics the next turn without throwing.
+  A new engine (specs 030–036) or a dual-path audio controller (spec 034) MUST
+  **subsume** this machinery, never bypass it. Rewriting the session layer
+  "more cleanly" without reproducing these guarantees reintroduces a class of
+  bug that produces no error, no crash, and no log line — only a conversation
+  that stops after one turn.
+- **Utterance-session seam (added 2026-08-18).** `beginUtteranceSession` /
+  `enqueue(sentence:)` / `finishEnqueueing` is the boundary every caller speaks
+  through. It survived an engine change precisely because callers never knew
+  which synthesizer was behind it. Keep it that way.
 
 ### Backend (superseded — historical record of the pre-2.0 app, 2026-07-13)
 - Main `chat` function: JSON-schema-constrained LLM output; cited entry ids
@@ -153,10 +178,10 @@ examples to converge on (do not invent parallel systems):
 
 | Concern | Canonical implementation | Migration spec |
 |---------|--------------------------|----------------|
-| Text styles / Dynamic Type | `MeetMemento/Resources/Typography.swift` (`Font.custom(_:relativeTo:)`) | ~~008~~ — **superseded**, merged into 020 |
-| Logging | `MeetMemento/Utils/Logger.swift` (`AppLogger`, DEBUG-gated) | 005 |
+| Text styles / Dynamic Type | `withMemento/Resources/Typography.swift` (`Font.custom(_:relativeTo:)`) | ~~008~~ — **superseded**, merged into 020 |
+| Logging | `withMemento/Utils/Logger.swift` (`AppLogger`, DEBUG-gated) | 005 |
 | Glass surfaces | one system to be chosen in spec 009 (currently two exist) | 009 |
-| ~~Local persistence~~ | ~~`MeetMemento/Services/LocalJournalStorage.swift`~~ | ~~007~~ — **superseded**, spec 007 obsolete (see 015) |
+| Live journal / chat / profile writes | `withMemento/Services/MementoDataStore.swift` + SwiftData `ModelContext` (CloudKit private DB). Do not wrap mirrored rows in the ThisDeviceOnly DEK. | 015 schema / 040 live cutover |
 | ~~Edge-function auth~~ | ~~inline JWT verify pattern in `supabase/functions/chat/index.ts:295-310`~~ | ~~004~~ — **superseded**, spec 004 retired |
 
 New canonical patterns for SwiftData persistence, Core Spotlight donation, and the
@@ -199,9 +224,12 @@ These outlive the specs. Every future change follows them:
    Postgres to apply RLS to.)*
 8. **No journal content, transcript, derived reflection, embedding, tag, mood
    value, or content-derived metadata may cross into Z2 (third-party) under any
-   configuration** (`REQ-PRIV-001`). Every generation surface declares its zone in
-   code and renders it in the UI at the point of use (`REQ-PRIV-002`). Owned by
-   spec 014.
+   configuration** (`REQ-PRIV-001`), **except** the named
+   `Z2ContentException.answerFeedbackVerification` in spec 014 / 042:
+   volunteered chat-quality feedback for verification/triage, off by default,
+   write-only, never a `GenerationRequest` or general sync. Every generation
+   surface declares its zone in code and renders it in the UI at the point of
+   use (`REQ-PRIV-002`). Owned by spec 014.
 9. **Docs**: engineering docs → `docs/`; work-stream specs → `specs/` using the
    template in `specs/README.md`; the Memento 2.0 source document lives at
    `specs/reference/memento-2.0-architecture-spec.md` and is cited by `REQ-`/`DEC-`
@@ -216,3 +244,23 @@ These outlive the specs. Every future change follows them:
     of these APIs shipped at WWDC26 and behave differently from anything in a
     model's pre-2026 training data — when the library and an agent's prior
     knowledge disagree, the library wins.
+11. **Exactly one Swift module imports `CoreML`** (`REQ-TTS-004`), for the same
+    reason as rule 5 and enforced the same way — a named CI gate. That module is
+    the neural speech engine; every other module talks to it through the existing
+    utterance-session primitives and cannot tell which engine is serving. This is
+    what keeps a model swap, an ANE-bucketing contingency (`DEC-008`), or an
+    outright engine replacement contained to one file — which matters for any
+    third-party model the product does not control. Corollary, and the reason this is a constitutional rule
+    rather than a spec detail: **the `AVSpeechSynthesizer` path is never
+    removed.** It is the permanent degradation target (`REQ-TTS-003`) that makes
+    the app speak on a fresh install, in airplane mode, before any model asset
+    exists — and the insurance against an OS release breaking a frozen
+    third-party model. Owned by specs 030–031.
+12. **Speech synthesis is on-device or it does not ship** (`REQ-TTS-001`). Zero
+    network calls at synthesis time, model-load time, or voice-selection time.
+    A third-party engine is admissible only where it is fully local,
+    license-cleared with a documented text-front-end dependency chain (`018` R12
+    / `REQ-TTS-009`), and on the dependency allowlist. Cloud and hybrid TTS are
+    forbidden. *(Restates, in checkable form, what the withdrawn "no third-party
+    streaming TTS SDK, ever" rule was actually protecting — see
+    `technology/06` §B1 and `018` R7, both amended 2026-08-18.)*

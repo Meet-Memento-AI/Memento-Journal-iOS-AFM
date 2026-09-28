@@ -100,6 +100,23 @@ the framework provides (`technology/04` §1). Contract:
   endpoint, no credentials. The only permitted network egress is the Z1
   legs' Apple PCC calls, and those legs are skippable: a Z0-only run MUST
   complete with the network fully disabled.
+
+  > **Amended 2026-08-27 (spec [043](043-eval-run-warehouse.md)).** This clause
+  > binds the *run*, not the *record*. The harness itself remains exactly as
+  > written above: it runs from a clean checkout with Xcode alone, acquires no
+  > credential, and a Z0-only run still MUST complete with the network fully
+  > disabled. What 043 adds is an out-of-band export, performed after the fact,
+  > of artifacts the harness already wrote to `.eval-runs/`. No harness reads a
+  > credential, no gate depends on a database, and a missing credential must
+  > never fail a CI check. The exported data is synthetic fixture content only.
+  >
+  > R1's provenance requirement is also widened in the same breath: a run now
+  > records `{runId, promptVersion, modelIdentifier, gitSha, corpusId}` and
+  > writes into a per-run directory. `promptVersion` is recorded **per
+  > generation, not per run** — verified 2026-08-27, every shard of the
+  > thousand-prompt sweep contains both `ask@15` and `chat-light@4`, because
+  > spec 039 channel routing picks the prompt per turn. A run-level pin would
+  > average two prompts and call it one number.
 - **Verify-first (🔴):** trajectory expectations need the registered tool
   name for `SpotlightSearchTool` — that is V12, owned by spec 016 R5/R10;
   this harness consumes the confirmed string (one named constant, shared
@@ -126,14 +143,22 @@ independently at its own thresholds, reporting per-gate numbers per run.
    `Fixtures/gold/questions.resolved.json` is **already specified by spec 016
    R8** (aggregate + per-category scoring, branch coverage, built on
    `Evaluations`, explicitly shared with this harness) — one implementation,
-   cited here, not re-specified. What this spec adds is the gate's second
-   row: **search-tool-called on 100% of Ask-category runs** via
-   `TrajectoryExpectation` — the mechanical enforcement of `REQ-SUR-003`: an
+   cited here, not re-specified.    What this spec adds is the gate's second
+   row: **retrieval occurred on 100% of notebook-channel Ask runs** (spec 039
+   rank 4 / `.journalQuery`) — the mechanical enforcement of `REQ-SUR-003` on
+   journal questions: an
    answer synthesized from the model's priors about the user's own life is a
-   fabrication, and this catches it on every prompt change. The three honesty
-   questions (q-16–q-18) must both call the tool *and* decline to answer
-   beyond the corpus ("I don't find anything about your brother before
-   March" is the correct answer).
+   fabrication, and this catches it on every prompt change.
+   **Amendment 2026-09-06 (spec 044 R4 / 016 Branch B):** "retrieval
+   occurred" means the deterministic `EntryRetriever` pass ran **or**
+   `SearchJournalTool` was invoked. `toolCallingMode` is `.allowed`, never
+   `.required`; a single-hop journal question that the pre-pass already
+   answered must not fail the gate for skipping a redundant tool call.
+   Phatic, continuer, companion, meta, and redirect turns **must not**
+   retrieve (039 R2); this gate does not require retrieval on those samples.
+   The three honesty questions (q-16–q-18) must both **run retrieval**
+   *and* decline to answer beyond the corpus ("I don't find anything about
+   your brother before March" is the correct answer).
 2. **`GroundingGate`.** Citation accuracy ≥ 95%; ungrounded-claim rate ≤ 2%.
    The automatable half runs unconditionally: every `groundedEntryIDs`
    element (spec 017 R5's `PeriodReflection`) resolves to a real entry ID
@@ -247,7 +272,7 @@ merges while the decision block still reads OPEN.
   still unlocked** — on-device-only satisfaction near PCC satisfaction means
   the absolute-privacy claim Memento currently concedes is available after
   all. Raising the finding is this spec's job; acting on it is Out of Scope.
-- **Instruments** (`REQ-EVAL-005`): all study telemetry is manually collected
+- **Instruments** (`REQ-EVAL-005`): all *study* telemetry is manually collected
   — surveys and interviews, no in-app analytics SDK; slower, and the price
   of the privacy label. In-app collection is limited to the
   reflection-helpfulness micro-survey (target ≥ 80%) persisted locally on
@@ -255,6 +280,11 @@ merges while the decision block still reads OPEN.
   the participant's explicit, manual share. Willingness-to-pay (≥ 70%) comes
   from the end-of-study survey. Exports contain ratings and survey answers
   only — never journal content.
+  **Narrowed 2026-09-11 (spec [042](042-feedback-telemetry-supabase.md)):**
+  volunteered in-chat answer feedback may leave the device for quality
+  *verification* when the user opts in. That path is not an analytics SDK
+  and is not study instrumentation; it does not relax this rule for
+  journal content, reflections, or chat history.
 
 **Acceptance (Given/When/Then):** given the study protocol document, when
 reviewed before recruitment, then cohort definitions, the near-parity
@@ -322,8 +352,9 @@ string). Re-confirm this is still true when implementation starts.
 
 - Building the golden-set harness's underlying fixture corpus — spec 013 already
   owns that; this spec reuses it.
-- Any in-app analytics SDK — explicitly excluded by `REQ-EVAL-005`; all telemetry
-  is manual survey/interview collection.
+- Any in-app analytics SDK — explicitly excluded by `REQ-EVAL-005`; study
+  telemetry remains manual survey/interview collection. Spec 042's
+  verification RPC is not an SDK and is not this study's instrument.
 - Acting on study findings (e.g. revisiting the §1.3 positioning claim if the
   forced-degradation cohort's result warrants it) — that's a product decision for
   whoever reads this study's output, not something this spec resolves in advance.
@@ -365,7 +396,8 @@ string). Re-confirm this is still true when implementation starts.
       reading the workflow file.
 - [ ] `RetrievalGate`'s recall half is the **same single implementation** as
       spec 016 R8's standing gate (no duplicate scorer exists); its trajectory
-      half asserts search-tool-called on 100% of Ask-category runs, and the
+      half asserts search-tool-called on 100% of **notebook-channel** Ask runs
+      (spec 039), and the
       honesty questions (q-16–q-18) decline beyond-corpus answers
       (R2, `REQ-SUR-003`).
 - [ ] `GroundingGate`'s automatable half passes (every `groundedEntryIDs`

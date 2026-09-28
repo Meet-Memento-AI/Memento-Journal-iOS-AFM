@@ -12,3 +12,4 @@
 # Background: docs/app-store/07-build-signing-and-upload.md section 2.
 
 1.0 2   # Nov 2025 — submitted, REJECTED (Guidelines 5.1.2, 1.5), never released
+1.0 3   # Sep 2026 — submitted, REJECTED (Guideline 2.1 Information Needed), never released

@@ -1,0 +1,92 @@
+Hello App Review Team,
+
+Thank you for the detailed request. All six items are answered below and
+have been added to the Notes field in App Review Information. A screen
+recording captured on a physical iPhone running iOS 26 is attached; it
+begins at app launch and follows the typical flow.
+
+1. RECORDING
+
+It shows launch, onboarding (including the optional app lock and how to
+skip it), loading sample entries, a voice entry with the recording
+indicator visible, asking the companion a question and tapping a citation
+to open its source entry, export, and deleting all data.
+
+Not applicable, and so not shown: no account registration, login or
+account-deletion flow, because there are no accounts; no user-generated
+content shared between users, so no reporting or blocking mechanism
+applies; no paid content and no in-app purchase.
+
+2. PURPOSE AND AUDIENCE
+
+Memento is a private journal that answers questions about what you wrote.
+Speak or type an entry; it is transcribed, filed and indexed on the
+device. Later you ask your archive a question and get an answer from your
+own entries, citing the ones used. The problem it solves: journals go
+unread, and search finds only the words you happened to use.
+
+For adults who journal and want it private. An archivist, not an advisor:
+it reports what you wrote, never advising, diagnosing or using clinical
+language. Not a health or medical product.
+
+3. SETUP AND ACCESS
+
+No credentials, and no sign-in, which is why those fields are blank.
+Onboarding offers an optional app lock; "Skip for now" bypasses it, and
+if enabled the lock screen has a device-passcode fallback, so no PIN is
+needed from us.
+
+The companion answers from entries and a fresh install has none:
+
+  Journal > initials button top left (VoiceOver: "Menu") > Profile >
+  Settings > "Load Sample Entries"
+
+Clearly fictional, reversible from the same row. Then ask via the message
+icon top right or a left swipe; capture via the compose button, allowing
+Microphone and Speech Recognition; export via Settings > "Export Your
+Journal".
+
+4. EXTERNAL SERVICES
+
+On device, Apple frameworks only: Foundation Models for all companion
+text, Speech, NaturalLanguage, Vision, LocalAuthentication, Core Spotlight
+(off by default), and a bundled Core ML read-aloud voice, never
+downloaded.
+
+Reaching Apple: MapKit reverse geocoding to name a place when asked; the
+user's own private CloudKit database, which we cannot access; and Apple's
+speech models on first use.
+
+One non-Apple service: Supabase, hosting a write-only database for
+volunteered answer-quality feedback. A Report sends that question and
+answer; thumbs ratings need the off-by-default setting "Share Quality
+Feedback". Journal entries and chat history are not sent.
+
+No authentication provider, payment processor, analytics or crash SDK,
+advertising, third-party AI, or third-party Swift package.
+
+5. REGIONAL DIFFERENCES
+
+The app functions consistently across all regions. The binary is identical
+everywhere, nothing in it reads the device's country or gates a feature by
+territory, and the interface is English only. Two things vary by device
+rather than region: the companion needs Apple Intelligence, and dictation
+needs Apple's on-device speech model for the device language. Without
+either, the app says so and the rest still works.
+
+6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
+
+Memento is a journaling and personal-productivity app providing no
+regulated service, so no professional credential applies.
+
+Bundled third-party material, full licence text in the app at Settings >
+About > Acknowledgments: Supertonic 3 voice weights (BigScience Open
+RAIL-M); its runtime, soniqo/speech-swift (Apache-2.0); and the typefaces
+Figtree, Lora, Manrope and Sora (SIL Open Font License 1.1). All other
+content and artwork is original.
+
+Please let us know if anything else would help.
+
+Best regards,
+Sebastian Mendo
+hello@withmemento.ai

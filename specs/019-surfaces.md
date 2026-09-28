@@ -2,7 +2,7 @@
 id: 019
 title: Surfaces — Capture, Reflection, Weekly, Patterns, Ask
 tier: P1
-status: in-progress (2026-07-24) — Requirements derived; implementation gated on specs 015-018 landing and the Xcode 27 toolchain
+status: in-progress (2026-08-19) — Weekly + Patterns surfaces landed; counts computed in Swift UI only; Ask already shipping
 effort: 4 sessions
 depends_on: [016, 017, 018]
 findings: [surface-state-machines, ask-contract-restoration, computed-answer-rendering, crisis-static-card, background-honest-retry]
@@ -162,12 +162,20 @@ respecting PRES-020/PRES-009). Readable and **listenable**: audio via spec
 the listenable surfaces; 018 owns playback mechanics), available within 5
 seconds of opening.
 
+**Amendment (DEC-013, spec 021 R9, 2026-09-26):** Weekly is Pro. For a free
+user, the Sunday card still appears atop the timeline, but **locked**: one
+teaser line computed in Swift from `InsightEngine` facts (for example, "You
+wrote 5 entries this week"). **No model generation runs for free users, and
+the weekly-ready notification never fires for locked content.** Tapping the
+card is re-offer moment 5.
+
 - **Citations with tap-through:** every claim traces to `groundedEntryIDs`
   (017 R5); the rendered card exposes citations that navigate to the cited
   entry — the one sanctioned *upgrade* to PRES-044's sheet-based citations
-  (preservation contract §1). Citation UI may revive the orphaned
-  `InlineCitationBadge`/`CitationFlowText` components or consciously delete
-  them (§4 reuse ledger — no third option).
+  (preservation contract §1). Citation UI on the weekly card is new;
+  `InlineCitationBadge`/`CitationFlowText` were **deleted 2026-08-27**
+  (§4 reuse ledger) rather than revived. Ask keeps the sheet path
+  (`CitationsBottomSheet`).
 - **`hasNothingToSay` is a designed state, not an error** (`REQ-INT-013`,
   017 R5 — cited): when true, the card renders a deliberate, quiet empty state
   (draft copy: *"A quiet week. Not every week has something worth saying."*),
@@ -276,11 +284,47 @@ entry-summary row), 047 (failure/retry), 048 (honest gating). This closes the
 preservation contract's end-state window that opened when Phase 1 deleted the
 edge functions.
 
-- **Tool-calling loop:** `SpotlightSearchTool` attached per spec 016 R5's
-  session-side contracts (guidance constants, all seven `reply.content`
-  cases) — cited, not re-specified. Streaming is snapshot-based per 017 R6
-  (`AsyncThrowingStream<AnswerChunk, Error>`); reflections never stream, chat
-  always does.
+**Amendment (DEC-013, spec 021 R4 `REQ-MON-006`, 2026-09-26): free and Pro
+Ask.**
+- **Free Ask** is one chat, grounded in the **entry it opened on plus the
+  current conversation**.
+  - No journal-wide retrieval: `EntryRetriever` and `SearchJournalTool`
+    don't run.
+  - It has a daily message limit, which Memento owns and counts on the
+    device.
+  - Clearing starts over with nothing carried over.
+  - Grounded-or-silent applies within that scope.
+- **Pro Ask** is what this section describes: the whole journal, multiple
+  chats with history (PRES-045), and summarize-to-entry (PRES-046).
+- **Invariants:**
+  - The limit is checked **after** 026 R4's safety gate.
+  - Reaching it shows an inline note (a 021 R9 moment), never 014 R2's
+    quota component.
+  - Apple's PCC quota states never show purchase UI (017 R3).
+  - For free users, PRES-045 and PRES-046 are reached through the offer
+    rather than removed.
+  - Earlier chats stay readable after a downgrade.
+- **RetrievalGate** (022) asserts retrieval on notebook runs **for Pro
+  only**. For free runs it asserts that **no retrieval happens beyond the
+  opened entry**.
+- **Free chat screen (Figma 1177:3147, 2026-09-26):**
+  - The header is Journal and an **✦ Upgrade** pill on the left, and a
+    **reset** button on the right. No history or summarize.
+  - The empty state is the mark and headline only, with no starter cards.
+  - Reset asks "Start over?", offering **Start over** (deletes the
+    conversation) or **Keep it with Pro**.
+  - Opened from the tab, the free scope is the latest entry.
+  - `ContentView` no longer wraps Ask in `.proGated`; it resolves a
+    `ChatTier` instead.
+
+- **Tool-calling loop:** **Amendment 2026-09-06 (016 Branch B / DEC-002 /
+  specs 044–045):** Ask retrieval is `EntryRetriever` plus, on iOS 27,
+  `SearchJournalTool` (044 R4). `SpotlightSearchTool` is not attached —
+  donation is opt-in off. Computed `.count` / `.statistic` answers are
+  `InsightEngine` (045 R1/R5), not Spotlight `reply.content` cases.
+  Streaming remains snapshot-based per 017 R6; reflections never stream,
+  chat always does. The 016 R5 session-side contracts apply to the
+  hand-rolled tool's trajectory logging, not to a Spotlight instance.
 - **Computed answers, not just prose** (`technology/03` §5): `.count` /
   `.statistic` / `.table` / `.scoredItems` render as first-class UI sections
   with `reply.label` — "how many times did I write about my brother this
@@ -290,21 +334,27 @@ edge functions.
   and two searches blended into one list). This is the
   richer-than-a-chat-bubble surface a design-led product should spend on —
   and it extends PRES-042's rendering contract rather than replacing it.
-  **Follow-on (plan only):** spec [028](028-ask-markdown-and-genui.md) is the
+  **Follow-on (plan only):** spec [057](057-ask-markdown-and-genui.md) is the
   dialect for doing this together with bounded Markdown — one ordered part
   list per turn, computed values from Swift/pipeline stages, Markdown only
-  as the prose channel. Do not implement 028 until this R-block's host
+  as the prose channel. Do not implement 057 until this R-block's host
   (PRES-040…048) is what is being extended.
-- **`REQ-SUR-003` — grounded or silent:** when a question cannot be answered
-  from the corpus, Ask says so and **shows what it searched** ("I don't find
-  anything about your brother before March" is the correct answer); it never
-  answers from world knowledge. The retrieval-transparency affordance SHOULD
-  start from the orphaned `JournalReviewIndicator` ("Reviewed N journals" —
-  §4 reuse ledger). Enforcement is mechanical and owned by spec 022's
-  `RetrievalGate`: `TrajectoryExpectation` asserts the search tool was called
-  on 100% of Ask runs, and the honesty questions (q-16–q-18) must both call
-  the tool and decline to over-answer. This spec's obligation is keeping the
-  prompt/tool wiring compatible with that assertion — verify-first: V11
+- **`REQ-SUR-003` — grounded or silent (notebook channel):** when a
+  **journal** question cannot be answered from the corpus, Ask says so and
+  **shows what it searched** ("I don't find anything about your brother
+  before March" is the correct answer); it never answers from world
+  knowledge. Phatic, continuer, companion, meta, and redirect turns **do
+  not retrieve** (spec 039); honesty/search-tool assertions apply to
+  **notebook-channel** Ask runs only. Loading copy on no-RAG turns MUST NOT
+  say “Reviewing your past entries…” (`LoadingStatus` uses “Memento is
+  thinking…” when `RetrievalPolicy.mode` is `.none`). The retrieval-
+  transparency affordance is **new** when that UI ships —
+  `JournalReviewIndicator` was deleted 2026-08-27 (§4 reuse ledger).
+  Enforcement is mechanical and owned by spec 022's `RetrievalGate`:
+  `TrajectoryExpectation` asserts the search tool was called on 100% of
+  **notebook** Ask runs, and the honesty questions (q-16–q-18) must both
+  call the tool and decline to over-answer. This spec's obligation is keeping
+  the prompt/tool wiring compatible with that assertion — verify-first: V11
   (`ToolCallingMode`, "always search" if it exists) and V12 (registered tool
   name) are 016 R5/R10's items; Ask's tool wiring is not finalized until both
   are closed.
@@ -355,7 +405,7 @@ crisis-adjacent input detected at any point ──▶ resourceCard (R7)
 |---|---|
 | `doneGrounded-empty` | *"I don't find anything about that. I searched your entries from March to July."* |
 | `failed` turn | *"Failed to send · Retry"* (PRES-047, preserved verbatim) |
-| Degraded retrieval (016 R9) | *"Search may be incomplete while your iPhone finishes indexing."* |
+| Degraded retrieval (016 R9) | *"Search may be incomplete while this device finishes indexing."* (`DeviceCopy.indexingIncomplete`) |
 | Quota-degraded turn | 014 R2's canonical degradation copy — never forked here |
 
 **Acceptance (Given/When/Then):**
@@ -468,6 +518,10 @@ foregroundFallbackPending ──next launch──▶ running(fg)  (R3's card sho
   Nothing else, ever: no "you haven't written in N days," no re-engagement
   campaigns (NON-GOAL: notification-driven engagement loops). Preference UI
   mounts per ATTACH-08.
+  **Amendment (DEC-013, 2026-09-26): still exactly two.** The daily reminder
+  can also be turned on from onboarding, by explicit opt-in (053 R6). There
+  is no trial and so no trial reminder (DEC-014). The weekly-ready
+  notification fires only for entitled users (R3 amendment).
 
 **Acceptance (Given/When/Then):**
 - Given a simulated background failure chain (network drop, quota exhaustion,
@@ -495,7 +549,7 @@ first would leave the end-state contract with no source of truth to restore
 *from*.
 
 **Acceptance:** after Task 7,
-`grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no app-target
+`grep -rn 'ChatService\|InsightsService' withMemento/` returns no app-target
 matches, and no §4 reuse-ledger row remains unclaimed-and-undeleted (spec
 001's hygiene standard: no zombie code).
 
@@ -570,7 +624,8 @@ extraction, not a rewrite.
       narration is generating/degraded/failed; every §4 reuse-ledger chart
       row is claimed or deleted.
 - [ ] Ask grounding/honesty (R5): 022 `RetrievalGate` green — search tool
-      called on 100% of Ask runs (`TrajectoryExpectation`, V12 name), honesty
+      called on 100% of **notebook-channel** Ask runs (`TrajectoryExpectation`,
+      V12 name; spec 039), honesty
       questions q-16–q-18 decline to over-answer; computed-answer test renders
       a `.count` section for the brother question; interleaved `queryToken`
       streams render as two sections; 016 R8's recall@5 ≥ 0.85 gate has
@@ -594,7 +649,7 @@ extraction, not a rewrite.
       silently skipped week; notification audit finds exactly two
       identifiers app-wide (opt-in daily reminder, weekly-ready).
 - [ ] Legacy deletion (R9, after Task 7 only):
-      `grep -rn 'ChatService\|InsightsService' MeetMemento/` returns no
+      `grep -rn 'ChatService\|InsightsService' withMemento/` returns no
       app-target matches.
 
 ## Regression Guards

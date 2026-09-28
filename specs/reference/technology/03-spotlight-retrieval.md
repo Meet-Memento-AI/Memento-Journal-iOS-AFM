@@ -352,7 +352,7 @@ Purpose: when a query references a person ("Who did I go hiking with?"), the res
 
 **This is DEC-002 in the architecture spec and it is P0.**
 
-Core Spotlight is a *system* index. If Memento donates journal text to `CSSearchableIndex.default()`, that text may surface in system-wide Spotlight search. Someone picks up an unlocked iPhone, types a word, and reads a private journal line. For this product that is category-ending.
+Core Spotlight is a *system* index. If Memento donates journal text to `CSSearchableIndex.default()`, that text may surface in system-wide Spotlight search. Someone picks up an unlocked device, types a word, and reads a private journal line. For this product that is category-ending. Inbound CloudKit rows must be re-donated locally — Spotlight does not replicate (spec 016 / 040).
 
 ### Leading hypothesis — test this first
 

@@ -1,14 +1,25 @@
-# MeetMemento
+# withMemento
 
-A private journaling app with an on-device AI companion. Everything runs
-**on device** — there are no accounts and no backend, and your journal never
-leaves the phone.
+A private journaling app with an on-device AI companion. Journal entries
+stay on device — there are no accounts. Submitting a Report sends that
+reply for verification. Ratings can be sent if you turn on Share quality
+feedback (spec 042).
 
 ## Setup
 
-No configuration, accounts, or API keys are required.
+No accounts are required. A fresh clone builds without API keys (verification
+upload is a no-op until you add them).
 
-1. Open `MeetMemento.xcodeproj` in Xcode.
+To send volunteered chat feedback to the live evaluations project, copy
+`withMemento/Config/Supabase.xcconfig.example` to
+`withMemento/Config/Supabase.xcconfig` and fill the publishable anon key.
+Never put a `service_role` key in the app or the repo.
+
+Keep the `SUPABASE_URL` line exactly as the example writes it — the slashes are
+composed through `$(SUPABASE_SLASH)` because xcconfig treats `//` as the start
+of a comment, so a literal `https://host` is silently truncated to `https:`.
+
+1. Open `withMemento.xcodeproj` in Xcode.
 2. Select a device or simulator.
 3. Build and run (⌘R).
 
@@ -19,7 +30,7 @@ the app degrades gracefully.
 ## Project Structure
 
 ```
-MeetMemento/
+withMemento/
 ├── Components/          # Reusable UI components
 ├── Models/              # Data models
 ├── Resources/           # Fonts, themes, configurations
@@ -39,24 +50,30 @@ MeetMemento/
 
 ## Privacy & security
 
-- Journal content is stored in encrypted local storage; there is no server copy.
-- No accounts, no sign-in, no third-party data processors.
-- AI generation and journal retrieval run entirely on device.
+- Journal content is stored in encrypted local storage; there is no server copy of the journal.
+- No accounts and no sign-in. Submitting a Report writes that question and answer to a verification database. If you opt in to Share quality feedback, volunteered ratings can also be sent.
+- AI generation and journal retrieval run on device.
 
 ## Development
 
 ### Requirements
 - Xcode **26+** (the on-device intelligence layer needs the Foundation Models SDK)
 - iOS **26+**
-- Swift 6
+- Swift 5 language mode (`SWIFT_VERSION = 5.0`) on the Swift 6 compiler.
+  This is deliberate, not drift: a Release build currently emits ~44 warnings,
+  most of them `this is an error in the Swift 6 language mode` (non-Sendable
+  captures in `@Sendable` closures, non-Sendable stored properties on
+  `Sendable`-conforming classes, and locking calls unavailable from async
+  contexts). Moving to Swift 6 mode is a real concurrency-audit project, not a
+  build-setting flip — do it on its own branch with its own test run.
 
 ### Testing
 Online suite (matches merge CI — skips UITests and live FM generation):
 
 ```bash
-CI_ONLINE=1 xcodebuild -scheme MeetMemento \
+CI_ONLINE=1 xcodebuild -scheme withMemento \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-  -skip-testing:MeetMementoUITests test
+  -skip-testing:withMementoUITests test
 ```
 
 Device/eval (optional): run without `CI_ONLINE`, or dispatch

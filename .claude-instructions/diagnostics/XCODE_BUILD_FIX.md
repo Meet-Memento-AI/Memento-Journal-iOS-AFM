@@ -34,13 +34,13 @@ An unnecessary "Sign In with Apple" app extension target was created in the proj
 
 1. **Wait for Xcode to fully load** (should be open now)
 2. **Check the Targets**:
-   - Go to: Project Navigator → MeetMemento (top)
+   - Go to: Project Navigator → withMemento (top)
    - Click on "Targets" section
    - You should see:
-     - ✅ **MeetMemento** (main app)
+     - ✅ **withMemento** (main app)
      - ✅ **UIPlayground** 
-     - ✅ **MeetMementoTests**
-     - ✅ **MeetMementoUITests**
+     - ✅ **withMementoTests**
+     - ✅ **withMementoUITests**
    - You should NOT see:
      - ❌ ~~Sign In with Apple~~ (removed!)
 

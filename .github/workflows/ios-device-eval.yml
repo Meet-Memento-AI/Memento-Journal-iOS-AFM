@@ -35,6 +35,10 @@ jobs:
       TEST_RUNNER_SPIKE_A_FIXTURES: ${{ github.workspace }}/Fixtures
     steps:
       - uses: actions/checkout@v6
+        # Model weights are Git LFS (spec 030 R3). Without this the build
+        # receives pointer files and fails at RUNTIME as a model-load error.
+        with:
+          lfs: true
 
       - name: Show toolchain
         run: |
@@ -49,11 +53,11 @@ jobs:
           set -euo pipefail
           rm -rf TestResults TestResults.xcresult
           xcodebuild \
-            -scheme MeetMemento \
+            -scheme withMemento \
             -destination "$IOS_SIM_DESTINATION" \
             -resultBundlePath TestResults \
             -parallel-testing-enabled NO \
-            -skip-testing:MeetMementoUITests \
+            -skip-testing:withMementoUITests \
             test
 
       - name: Document local eval commands
@@ -62,7 +66,7 @@ jobs:
           cat <<'EOF'
           Spec 022 Evaluations harness (when implemented) runs locally:
             # Z0-only with network disabled — see specs/022-evaluation-and-quality-study.md
-            xcodebuild -scheme MeetMemento \
+            xcodebuild -scheme withMemento \
               -destination "$IOS_SIM_DESTINATION" test
 
           Live FM generation is proven on a physical Apple Intelligence device.

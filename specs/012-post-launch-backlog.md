@@ -5,7 +5,7 @@ tier: P3
 status: parked
 effort: n/a — harvest items into new numbered specs when picked up
 depends_on: []
-findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, structured-logging-platform, self-hosted-runner-migration, multi-device-sync-cloudkit]
+findings: [no-localization, autologout-timestamp-userdefaults, uitests-skipped-in-ci, color-contrast-audit, structured-logging-platform, self-hosted-runner-migration]
 ---
 
 # 012 — Post-Launch Backlog (Parking Lot)
@@ -42,13 +42,13 @@ Low risk (it gates a convenience logout, not data access). Move to Keychain or a
 and document. Effort: trivial; bundle with any future SecurityService work.
 
 ### 3. Re-enable UITests in CI
-`MeetMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
+`withMementoUITests` are `-skip-testing` in merge CI (`ios-build-online.yml`) due to
 self-hosted-runner flakiness. Beta-period crash/regression coverage would benefit from
 at least the launch smoke test running. Investigate simulator stability on the runner.
 
 ### 4. Color-contrast audit
 Theme palette (light + dark) has not been audited against WCAG AA. Fix surface is the
-token definitions in `MeetMemento/Resources/Theme.swift` (single point of change).
+token definitions in `withMemento/Resources/Theme.swift` (single point of change).
 Flagged during spec 008's design; deferred because it may nudge brand colors.
 
 ### 5. ~~Chat response streaming~~ — removed 2026-07-23
@@ -64,6 +64,41 @@ require PrivacyInfo.xcprivacy updates). **2026-07-23:** any such addition now al
 requires going through spec [021](021-monetization-and-store-compliance.md)'s
 `REQ-MON-005` dependency-allowlist governance (the 2.0 allowlist is currently just
 RevenueCat).
+
+**RESOLVED 2026-08-27 for 1.x — Apple-native crash reporting only. No SDK.**
+
+Crash visibility comes from **Xcode Organizer**, **TestFlight**, and the App Store
+Connect crash-rate metric. Apple gathers and symbolicates; **Apple is the collector,
+not us**, so the App Privacy label stays **Data Not Collected**. No code, no package,
+no manifest change. Triage runbook: `docs/app-store/10-release-and-availability.md`
+§7.1.
+
+The weighing this section asked for, done:
+
+| Against a third-party SDK | Evidence |
+|---|---|
+| Breaks the privacy label | 1.x target is Data Not Collected (`docs/app-store/03` §Target); `PrivacyInfo.xcprivacy` ships `NSPrivacyCollectedDataTypes = []`. A collection disclosure lands in the exact category Apple rejected v1.0 on (5.1.2, ITMS-91055) |
+| Fails CI | `specs/dependency-allowlist.txt` runs **enforcing** (`ALLOWLIST_ENFORCE=1`) with an empty resolved third-party set |
+| Not actually required | Nothing in `docs/app-store/00-readiness-checklist.md` asks for a crash SDK. Apple does not require, check for, or reward one — the claim that "App Store reviewers expect production crash handling" (MEM-31) is false |
+
+Accepted costs, both deliberate:
+
+- **Partial coverage.** Organizer only receives reports from users who left Share
+  iPhone Analytics *and* Share With App Developers on. A quiet Organizer means few
+  reports shared, not no crashes.
+- **No log alongside the crash.** `AppLogger` is an `@autoclosure` no-op in release
+  (spec 029 Amendment A), so the crash report is the whole picture. Release logging
+  of journal content is what spec 005 existed to remove.
+
+**To reconsider**, all four are required together: a `REQ-MON-005` decision record in
+spec 021, a `PrivacyInfo.xcprivacy` collected-data entry, an App Privacy label
+change, and a privacy-policy rewrite. **MEM-39** (analytics) and spec
+[042](042-feedback-telemetry-supabase.md) (feedback telemetry) are the same trade —
+revisit all three together or none.
+
+Next step when it is wanted, and it is *not* an SDK: **MetricKit
+`MXCrashDiagnostic`**, captured on-device and shared only at the user's initiative.
+Still no collection, still no label change.
 
 ### 7. ~~Deno handler-level test harness~~ — removed 2026-07-23
 The Deno/edge-function runtime this would test is deleted entirely in Phase 1 of
@@ -91,15 +126,11 @@ chat. This item's adversarial-evaluation work moves into spec 019's Requirements
 (and/or spec [022](022-evaluation-and-quality-study.md)'s adversarial persona-
 adherence pass) rather than staying parked here.
 
-### 10. Multi-device sync conflict resolution — reworded 2026-07-23
-~~Spec 007 ships last-write-wins.~~ Spec 007 is obsolete (superseded by spec
-[015](015-data-layer-swiftdata-cloudkit.md)); its custom last-write-wins queue
-premise no longer applies. 2.0's CloudKit private-DB mirroring (`REQ-DATA-001`)
-handles multi-device sync via CloudKit's native conflict resolution instead —
-verify during spec 015 that CloudKit's native behavior is acceptable for this
-product's needs; if not, revisit with proper conflict handling then. Lower
-urgency than before (CloudKit's mechanism is a reasonable default, not an
-acknowledged gap).
+### 10. ~~Multi-device sync conflict resolution~~ — discharged 2026-08-23
+CloudKit private-DB mirroring uses native last-writer-wins (`REQ-DATA-001`).
+Specs [015](015-data-layer-swiftdata-cloudkit.md) R2 and
+[040](040-ipad-backend-readiness.md) R2 adopt that as the product policy.
+No custom conflict UI. Reopen only if LWW proves insufficient in use.
 
 ### 11. Launch-screen content design
 The 2026-07 merge adopted upstream's spinner + "Starting…" launch loading view over

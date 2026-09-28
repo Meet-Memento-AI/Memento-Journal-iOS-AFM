@@ -22,7 +22,7 @@ The Supabase Swift SDK (v2.5.1+) has been successfully installed and configured 
 
 ### 2. Update Configuration File
 
-Open `MeetMemento/Resources/SupabaseConfig.swift` and replace the placeholder values:
+Open `withMemento/Resources/SupabaseConfig.swift` and replace the placeholder values:
 
 ```swift
 struct SupabaseConfig {

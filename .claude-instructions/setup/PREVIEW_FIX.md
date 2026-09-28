@@ -46,7 +46,7 @@ In Xcode, with your project open:
 ### Step 4: Delete Derived Data Manually
 If Xcode is closed:
 ```bash
-rm -rf ~/Library/Developer/Xcode/DerivedData/MeetMemento-*
+rm -rf ~/Library/Developer/Xcode/DerivedData/withMemento-*
 ```
 
 Then reopen Xcode and build.

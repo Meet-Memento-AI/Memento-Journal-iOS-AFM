@@ -9,7 +9,7 @@
 ### Step 1: Deploy Backend (5 min)
 
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 bash DEPLOY_WEEKLY_QUESTIONS.sh
 ```
 

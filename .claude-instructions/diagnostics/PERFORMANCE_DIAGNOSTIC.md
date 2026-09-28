@@ -8,7 +8,7 @@
 ## Root Cause Analysis
 The issue is NOT just EntryViewModel. There are multiple init() calls happening:
 
-1. MeetMementoApp.swift → @StateObject authViewModel = AuthViewModel()
+1. withMementoApp.swift → @StateObject authViewModel = AuthViewModel()
 2. AuthViewModel.init() → Task { await checkAuthState() }  
 3. checkAuthState() → isLoading = true, network call
 4. When auth is true → ContentView appears

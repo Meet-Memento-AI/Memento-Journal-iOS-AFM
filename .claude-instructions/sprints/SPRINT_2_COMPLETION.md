@@ -2,14 +2,14 @@
 
 ## Overview
 
-Sprint #2 has been successfully implemented, adding fully functional Profile and Appearance settings to the MeetMemento app. Users can now edit their profile information and customize the app's theme.
+Sprint #2 has been successfully implemented, adding fully functional Profile and Appearance settings to the withMemento app. Users can now edit their profile information and customize the app's theme.
 
 ---
 
 ## ✅ What Was Implemented
 
 ### 1. **PreferencesService.swift** (NEW)
-**Location:** `MeetMemento/Services/PreferencesService.swift`
+**Location:** `withMemento/Services/PreferencesService.swift`
 
 **Purpose:** Centralized service for managing user preferences using UserDefaults
 
@@ -43,7 +43,7 @@ public class PreferencesService {
 ---
 
 ### 2. **ProfileSettingsView.swift** (NEW)
-**Location:** `MeetMemento/Views/Settings/ProfileSettingsView.swift`
+**Location:** `withMemento/Views/Settings/ProfileSettingsView.swift`
 
 **Purpose:** Allow users to edit their first and last name
 
@@ -70,7 +70,7 @@ public class PreferencesService {
 ---
 
 ### 3. **AppearanceSettingsView.swift** (NEW)
-**Location:** `MeetMemento/Views/Settings/AppearanceSettingsView.swift`
+**Location:** `withMemento/Views/Settings/AppearanceSettingsView.swift`
 
 **Purpose:** Customize app theme (System/Light/Dark)
 
@@ -94,7 +94,7 @@ public class PreferencesService {
 ---
 
 ### 4. **Theme.swift** (UPDATED)
-**Location:** `MeetMemento/Resources/Theme.swift`
+**Location:** `withMemento/Resources/Theme.swift`
 
 **Purpose:** ThemeProvider now respects user's theme preference
 
@@ -150,7 +150,7 @@ struct ThemeProvider: ViewModifier {
 ---
 
 ### 5. **ContentView.swift** (UPDATED)
-**Location:** `MeetMemento/ContentView.swift`
+**Location:** `withMemento/ContentView.swift`
 
 **Purpose:** Added navigation routes for Profile and Appearance settings
 
@@ -181,7 +181,7 @@ public enum SettingsRoute: Hashable {
 ---
 
 ### 6. **SettingsView.swift** (UPDATED)
-**Location:** `MeetMemento/Views/Settings/SettingsView.swift`
+**Location:** `withMemento/Views/Settings/SettingsView.swift`
 
 **Purpose:** Updated to navigate to actual settings views instead of showing "Coming Soon" alerts
 

@@ -26,7 +26,7 @@ Questions are automatically generated in the background when:
 
 ## Files Created
 
-### 1. `MeetMemento/Services/QuestionGenerationTracker.swift`
+### 1. `withMemento/Services/QuestionGenerationTracker.swift`
 
 **Purpose**: Tracks question generation state using timestamps (not counters)
 

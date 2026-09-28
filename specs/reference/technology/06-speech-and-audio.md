@@ -157,14 +157,36 @@ SDK evidence: every `AVSpeechUtterance` initializer takes complete input — `in
 
 This single fact determines Memento's interaction model:
 
-| Surface | Streams? | Speakable? | Why |
-|---|---|---|---|
-| **Ask (chat)** | Yes — snapshot streaming | **No** | Can't synthesize a token stream |
-| **Weekly / monthly reflection** | **No** — arrives complete | **Yes** | Full text exists before playback |
+| Surface | Streams? | Speakable on `AVSpeechSynthesizer`? | Speakable on the neural path? | Why |
+|---|---|---|---|---|
+| **Ask (chat)** | Yes — snapshot streaming | **Only post-stream** | **Yes, mid-stream** | System voice needs the complete message; a local engine takes text per chunk |
+| **Weekly / monthly reflection** | **No** — arrives complete | **Yes** | **Yes** | Full text exists before playback either way |
 
-Do not try to defeat this by adding a third-party streaming TTS SDK (Picovoice Orca and similar exist). That would violate the single-dependency rule, add binary weight, and — depending on the vendor — puncture the privacy story. The constraint is telling you where the feature belongs. Listen to it.
+> **Amended 2026-08-18 (specs 030–036).** The table's chat row used to read
+> "Speakable? **No**". That has been false in shipped code since
+> `StreamingSentenceChunker` landed: chat is narrated sentence-by-sentence as the
+> reply streams, by feeding the synthesizer complete *sentences* rather than a
+> complete *message*. The constraint above is real and unchanged — it is simply
+> narrower than the table claimed.
+>
+> **The paragraph that stood here — "Do not try to defeat this by adding a
+> third-party streaming TTS SDK… would violate the single-dependency rule, add
+> binary weight, and — depending on the vendor — puncture the privacy story" — is
+> withdrawn.** Two of its three reasons were proxies for the third, and the third
+> was conditional ("depending on the vendor") while the rule was absolute. Written
+> as a vendor rule, it forbade the one category of engine that satisfies the
+> privacy concern *completely*: a fully-local one that makes no network call at
+> all. The replacement test is stated directly, as `REQ-TTS-001`:
+>
+> **Synthesis runs entirely on-device. Zero network calls at synthesis, model
+> load, or voice selection. License-cleared and on the dependency allowlist. Cloud
+> and hybrid TTS remain forbidden.**
+>
+> Binary weight and dependency count remain real costs — they are now weighed,
+> not used as stand-ins for a privacy argument. See `13-neural-tts-coreml.md`, and
+> `018` R7 (rewritten) / R12 (licensing gate).
 
-A secondary benefit: a reflection that assembles itself word-by-word reads as a chatbot. Arriving complete reads as a considered observation. The technical constraint and the design intent agree.
+A secondary benefit that survives all of the above: a reflection that assembles itself word-by-word reads as a chatbot. Arriving complete reads as a considered observation. The technical constraint and the design intent agree — and note that this is an argument about *reflections*, which is why the neural path's mid-stream capability is spent on conversation rather than on making reflections trickle.
 
 ## B2. System voices
 
@@ -183,6 +205,16 @@ synthesizer.speak(utterance)
 Use **Enhanced or Premium** voices, not the default compact ones — the quality gap is large and the default voice will make the feature feel cheap. These require a user download; surface that in Settings with a clear prompt rather than failing silently to a robotic voice.
 
 Enumerate with `AVSpeechSynthesisVoice.speechVoices()` and filter by quality.
+
+> **Amended 2026-08-18 (`DEC-011`).** This section now describes the **fallback**
+> path, not the product's voice. Spec `033` replaces the system-voice picker with
+> the neural catalog, so users no longer choose an `AVSpeechSynthesisVoice` — but
+> the app still resolves one, and the ranking above still governs which. The part
+> that changes is the *prompt*: telling a user to go download an Enhanced voice
+> made sense when it was the voice they'd hear forever; it makes no sense as
+> guidance for a transient fallback. Selection logic stays, download-nag copy goes.
+> `AVSpeechSynthesisVoice.speechVoices()` is expensive and must stay off the main
+> thread (`029` R8).
 
 ## B3. Personal Voice — the differentiator
 
@@ -221,9 +253,13 @@ The user trains it once in Settings by reading roughly 150 phrases (~15 minutes)
 3. Default to Enhanced/Premium system voices for everyone else.
 4. 🔴 **Verify App Review posture.** Personal Voice was introduced as an accessibility feature. Confirm that non-accessibility use in a journaling app is permitted before building the flow. This is a real risk, not a formality.
 
-## B4. Caching
+## B4. Caching — **retired 2026-08-18, never implemented**
 
-Render each `Reflection` to an audio file once and store the reference in `Reflection.audioAssetID`. Replay is then instant and does not re-synthesize. Invalidate if the voice selection changes.
+~~Render each `Reflection` to an audio file once and store the reference in `Reflection.audioAssetID`. Replay is then instant and does not re-synthesize. Invalidate if the voice selection changes.~~
+
+The design above was never built, and the neural path removes its premise. The expensive part of speech was never synthesis — it was **model load and first-utterance latency**, which a cache of finished audio does nothing about and which warm-up (`031` R3) addresses directly. Meanwhile a cache invalidated on every voice change is coldest exactly when a user is auditioning voices, which is the one moment they are paying attention to how fast it starts.
+
+`REQ-VOX-004` is retired and `Reflection.audioAssetID` is not to be populated; the verdict is recorded in `018` R7. Reviving it requires a measurement showing a warm engine is too slow — not the assumption that it might be.
 
 ## B5. Playback must behave like an audio app
 
@@ -237,6 +273,15 @@ The intended use is listening to a Sunday reflection on a walk. That means:
 - Correct interaction with other audio (ducking vs interrupting)
 
 A "play" button that produces sound but doesn't appear on the lock screen is a half-built feature. Users will start it and lock their phone within five seconds.
+
+> **Amended 2026-08-18 — the duration exception is lifted on the neural path.**
+> The shipped implementation publishes a title but no duration or elapsed time,
+> because `AVSpeechSynthesizer` exposes no natural duration and an estimated
+> scrubber would lie. That reasoning is correct **for that class**. A rendered
+> `AVAudioPCMBuffer` carries an exact frame count, so on the neural path duration
+> is a fact, not an estimate, and the honest scrubber this section asks for
+> becomes buildable. Keep the no-duration behavior on the fallback path — there
+> the original argument still holds. See `13-neural-tts-coreml.md` §4 and `018` R7.
 
 ## B6. Speakability — enforced, not aspirational
 

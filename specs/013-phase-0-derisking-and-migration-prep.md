@@ -2,7 +2,7 @@
 id: 013
 title: Phase 0 — De-risking Spikes and Migration Prep
 tier: P0
-status: in-progress (2026-07-23)
+status: DEC-002 written 2026-08-19 — Plan B (not hidden). Gate α device UI + recall@5 still pending
 effort: 2 sessions
 depends_on: []
 findings: [dec-002-spotlight-visibility, pcc-application-lead-time, journaling-suggestions-entitlement, fixture-corpus-missing, spike-a-spotlight-retrieval, spike-b-reflection-quality, legacy-spec-reaudit]
@@ -50,7 +50,7 @@ prevent.
 | 2 | No fixture corpus exists for retrieval evaluation | no `≥250 entries / ≥8 months / ≥40 gold questions` fixture set found anywhere in the repo | Blocking — REQ-IDX-010's recall@5 gate cannot be measured without one |
 | 3 | Journaling Suggestions entitlement not requested | no evidence of a filed request; `REQ-CAP-009` requires filing "in week 1" | Time-sensitive — Apple review lead time is unknown and must be measured |
 | 4 | PCC / Small Business Program eligibility unconfirmed | no evidence of enrollment or application in the repo or given context | Blocking — Phase 2's Z1 routing has no fallback if PCC access is denied |
-| 5 | `DEC-002` (system-search visibility) is unresolved | flagged P0-blocking in the source document itself, §6.3 and §15 | Blocking — the entire retrieval architecture (§6) depends on the answer |
+| 5 | `DEC-002` (system-search visibility) | **WRITTEN 2026-08-19 — not hidden / Plan B.** `SearchSource` has only `.coreSpotlight` and `.files`. `CoreSpotlightSource` has no named-index, `CSSearchableIndex`, or protection-class parameter (`technology/03` §2, V-queue V1 SDK note). Default indexing is opt-in off (`REQ-IDX-006`); retrieval is `EntryRetriever` (`REQ-IDX-007`). Physical Gate α (system Spotlight UI + recall@5) still to be recorded; it cannot invent a hiding API the SDK lacks. | Blocking — closed as Plan B |
 
 ## Requirements
 
@@ -282,7 +282,7 @@ made and already reflected in each spec's front-matter/body:
 ## Tasks
 - [ ] 1. Investigate and resolve `DEC-002` (R1); record verdict and cite sources.
       **Spike C harness built + automatable half run 2026-07-26**
-      (`MeetMementoTests/SpikeC_NamedIndexVisibilityTests.swift`, env-gated
+      (`withMementoTests/SpikeC_NamedIndexVisibilityTests.swift`, env-gated
       `TEST_RUNNER_SPIKE_C=1`; manual device steps documented in the file
       header). Simulator result: a sentinel donated to
       `CSSearchableIndex(name: "memento-spike-c")` **is retrievable by
@@ -300,7 +300,7 @@ made and already reflected in each spec's front-matter/body:
       2026-07-23** — 262 entries, 45 gold questions, `validate_corpus.py`
       passing.
 - [ ] 3. Run Spike A (Spotlight donation + retrieval) and record recall@5 (R2).
-      **Simulator half done 2026-07-26** — `MeetMementoTests/SpikeA_SpotlightRecallTests.swift`
+      **Simulator half done 2026-07-26** — `withMementoTests/SpikeA_SpotlightRecallTests.swift`
       (env-gated: `TEST_RUNNER_SPIKE_A=1` + `TEST_RUNNER_SPIKE_A_FIXTURES=<path>`;
       never runs in normal suites). Full 262-entry corpus donated to Core
       Spotlight on the iOS 27.0 simulator; all 45 resolved gold questions run

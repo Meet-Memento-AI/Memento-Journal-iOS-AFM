@@ -1,0 +1,122 @@
+{
+  "questions": [
+    {
+      "id": "cs-q-01",
+      "category": "literal",
+      "query": "What did I write about pottery?",
+      "expectedEntryIDs": [
+        "cs-01"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-02",
+      "category": "literal",
+      "query": "What happened with Dario?",
+      "expectedEntryIDs": [
+        "cs-02"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-03",
+      "category": "literal",
+      "query": "What did I say about Nonna?",
+      "expectedEntryIDs": [
+        "cs-06"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-04",
+      "category": "vocabulary",
+      "query": "How have I been sleeping?",
+      "expectedEntryIDs": [
+        "cs-03"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-05",
+      "category": "synonym",
+      "query": "How is work going?",
+      "expectedEntryIDs": [
+        "cs-05"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-06",
+      "category": "synonym",
+      "query": "Have I been exercising at all?",
+      "expectedEntryIDs": [
+        "cs-07"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-07",
+      "category": "coverage",
+      "query": "How did the pottery wheel and the glaze go?",
+      "expectedEntryIDs": [
+        "cs-01"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-08",
+      "category": "coverage",
+      "query": "Did my knee hold up on those runs?",
+      "expectedEntryIDs": [
+        "cs-07"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-09",
+      "category": "coverage",
+      "query": "What did the fog on the headland feel like?",
+      "expectedEntryIDs": [
+        "cs-04"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-10",
+      "category": "coverage",
+      "query": "How did the Atlas deadline land with everyone?",
+      "expectedEntryIDs": [
+        "cs-05"
+      ],
+      "match": "any"
+    },
+    {
+      "id": "cs-q-11",
+      "category": "abstain",
+      "query": "What color is my bicycle?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "cs-q-12",
+      "category": "abstain",
+      "query": "What did I write about scuba diving?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "cs-q-13",
+      "category": "abstain",
+      "query": "When did I go to Japan?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    },
+    {
+      "id": "cs-q-14",
+      "category": "abstain",
+      "query": "What is my dog's name?",
+      "expectedEntryIDs": [],
+      "match": "none"
+    }
+  ]
+}

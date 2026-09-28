@@ -2,7 +2,7 @@
 id: 016
 title: Indexing and Retrieval — Core Spotlight
 tier: P0
-status: in-progress (2026-07-24) — Requirements derived with both DEC-002 branches; implementation gated on spec 013 Spike A/C (Xcode 27 beta + real device)
+status: in-progress (2026-08-19) — **Branch B** per spec 013 DEC-002 (2026-08-19): not hidden; opt-in donation default off; `EntryRetriever` is the Ask/Find path
 effort: 2 sessions
 depends_on: [013, 014, 015]
 findings: [dec-002-dual-branch-requirements, donation-pipeline-contracts, fallback-retrieval-tool, guidance-profile-split, recall-gate-automation, index-readiness-degradation]
@@ -11,6 +11,8 @@ tech_refs: [technology/03-spotlight-retrieval.md]
 ---
 
 # 016 — Indexing and Retrieval: Core Spotlight
+
+**Branch declaration (spec 016 R1):** Branch B per spec 013 verdict of 2026-08-19 (`DEC-002` = not hidden). Named-index hiding is not available on `SpotlightSearchTool`. Donation is opt-in (`IndexingPreferences.spotlightOptIn`, default false). Retrieval is `EntryRetriever` (`REQ-IDX-007`). `IndexedEntity` follows the same opt-in.
 
 **Traceability:** derives from `specs/reference/memento-2.0-architecture-spec.md`
 §6 "Indexing and retrieval" in full. Supersedes spec
@@ -38,7 +40,7 @@ donation.
 
 ## Current State (evidence)
 
-No Core Spotlight or App Intents integration exists anywhere in `MeetMemento/`
+No Core Spotlight or App Intents integration exists anywhere in `withMemento/`
 (confirmed 2026-07-23) — this is fully greenfield. Spec 013's Spike A is a
 throwaway prototype; this spec builds the real, incremental-on-save/delete
 pipeline.
@@ -130,6 +132,8 @@ class EntryIndexDelegate: NSObject, CSSearchableIndexDelegate {
   in the same transaction boundary as the SwiftData write (spec 015's
   `indexState` is the record of whether that happened). A full-reindex path
   MUST exist and be triggerable from Settings ("Rebuild search index").
+  **Inbound CloudKit rows** (spec 040) MUST be re-donated on this device —
+  Spotlight is Z0 and does not replicate.
 - **Index target is branch-dependent and verify-first:** Branch A's leading
   mechanism is a named index (`CSSearchableIndex(name: "memento-entries")`)
   rather than `.default()` — 🔴 unverified that `SpotlightSearchTool` can

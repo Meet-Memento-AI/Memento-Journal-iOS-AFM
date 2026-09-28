@@ -128,8 +128,9 @@ This is REQ-PRIV-001 and it is absolute. An agent adding "just a topic tag for c
 - ❌ "No network calls"
 - ❌ "Turn on airplane mode and everything still works"
 - ❌ "There is no server"
+- ❌ "100% on-device" (CloudKit private-DB replica is enabled)
 
-These are Slate's claims and they are true *for Slate*. If Memento uses PCC, they are false for Memento. Overstating the trust boundary is an existential brand risk — the kind of thing that gets an indie app torched publicly, permanently, in the exact community that would otherwise be its advocates.
+These are Slate's claims and they are true *for Slate*. If Memento uses PCC or CloudKit mirroring, they are false for Memento. Overstating the trust boundary is an existential brand risk — the kind of thing that gets an indie app torched publicly, permanently, in the exact community that would otherwise be its advocates. iCloud replica is the user's private DB, not a Memento account.
 
 **Note the strategic wrinkle:** if the forced-degradation cohort in the 30-day study (`04-evaluations.md` Gate 5) shows Z0-only satisfaction is close to Z1, Memento *could* ship on-device-only and make the absolute claim. That would be a major finding and it must be evaluated **before** marketing copy is locked, not after.
 

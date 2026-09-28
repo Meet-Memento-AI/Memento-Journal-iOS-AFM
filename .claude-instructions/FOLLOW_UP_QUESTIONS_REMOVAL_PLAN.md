@@ -23,7 +23,7 @@ After pivoting to show InsightsView (themes/summaries) instead of DigDeeperView 
 
 ### 1. ViewModels (2 files)
 ```
-MeetMemento/ViewModels/
+withMemento/ViewModels/
 ├─ GeneratedQuestionsViewModel.swift  ❌ DELETE
 └─ QuestionGenerationTracker.swift    ❌ DELETE (if exists - check first)
 ```
@@ -34,7 +34,7 @@ MeetMemento/ViewModels/
 
 ### 2. Models (2 files)
 ```
-MeetMemento/Models/
+withMemento/Models/
 ├─ GeneratedFollowUpQuestion.swift  ❌ DELETE
 └─ FollowUpQuestion.swift          ❌ DELETE
 ```
@@ -47,7 +47,7 @@ MeetMemento/Models/
 
 ### 3. Services (1-2 files)
 ```
-MeetMemento/Services/
+withMemento/Services/
 ├─ SupabaseService+FollowUpQuestions.swift  ❌ DELETE
 └─ QuestionGenerationTracker.swift          ❌ DELETE (if exists)
 ```
@@ -58,11 +58,11 @@ MeetMemento/Services/
 
 ### 4. UI Components (3 files)
 ```
-MeetMemento/Components/Cards/
+withMemento/Components/Cards/
 ├─ FollowUpCard.swift          ❌ DELETE
 └─ FollowUpQuestionCard.swift  ❌ DELETE
 
-MeetMemento/Views/Journal/
+withMemento/Views/Journal/
 └─ JournalCreatedView.swift    ❌ DELETE
 ```
 
@@ -75,7 +75,7 @@ MeetMemento/Views/Journal/
 
 ### 5. Archived Views (1 file)
 ```
-MeetMemento/Views/Journal/
+withMemento/Views/Journal/
 └─ DigDeeperView.swift.backup  ❌ DELETE
 ```
 
@@ -353,26 +353,26 @@ git checkout Memento-v1.0
 ### Phase 2: Delete Files (10 minutes)
 
 ```bash
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 
 # ViewModels
-git rm MeetMemento/ViewModels/GeneratedQuestionsViewModel.swift
-git rm MeetMemento/ViewModels/QuestionGenerationTracker.swift  # if exists
+git rm withMemento/ViewModels/GeneratedQuestionsViewModel.swift
+git rm withMemento/ViewModels/QuestionGenerationTracker.swift  # if exists
 
 # Models
-git rm MeetMemento/Models/GeneratedFollowUpQuestion.swift
-git rm MeetMemento/Models/FollowUpQuestion.swift
+git rm withMemento/Models/GeneratedFollowUpQuestion.swift
+git rm withMemento/Models/FollowUpQuestion.swift
 
 # Services
-git rm MeetMemento/Services/SupabaseService+FollowUpQuestions.swift
+git rm withMemento/Services/SupabaseService+FollowUpQuestions.swift
 
 # UI Components
-git rm MeetMemento/Components/Cards/FollowUpCard.swift
-git rm MeetMemento/Components/Cards/FollowUpQuestionCard.swift
-git rm MeetMemento/Views/Journal/JournalCreatedView.swift
+git rm withMemento/Components/Cards/FollowUpCard.swift
+git rm withMemento/Components/Cards/FollowUpQuestionCard.swift
+git rm withMemento/Views/Journal/JournalCreatedView.swift
 
 # Archived view
-git rm MeetMemento/Views/Journal/DigDeeperView.swift.backup
+git rm withMemento/Views/Journal/DigDeeperView.swift.backup
 
 # Edge functions
 git rm -r supabase/functions/generate-follow-up
@@ -428,10 +428,10 @@ git mv .claude-instructions/implementations/CONTINUOUS_QUESTIONS_IMPLEMENTATION.
 xcodebuild clean
 
 # Build project
-xcodebuild -scheme MeetMemento -destination 'generic/platform=iOS' build
+xcodebuild -scheme withMemento -destination 'generic/platform=iOS' build
 
 # Run tests (if you have any)
-xcodebuild test -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
+xcodebuild test -scheme withMemento -destination 'platform=iOS Simulator,name=iPhone 15 Pro'
 
 # Manual testing checklist:
 # [ ] App launches without crashes

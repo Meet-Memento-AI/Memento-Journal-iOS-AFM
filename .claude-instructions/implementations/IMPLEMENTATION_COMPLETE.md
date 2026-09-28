@@ -113,7 +113,7 @@ Button("Generate Questions") {
 export JWT_TOKEN="paste_token_here"
 
 # Run test script
-cd /Users/sebastianmendo/Swift-projects/MeetMemento
+cd /Users/sebastianmendo/Swift-projects/withMemento
 bash TEST_QUESTIONS.sh
 ```
 
@@ -196,7 +196,7 @@ After generating questions:
 1. Open Xcode project
 2. Drag the 3 files from Finder into project navigator
 3. ✅ "Copy items if needed"
-4. ✅ "Add to target: MeetMemento"
+4. ✅ "Add to target: withMemento"
 
 ### Build Error: "Value of type 'SupabaseService' has no member 'fetchCurrentWeekQuestions'"
 **Solution:** `SupabaseService+FollowUpQuestions.swift` not added to Xcode

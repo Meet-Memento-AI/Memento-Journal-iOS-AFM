@@ -17,7 +17,7 @@ builds, several logging **user ids and emails** to the device console
 (readable via Console.app / sysdiagnose by anyone with the device). For a
 privacy-positioned journaling app this is both a real PII leak and a bad look in App
 Review. The fix is mechanical because the right tool already exists:
-`AppLogger` (`MeetMemento/Utils/Logger.swift`) is DEBUG-gated. Blocks **Gate 2**.
+`AppLogger` (`withMemento/Utils/Logger.swift`) is DEBUG-gated. Blocks **Gate 2**.
 
 ## Current State (evidence)
 
@@ -25,17 +25,17 @@ Review. The fix is mechanical because the right tool already exists:
 
 | # | Problem | Evidence | Severity |
 |---|---------|----------|----------|
-| 1 | `AuthViewModel` — 15 unguarded prints including PII: `Session Restored: \(session.user.id)` and similar at `:135,:293,:336`. | `MeetMemento/ViewModels/AuthViewModel.swift` | HIGH |
-| 2 | `UserService` logs user **emails** unguarded at `:62,:90,:111`. | `MeetMemento/Services/UserService.swift` | HIGH |
+| 1 | `AuthViewModel` — 15 unguarded prints including PII: `Session Restored: \(session.user.id)` and similar at `:135,:293,:336`. | `withMemento/ViewModels/AuthViewModel.swift` | HIGH |
+| 2 | `UserService` logs user **emails** unguarded at `:62,:90,:111`. | `withMemento/Services/UserService.swift` | HIGH |
 | 3 | Unguarded prints in security-sensitive code: `SecurityService.swift:111,139`, `EncryptionService.swift:55-177`. | those files | MEDIUM |
-| 4 | `MeetMementoApp.swift:40` — `let _ = { print("🔴 MeetMementoApp body evaluated") }()` runs on **every body evaluation** in release; also `:109` watchdog print; `LaunchLoadingView.swift:52` failsafe print. | app entry | MEDIUM |
-| 5 | ~20 Components/Views files with unguarded prints (`DrawerMenuView`, `TopNavHeader`, `AIChatFooter`, `ThemeTag`, `ListeningPanel`, …). | `MeetMemento/Components/`, `Views/` | LOW |
-| 6 | Good pattern exists but is inconsistently applied: some files wrap in `#if DEBUG` (`ChatService.swift:109-112`, `JournalService.swift:45-48`); `AppLogger` in `MeetMemento/Utils/Logger.swift` is the canonical tool. | reference implementations | — |
+| 4 | `withMementoApp.swift:40` — `let _ = { print("🔴 withMementoApp body evaluated") }()` runs on **every body evaluation** in release; also `:109` watchdog print; `LaunchLoadingView.swift:52` failsafe print. | app entry | MEDIUM |
+| 5 | ~20 Components/Views files with unguarded prints (`DrawerMenuView`, `TopNavHeader`, `AIChatFooter`, `ThemeTag`, `ListeningPanel`, …). | `withMemento/Components/`, `Views/` | LOW |
+| 6 | Good pattern exists but is inconsistently applied: some files wrap in `#if DEBUG` (`ChatService.swift:109-112`, `JournalService.swift:45-48`); `AppLogger` in `withMemento/Utils/Logger.swift` is the canonical tool. | reference implementations | — |
 
 ## Requirements
 
 ### R1. Zero raw `print()` in the shipping app target
-**Acceptance:** `grep -rn "print(" MeetMemento/ --include="*.swift"` returns zero hits
+**Acceptance:** `grep -rn "print(" withMemento/ --include="*.swift"` returns zero hits
 in shipping code (test targets and `#Preview` bodies excluded); everything worth
 keeping is migrated to `AppLogger` calls; worthless debug noise is deleted outright
 (prefer deletion — most of the 208 are stale).
@@ -48,7 +48,7 @@ hash (e.g. first 8 chars of SHA256(user id)). Grep audit for `user.id`, `email`,
 
 ### R3. Regression prevented by lint
 **Acceptance:** `.swiftlint.yml` gains a `custom_rules` entry (or enables
-`no_print` equivalent) that flags `print(` in `MeetMemento/` as an **error**;
+`no_print` equivalent) that flags `print(` in `withMemento/` as an **error**;
 CI's SwiftLint step fails on new prints. (If SwiftLint remains advisory in CI, that
 gap is spec 006's — the rule still lands here.)
 
@@ -86,7 +86,7 @@ gap is spec 006's — the rule still lands here.)
 
 - [x] 1. Inventory generated (189 sites). (R1)
 - [x] 2. ViewModels + Services swept, PII stripped. (R1/R2)
-- [x] 3. App entry swept — `MeetMementoApp.swift` body-evaluation print deleted;
+- [x] 3. App entry swept — `withMementoApp.swift` body-evaluation print deleted;
       `LaunchLoadingView` failsafe print migrated. (R1)
 - [x] 4. Components/Views swept. (R1)
 - [x] 5. `#if DEBUG print` blocks collapsed to `AppLogger`. (R1)
@@ -97,7 +97,7 @@ gap is spec 006's — the rule still lands here.)
 
 ## Verification
 
-- [x] `grep -rn "print(" MeetMemento/ --include="*.swift"` → 1 (only `Utils/Logger.swift`,
+- [x] `grep -rn "print(" withMemento/ --include="*.swift"` → 1 (only `Utils/Logger.swift`,
       the canonical sink). ✅
 - [x] Grep PII audit: no `AppLogger.log` call contains `email`, full `user.id`/`currentUserId`,
       `session.title`, `jsonString`, token, or entry content. ✅

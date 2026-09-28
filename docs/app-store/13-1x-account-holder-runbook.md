@@ -1,0 +1,216 @@
+# 13 — 1.x Account Holder runbook (Gate S)
+
+**Prepared 2026-08-17.** Agent-closable work (legal Pages, pending-sync
+removal, in-app URLs, review-notes copy) is in the repo. Everything below
+requires the **Account Holder** signed into developer.apple.com or App Store
+Connect. Do these in order. Do not file Small Business Program or Private
+Cloud Compute for this 1.x submit.
+
+**Legal host (A6, done):** `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/`
+
+Confirm with the gate, not by hand:
+
+```sh
+bash scripts/ci/check_live_legal_urls.sh
+```
+
+**Updated 2026-09-12.** This used to be a hand-rolled `curl | grep -ioE
+'openai|supabase|gemini'` with the instruction "privacy must print the
+empty-grep line." That is now **wrong**: spec 042 deliberately added a Supabase
+disclosure, so the correct page fails that grep. The script checks both
+directions instead — no third-party AI backend named, *and* the opt-in egress
+actually disclosed — plus that Pages serves this repo's copy byte-for-byte,
+which is the A6 root cause. Verified passing 2026-09-12.
+
+---
+
+## A — Apple's clock
+
+### A0 — Make the build Mac able to build (blocks everything)
+
+```sh
+sudo xcodebuild -license accept
+xcodebuild -version   # expect 26.x
+xcodebuild -project withMemento.xcodeproj -scheme withMemento -showdestinations
+```
+
+**Found 2026-09-17: the third command returns ZERO available destinations.**
+Xcode is 26.6 (17F113) with the iOS **26.5** SDK, but the **iOS 26.5 platform
+component is not downloaded**, so `Any iOS Device` and the physical iPhone both
+report *"iOS 26.5 is not installed"*, and the installed simulator runtimes
+(26.0, 27.0) are not offered to this Xcode. Nothing archives, nothing tests,
+nothing runs.
+
+**Fix:** Xcode → Settings → **Components** → download **iOS 26.5**. Re-run
+`-showdestinations` and confirm real destinations come back *before* archiving.
+
+Do **not** work around this with `~/Downloads/Xcode-beta.app` — that is **Xcode
+27.0 beta (27A5228h)**, and Apple does not accept App Store builds made with
+beta software. It is fine for local iteration and useless for the submission.
+See checklist C2/C3/C3a.
+
+**Found 2026-09-12.** `/Applications/Xcode.app` (26.6, 17F113) had an unaccepted
+licence, and that blocks far more than archiving: `git`, `xcodebuild`, and
+`simctl` all refuse to run through it, because the command-line shims check the
+licence first. Nothing local — build, test, or archive — works until this is
+done. It is not on Apple's clock, but it is the first gate in the chain.
+
+### A1 — Program License Agreement
+
+1. Open [developer.apple.com/account](https://developer.apple.com/account).
+2. Accept the current **Apple Developer Program License Agreement** if a banner
+   is waiting. Archive signing has been blocked on this since 2026-07-13.
+
+### A2 — Price path (pick one; 1.x has no IAP)
+
+| Path | What to do | When you can go on sale |
+|---|---|---|
+| **Free, no IAP** (unblocks fastest) | Pricing and Availability → Price = Free. Skip Paid Apps Agreement. | After App Review + manual release |
+| **Paid download, no IAP** | Business → Agreements → **Paid Apps Agreement**, then tax (W-9 or W-8BEN) and banking. Then set the price tier. | Not until tax + banking are Active |
+
+Do **not** add a subscription or RevenueCat for 1.x.
+
+### A3 / A4 — Skip for 1.x
+
+Small Business Program and Private Cloud Compute filings are for Memento 2.0
+(Z1). This binary is on-device Foundation Models only.
+
+### A5 — EU DSA trader (1.x default: deselect EU)
+
+Individual enrollment **publishes your address and phone** on EU product pages.
+
+**1.x default:** App Store Connect → Pricing and Availability → App Availability
+→ deselect all **27 EU territories**. Mainland China stays excluded (ICP).
+This is reversible later without a resubmission.
+
+If you instead want the EU live: Business → Agreements → Compliance → Digital
+Services Act, complete trader verification, then include the 27.
+
+You still must **answer** the trader question at account level even if the EU is
+off the storefront.
+
+### A6 — GitHub Pages
+
+Enabled 2026-08-17 on `Meet-Memento-AI/Memento-Journal-iOS-AFM`, source `main`
+→ `/docs`. No further Settings click unless the four URLs above are not 200.
+
+### A7 — Age rating (expect 9+)
+
+App Store Connect → App Information → Age Rating. Worked answers from `05`:
+
+| Category | Answer |
+|---|---|
+| Parental controls / content filters | No |
+| User-generated content (public) | No — private, on-device, single-user |
+| Messaging / strangers | No |
+| Web browsing / `WKWebView` | No |
+| Advertising | No |
+| Location sharing | No |
+| Social media | **No** (this is also A8) |
+| Mature themes / sexuality / violence / chance | None |
+| Medical or Wellness | **Health and wellness topics** (9+). Not treatment information. |
+
+### A8 — Social-media capability
+
+**No.** Required to submit from September 2026.
+
+---
+
+## D — App Store Connect record (paste)
+
+Bundle ID `com.sebmendo.withMementoAI` — ⚠️ a **new** record; the old
+`com.sebastianmendo.MeetMemento` / App Apple ID `6754416850` listing is not
+reusable after the rename (see `02-app-store-connect-record.md`). App Apple ID is
+assigned when the new record is created.
+Display name **Memento**. Version **1.0**, build must be **≥ 3**.
+
+| Field | Value |
+|---|---|
+| D1 Privacy Policy URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html` |
+| D2 Support URL | `https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/support.html` |
+| D3 Support email | `hello@withmemento.ai` |
+| D4 Primary category | **Lifestyle**. Secondary: Productivity. Never Health & Fitness or Medical |
+| D5 Copyright | `2026 Sebastian Mendoza` (no ©). Content Rights: No third-party content. License: Apple's standard EULA |
+| D6 App Privacy | Tracking = **No**. Declare **Other User Content**, **Other Data Types**, **User ID** (linked, not tracking; App Functionality + Analytics) for opt-in quality feedback (spec 042). Journal is not collected. CloudKit private DB is the user’s iCloud, not our collection. Match `PrivacyInfo.xcprivacy` and live `privacy.html`. **Not** Data Not Collected |
+| D7 Review contact | Name + phone (you). Email: `hello@withmemento.ai`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
+| D8 Metadata | Paste `metadata/en-US/{name,subtitle,keywords,promotional_text,description,release_notes}.txt` |
+| D9 Screenshots | **iPhone 6.9″ 1320×2868** and **iPad 13″ 2064×2752** (iPad is mandatory; `TARGETED_DEVICE_FAMILY = 1,2`) |
+| D10 Price | From A2. Tax category required if paid |
+| D11 Territories | All except mainland China and (unless A5 trader is done) the 27 EU |
+| D12 Release | **Manually release this version** |
+
+### C8 App Icon
+
+**Skip dark/tinted variants for 1.x.** Light 1024 PNG is valid.
+
+### Screenshot set (minimum)
+
+On an Apple Intelligence iPhone, Appearance Light, then repeat iPad 13″:
+
+1. Journal with sample entries
+2. New entry (text or voice)
+3. Chat reply with a citation
+4. Profile / Settings (Load Sample Entries visible is fine)
+5. Optional lock screen
+
+Export PNG at the exact pixel sizes above. No device chrome required if using
+Xcode's screenshot sizes; do not put price or competitor names on the shots.
+
+### D6 privacy label clicks
+
+App Privacy → **Does this app collect data?** → **Yes** (spec 042). Tracking =
+**No**. Do **not** choose Data Not Collected.
+
+Declare these types, each **linked to the user**, **not used for tracking**,
+purposes **App Functionality** and **Analytics**:
+
+- Other User Content
+- Other Data Types
+- User ID
+
+Journal entries, chat history, and the CloudKit private replica are **not**
+our collection — CloudKit is the user’s iCloud. Do not declare Email, Name,
+or purchased data. Match `PrivacyInfo.xcprivacy` and the live privacy policy.
+
+---
+
+## Archive (after A1)
+
+Xcode **26 GA** (not 27 beta). Scheme withMemento, Release, generic iOS.
+
+```sh
+xcodebuild -version   # expect 26.x
+xcodebuild \
+  -project withMemento.xcodeproj \
+  -scheme withMemento \
+  -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath build/withMemento.xcarchive \
+  archive
+```
+
+Then Organizer → Distribute App → App Store Connect → Upload, or
+`xcodebuild -exportArchive` + `xcrun altool --validate-app` per `07`.
+
+**Evidence 2026-08-17:** `xcodebuild -version` → **Xcode 26.0.1 (17A400)**.
+`xcodebuild … archive` → **ARCHIVE SUCCEEDED** at `build/withMemento.xcarchive`.
+Product contains no `.xcconfig`, `.storekit`, or `.md` files.
+
+**Export is blocked on signing, not the binary.**
+`xcodebuild -exportArchive` failed with:
+
+> Provisioning profile "iOS Team Store Provisioning Profile: com.sebastianmendo.MeetMemento" doesn't include signing certificate "Apple Distribution: Sebastian Mendo (F3NM4HTMW8)".
+
+That is the A1 / certificate-refresh step: accept the Program License Agreement, then in Xcode → Settings → Accounts → Manage Certificates, create or download a current **Apple Distribution** certificate and let automatic signing regenerate the App Store profile. Re-run export from `07`. Validate/upload still need an App Store Connect API key (`ASC_KEY_ID` / `ASC_ISSUER_ID`) or Organizer.
+
+Internal TestFlight on a physical Apple Intelligence iPhone: Welcome →
+onboarding (skip lock) → Load Sample Entries → write one entry → Chat one
+question → airplane-mode journal still saves → Delete Everything returns to
+Welcome.
+
+---
+
+## Submit
+
+Press **Submit for Review** only when `00` "Do not press Submit until" is all
+evidenced. Do not auto-release.

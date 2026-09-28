@@ -17,7 +17,7 @@
 set -euo pipefail
 
 ALLOWLIST_FILE="${ALLOWLIST_FILE:-specs/dependency-allowlist.txt}"
-PBXPROJ="${PBXPROJ:-MeetMemento.xcodeproj/project.pbxproj}"
+PBXPROJ="${PBXPROJ:-withMemento.xcodeproj/project.pbxproj}"
 ENFORCE="${ALLOWLIST_ENFORCE:-0}"
 
 [ -f "$ALLOWLIST_FILE" ] || { echo "Allowlist not found: $ALLOWLIST_FILE"; exit 1; }

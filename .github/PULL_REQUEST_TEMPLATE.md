@@ -5,7 +5,7 @@
 ## Testing
 
 - [ ] I added or updated tests for behavior changes (unit / UI as applicable).
-- [ ] Online suite: `CI_ONLINE=1 xcodebuild -scheme MeetMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' -skip-testing:MeetMementoUITests test` (requires Xcode 26+; adjust destination via `xcodebuild -showdestinations -scheme MeetMemento`)
+- [ ] Online suite: `CI_ONLINE=1 xcodebuild -scheme withMemento -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' -skip-testing:withMementoUITests test` (requires Xcode 26+; adjust destination via `xcodebuild -showdestinations -scheme withMemento`)
 - [ ] Device/eval changes (if any) were validated locally or via `ios-device-eval.yml` — not required to merge.
 
 ## CI and Security

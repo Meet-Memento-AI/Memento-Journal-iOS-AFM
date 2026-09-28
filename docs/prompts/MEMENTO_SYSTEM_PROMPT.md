@@ -4,9 +4,9 @@
 
 Authoritative Ask / summarize / profile-estimate instructions live in:
 
-[`MeetMemento/Services/Intelligence/PromptRegistry.swift`](../../MeetMemento/Services/Intelligence/PromptRegistry.swift)
+[`withMemento/Services/Intelligence/PromptRegistry.swift`](../../withMemento/Services/Intelligence/PromptRegistry.swift)
 
-(currently `ask@6` / `ask-degraded@6`).
+(currently `ask@14` / `ask-degraded@14`, plus `chat-light@4` for phatic/continuer — spec 039).
 
 See [`docs/prompts/README.md`](README.md) for L0 / L1 / L2 layering and safety notes (spec 026).
 

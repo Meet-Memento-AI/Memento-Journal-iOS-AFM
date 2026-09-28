@@ -20,14 +20,14 @@ Introduce an explicit **`hasCheckedAuth`** flag:
 - **`false`** until `initializeAuth()` has fully completed (every branch: UI test bypass, inactivity logout, session restored, no session, error).
 - **`true`** only after the final auth-related `@Published` updates for that run.
 
-**`MeetMementoApp`** gates the root on **`!hasCheckedAuth`**: show `LaunchLoadingView` only until auth is known, then branch to `ContentView`, `OnboardingCoordinatorView`, or `WelcomeView` as before.
+**`withMementoApp`** gates the root on **`!hasCheckedAuth`**: show `LaunchLoadingView` only until auth is known, then branch to `ContentView`, `OnboardingCoordinatorView`, or `WelcomeView` as before.
 
 This separates **“auth outcome known”** from **`isInitializing`** (busy during network work inside `initializeAuth()`).
 
 ### Related code
 
-- [`AuthViewModel.swift`](../MeetMemento/ViewModels/AuthViewModel.swift): `hasCheckedAuth`, `initializeAuth()` `defer { … }`, `bypassToMainApp()` / `skipToOnboardingForTesting()` set `hasCheckedAuth = true`.
-- [`MeetMementoApp.swift`](../MeetMemento/MeetMementoApp.swift): root `if !authViewModel.hasCheckedAuth { LaunchLoadingView() … }`.
+- [`AuthViewModel.swift`](../withMemento/ViewModels/AuthViewModel.swift): `hasCheckedAuth`, `initializeAuth()` `defer { … }`, `bypassToMainApp()` / `skipToOnboardingForTesting()` set `hasCheckedAuth = true`.
+- [`withMementoApp.swift`](../withMemento/withMementoApp.swift): root `if !authViewModel.hasCheckedAuth { LaunchLoadingView() … }`.
 
 ### UI tests
 

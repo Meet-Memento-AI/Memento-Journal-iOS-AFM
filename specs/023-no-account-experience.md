@@ -49,8 +49,8 @@ by the time the backend is deleted, nothing in the UI calls auth.
 | # | Finding | Evidence | Implication |
 |---|---|---|---|
 | 1 | Display name is already local-first: onboarding and ProfileSettings write `memento_first_name`/`_last_name` to UserDefaults; Supabase `users.full_name` is only a backfill (`refreshFirstNameIfMissing`) | `OnboardingCoordinatorView.swift` (~152), `ProfileSettingsView.swift` (~170), `AuthViewModel.swift` (~44) | R2 is mostly deletion, not construction |
-| 2 | Security stack is account-independent: PIN/salt/mode under fixed Keychain keys (`com.sebastianmendo.MeetMemento.*`), encryption key = PBKDF2(PIN, salt), local files keyed by entry UUID | `SecurityService.swift`, `EncryptionService.swift`, `LocalJournalStorage.swift` | Survives untouched; migration (R5) must not touch these Keychain entries |
-| 3 | Auth surface: `WelcomeView` (Apple/Google buttons), orphaned email-OTP path (`AuthBottomSheet` → `OTPVerificationView`), `AppleSignInService`, `AuthViewModel` state machine (`isAuthenticated`/`hasCheckedAuth`/8s session fetch/3s watchdog), SIWA entitlement | `Views/Onboarding/WelcomeView.swift`, `Components/AuthBottomSheet.swift`, `Services/AppleSignInService.swift`, `ViewModels/AuthViewModel.swift`, `MeetMemento.entitlements` | The removal set for R1 |
+| 2 | Security stack is account-independent: PIN/salt/mode under fixed Keychain keys (`com.sebmendo.withMementoAI.*`), encryption key = PBKDF2(PIN, salt), local files keyed by entry UUID | `SecurityService.swift`, `EncryptionService.swift`, `LocalJournalStorage.swift` | Survives untouched; migration (R5) must not touch these Keychain entries |
+| 3 | Auth surface: `WelcomeView` (Apple/Google buttons), orphaned email-OTP path (`AuthBottomSheet` → `OTPVerificationView`), `AppleSignInService`, `AuthViewModel` state machine (`isAuthenticated`/`hasCheckedAuth`/8s session fetch/3s watchdog), SIWA entitlement | `Views/Onboarding/WelcomeView.swift`, `Components/AuthBottomSheet.swift`, `Services/AppleSignInService.swift`, `ViewModels/AuthViewModel.swift`, `withMemento.entitlements` | The removal set for R1 |
 | 4 | `onboarding_completed` lives in the Supabase `users` row; every backend service guards on `client.auth.currentUser?.id` | `UserService.hasCompletedOnboarding`, `JournalService`/`ChatService`/`InsightsService` guards | Flag goes local (R1); service guards die with specs 015–017 |
 | 5 | Account management UI: Sign Out + two-step Delete Account (RPC `delete_user` + manual table deletes + local clears) in Settings' Account section | `SettingsView.swift` accountSection | Transforms into "Delete everything" (R4) |
 | 6 | Lock screen's only escape when biometrics+PIN fail is emergency **Sign Out** | `LockScreenView.swift` | Needs a no-account replacement (R6) |
@@ -69,7 +69,7 @@ superseded-pending-verification note — record the outcome there).
 (spec 014's Z0 verification applies); no `AuthViewModel`, `AppleSignInService`,
 `AuthBottomSheet`, `OTPVerificationView`, `GoogleSignInButton`, `SocialButton`,
 or `OTPTextField` symbols remain in the app target; the Sign in with Apple
-entitlement is removed from `MeetMemento.entitlements`.
+entitlement is removed from `withMemento.entitlements`.
 
 ### R2. Welcome preserved minus auth (PRES-060)
 Video background, branding, staged motion all intact. The Apple/Google buttons
@@ -82,13 +82,24 @@ anywhere in the app.
 ### R3. Onboarding preserved; app lock default-on, skippable (PRES-061…066)
 Same step order: YourName → LearnAboutYourself → YourGoals → app-lock setup →
 LoadingStateView. Name, personalization text, and goals persist **locally only**;
-the personalization text still becomes the first (local) journal entry. The
+the personalization text is stored as About yourself / Experience Profile
+reflection and is **not** written as a journal entry (PRES-063). Journal load
+purges leftover rows titled exactly `My First Reflection` (the old seed title)
+so a prior onboarding write cannot reappear after a rebuild. The
 FaceID/PIN step defaults **on** but gains an explicit-friction skip ("Your
 journal will open without protection") per `REQ-DATA-004` — with no account,
 mandatory lock plus a forgotten PIN would mean data loss. Back from the first
 step returns to Welcome (no sign-out concept exists).
+**Amendment (spec 053, DEC-013, 2026-09-26):** the step order and end state
+are now 053 R1. The quiz replaces LearnAboutYourself and YourGoals, with the
+same local storage. Onboarding ends in the Journal showing **one entry the
+user wrote** (053 R3), not an empty journal; still no entry is created
+without the user writing it. If the user skips writing, the acceptance below
+still holds as written. The `My First Reflection` purge and the app-lock
+friction skip are unchanged.
 **Acceptance:** completing onboarding in airplane mode yields: populated name
-cache (avatar initial renders, PRES-006), first entry present locally, lock
+cache (avatar initial renders, PRES-006), empty journal with the footer pill
+**Write your first entry** (PRES-007 / PRES-020), lock
 configured (or explicitly skipped), local onboarding flag set.
 
 ### R4. Settings: one "Your Data" section (PRES-085)
@@ -100,9 +111,11 @@ ATTACH-06), and **"Delete everything"** replacing Delete Account — wired to
 `REQ-DATA-013`'s five-store deletion (interim scope before spec 015 lands: local
 entry storage + Keychain security/encryption entries + UserDefaults + caches;
 015 extends it to SwiftData/Spotlight/TTS-cache/CloudKit and owns the mechanics;
-this spec owns the UI entry point and copy). Sign Out row deleted.
+spec [040](040-ipad-backend-readiness.md) includes `StoredProfile` and issues
+the CloudKit wipe). **iCloud is not a Memento account** — it is the user's
+Apple ID private DB for replica only. Sign Out row deleted.
 **Acceptance:** post-deletion cold launch is indistinguishable from a fresh
-install; `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/` returns
+install; `grep -ri "supabase\|gemini" withMemento/Views/Settings/` returns
 nothing.
 
 ### R5. Existing-user migration
@@ -115,6 +128,8 @@ check): if the real TestFlight user count is ~zero, **document and skip** the
 remote-entry pull per the source doc's own escape clause; otherwise a one-time
 pull while the session is still valid, re-materializing entries locally under
 their existing UUIDs before the server is decommissioned.
+Local encrypted files / `LocalChatStore` / `LocalProfileStore` import into
+SwiftData once (spec 040 R4); the other device only ever sees mirrored rows.
 **Acceptance:** upgrade fixture (session + entries + PIN + name) lands directly
 in an unchanged Journal with lock intact; Keychain entries byte-identical
 before/after migration.
@@ -156,7 +171,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       `AuthViewModel` (R1). **Done 2026-07-23** — `Services/AppStateStore.swift`
       (`@Observable` local store: `hasCompletedOnboarding`/`hasStartedOnboarding`/
       `firstName` from UserDefaults, `localUserID` stable local UUID for the
-      interim entry-tagging need, zero network calls). `MeetMementoApp.swift`
+      interim entry-tagging need, zero network calls). `withMementoApp.swift`
       root switch rewritten off `authViewModel`/`isAuthenticated`/`authState`.
 - [x] 2. Strip auth from Welcome; add "Get Started" + positioning line (R2).
       **Done** — `WelcomeView.swift`: Apple/Google buttons removed, single
@@ -191,7 +206,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       nothing and is independently verifiable" matching the Welcome
       `REQ-POS-001` line); "Account Information"/"Account Security"/"Delete
       Your Account" items replaced with local-storage/PIN/"Delete Everything"
-      equivalents. `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/`
+      equivalents. `grep -ri "supabase\|gemini" withMemento/Views/Settings/`
       now returns nothing (two stray code comments in
       `EditAboutYourselfView.swift`/`EditJournalGoalsView.swift` referencing
       "Supabase-backed UserService" were also reworded, since the acceptance
@@ -229,24 +244,24 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       `AuthBottomSheet.swift`, `OTPVerificationView.swift`, `OTPTextField.swift`,
       `GoogleSignInButton.swift`, `SocialButton.swift`;
       `com.apple.developer.applesignin` removed from
-      `MeetMemento.entitlements` (`keychain-access-groups` kept). Symbol grep
+      `withMemento.entitlements` (`keychain-access-groups` kept). Symbol grep
       for `AuthViewModel|AppleSignInService|AuthBottomSheet|OTPVerificationView|OTPTextField|GoogleSignInButton|SocialButton`
-      across `MeetMemento/` and `MeetMementoTests/` returns zero hits.
+      across `withMemento/` and `withMementoTests/` returns zero hits.
       `AuthViewModelTests.swift` replaced with `AppStateStoreTests.swift` (9
       tests, retargeted per spec 011 R3).
 - [ ] 8. Run the full preservation walkthrough; record the spec 009 R2 outcome
       (R7). **Partially done.** `xcodebuild build` (app target) and
       `xcodebuild build-for-testing`/`test` (test target) both succeed;
-      `MeetMementoTests` full suite is green. The spec 009 R2 outcome (does
+      `withMementoTests` full suite is green. The spec 009 R2 outcome (does
       removing accounts also remove the auth-bootstrap race that motivated the
       3-failsafe consolidation) can now be answered: **yes** —
-      `MeetMementoApp.swift`'s `.task` block no longer has any watchdog/timeout
+      `withMementoApp.swift`'s `.task` block no longer has any watchdog/timeout
       race at all (`appState.initializeAppState()` is synchronous, no
       network), so R2's three-failsafe concern is moot, not just superseded;
       record this in spec 009 as a follow-up edit.
 
       Real XCUITest interaction coverage now exists and passes
-      (`MeetMementoUITests/MeetMementoSmokeUITests.swift`, 3/3 green):
+      (`withMementoUITests/withMementoSmokeUITests.swift`, 3/3 green):
       `test_launch_doesNotCrash`, `test_welcome_showsGetStartedNoAuthButtons`
       (asserts the `welcome.getStarted` button and `welcome.positioning`
       REQ-POS-001 line are reachable and no Apple/Google auth UI exists), and
@@ -268,7 +283,7 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
 
       **Upgrade-fixture, lock-screen matrix, and Delete Everything now have
       real automated coverage too**
-      (`MeetMementoUITests/MeetMementoUpgradeMigrationUITests.swift`, 4/4
+      (`withMementoUITests/withMementoUpgradeMigrationUITests.swift`, 4/4
       green), driven through an actual app launch, not direct method calls.
       `AppStateStore` gained a `-SeedUpgradeFixture` launch-argument hook
       (double-gated behind `-UITesting`, see `seedUpgradeFixture()`) that
@@ -316,29 +331,16 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       touched, therefore not regressed by this diff," not "actively
       re-verified."
 
-      **Zero-network-calls claim (R1's acceptance criterion): corrected, not
-      fully true as originally stated.** Static trace of every file in the
-      launch → Welcome → onboarding → Journal path (`AppStateStore`,
-      `MeetMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
+      **Zero-network-calls claim (R1's acceptance criterion): corrected.** Static
+      trace of every file in the launch → Welcome → onboarding → Journal path
+      (`AppStateStore`, `withMementoApp`, `WelcomeView`, `OnboardingCoordinatorView`,
       `OnboardingViewModel`, the onboarding step views, `ContentView`) for
       `URLSession`/`SupabaseService`/`import Supabase` returns zero hits —
       the app-state bootstrap machinery itself is genuinely network-free.
-      **However**, onboarding's last step creates the user's first journal
-      entry (`OnboardingViewModel.createFirstJournalEntry` →
-      `EntryViewModel.createEntry`), which — because `DISABLE_SUPABASE` is
-      not defined in any current build configuration
-      (`grep DISABLE_SUPABASE MeetMemento.xcodeproj/project.pbxproj` → 0
-      hits, confirmed 2026-07-23) — always takes the production branch and
-      does attempt one real `JournalService.shared.createEntry` network call
-      before landing on Journal. This is not a new bug: it's the deliberate,
-      already-tested Phase 1a design (documented earlier in this file's
-      history and in the plan) where the network attempt fails gracefully
-      and is queued via the pending-sync path rather than blocking or losing
-      the entry. It does mean the literal claim "reaches the Journal with
-      zero network calls" has one narrow, known, non-blocking exception until
-      spec 015 replaces `JournalService`'s network layer with SwiftData —
-      the Verification checklist item below is left unchecked to reflect
-      this honestly rather than overclaiming.
+      Onboarding no longer calls `EntryViewModel.createEntry`: the Learn About
+      Yourself reflection is stored only in `LocalProfileStore` / Experience
+      Profile, so the former first-entry `JournalService.createEntry` network
+      attempt is gone.
 
 ## Verification
 - [ ] Fresh install, airplane mode: Welcome → Get Started → full onboarding →
@@ -349,16 +351,14 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       above. The app-state bootstrap path is confirmed network-free by
       grepping every file in the launch→Welcome→onboarding→Journal call
       graph for `URLSession`/`SupabaseService`/`import Supabase` (0 hits).
-      One known, deliberate exception: onboarding's first-entry creation
-      does attempt one `JournalService.createEntry` network call (fails
-      gracefully, queued via pending-sync) because `DISABLE_SUPABASE` isn't
-      defined in any current build config. Left unchecked because a live
-      Instruments/proxy capture — the acceptance criterion as written — was
-      not actually performed.
+      Onboarding no longer creates a first journal entry, so the former
+      `JournalService.createEntry` network exception is gone. Left unchecked
+      because a live Instruments/proxy capture — the acceptance criterion as
+      written — was not actually performed.
 - [x] Upgrade fixture: prior session + entries + PIN + name → direct to Journal,
       lock intact, no onboarding shown, Keychain unchanged. **Verified
       2026-07-23 via a real app launch**
-      (`MeetMementoUpgradeMigrationUITests.test_upgradeFixture_skipsOnboarding_landsOnIntactLockScreen`
+      (`withMementoUpgradeMigrationUITests.test_upgradeFixture_skipsOnboarding_landsOnIntactLockScreen`
       + `test_upgradeFixture_correctPIN_unlocksToJournal`): seeded pre-023
       local evidence (cached name + configured PIN, via a new
       `-SeedUpgradeFixture` launch-arg hook in `AppStateStore`) lands
@@ -371,14 +371,14 @@ haptics) passes after R1–R6 land; `grep -rn "PRES-" specs/` shows citations fr
       verified instead by static reading of `migrateFromPriorAccountIfNeeded()`,
       which only reads `SecurityService.shared.currentMode`, never writes
       Keychain).
-- [x] `grep -rn "AuthViewModel\|AppleSignInService\|AuthBottomSheet\|OTPVerificationView\|signInWith" MeetMemento/ --include="*.swift"` → 0.
+- [x] `grep -rn "AuthViewModel\|AppleSignInService\|AuthBottomSheet\|OTPVerificationView\|signInWith" withMemento/ --include="*.swift"` → 0.
       **Verified 2026-07-23** — 5 stray historical comments (in
       `InsightsService.swift`, `SupabaseService.swift`, `AppStateStore.swift`)
       referencing the removed `AuthViewModel` by name were reworded to "the
       old auth view model" so the literal grep, which doesn't distinguish
       comments from symbol references, passes honestly. Confirmed with
       `xcodebuild build` (succeeded) after the edits.
-- [x] `grep -ri "supabase\|gemini" MeetMemento/Views/Settings/` → 0. **Verified
+- [x] `grep -ri "supabase\|gemini" withMemento/Views/Settings/` → 0. **Verified
       2026-07-23.**
 - [x] "Delete everything" → relaunch → indistinguishable from fresh install.
       **Verified 2026-07-23** via

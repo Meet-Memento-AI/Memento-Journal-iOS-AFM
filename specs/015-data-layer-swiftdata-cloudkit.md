@@ -2,7 +2,7 @@
 id: 015
 title: Data Layer — SwiftData and CloudKit
 tier: P0
-status: in-progress (2026-07-24) — Requirements derived; implementation blocked on Xcode 27 beta for the deployment-target bump, unblocked portions noted per-requirement
+status: in-progress (2026-08-19) — SwiftData schema + CloudKit private config + five-store deletion landed; DEC-006 never-Z1; DEC-007 discard-after-STT; deployment target stays 26.0 until the archive Mac runs Xcode 27
 effort: 3 sessions
 depends_on: [013, 014, 023]
 findings: [schema-mirroring-deltas, cloudkit-error-taxonomy, health-z0-statistics, audio-as-files, five-store-deletion-test, capability-tier-at-launch]
@@ -23,7 +23,9 @@ This is the foundational subtraction-and-rebuild: delete `supabase/` (Postgres,
 pgvector, 6 edge functions, auth) and replace the system of record with SwiftData
 (authoritative) + CloudKit private-DB mirroring (replication only, per P2). Every
 other 2.0 spec's entities — `Entry`, `Reflection`, `Citation`, `Conversation`,
-`Turn` — are defined here. Nothing downstream (indexing, intelligence, capture,
+`Turn` — are defined here. Spec [040](040-ipad-backend-readiness.md) executes
+the **live write cutover** (journals, chats, reflections, `StoredProfile`)
+onto this schema. Nothing downstream (indexing, intelligence, capture,
 surfaces) can be built until this schema exists.
 
 ## Technology References
@@ -37,12 +39,12 @@ surfaces) can be built until this schema exists.
 
 ## Current State (evidence)
 
-No `@Model` classes or `import SwiftData` anywhere in `MeetMemento/` (confirmed
+No `@Model` classes or `import SwiftData` anywhere in `withMemento/` (confirmed
 2026-07-23). Current persistence is Supabase Postgres via `supabase-swift`, with
-plain `Codable` structs in `MeetMemento/Models/` (`Entry.swift`, `JournalEntry.swift`,
+plain `Codable` structs in `withMemento/Models/` (`Entry.swift`, `JournalEntry.swift`,
 `ChatSession.swift`, `Insight.swift`/`UserInsight.swift`, etc.) — see this spec's
 Tasks for the mapping from each old model to its new `@Model` equivalent.
-`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `MeetMemento.xcodeproj/project.pbxproj`
+`IPHONEOS_DEPLOYMENT_TARGET = 17.0` in `withMemento.xcodeproj/project.pbxproj`
 (needs raising to 27.0 per `REQ-PLAT-001`).
 
 ## Requirements
@@ -179,10 +181,24 @@ framing is forbidden):
 
 | Failure | Detection | Copy (draft — design owns final wording) |
 |---|---|---|
-| No iCloud account / signed out | `CKContainer.accountStatus` | *"Your journal lives on this iPhone. iCloud backup is off — sign in to iCloud to turn it on."* |
-| iCloud storage full | `CKError.quotaExceeded` via mirroring | *"iCloud is full, so recent entries aren't backed up yet. Everything is still safe on this iPhone."* |
+| No iCloud account / signed out | `CKContainer.accountStatus` | *"Your journal lives on this device. iCloud backup is off — sign in to iCloud to turn it on."* (idiom-aware: `DeviceCopy.signedOutSync`) |
+| iCloud storage full | `CKError.quotaExceeded` via mirroring | *"iCloud is full, so recent entries aren't backed up yet. Everything is still safe on this device."* (`DeviceCopy.quotaExceeded`) |
 | Network unavailable | passive | no copy at all — offline is a normal state (`REQ-PLAT-003`), not an error |
 | Container fails to init / mirroring stops (schema violates a mirroring rule) | dev-time; the failure is silent per `technology/05` §2 | never user-facing — this is a build defect caught by R1's `SchemaMirroringComplianceTests`, not shippable |
+
+**Live writes (spec 040):** create/edit/delete load through `ModelContext`.
+The ThisDeviceOnly DEK used for leftover encrypted files is **incompatible
+with mirroring** — a second device cannot unwrap it. Mirrored rows stay in
+plaintext SwiftData under `NSFileProtection` (R3) plus optional
+`@Attribute(.allowsCloudEncryption)` on `transcript`. Photo **bytes** stay
+device-local; the mirror holds `StoredAttachment.fileAssetID` metadata only
+unless a later spec requires same-photo `CKAsset`s.
+
+**Conflict policy:** CloudKit native last-writer-wins. That discharges spec
+[012](012-post-launch-backlog.md) item 10.
+
+**`StoredProfile` (spec 040):** one mirrored row for name, about, goals,
+experience profile / themes, `aiEnabled`, and `processOnDeviceOnly`.
 
 **Field-level encryption (V25, 🔴 UNVERIFIED):** `@Attribute(.allowsCloudEncryption)`
 on `Entry.transcript` — the most sensitive mirrored column — is worth having
@@ -416,7 +432,7 @@ source doc's generic table.
 remote pull skipped per `REQ-MIG-001` escape clause" or a tested pull path
 (fixture: a synthetic server-side-only entry set, imported once, UUIDs
 preserved, second run is a no-op) — exists **before** the `supabase/` deletion
-commit. After deletion: `grep -ri "supabase" MeetMemento/ --include="*.swift"`
+commit. After deletion: `grep -ri "supabase" withMemento/ --include="*.swift"`
 returns nothing, the SPM dependency is gone, and the app builds and passes
 023's regression walkthrough. Unblocked except that the deletion commit itself
 waits on spec 013's gate (Spike A pass + DEC-002 resolved) per 013's
@@ -511,7 +527,7 @@ disposition.
       offline) after "Delete everything"; post-deletion cold launch is
       indistinguishable from fresh install (R6). Spotlight/TTS legs activate
       with specs 016/018.
-- [ ] `grep -n "IPHONEOS_DEPLOYMENT_TARGET" MeetMemento.xcodeproj/project.pbxproj`
+- [ ] `grep -n "IPHONEOS_DEPLOYMENT_TARGET" withMemento.xcodeproj/project.pbxproj`
       shows 27.0 and strict concurrency = complete is set — **Xcode-27-gated**
       (R7).
 - [ ] Airplane-mode walkthrough scripted and run: launch → capture → transcribe
@@ -521,7 +537,7 @@ disposition.
       `SystemLanguageModel.availability` binding re-verified on iOS 27 SDK (R7).
 - [ ] `REQ-MIG-001` disposition recorded in this spec (skip-with-documentation
       or tested pull path with preserved UUIDs) **before** the `supabase/`
-      deletion commit; after deletion, `grep -ri "supabase" MeetMemento/
+      deletion commit; after deletion, `grep -ri "supabase" withMemento/
       --include="*.swift"` returns nothing and the `supabase-swift` SPM
       dependency is gone (R8).
 - [ ] All four R9 verification items mirrored into
