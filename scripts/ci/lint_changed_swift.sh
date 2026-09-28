@@ -10,7 +10,10 @@ if [[ -z "$BASE_REF" ]]; then
 fi
 
 echo "Linting changed Swift files relative to origin/$BASE_REF"
-git fetch origin "$BASE_REF" --depth=1
+# No --depth: a shallow fetch grafts the repo, which breaks any later
+# revision walk that has to pass the base (and leaves the caller's clone
+# shallow). See the same fix in .github/workflows/security.yml.
+git fetch origin "$BASE_REF"
 
 if git merge-base "origin/$BASE_REF" HEAD >/dev/null 2>&1; then
   DIFF_RANGE="origin/$BASE_REF...HEAD"
