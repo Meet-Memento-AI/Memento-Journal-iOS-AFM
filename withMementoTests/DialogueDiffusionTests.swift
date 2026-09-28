@@ -1,5 +1,5 @@
 import XCTest
-@testable import MeetMemento
+@testable import withMemento
 
 /// Spec 056. The closed-form reverse step of dialogue diffusion.
 /// No model: a clean reply is returned unchanged, a surplus question is
