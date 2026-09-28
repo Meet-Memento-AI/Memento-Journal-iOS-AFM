@@ -151,10 +151,10 @@ private struct AIChatNarrationPreview: View {
 
 // MARK: - Free tier previews (spec 021 R4, Figma 1177:3147)
 
+// periphery:ignore - instantiated only by the #Preview canvases below
 /// QA canvas for the free chat: Upgrade pill and reset in the header, no
 /// starter tiles, and the daily-limit note. The allowance lives in its own
 /// throwaway defaults suite, so previews never touch the real daily count.
-// periphery:ignore - instantiated only by the #Preview canvases below
 private struct FreeChatPreview: View {
     var messages: [ChatMessage] = []
     var limitReached = false

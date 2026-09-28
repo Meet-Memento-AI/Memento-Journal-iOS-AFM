@@ -28,10 +28,10 @@ struct MementoRootScene: Scene {
     @StateObject private var navigationState = AppNavigationState()
     @Environment(\.scenePhase) private var scenePhase
     #if DEBUG && MEMENTO_AI
-    /// `-UITesting -PaywallPreview`: the paywall over preview data, for
-    /// design review and PaywallUITests while Memento Pro is switched off.
     // periphery:ignore - bound by the .sheet below; both sit inside
     // `#if DEBUG && MEMENTO_AI`, which the dead-code scan does not build.
+    /// `-UITesting -PaywallPreview`: the paywall over preview data, for
+    /// design review and PaywallUITests while Memento Pro is switched off.
     @State private var showPaywallPreview = PaywallModel.isPreviewLaunch
     #endif
 
