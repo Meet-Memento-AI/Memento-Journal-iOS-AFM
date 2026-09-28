@@ -39,6 +39,12 @@ struct MementoRootScene: Scene {
         Task { @MainActor in
             NotificationService.shared.installAsDelegate()
         }
+        #if MEMENTO_AI
+        // Memento Pro (spec 021 R3). Before any view reads entitlement state.
+        MainActor.assumeIsolated {
+            EntitlementStore.shared.configure()
+        }
+        #endif
     }
 
     var body: some Scene {
@@ -128,6 +134,7 @@ struct MementoRootScene: Scene {
                     SecurityService.shared.updateActivityTimestamp()
                     Task { await NotificationService.shared.refreshAuthorizationStatus() }
                     #if MEMENTO_AI
+                    Task { await EntitlementStore.shared.refresh() }
                     FeedbackSyncService.shared.resumePendingWork()
                     #endif
                 }

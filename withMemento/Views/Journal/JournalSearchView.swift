@@ -34,6 +34,10 @@ struct JournalSearchView: View {
             // Search header
             searchHeader
                 .padding(.horizontal, Spacing.md)
+                // Search results are journal cards, so they inherit the
+                // timeline's measure from the page. The enclosing VStack is
+                // `.center`-aligned, so a plain clamp centres both bands.
+                .pageColumn()
                 .padding(.top, safeAreaTop + Spacing.md)
                 .padding(.bottom, Spacing.md)
 
@@ -51,6 +55,7 @@ struct JournalSearchView: View {
                 .padding(.horizontal, Spacing.md)
                 .padding(.bottom, Spacing.xxxl)
             }
+            .pageColumn()
             .animation(.easeInOut(duration: 0.2), value: searchResults.count)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

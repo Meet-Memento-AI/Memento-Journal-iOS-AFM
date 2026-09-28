@@ -10,4 +10,8 @@
 SUPABASE_SLASH = /
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
+// RevenueCat public SDK key (spec 021 R3). Set the production `appl_` key here
+// before release — a `test_` key must never ship (RevenueCat rejects it in
+// Release builds). Empty → EntitlementStore stays off and nothing is Pro.
+REVENUECAT_API_KEY = 
 #include? "Supabase.xcconfig"

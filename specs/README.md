@@ -43,6 +43,8 @@ specs/
 ├── 050-*.md           ← evidence pack and reply renderer (the model places
 │                        {{quote:n}} / {{date:n}} markers, Swift inserts the words;
 │                        ask-core@19); REQ-REF- — in progress
+├── 051-*.md           ← iPad layout and reading column (two named measures, page-declared
+│                        column, chrome aligned to content); follow-on UI spec to 040
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID

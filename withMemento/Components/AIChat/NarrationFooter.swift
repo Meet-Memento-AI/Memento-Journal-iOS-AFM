@@ -35,7 +35,7 @@ struct NarrationFooter: View {
                 footerBar
             }
         }
-        .rootEdgeInset()
+        .pageColumnRelative()
     }
 
     @ViewBuilder

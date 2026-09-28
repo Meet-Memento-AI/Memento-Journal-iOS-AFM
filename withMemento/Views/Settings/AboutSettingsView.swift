@@ -42,6 +42,7 @@ public struct AboutSettingsView: View {
                 Spacer(minLength: Spacing.xxxl)
             }
             .padding(.horizontal, Spacing.lg)
+            .proseColumn()
             .padding(.top, Spacing.xs)
         }
         .background(theme.background.ignoresSafeArea())
