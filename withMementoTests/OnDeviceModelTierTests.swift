@@ -12,14 +12,46 @@ final class OnDeviceModelTierTests: XCTestCase {
         reported: OnDeviceModelTier? = nil,
         available: Bool = true,
         os: Int = 27,
-        memory: UInt64
+        memory: UInt64,
+        memoryDescribesTheDevice: Bool = true
     ) -> ResolvedOnDeviceModelTier {
         OnDeviceModelTierResolver.resolve(
             reported: reported,
             modelAvailable: available,
             osMajorVersion: os,
-            physicalMemoryBytes: memory
+            physicalMemoryBytes: memory,
+            memoryDescribesTheDevice: memoryDescribesTheDevice
         )
+    }
+
+    // MARK: Memory that is not the device's
+
+    /// Study VI. Every other case here *injects* memory, so they all passed
+    /// while the one production call site read `ProcessInfo.physicalMemory` —
+    /// which inside a simulator is the host Mac's. On the machine that ran the
+    /// study that is 137 GB, so the 10 GB floor inferred Core Advanced on every
+    /// simulated device, and 3,319 eval rows carried a tier nothing verified.
+    func test_resolver_memoryThatIsNotTheDevices_infersNothing() {
+        let hostMacMemory: UInt64 = 137_438_953_472
+        let result = resolve(memory: hostMacMemory, memoryDescribesTheDevice: false)
+        XCTAssertEqual(result.tier, .unknown)
+        XCTAssertNil(result.tier.identifierSuffix,
+                     "an unverifiable tier must leave the identifier bare, not guess a suffix")
+        XCTAssertEqual(result.modelIdentifier(for: .z0Device),
+                       ResolvedOnDeviceModelTier.onDeviceBaseIdentifier)
+    }
+
+    func test_resolver_reportedTier_survivesUnusableMemory() {
+        let result = resolve(reported: .afm3Core, memory: 137_438_953_472,
+                             memoryDescribesTheDevice: false)
+        XCTAssertEqual(result, ResolvedOnDeviceModelTier(tier: .afm3Core, source: .reported),
+                       "path A must still win when the memory class is unusable")
+    }
+
+    func test_resolver_unusableMemory_outranksTheOSRule() {
+        XCTAssertEqual(resolve(os: 26, memory: 137_438_953_472,
+                               memoryDescribesTheDevice: false).tier, .unknown,
+                       "a pre-AFM3 claim is still a claim about a device we cannot identify")
     }
 
     // MARK: Rules

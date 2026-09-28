@@ -85,7 +85,7 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
                 + "then one question back toward them]"
         case .noMatch:
             return "[Turn: journal question, no matches — "
-                + "Meet them, then say you can't find an entry that supports that; "
+                + "Meet them, then say exactly \"I can't find an entry that supports that.\"; "
                 + "then one question back toward them; "
                 + "no heading, no list; do not invent any; do not change the subject; "
                 + "invite them once to write only if they asked what they have written "

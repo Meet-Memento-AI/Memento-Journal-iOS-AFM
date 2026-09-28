@@ -689,6 +689,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
     /// `reported` is nil and the tier is inferred from OS and memory. Only
     /// called after a `.available` result; the cache ignores `.unknown`.
+    /// False on a simulator, where `ProcessInfo.physicalMemory` is the host
+    /// Mac's. Spec 051 R1 infers the tier from the memory class, which is only
+    /// meaningful when the memory is the device's own.
+    private static var physicalMemoryDescribesTheDevice: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return true
+        #endif
+    }
+
     private static func resolveOnDeviceTierIfNeeded() {
         let cache = OnDeviceModelTierCache.shared
         guard !cache.hasResolved else { return }
@@ -697,7 +708,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             reported: nil,
             modelAvailable: true,
             osMajorVersion: info.operatingSystemVersion.majorVersion,
-            physicalMemoryBytes: info.physicalMemory
+            physicalMemoryBytes: info.physicalMemory,
+            memoryDescribesTheDevice: Self.physicalMemoryDescribesTheDevice
         ))
     }
 
