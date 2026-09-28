@@ -54,6 +54,10 @@ final class EntitlementStore: ObservableObject {
         // Tests never reach the SDK (unconfigured → paid surfaces open).
         if env.environment["XCTestConfigurationFilePath"] != nil { return }
         if env.arguments.contains("-UITesting") { return }
+        guard RevenueCatConfig.isActive else {
+            AppLogger.log("[Purchases] Memento Pro switched off (RevenueCatConfig.isPaywallEnabled)")
+            return
+        }
         guard let apiKey = RevenueCatConfig.apiKeyFromBundle() else {
             AppLogger.log("[Purchases] REVENUECAT_API_KEY missing — Memento Pro disabled")
             return
@@ -87,20 +91,24 @@ final class EntitlementStore: ObservableObject {
         }
     }
 
-    func loadOfferings() async {
-        guard isConfigured else { return }
+    /// Loads the offerings. Returns a user-facing message on failure instead of
+    /// raising `lastError`: the paywall shows it inline, never as an alert.
+    @discardableResult
+    func loadOfferings() async -> String? {
+        guard isConfigured else { return "Memento Pro isn't available right now." }
         do {
             offerings = try await Purchases.shared.offerings()
+            return nil
         } catch {
             AppLogger.log("[Purchases] offerings failed: \(error.localizedDescription)")
-            lastError = Self.message(for: error)
+            return Self.message(for: error) ?? "Something went wrong. Please try again."
         }
     }
 
     // MARK: - Actions
 
-    /// For custom purchase UI. The RevenueCat paywall purchases on its own and
-    /// the result arrives here through `customerInfoStream`.
+    /// Buys a package for `PaywallView`. True only when Memento Pro is now
+    /// active; a cancel returns false with no error.
     @discardableResult
     func purchase(_ package: Package) async -> Bool {
         guard isConfigured else { return false }

@@ -147,3 +147,6 @@ ExportOptions.local.plist
 
 # Release build product used only by the app-size gate (scripts/ci/check_app_size.sh)
 .build-size/
+
+# Personal Claude Code settings (permissions, local MCP servers).
+.claude/settings.local.json

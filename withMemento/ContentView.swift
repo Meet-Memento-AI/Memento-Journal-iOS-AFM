@@ -138,6 +138,9 @@ public struct ContentView: View {
     @StateObject private var defaultEntryViewModel = EntryViewModel()
     #if MEMENTO_AI
     @StateObject private var chatViewModel = ChatViewModel()
+    /// Free or Pro chat (spec 021 R4, DEC-013): a free user gets the free
+    /// chat, not a lock.
+    @State private var chatAccess: ProAccessDecision = .unlocked
     #endif
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
     @Environment(\.previewInitialTab) private var previewInitialTab: RootPage?
@@ -178,6 +181,7 @@ public struct ContentView: View {
                 case .chat:
                     AIChatView(
                         viewModel: chatViewModel,
+                        tier: ChatTier(chatAccess),
                         isEmbedded: true,
                         hasEntries: !entryViewModel.entries.isEmpty,
                         onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
@@ -185,9 +189,9 @@ public struct ContentView: View {
                             navigationPath.append(route)
                         }
                     )
-                    // Ask is a paid surface (spec 021 R4). The pager swipe
-                    // back to Journal stays live while it's locked.
-                    .proGated("Ask")
+                    // Free users get the free chat (latest entry, daily limit,
+                    // Upgrade), not a lock (spec 021 R4, DEC-013).
+                    .resolveProDecision($chatAccess)
                 #else
                 case .chat:
                     EmptyView()
@@ -260,6 +264,8 @@ public struct ContentView: View {
         .environmentObject(navigationState)
         .environment(\.selectedTab, $selectedPage)
         .environment(\.tabBarHidden, $isTabBarHidden)
+        // Paywall copy cites entry counts only when true (spec 021 R10).
+        .environment(\.paywallContext, PaywallContext(entries: entryViewModel.entries))
         .useTheme()
         .useTypography()
         #if MEMENTO_AI

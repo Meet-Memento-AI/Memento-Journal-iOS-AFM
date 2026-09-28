@@ -37,12 +37,14 @@ public struct PrimaryButton: View {
                 }
                 Text(title)
                     .typographyH5()
+                    .multilineTextAlignment(.center)
                 if let systemImage, imagePlacement == .trailing {
                     Image(systemName: systemImage)
                 }
                 if isLoading { ProgressView().tint(theme.primaryForeground) }
             }
-            .frame(height: 48)
+            .padding(.vertical, Spacing.xs)
+            .frame(minHeight: 48) // AX5: minHeight, so large text never clips
             .frame(maxWidth: .infinity)
             .foregroundStyle(theme.primaryForeground)
             .background(theme.primaryButtonFill)

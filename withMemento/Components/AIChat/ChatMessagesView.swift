@@ -19,6 +19,9 @@ struct ChatMessagesView: View {
     /// Starter prompts for the empty state. The three tiles always render
     /// under the headline; this array supplies prompts and theme pills.
     var suggestions: [ChatSuggestion] = []
+    /// False on the free tier (Figma 1177:3156): the empty state is the mark
+    /// and headline only, with no starter tiles.
+    var showsStarters: Bool = true
     var onCitations: ([JournalCitation]) -> Void
     var onDismissKeyboard: () -> Void
     var onSuggestionTap: (ChatSuggestion) -> Void = { _ in }
@@ -697,7 +700,39 @@ struct ChatMessagesView: View {
         )
     }
 
+    @ViewBuilder
     private var emptyState: some View {
+        if showsStarters {
+            startersEmptyState
+        } else {
+            freeEmptyState
+        }
+    }
+
+    /// Free tier (Figma 1177:3156): the mark and headline, centred in the
+    /// space between the header and the composer.
+    private var freeEmptyState: some View {
+        VStack(spacing: 10) {
+            Image("ChatEmptyMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64) // icon-size: brand mark, not user text
+                .accessibilityHidden(true)
+
+            Text("Let\u{2019}s dive deeper\ninto your journal")
+                .font(type.h2)
+                .foregroundStyle(PrimaryScale.primary600)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, AppHeaderMetrics.contentTopPadding)
+        .padding(.bottom, bottomReserve)
+        .accessibilityIdentifier("chat.emptyState.free")
+    }
+
+    private var startersEmptyState: some View {
         GeometryReader { geo in
             let height = geo.size.height
             ScrollView(.vertical, showsIndicators: false) {

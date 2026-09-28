@@ -272,7 +272,7 @@ struct SettingsView: View {
                 SettingsRow(
                     icon: "sparkles",
                     title: "Memento Pro",
-                    subtitle: "Unlock reflections, patterns, and Ask",
+                    subtitle: "Pro brings memory to every entry.",
                     showChevron: true,
                     accessibilityIdentifier: "settings.mementoPro",
                     action: { showPaywall = true }
@@ -296,15 +296,10 @@ struct SettingsView: View {
     #if MEMENTO_AI
     private var proPlanSubtitle: String {
         guard let active = entitlements.activeEntitlement else { return "Active" }
-        switch active.productIdentifier {
-        case "lifetime":
-            return "Lifetime — yours for good"
-        default:
-            let plan = active.productIdentifier == "monthly" ? "Monthly" : "Yearly"
-            guard let date = active.expirationDate else { return plan }
-            let verb = active.willRenew ? "Renews" : "Ends"
-            return "\(plan) · \(verb) \(date.formatted(date: .abbreviated, time: .omitted))"
-        }
+        let plan = active.productIdentifier == "monthly" ? "Monthly" : "Yearly"
+        guard let date = active.expirationDate else { return plan }
+        let verb = active.willRenew ? "Renews" : "Ends"
+        return "\(plan) · \(verb) \(date.formatted(date: .abbreviated, time: .omitted))"
     }
     #endif
 

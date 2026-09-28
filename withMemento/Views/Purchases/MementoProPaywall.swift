@@ -2,42 +2,30 @@
 //  MementoProPaywall.swift
 //  withMemento
 //
-//  Spec 021: presentation wrappers around RevenueCatUI. The paywall renders
-//  the dashboard's *current* offering (annual first, R1) and prices straight
-//  from the store — no price literal lives in this app. Its template's
-//  Restore Purchases button is the one-tap cross-device path (R3).
+//  Spec 021: how the paywall is presented. The screen itself is the app's own
+//  `PaywallView` over RevenueCat's *current* offering (annual first, R1,
+//  prices only from the store). Restore sits in its pinned footer, the
+//  one-tap cross-device path (R3). RevenueCatUI is kept only for the
+//  Customer Center below.
 //
 
 import RevenueCat
 import RevenueCatUI
 import SwiftUI
 
-/// The RevenueCat paywall, wired to `EntitlementStore`. Dismisses itself on a
-/// successful purchase or restore.
+/// The Memento Pro paywall sheet, wired to `EntitlementStore`. `PaywallView`
+/// dismisses itself once Pro is active; failures surface here as one alert.
 struct MementoProPaywall: View {
-    @Environment(\.dismiss) private var dismiss
+    /// What opened it (spec 021 R9). Settings when nothing more specific.
+    var trigger: PaywallTrigger = .settings
+    /// Nil uses the live store; the DEBUG harness passes preview data.
+    var model: PaywallModel? = nil
+
     @ObservedObject private var store = EntitlementStore.shared
 
     var body: some View {
-        PaywallView(displayCloseButton: true)
-            .onPurchaseCompleted { info in
-                store.apply(info)
-                dismiss()
-            }
-            .onRestoreCompleted { info in
-                store.apply(info)
-                if store.isPro {
-                    dismiss()
-                } else {
-                    store.lastError = "No Memento Pro purchase was found for this Apple Account."
-                }
-            }
-            .onPurchaseFailure { error in
-                store.lastError = EntitlementStore.message(for: error)
-            }
-            .onRestoreFailure { error in
-                store.lastError = EntitlementStore.message(for: error)
-            }
+        PaywallView(trigger: trigger, model: model)
+            .mementoSheetPresentation()
             .alert(
                 "Memento Pro",
                 isPresented: Binding(

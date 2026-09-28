@@ -27,6 +27,11 @@ struct MementoRootScene: Scene {
     @StateObject private var lockScreenViewModel = LockScreenViewModel()
     @StateObject private var navigationState = AppNavigationState()
     @Environment(\.scenePhase) private var scenePhase
+    #if DEBUG && MEMENTO_AI
+    /// `-UITesting -PaywallPreview`: the paywall over preview data, for
+    /// design review and PaywallUITests while Memento Pro is switched off.
+    @State private var showPaywallPreview = PaywallModel.isPreviewLaunch
+    #endif
 
     init() {
         // Opaque canvas so iOS 26 Liquid Glass cannot sample the wallpaper
@@ -108,6 +113,13 @@ struct MementoRootScene: Scene {
                 FeedbackSyncService.shared.resumePendingWork()
                 #endif
             }
+            #if DEBUG && MEMENTO_AI
+            .sheet(isPresented: $showPaywallPreview) {
+                MementoProPaywall(trigger: PaywallModel.previewTrigger, model: .preview())
+                    .useTheme()
+                    .useTypography()
+            }
+            #endif
             .onChange(of: appState.hasCompletedOnboarding) { _, completed in
                 // Consume skip flag when transitioning from onboarding to main app
                 if completed {

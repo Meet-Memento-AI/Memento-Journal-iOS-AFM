@@ -24,22 +24,11 @@ extension View {
 private struct ProGateModifier: ViewModifier {
     let feature: String
 
-    @ObservedObject private var store = EntitlementStore.shared
-    @State private var availability: IntelligenceAvailability?
-    @State private var showPaywall = false
+    /// The paywall this lock opens, and whose headline the card shares.
+    private var trigger: PaywallTrigger { PaywallTrigger(gate: feature) ?? .settings }
 
-    private var decision: ProAccessDecision {
-        // Until availability resolves, only an entitled user is let through;
-        // everyone else sees the surface without the card for that instant.
-        guard let availability else {
-            return store.isPro || !store.isConfigured ? .unlocked : .unavailableDevice
-        }
-        return ProAccess.decide(
-            isPro: store.isPro,
-            availability: availability,
-            purchasesConfigured: store.isConfigured
-        )
-    }
+    @State private var decision: ProAccessDecision = .unavailableDevice
+    @State private var showPaywall = false
 
     func body(content: Content) -> some View {
         let locked = decision == .showPaywall
@@ -49,26 +38,28 @@ private struct ProGateModifier: ViewModifier {
             .accessibilityHidden(locked)
             .overlay {
                 if locked {
-                    ProOfferCard(feature: feature) { showPaywall = true }
+                    ProOfferCard(trigger: trigger) { showPaywall = true }
                         .padding(Spacing.lg)
                         .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: locked)
-            // Evaluated when the surface appears, never cached at launch (R2).
-            .task { availability = await FoundationModelsIntelligenceService.shared.availability() }
+            .resolveProDecision($decision)
             .sheet(isPresented: $showPaywall) {
-                MementoProPaywall()
+                MementoProPaywall(trigger: trigger)
             }
     }
 }
 
+/// The lock card speaks with the same headline and line as the paywall it
+/// opens, so the card and the sheet read as one message.
 private struct ProOfferCard: View {
-    let feature: String
+    let trigger: PaywallTrigger
     let onUnlock: () -> Void
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.paywallContext) private var paywallContext
 
     var body: some View {
         VStack(spacing: Spacing.md) {
@@ -78,17 +69,17 @@ private struct ProOfferCard: View {
                 .accessibilityHidden(true)
 
             VStack(spacing: Spacing.xs) {
-                Text("\(feature) is part of Memento Pro")
+                Text(trigger.title(in: paywallContext))
                     .font(type.h5)
                     .foregroundStyle(theme.foreground)
                     .multilineTextAlignment(.center)
-                Text("Writing, search, and export stay free forever. Pro adds reflections, patterns, and Ask.")
+                Text(trigger.subtitle(in: paywallContext))
                     .font(type.body2)
                     .foregroundStyle(theme.mutedForeground)
                     .multilineTextAlignment(.center)
             }
 
-            PrimaryButton(title: "Unlock Memento Pro", action: onUnlock)
+            PrimaryButton(title: "Upgrade", action: onUnlock)
                 .accessibilityIdentifier("proGate.unlock")
         }
         .padding(Spacing.xl)
