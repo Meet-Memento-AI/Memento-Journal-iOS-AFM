@@ -43,6 +43,7 @@ struct YourEntriesView: View {
     @Environment(\.typography) private var type
     @Environment(\.tabBarHidden) private var tabBarHidden
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     init(
         entryViewModel: EntryViewModel,
@@ -206,7 +207,7 @@ struct YourEntriesView: View {
                                 .font(type.h3)
                                 .foregroundStyle(theme.foreground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.top, 16)
+                                .padding(.top, monthHeaderTopPadding(for: monthGroup))
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Double-tap to jump to another month")
@@ -283,6 +284,17 @@ struct YourEntriesView: View {
             scrollToMonth = nil
         }
         }
+    }
+
+    /// Under a native nav bar, `topContentPadding` already gives the first
+    /// line its 16pt of air; the header's own 16pt would double it. Later
+    /// headers keep it — it is part of the gap between month groups.
+    private func monthHeaderTopPadding(for monthGroup: MonthGroup) -> CGFloat {
+        let isFirst: Bool = monthGroup.id == monthGroups.first?.id
+        if navigationBarHosted && isFirst {
+            return 0
+        }
+        return 16
     }
 
     /// Year-month key so picker `DateComponents(day: 1)` matches
