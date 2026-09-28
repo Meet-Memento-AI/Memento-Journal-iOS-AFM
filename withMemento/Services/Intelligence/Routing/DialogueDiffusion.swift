@@ -118,15 +118,18 @@ enum DialogueDiffusion {
     static func infillInstruction(for infill: Infill, policy: ResponsePolicy) -> String {
         switch infill.code {
         case "dialogue.missingOpen":
-            return "Add one question as the final sentence. Do not add a second. Keep every other sentence. \(PromptRegistry.policySuffix(policy))"
+            return "Add one question as the final sentence. Do not add a second. Keep every other sentence. "
+                + PromptRegistry.policySuffix(policy)
         case "dialogue.youShould":
             return "Rewrite only this sentence as an option they already named, without \"you should\": \(infill.sentence)"
         case "dialogue.perception":
-            return "Rewrite only this sentence so you do not claim you saw, heard, felt, noticed, smelled, or remembered their scene. \"I hear you\" stays legal: \(infill.sentence)"
+            return "Rewrite only this sentence so you do not claim you saw, heard, felt, noticed, smelled, "
+                + "or remembered their scene. \"I hear you\" stays legal: \(infill.sentence)"
         case "dialogue.narrativeJoin":
             return "Rewrite only this sentence onto words they used. Do not join fragments they did not write: \(infill.sentence)"
         case "dialogue.bannedOpener":
-            return "Rewrite only this opening so it does not start with \"You wrote\", \"You mentioned\", \"Looking at your entries\", or \"In your journal\": \(infill.sentence)"
+            return "Rewrite only this opening so it does not start with \"You wrote\", \"You mentioned\", "
+                + "\"Looking at your entries\", or \"In your journal\": \(infill.sentence)"
         case "dialogue.questionOnAcknowledge":
             return "Rewrite only this sentence as a close with no question: \(infill.sentence)"
         default:
