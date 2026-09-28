@@ -10,62 +10,11 @@ import SwiftUI
 
 // MARK: - Accessibility Color Tokens
 
-/// Design tokens for WCAG AAA compliant chart colors
-/// Based on sentiment analysis UI design
+/// Chart-only tokens with no `Theme` equivalent. Canvas, text, and emotion
+/// fills come from `Theme` so the chart follows light/dark appearance.
 struct ChartAccessibilityTokens {
-    /// Background color: canvas (chart sits on the page, not a brown slab)
-    static let chartBackground = BaseColors.white
-
-    /// Text color — black on white, 21:1
-    static let textPrimary = BaseColors.black
-
-    /// Percentage label color
-    static let textPercentage = BaseColors.black
-
-    /// Track/base color for the bar.
-    static let barTrack = BaseColors.black.opacity(0.08)
-
     /// Focus ring color - Cyan outline, 9.98:1 contrast
     static let focusRing = Color(hex: "#6FD9FF")
-
-    /// Dot outline color - ensures dots are perceivable against background
-    static let dotOutline = BaseColors.white.opacity(0.9)
-
-    /// Sentiment analysis emotion colors (from reference design)
-    /// Colors match the provided UI with high contrast against dark purple
-    static let emotionColors: [EmotionColor] = [
-        EmotionColor(
-            name: "Lavender",
-            fill: Color(hex: "#B8B0E8"),      // Light purple - for Anxiety
-            hex: "#B8B0E8"
-        ),
-        EmotionColor(
-            name: "Coral",
-            fill: Color(hex: "#F19B8D"),      // Salmon/coral - for Anticipation
-            hex: "#F19B8D"
-        ),
-        EmotionColor(
-            name: "Cyan",
-            fill: Color(hex: "#5DD4E8"),      // Bright cyan - for Fear
-            hex: "#5DD4E8"
-        ),
-        EmotionColor(
-            name: "Lime",
-            fill: Color(hex: "#7FE87D"),      // Lime green - for Regret
-            hex: "#7FE87D"
-        ),
-        EmotionColor(
-            name: "Sky",
-            fill: Color(hex: "#A0D8F0"),      // Sky blue - 5th option
-            hex: "#A0D8F0"
-        )
-    ]
-
-    struct EmotionColor {
-        let name: String
-        let fill: Color
-        let hex: String
-    }
 }
 
 // MARK: - Data Model
@@ -78,6 +27,7 @@ struct PercentageBarItem: Identifiable {
     let color: Color?
 }
 
+// periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
 /// An editable data model for percentage chart with binding support
 struct EditablePercentageBarItem: Identifiable {
     let id = UUID()
@@ -111,6 +61,7 @@ struct PercentageBarChart: View {
     @FocusState private var focusedIndex: Int?
 
     let items: [PercentageBarItem]
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     var onValueChange: ((Int, Double) -> Void)?
 
     /// The design supports 2–5 bars. More than this and the labels collide.
@@ -131,6 +82,7 @@ struct PercentageBarChart: View {
         Array(items.prefix(maxItems))
     }
 
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     /// Initialize with up to `maxItems` items.
     init(items: [PercentageBarItem], onValueChange: ((Int, Double) -> Void)? = nil) {
         self.items = Self.clamped(items)
@@ -146,6 +98,7 @@ struct PercentageBarChart: View {
         self.onValueChange = onValueChange
     }
 
+    // periphery:ignore - chart API kept for the spec 019 R4 Patterns claim; retained deliberately
     /// Convenience initializer with custom colors. Truncates to the shortest
     /// of the three arrays.
     init(labels: [String], values: [Double], colors: [Color], onValueChange: ((Int, Double) -> Void)? = nil) {
@@ -164,8 +117,13 @@ struct PercentageBarChart: View {
         return Int(round((value / total) * 100))
     }
 
+    /// Auto-assigned fill order: lavender, coral, cyan, lime, sky.
+    private var emotionFills: [Color] {
+        [theme.emotionFear, theme.emotionAnger, theme.emotionSadness, theme.emotionJoy, theme.emotionNeutral]
+    }
+
     private func accessibleColor(for index: Int) -> Color {
-        ChartAccessibilityTokens.emotionColors[index % 5].fill
+        emotionFills[index % emotionFills.count]
     }
 
     var body: some View {
@@ -200,7 +158,7 @@ struct PercentageBarChart: View {
                             // Emotion label
                             Text(item.label)
                                 .font(typography.h6)
-                                .foregroundColor(ChartAccessibilityTokens.textPrimary)
+                                .foregroundColor(theme.foreground)
                                 .accessibilityLabel(item.label)
 
                             Spacer()
@@ -208,7 +166,7 @@ struct PercentageBarChart: View {
                             // Percentage value (no color-only reliance)
                             Text("\(percentage(for: item.value))%")
                                 .font(typography.body1)
-                                .foregroundColor(ChartAccessibilityTokens.textPercentage)
+                                .foregroundColor(theme.foreground)
                                 .accessibilityLabel("\(percentage(for: item.value)) percent")
                         }
                         .padding(.vertical, 8)
@@ -262,7 +220,7 @@ struct PercentageBarChart: View {
 
 // MARK: - Contrast Ratio Documentation
 
-/**
+/*
  WCAG 2.2 AAA Compliance Report - Sentiment Analysis Design
  ===========================================================
 
@@ -341,6 +299,7 @@ struct PercentageBarChart: View {
 // MARK: - Editable Chart Example
 
 struct EditableChartExample: View {
+    @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
     @State private var emotionValues: [Double] = [50, 20, 18, 12]
     let emotionLabels = ["Anxiety", "Anticipation", "Fear", "Regret"]
@@ -349,7 +308,7 @@ struct EditableChartExample: View {
         VStack(spacing: 16) {
             Text("Editable Chart")
                 .font(type.h4)
-                .foregroundColor(.white)
+                .foregroundColor(theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
 
@@ -366,7 +325,7 @@ struct EditableChartExample: View {
                 ForEach(emotionLabels.indices, id: \.self) { index in
                     HStack {
                         Text(emotionLabels[index])
-                            .foregroundColor(.white)
+                            .foregroundColor(theme.foreground)
                         Spacer()
                         Stepper(
                             value: $emotionValues[index],
@@ -374,7 +333,7 @@ struct EditableChartExample: View {
                             step: 5
                         ) {
                             Text("\(Int(emotionValues[index]))")
-                                .foregroundColor(.white)
+                                .foregroundColor(theme.foreground)
                                 .frame(width: 40, alignment: .trailing)
                         }
                     }
@@ -382,12 +341,13 @@ struct EditableChartExample: View {
                 }
             }
         }
-        .background(ChartAccessibilityTokens.chartBackground)
+        .background(theme.background)
     }
 }
 
 // MARK: - Preview
 
+// periphery:ignore - Xcode previews are not reachable from the app target
 struct PercentageBarChart_Previews: PreviewProvider {
     static var previews: some View {
         Group {
@@ -404,7 +364,6 @@ struct PercentageBarChart_Previews: PreviewProvider {
                     values: [50, 20, 18, 12]
                 )
             }
-            .background(ChartAccessibilityTokens.chartBackground)
             .useTheme()
             .useTypography()
             .previewDisplayName("Sentiment Analysis (Reference)")
@@ -416,7 +375,6 @@ struct PercentageBarChart_Previews: PreviewProvider {
                     values: [50, 30, 20]
                 )
             }
-            .background(ChartAccessibilityTokens.chartBackground)
             .useTheme()
             .useTypography()
             .previewDisplayName("Three Emotions")
@@ -428,7 +386,6 @@ struct PercentageBarChart_Previews: PreviewProvider {
                     values: [30, 25, 20, 15, 10]
                 )
             }
-            .background(ChartAccessibilityTokens.chartBackground)
             .useTheme()
             .useTypography()
             .previewDisplayName("Five Emotions - Full Palette")
@@ -440,7 +397,6 @@ struct PercentageBarChart_Previews: PreviewProvider {
                     values: [65, 35]
                 )
             }
-            .background(ChartAccessibilityTokens.chartBackground)
             .useTheme()
             .useTypography()
             .previewDisplayName("Two Emotions - Minimal")

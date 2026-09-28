@@ -44,7 +44,8 @@ public struct PrimaryButton: View {
                 if isLoading { ProgressView().tint(theme.primaryForeground) }
             }
             .padding(.vertical, Spacing.xs)
-            .frame(minHeight: 48) // AX5: minHeight, so large text never clips
+            // AX5: minHeight lets the label grow instead of clipping at large Dynamic Type sizes.
+            .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(theme.primaryForeground)
             .background(theme.primaryButtonFill)

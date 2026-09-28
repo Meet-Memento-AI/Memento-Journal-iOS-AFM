@@ -68,6 +68,7 @@ the same status board as the engineering phases. Gate S sits after Phase 5.
 | [`11-rejection-playbook.md`](11-rejection-playbook.md) | Our rejection history, metadata vs binary rejection, Resolution Center, expedited review, appeals | [App Review](https://developer.apple.com/distribute/app-review/) |
 | [`12-enhancement-plan-asc-readiness.md`](12-enhancement-plan-asc-readiness.md) | Prioritized product enhancement plan (data-layer honesty, dark mode, accessibility) sequenced for Gate S | — (aggregates repo scan + specs) |
 | [`13-1x-account-holder-runbook.md`](13-1x-account-holder-runbook.md) | 1.x click path: Apple's clock, ASC paste values, screenshot sizes, archive | — |
+| [`14-orientation-decision.md`](14-orientation-decision.md) | 1.x orientation contract: iPhone portrait-only, iPad rotates | — |
 
 Plus two data files:
 

@@ -54,7 +54,7 @@ struct NarrationFooter: View {
                     .truncationMode(.head)
                     .frame(maxWidth: .infinity, minHeight: AppHeaderMetrics.footerButtonSize, alignment: .leading)
                     .padding(16)
-                    .glassEffect(
+                    .mementoChromeGlass(
                         .regular.interactive(),
                         in: .rect(cornerRadius: 16, style: .continuous)
                     )
@@ -131,7 +131,7 @@ private struct NarrationCircleButton: View {
                 .font(AppHeaderMetrics.controlSymbolFont)
                 .foregroundStyle(theme.foreground)
                 .mementoFooterGlassButtonChrome(
-                    .regular.interactive(),
+                    interactive: true,
                     shape: .circle
                 )
                 .shadow(color: shadow, radius: 16, y: 4)

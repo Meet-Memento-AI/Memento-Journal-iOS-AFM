@@ -580,23 +580,24 @@ private struct InsightFactSection: View {
     let facts: [InsightFact]
     var onTap: (() -> Void)?
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(fact.label.capitalized)
-                        .font(.caption.weight(.semibold))
+                        .font(type.captionMedium)
                         .foregroundStyle(theme.mutedForeground)
                     Text(fact.value)
-                        .font(.title2.weight(.semibold))
+                        .font(type.h3)
                         .foregroundStyle(theme.foreground)
                     Text("n = \(fact.n)")
-                        .font(.caption)
+                        .font(type.caption)
                         .foregroundStyle(theme.mutedForeground)
                     if fact.isLowConfidence {
                         Text(InsightFact.lowConfidenceCopy(n: fact.n))
-                            .font(.caption)
+                            .font(type.caption)
                             .foregroundStyle(theme.mutedForeground)
                     }
                 }

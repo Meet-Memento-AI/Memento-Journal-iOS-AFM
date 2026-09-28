@@ -82,7 +82,7 @@ struct ReplyFeedbackSheet: View {
 
     private var heroIcon: some View {
         Image(systemName: isReport ? "flag" : "hand.thumbsdown")
-            .font(.system(size: 28, weight: .medium))
+            .font(.system(size: 28, weight: .medium)) // icon-size: not user text
             .foregroundStyle(theme.foreground)
             .frame(width: AppHeaderMetrics.controlSize, height: AppHeaderMetrics.controlSize)
             .frame(maxWidth: .infinity)
@@ -200,7 +200,7 @@ struct ReplyOverflowMenu: View {
             .accessibilityIdentifier("chat.reply.report")
         } label: {
             Image(systemName: "ellipsis")
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 14, weight: .bold)) // icon-size: not user text
                 .foregroundStyle(isReported ? theme.accent : theme.iconForeground)
                 .frame(minWidth: 28, minHeight: 28)
                 .contentShape(Rectangle())

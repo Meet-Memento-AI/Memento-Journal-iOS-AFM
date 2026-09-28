@@ -16,6 +16,9 @@ import SwiftUI
 /// sit where the window-inset padding puts them.
 struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOverlay: View>: View {
     @Environment(\.theme) private var theme
+    /// Under a native bar the top safe area is kept, so content starts below
+    /// the bar; the fill still reaches the physical top on its own.
+    @Environment(\.rootNavigationBarHosted) private var navigationBarHosted
 
     /// Extra air below the footer, on top of `windowBottom`. Resting chrome
     /// passes 16. Chat with the keyboard up passes
@@ -106,10 +109,13 @@ struct RootPageScaffold<Header: View, Footer: View, Content: View, BackgroundOve
                 .allowsHitTesting(false)
         }
         .overlay(alignment: .bottom) {
+            // FAB and composer sit on the reading column's edge, not the
+            // screen's. A no-op at every iPhone width.
             footer
+                .contentColumn()
                 .padding(.bottom, footerPad)
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: navigationBarHosted ? [.horizontal, .bottom] : .all)
         .clipToPage(elevated)
         .overlay(alignment: .top) {
             ZStack(alignment: .top) {
@@ -181,6 +187,7 @@ extension RootPageScaffold where BackgroundOverlay == EmptyView {
 }
 
 extension RootPageScaffold where Footer == EmptyView, BackgroundOverlay == EmptyView {
+    // periphery:ignore - header-and-content pages; today only #Preview canvases build one
     init(
         @ViewBuilder header: () -> Header,
         @ViewBuilder content: () -> Content

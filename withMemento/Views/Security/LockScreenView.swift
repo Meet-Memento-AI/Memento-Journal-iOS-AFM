@@ -60,6 +60,7 @@ struct LockScreenView: View {
                         .padding(.bottom, 60)
                 }
             }
+            .contentColumn()
 
             // Hidden TextField for iOS keyboard (PIN mode only)
             if viewModel.showPINFallback {
@@ -383,4 +384,20 @@ struct LockScreenView: View {
     return LockScreenView(viewModel: viewModel)
         .useTheme()
         .useTypography()
+}
+
+#Preview("Face ID Mode · AX5") {
+    LockScreenView(viewModel: LockScreenViewModel())
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
+}
+
+#Preview("PIN Mode · AX5") {
+    let viewModel = LockScreenViewModel()
+    viewModel.showPINFallback = true
+    return LockScreenView(viewModel: viewModel)
+        .useTheme()
+        .useTypography()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }

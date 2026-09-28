@@ -141,18 +141,32 @@ struct YourEntriesView: View {
             .padding(.top, 8)
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             Spacer()
-            JournalEmptyMark()
+            VStack(spacing: 12) {
+                JournalEmptyMark()
+                Text("Nothing here yet. A few lines about today is a good start.")
+                    .font(type.body1)
+                    .foregroundStyle(theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("No journal entries yet. A few lines about today is a good start.")
+            Button("Start writing") {
+                onNavigateToEntry(.create)
+            }
+            .padding(.top, 8)
+            .accessibilityIdentifier("journal.empty.startWriting")
             Spacer()
         }
+        .contentColumn()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("No journal entries yet")
     }
 
     private var entriesList: some View {
@@ -220,7 +234,9 @@ struct YourEntriesView: View {
                     .onAppear { onMonthVisibilityChanged(monthGroup.monthStart) }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, AppHeaderMetrics.edgeInset)
+            .contentColumn()
+            .frame(maxWidth: .infinity)
             .padding(.top, topContentPadding)
             .padding(.bottom, bottomContentPadding)
             // Timeline measure. Safe as a centred clamp because this subtree is

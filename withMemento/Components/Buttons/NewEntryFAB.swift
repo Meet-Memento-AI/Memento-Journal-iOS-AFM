@@ -78,7 +78,7 @@ public struct NewEntryFAB: View {
             .font(AppHeaderMetrics.controlSymbolFont)
             .foregroundStyle(theme.foreground)
             .mementoGlassButtonChrome(
-                .regular.interactive(),
+                interactive: true,
                 shape: .circle,
                 minLength: AppHeaderMetrics.footerGlassButtonLength(size)
             )

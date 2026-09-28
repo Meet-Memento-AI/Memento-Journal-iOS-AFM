@@ -66,7 +66,7 @@ public struct AISuggestionCard: View {
             }
             Spacer(minLength: 0)
             Image(systemName: "arrow.right")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold)) // icon-size: not user text
                 .foregroundStyle(chromeInk)
                 .frame(width: 24, height: 24)
         }
@@ -136,6 +136,7 @@ private struct AISuggestionCardAccessibility: ViewModifier {
 
 // MARK: - Previews
 
+// periphery:ignore - instantiated only by #Preview canvases
 private struct AISuggestionCardHarness: View {
     var body: some View {
         VStack(spacing: Spacing.md) {

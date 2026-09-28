@@ -18,9 +18,10 @@ struct AvatarInitialButton: View {
     var onTap: (() -> Void)?
 
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
 
     private var resolvedFont: Font {
-        fontSize.map { .system(size: $0, weight: .semibold) } ?? .headline
+        fontSize.map { .system(size: $0, weight: .semibold) } ?? type.body1Medium // icon-size: not user text
     }
 
     var body: some View {

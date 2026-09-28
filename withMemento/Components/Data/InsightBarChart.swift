@@ -15,6 +15,7 @@ struct InsightBarChart: View {
     var chartHeight: CGFloat = 160
 
     @Environment(\.theme) private var theme
+    @Environment(\.typography) private var type
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -38,7 +39,7 @@ struct InsightBarChart: View {
                         )
                         .annotation(position: .top, spacing: 4) {
                             Text("\(fact.n)")
-                                .font(.caption2.weight(.medium))
+                                .font(type.microMedium)
                                 .foregroundStyle(theme.mutedForeground)
                                 .accessibilityLabel(InsightFact.sampleSizeCopy(n: fact.n))
                         }
@@ -48,6 +49,7 @@ struct InsightBarChart: View {
                 .chartXAxis {
                     AxisMarks { _ in
                         AxisValueLabel()
+                            .font(type.micro)
                             .foregroundStyle(theme.mutedForeground)
                     }
                 }
@@ -60,7 +62,7 @@ struct InsightBarChart: View {
 
                 if let sparse {
                     Text(InsightFact.lowConfidenceCopy(n: sparse.n))
-                        .font(.caption)
+                        .font(type.caption)
                         .foregroundStyle(theme.mutedForeground)
                 }
             }

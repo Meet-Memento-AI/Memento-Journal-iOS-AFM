@@ -557,3 +557,14 @@ struct ShareSheet: UIViewControllerRepresentable {
             .useTypography()
     }
 }
+
+#Preview("AX5") {
+    NavigationStack {
+        SettingsView()
+            .environmentObject(EntryViewModel())
+            .environmentObject(AppStateStore())
+            .useTheme()
+            .useTypography()
+    }
+    .environment(\.dynamicTypeSize, .accessibility5)
+}

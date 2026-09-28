@@ -49,7 +49,16 @@ Branch protection setup guide: [docs/BRANCH_PROTECTION_SETUP.md](docs/BRANCH_PRO
 The product is **on-device only** — there is no backend deploy pipeline in the
 current workflow set (`ios-build-online.yml`, `security.yml`, `spec-gates.yml`,
 optional `ios-device-eval.yml`). Store upload / TestFlight remain manual operator
-steps (`docs/app-store/`).
+steps (`docs/app-store/07`) until spec
+[052](../specs/052-cicd-pipeline-and-release-automation.md) lands
+`release-ios.yml` (archive → validate → TestFlight **internal** only).
+
+Full inventory, Apple principles, and the test/enable matrix:
+[docs/CICD_PIPELINE.md](CICD_PIPELINE.md).
+
+1.0 release stays **manual** in App Store Connect. Version updates that touch
+capture, transcription, or intelligence use **phased release**
+(`docs/app-store/10`). CI must never submit for App Review.
 
 ## Rollout notes
 

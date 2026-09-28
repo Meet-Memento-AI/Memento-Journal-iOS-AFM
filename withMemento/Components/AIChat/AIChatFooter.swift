@@ -99,13 +99,14 @@ struct AIChatFooter: View {
 private struct AIChatFooterInteractivePreview: View {
     @State private var inputText = ""
     @State private var isSending = false
+    @Environment(\.typography) private var type
 
     var body: some View {
         VStack {
             Spacer()
 
             Text("Tap buttons to see state changes")
-                .font(.caption)
+                .font(type.caption)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 
