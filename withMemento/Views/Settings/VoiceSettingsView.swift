@@ -19,7 +19,6 @@ import SwiftUI
 
 public struct VoiceSettingsView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.typography) private var type
 
     @State private var selectedVoiceID: String = VoiceCatalog.default.id
     @State private var selectedRate: SpeechRatePreset = .brisk
@@ -69,7 +68,7 @@ public struct VoiceSettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
             .proseColumn()
             .padding(.top, Spacing.xs)
         }

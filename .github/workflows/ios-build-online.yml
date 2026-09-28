@@ -31,6 +31,11 @@ jobs:
     timeout-minutes: 90
     env:
       CI_ONLINE: "1"
+      # A simulator test process inherits only TEST_RUNNER_-prefixed variables
+      # from xcodebuild (prefix stripped), so without this the tests'
+      # XCTSkipIf(CI_ONLINE == "1") guards never fire and this lane runs live
+      # on-device generation it means to skip.
+      TEST_RUNNER_CI_ONLINE: "1"
       # On the xcode-27 image /Applications/Xcode.app is Xcode 27.
       # Override IOS_DEVELOPER_DIR / IOS_SIM_DESTINATION as repo variables.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}

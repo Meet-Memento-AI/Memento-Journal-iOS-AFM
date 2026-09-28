@@ -396,10 +396,15 @@ struct ChatInputField: View {
             isFocused = true
         } label: {
             HStack(spacing: 0) {
-                Text("Chat with Memento")
-                    .font(type.inputLarge)
-                    .foregroundStyle(composerPlaceholder)
-                    .lineLimit(1)
+                // At accessibility sizes the full prompt truncated to
+                // "Chat w…"; a whole shorter word reads better than a cut one.
+                ViewThatFits(in: .horizontal) {
+                    Text("Chat with Memento")
+                    Text("Chat")
+                }
+                .font(type.inputLarge)
+                .foregroundStyle(composerPlaceholder)
+                .lineLimit(1)
                 Spacer(minLength: Spacing.xs)
             }
             .padding(.horizontal, Spacing.xs)

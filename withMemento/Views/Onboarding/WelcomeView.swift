@@ -14,6 +14,7 @@ public struct WelcomeView: View {
     @Environment(\.typography) private var type
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject var appState: AppStateStore
 
     // Video loading and blur states
@@ -90,6 +91,17 @@ public struct WelcomeView: View {
                 )
                 .opacity(videoOpacity)
                 .ignoresSafeArea()
+
+                // Reduce Transparency drops the blur, which is what kept the
+                // white copy legible over bright frames. Full height: the
+                // privacy step puts its copy near the top.
+                if reduceTransparency {
+                    JournalBackdropShader.scrimColor
+                        .opacity(JournalBackdropShader.scrimCeiling * videoOpacity)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
 
                 // Layer 4: Content (appears after video dissolve)
                 if contentCanAppear {
@@ -256,6 +268,13 @@ public struct WelcomeView: View {
 
     // MARK: - Content Overlay
 
+    /// Figma 905:2054's 24pt sides on iPhone. On regular width the copy and
+    /// CTA sit in the 600pt column, so they take the same 16pt inset as every
+    /// other iPad surface instead of reading 8pt narrower per side.
+    private var introSideInset: CGFloat {
+        horizontalSizeClass == .regular ? AppHeaderMetrics.edgeInset : Spacing.xl
+    }
+
     /// Figma 905:2054 — bottom stack, 24pt sides, 32pt between copy and CTA.
     /// Figma 1009:9894 — privacy explainer after Get Started.
     @ViewBuilder
@@ -288,7 +307,7 @@ public struct WelcomeView: View {
             }
             .opacity(step == .privacy || showButtons ? 1 : 0)
             .allowsHitTesting((step == .privacy || showButtons) && !isExiting)
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, introSideInset)
             .padding(.bottom, Spacing.md)
         }
     }
@@ -311,7 +330,7 @@ public struct WelcomeView: View {
                     .accessibilityIdentifier("welcome.positioning")
                     .opacity(showHeadline ? 1 : 0)
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, introSideInset)
         }
     }
 

@@ -425,7 +425,7 @@ enum ChatEvalScoring {
         guard !asserted.isEmpty else { return [] }
         let backing = citations.map { calendar.dateComponents([.year, .month, .day], from: $0.entryDate) }
         return asserted.compactMap { span -> Violation? in
-            guard let parsed = parseAssertedDate(span, calendar: calendar) else { return nil }
+            guard let parsed = parseAssertedDate(span) else { return nil }
             let backed = backing.contains { cited in
                 cited.month == parsed.month && cited.day == parsed.day
                     && (parsed.year == nil || cited.year == parsed.year)
@@ -444,8 +444,7 @@ enum ChatEvalScoring {
     /// (`RenderPass.parse`), but it is `private` and the test target's
     /// `@testable import` does not reach `private`. Keep the two adjacent in
     /// review: if one learns a new date shape, the other should.
-    private static func parseAssertedDate(_ span: String,
-                                          calendar: Calendar) -> (month: Int, day: Int, year: Int?)? {
+    private static func parseAssertedDate(_ span: String) -> (month: Int, day: Int, year: Int?)? {
         let months = ["january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
                       "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
                       "december": 12]

@@ -96,11 +96,19 @@ enum OnDeviceModelTierResolver {
         reported: OnDeviceModelTier?,
         modelAvailable: Bool,
         osMajorVersion: Int,
-        physicalMemoryBytes: UInt64
+        physicalMemoryBytes: UInt64,
+        memoryDescribesTheDevice: Bool = true
     ) -> ResolvedOnDeviceModelTier {
         guard modelAvailable else { return .unresolved }
         if let reported, reported != .unknown {
             return ResolvedOnDeviceModelTier(tier: reported, source: .reported)
+        }
+        // A simulator reports the host Mac's memory, not the simulated
+        // device's, so the memory class says nothing about which model ran.
+        // `.unknown` has a nil `identifierSuffix`, so the row keeps the bare
+        // historical identifier rather than carrying a fabricated tier.
+        guard memoryDescribesTheDevice else {
+            return ResolvedOnDeviceModelTier(tier: .unknown, source: .inferred)
         }
         guard osMajorVersion >= firstAFM3OSMajorVersion else {
             return ResolvedOnDeviceModelTier(tier: .preAFM3, source: .inferred)

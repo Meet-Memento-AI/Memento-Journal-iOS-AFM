@@ -287,6 +287,9 @@ final class ConversationSimulation: XCTestCase {
             if let result {
                 row["prompt_version"] = result.promptVersion
                 row["model_identifier"] = result.modelIdentifier
+                // Spec 051 landed after study V: which tier the device
+                // model resolved to, and why, is part of what this run
+                // is measuring.
                 let tier = OnDeviceModelTierCache.shared.current
                 row["model_tier"] = tier.tier.rawValue
                 row["model_tier_source"] = tier.source.rawValue
