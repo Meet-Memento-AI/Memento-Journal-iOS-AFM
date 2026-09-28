@@ -74,6 +74,9 @@ public struct ContentView: View {
     @StateObject private var defaultEntryViewModel = EntryViewModel()
     #if MEMENTO_AI
     @StateObject private var chatViewModel = ChatViewModel()
+    /// Free or Pro chat (spec 021 R4, DEC-013): a free user gets the free
+    /// chat, not a lock.
+    @State private var chatAccess: ProAccessDecision = .unlocked
     #endif
     @Environment(\.previewEntryViewModel) private var previewEntryViewModel: EntryViewModel?
     @Environment(\.previewInitialTab) private var previewInitialTab: RootPage?
@@ -112,6 +115,7 @@ public struct ContentView: View {
                 case .chat:
                     AIChatView(
                         viewModel: chatViewModel,
+                        tier: ChatTier(chatAccess),
                         isEmbedded: true,
                         hasEntries: !entryViewModel.entries.isEmpty,
                         onOpenJournal: { RootPage.select(.journal, in: $selectedPage) },
@@ -119,12 +123,21 @@ public struct ContentView: View {
                             navigationPath.append(route)
                         }
                     )
+                    // Free users get the free chat (latest entry, daily limit,
+                    // Upgrade), not a lock (spec 021 R4, DEC-013).
+                    .resolveProDecision($chatAccess)
                 #else
                 case .chat:
                     EmptyView()
                 #endif
                 }
             }
+            // Both root pages are surfaces of cards, so they read at the wider
+            // measure and their shared `AppHeader` aligns to it. Declared here
+            // rather than per page so the two cannot drift. The overlay
+            // NavigationStack below is a *sibling*, not a child, so routes
+            // pushed on it (settings, the entry editor) keep the prose measure.
+            .contentColumnWidth(ContentColumnMetrics.surface)
 
             // Destinations that still push on `navigationPath` (search, the
             // standalone journal toolbar). Hit-testing is off while the path
@@ -187,6 +200,8 @@ public struct ContentView: View {
         .environmentObject(navigationState)
         .environment(\.selectedTab, $selectedPage)
         .environment(\.tabBarHidden, $isTabBarHidden)
+        // Paywall copy cites entry counts only when true (spec 021 R10).
+        .environment(\.paywallContext, PaywallContext(entries: entryViewModel.entries))
         .useTheme()
         .useTypography()
         #if MEMENTO_AI

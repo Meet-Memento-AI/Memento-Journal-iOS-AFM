@@ -167,11 +167,62 @@ class ChatViewModel: ObservableObject {
 
     init(chatService: ChatServiceProtocol = ChatService.shared,
          feedbackStore: AnswerFeedbackStore = .shared,
-         feedbackSync: FeedbackSyncService = .shared) {
+         feedbackSync: FeedbackSyncService = .shared,
+         allowance: FreeChatAllowance? = nil) {
         self.chatService = chatService
         self.feedbackStore = feedbackStore
         self.feedbackSync = feedbackSync
+        self.allowance = allowance ?? .shared
         seedUITestTranscriptIfRequested()
+    }
+
+    // MARK: - Free tier (spec 021 R4 `REQ-MON-006`)
+
+    /// Set by the chat view from entitlement × device eligibility.
+    @Published private(set) var tier: ChatTier = .pro
+    /// True once a free message was held back by the daily limit. The view
+    /// shows the inline limit note; the text stays in the composer.
+    @Published var dailyLimitReached = false
+
+    private let allowance: FreeChatAllowance
+
+    func setTier(_ tier: ChatTier) {
+        self.tier = tier
+        chatService.setRetrievalScope(tier == .free ? .latestEntry : .wholeJournal)
+        refreshDailyLimit()
+    }
+
+    /// Clears the limit note once a new day starts (or the person upgraded).
+    func refreshDailyLimit() {
+        if tier == .pro || !allowance.isExhausted { dailyLimitReached = false }
+    }
+
+    /// Whether a free message may be sent now, counting it if so.
+    /// Crisis-adjacent text always goes through and never counts (026 R4
+    /// amendment), so the static resource card is never behind the limit.
+    private func admitFreeMessage(_ text: String) -> Bool {
+        if SafetyClassifier.classify(text).category == .selfHarmCrisis { return true }
+        guard !allowance.isExhausted else {
+            dailyLimitReached = true
+            return false
+        }
+        allowance.recordMessage()
+        return true
+    }
+
+    /// Free-tier reset: the conversation is deleted, not kept in history
+    /// ("nothing carried over", spec 021 R4). Pro keeps chats in history.
+    func resetFreeChat() async {
+        if let id = currentSessionId {
+            do {
+                try await chatService.deleteSession(sessionId: id)
+            } catch {
+                AppLogger.log("[ChatViewModel] resetFreeChat delete error: \(error)", type: .error)
+            }
+            messageCache.removeValue(forKey: id)
+            sessions.removeAll { $0.id == id }
+        }
+        startNewChat()
     }
 
     /// Seeds one tall completed turn when launched with `-SeedChatTranscript`.
@@ -338,21 +389,28 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Send Message
 
-    func sendMessage(prompt: String? = nil, images: [Data] = [], origin: SendOrigin = .composer) {
+    /// Returns false when nothing was sent: empty input, a send already in
+    /// flight, or the free daily limit (spec 021 R4). The composer clears its
+    /// own text after `onSend`, so the view restores it on a limit hold.
+    @discardableResult
+    func sendMessage(prompt: String? = nil, images: [Data] = [], origin: SendOrigin = .composer) -> Bool {
         let typed: String
         if let prompt = prompt {
             typed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
             typed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        guard !isLoading else { return }
+        guard !isLoading else { return false }
         let modelText: String
         if typed.isEmpty {
-            guard !images.isEmpty else { return }
+            guard !images.isEmpty else { return false }
             modelText = Self.attachedPhotosPrompt(count: images.count)
         } else {
             modelText = typed
         }
+
+        // Held back by the free daily limit: nothing is sent.
+        if tier == .free, !admitFreeMessage(typed) { return false }
 
         if prompt == nil {
             inputText = ""
@@ -362,6 +420,7 @@ class ChatViewModel: ObservableObject {
         appendMessage(userMessage)
 
         performSend(text: modelText, images: images, userMessageId: userMessage.id, origin: origin)
+        return true
     }
 
     /// A starter card: the assistant opens, the person has said nothing yet.

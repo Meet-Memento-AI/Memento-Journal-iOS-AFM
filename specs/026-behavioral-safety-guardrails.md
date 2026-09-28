@@ -74,6 +74,13 @@ and `estimateProfile` inputs (refuse suicide-note / violent-plan production).
 A greeting that wraps crisis language still hits this gate (039 R7 /
 PersonaGate fixtures).
 
+**Amendment (DEC-013, 2026-09-26):**
+- The free daily message limit (021 R4) is checked **after** this gate. A
+  crisis-adjacent message always reaches the static card and never counts
+  toward the limit.
+- No purchase offer follows a crisis card, either in onboarding (053 R4) or
+  at a re-offer moment (021 R9).
+
 ### R5. Static crisis card (`REQ-SUR-004`)
 
 Bundled, locale-keyed resources (no network). Ask mounts `CrisisResourceCard`.
