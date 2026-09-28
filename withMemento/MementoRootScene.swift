@@ -30,6 +30,8 @@ struct MementoRootScene: Scene {
     #if DEBUG && MEMENTO_AI
     /// `-UITesting -PaywallPreview`: the paywall over preview data, for
     /// design review and PaywallUITests while Memento Pro is switched off.
+    // periphery:ignore - bound by the .sheet below; both sit inside
+    // `#if DEBUG && MEMENTO_AI`, which the dead-code scan does not build.
     @State private var showPaywallPreview = PaywallModel.isPreviewLaunch
     #endif
 

@@ -72,6 +72,9 @@ final class EntitlementStore: ObservableObject {
         Purchases.configure(withAPIKey: apiKey)
         isConfigured = true
 
+        // Cancel first: `configure()` running twice would otherwise leave two
+        // streams applying to the same store, and the older one never ends.
+        streamTask?.cancel()
         streamTask = Task { [weak self] in
             for await info in Purchases.shared.customerInfoStream {
                 self?.apply(info)
