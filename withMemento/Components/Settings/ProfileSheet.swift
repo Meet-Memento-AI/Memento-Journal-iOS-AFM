@@ -19,13 +19,13 @@ import SwiftUI
 struct ProfileSheet: View {
     /// The app's main navigation path, used only by the standalone fallback —
     /// rows normally push inside this sheet's own stack.
+    // periphery:ignore - part of the call-site API; the standalone fallback is not wired yet
     var navigationPath: Binding<NavigationPath>
 
     @EnvironmentObject private var entryViewModel: EntryViewModel
     @EnvironmentObject private var appState: AppStateStore
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         // Its own stack, so rows push in place and you can swipe back without
@@ -103,7 +103,7 @@ struct ProfileSheet: View {
                             .accessibilityIdentifier("profile.settings")
                         }
                     }
-                    .padding(.horizontal, Spacing.lg)
+                    .columnGutter(compact: Spacing.lg)
                     .padding(.bottom, Spacing.xxl)
                 }
             }
@@ -121,6 +121,7 @@ struct ProfileSheet: View {
         }
         .presentationDetents([.fraction(0.95)])
         .mementoSheetPresentation()
+        .mementoColumnSheet()
     }
 
     // MARK: - Chrome

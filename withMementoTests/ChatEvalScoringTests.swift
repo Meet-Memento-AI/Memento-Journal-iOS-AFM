@@ -230,6 +230,47 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertEqual(ChatEvalScoring.uncitedQuote(body, citations: [citation], index: index), [])
     }
 
+    // MARK: - hall.unbackedDate (051 R3)
+
+    private func citation(_ month: Int, _ day: Int, _ year: Int = 2026) -> AskCitation {
+        var parts = DateComponents()
+        parts.year = year; parts.month = month; parts.day = day
+        return AskCitation(entryId: UUID(),
+                           entryDate: Calendar.current.date(from: parts) ?? Date(),
+                           excerpt: "…")
+    }
+
+    func test_unbackedDate_firesOnADateNoCitationCarries() {
+        let body = "You wrote about the move on March 12. What holds now?"
+        XCTAssertEqual(codes(ChatEvalScoring.unbackedDate(body, citations: [citation(4, 26)])),
+                       ["hall.unbackedDate"])
+    }
+
+    /// 046's own motivating example, on the arm with no journal at all. It
+    /// carried an empty violations array in the 2026-09-20 archive.
+    func test_unbackedDate_firesWithNoCitationsAtAll() {
+        let body = "I don't see anything from that stretch — the entry from March 12 shows a spike."
+        XCTAssertEqual(codes(ChatEvalScoring.unbackedDate(body, citations: [])),
+                       ["hall.unbackedDate"])
+    }
+
+    func test_unbackedDate_silentWhenACitationCarriesThatDay() {
+        let body = "On April 26, 2026 you wrote it down. What changed?"
+        XCTAssertEqual(ChatEvalScoring.unbackedDate(body, citations: [citation(4, 26)]), [])
+    }
+
+    /// A bare month and day matches on month and day; a stated year must agree.
+    func test_unbackedDate_yearMustAgreeWhenTheReplyStatesOne() {
+        let body = "On April 26, 2025 you wrote it down. What changed?"
+        XCTAssertEqual(codes(ChatEvalScoring.unbackedDate(body, citations: [citation(4, 26, 2026)])),
+                       ["hall.unbackedDate"])
+    }
+
+    func test_unbackedDate_silentWhenNoDateIsAsserted() {
+        let body = "You sat with it a while last week. What holds now?"
+        XCTAssertEqual(ChatEvalScoring.unbackedDate(body, citations: []), [])
+    }
+
     // MARK: - gen.*
 
     func test_gen_hitTokenCap() {
@@ -269,7 +310,7 @@ final class ChatEvalScoringTests: XCTestCase {
             "rule.table", "rule.emoji", "rule.thirdPerson", "rule.bannedPhrase",
             "rule.casualHeading", "rule.casualBold", "rule.casualList",
             "rule.boldNotTheirWords", "hall.fabricatedQuote", "hall.uncitedQuote",
-            "gen.hitTokenCap",
+            "hall.unbackedDate", "gen.hitTokenCap",
             // Covered by InsightEngineTests, which predates this file.
             "insight.digitDisagrees", "insight.contradictsSuppressed",
             // Emitted only against a gold set; exercised by ChatEvalGate.
@@ -328,13 +369,14 @@ final class ChatEvalScoringTests: XCTestCase {
             userTurn: "I was tired after the lab."
         ))
 
+        collect(ChatEvalScoring.unbackedDate("You wrote it on March 12. What now?", citations: []))
         let expected: Set<String> = [
             "rule.bannedOpener", "rule.noOpen", "rule.multipleQuestions", "rule.entryCount",
             "rule.multipleH3", "rule.badHeading", "rule.emptyHeading", "rule.codeFence",
             "rule.table", "rule.emoji", "rule.thirdPerson", "rule.bannedPhrase",
             "rule.casualHeading", "rule.casualBold", "rule.casualList", "rule.boldNotTheirWords",
             "hall.fabricatedQuote", "hall.uncitedQuote", "hall.firstPersonPerception",
-            "hall.narrativeJoin"
+            "hall.narrativeJoin", "hall.unbackedDate"
         ]
         XCTAssertEqual(emitted.intersection(expected), expected, "missing \(expected.subtracting(emitted))")
         XCTAssertTrue(empty.isEmpty)
@@ -358,6 +400,7 @@ final class ChatEvalScoringTests: XCTestCase {
             ChatEvalScoring.Violation(code: "hall.fabricatedQuote", detail: ""),
             ChatEvalScoring.Violation(code: "hall.firstPersonPerception", detail: ""),
             ChatEvalScoring.Violation(code: "hall.narrativeJoin", detail: ""),
+            ChatEvalScoring.Violation(code: "hall.unbackedDate", detail: ""),
             ChatEvalScoring.Violation(code: "hall.uncitedQuote", detail: "")
         ]
         let gated = ChatEvalScoring.gating(violations).map(\.code)
