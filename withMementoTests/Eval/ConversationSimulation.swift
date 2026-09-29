@@ -164,6 +164,10 @@ final class ConversationSimulation: XCTestCase {
         var history: [ChatTurn] = []
         var messageIndex = 0
         var failedTurns = 0
+        var assistantBodies: [String] = []
+        var userAnswerBodies: [String] = []
+        var questionClosedFlags: [Bool] = []
+        var fallbackBodies: [String] = []
 
         for exchange in 0..<exchanges {
             // --- the person's turn
@@ -330,7 +334,25 @@ final class ConversationSimulation: XCTestCase {
                 let openRequired = ResponsePolicyResolver.openRequired(
                     policy: policy, bodyIsEmpty: bodyEmpty || result.promptVersion == "insight-fact@1"
                 )
-                let violations =
+                let placedEvidence = !result.citations.isEmpty || !result.chips.isEmpty
+                    || (result.renderStats?.expandedQuoteSlots.isEmpty == false)
+                    || (result.renderStats?.expandedDateSlots.isEmpty == false)
+                let cqTurn = ConversationQualityTurn(
+                    body: result.body,
+                    latestUserMessage: cleanedUser,
+                    priorAssistantBodies: assistantBodies,
+                    turnType: turnType,
+                    questionShape: shape,
+                    responsePolicy: policy,
+                    channel: channel,
+                    evidenceState: evidence,
+                    placedEvidence: placedEvidence,
+                    exactRung: result.renderStats?.packState == .matched,
+                    isMetaTurn: turnType == .meta,
+                    isCrisisTurn: false,
+                    spoken: false
+                )
+                var violations =
                     ChatEvalScoring.leaks(result.body)
                     + ChatEvalScoring.ruleBreaks(
                         result.body, isCasual: isCasual, index: arm.quoteIndex, openRequired: openRequired
@@ -343,7 +365,27 @@ final class ConversationSimulation: XCTestCase {
                     + ChatEvalScoring.runaway(result.body, capTokens: cap)
                     + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
                     + ChatEvalScoring.insightContradictsSuppressed(body: result.body, facts: result.facts)
+                    + ChatEvalScoring.conversation(cqTurn)
+                let isLastExchange = exchange == exchanges - 1
+                if isLastExchange {
+                    violations += ChatEvalScoring.conversationScope(
+                        assistantBodies: assistantBodies + [result.body],
+                        userBodies: userAnswerBodies + [cleanedUser],
+                        questionClosedFlags: questionClosedFlags
+                            + [result.renderStats?.questionClosed ?? ConversationQuality.closesWithQuestion(result.body)],
+                        fallbackBodies: fallbackBodies
+                    )
+                }
                 row["violations"] = violations.map { ["code": $0.code, "detail": $0.detail] }
+                assistantBodies.append(result.body)
+                userAnswerBodies.append(cleanedUser)
+                questionClosedFlags.append(
+                    result.renderStats?.questionClosed
+                        ?? ConversationQuality.closesWithQuestion(result.body)
+                )
+                if result.renderStats?.usedFallback == true {
+                    fallbackBodies.append(result.body)
+                }
             }
             Self.flush(row)
             messageIndex += 1
@@ -612,7 +654,12 @@ final class ConversationSimulation: XCTestCase {
             "stripped_dates": stats.strippedDateCount,
             "dropped_headings": stats.droppedHeadingCount,
             "stripped_scaffold": stats.strippedScaffoldCount,
-            "fallback": stats.usedFallback
+            "fallback": stats.usedFallback,
+            "question_closed": stats.questionClosed,
+            "repeated_opening": stats.repeatedOpening,
+            "hedge_count": stats.hedgeCount,
+            "stock_phrase_hit": stats.stockPhraseHit,
+            "contraction_present": stats.contractionPresent
         ]
     }
 

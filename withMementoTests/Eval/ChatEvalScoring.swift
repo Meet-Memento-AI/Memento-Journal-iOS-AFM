@@ -611,10 +611,31 @@ enum ChatEvalScoring {
 
     static func gating(_ violations: [Violation]) -> [Violation] {
         violations.filter { v in
-            if v.code.hasPrefix("gen.") || reportOnlyCodes.contains(v.code) { return false }
+            if v.code.hasPrefix("gen.") || v.code.hasPrefix("conv.") { return false }
+            if reportOnlyCodes.contains(v.code) { return false }
             return v.code.hasPrefix("leak.") || v.code.hasPrefix("rule.")
                 || v.code.hasPrefix("hall.") || v.code.hasPrefix("gold.")
                 || v.code.hasPrefix("insight.")
         }
+    }
+
+    // MARK: - conv.* (conversation quality, report-only)
+
+    static func conversation(_ turn: ConversationQualityTurn) -> [Violation] {
+        ConversationQuality.turnViolations(turn).map { .init(code: $0.code, detail: $0.detail) }
+    }
+
+    static func conversationScope(
+        assistantBodies: [String],
+        userBodies: [String],
+        questionClosedFlags: [Bool],
+        fallbackBodies: [String]
+    ) -> [Violation] {
+        ConversationQuality.conversationViolations(
+            assistantBodies: assistantBodies,
+            userBodies: userBodies,
+            questionClosedFlags: questionClosedFlags,
+            fallbackBodies: fallbackBodies
+        ).map { .init(code: $0.code, detail: $0.detail) }
     }
 }

@@ -806,7 +806,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         entryCount: Int,
         promptTokens: Int? = nil,
         cachedTokens: Int? = nil,
-        tools: Int = 0
+        tools: Int = 0,
+        renderStats: ReplyRenderStats? = nil
     ) {
         let ms = latency.components.seconds * 1000 + latency.components.attoseconds / 1_000_000_000_000_000
         let windowDescription: String
@@ -819,8 +820,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         // os.Logger, not the DEBUG-only print: this is the one per-turn
         // latency record (spec 029 R1) and it is content-free by construction,
         // so it is safe as public metadata and useful in release traces.
+        let cqFields = renderStats?.perfCounterFields ?? "q_closed=0 repeat_open=0 hedges=0 stock_phrase=0 contraction=0"
         PerfSignposts.perfLog.info(
-            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools) \(OnDeviceModelTierCache.shared.current.logFields, privacy: .public)"
+            "intent=\(String(describing: intent), privacy: .public) requested=\(route.requestedZone.identifier, privacy: .public) ran=\(route.executionZone.identifier, privacy: .public) reason=\(route.reason.rawValue, privacy: .public) degraded=\(route.wasDegraded) prompt=\(promptVersion, privacy: .public) latency=\(ms)ms window=\(windowDescription, privacy: .public) entries=\(entryCount) prompt_tokens=\(promptPart, privacy: .public) cached_tokens=\(cachedPart, privacy: .public) tools=\(tools) \(cqFields, privacy: .public) \(OnDeviceModelTierCache.shared.current.logFields, privacy: .public)"
         )
     }
 
@@ -1412,7 +1414,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         latency: latency, window: prep.budget.window,
                         entryCount: prep.retrieval.entries.count,
                         promptTokens: promptTokens, cachedTokens: cachedTokens,
-                        tools: toolsCalled)
+                        tools: toolsCalled, renderStats: rendered.stats)
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
