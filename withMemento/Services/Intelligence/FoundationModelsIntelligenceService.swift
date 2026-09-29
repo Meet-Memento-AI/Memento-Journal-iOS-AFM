@@ -652,10 +652,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// session, availability check, window read, and token count goes
     /// through here, so they all describe the model that will actually run.
     ///
-    /// Path B: `.default` is AFM 3 Core Advanced on devices with at least
-    /// 12 GB and AFM 3 Core elsewhere; the OS does the fallback. If spec 051
-    /// R0 finds an SDK tier selector (path A), explicit selection with a
-    /// one-retry fallback to Core lands here and nowhere else.
+    /// `.default` is AFM 3 Core Advanced where the device supports it and AFM 3
+    /// Core elsewhere; the OS does the fallback. The iOS 27 SDK reports the
+    /// variant but has no selector, so there is nothing to choose here.
     private static func onDeviceModel() -> SystemLanguageModel {
         SystemLanguageModel.default
     }
@@ -689,9 +688,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return resolved
     }
 
-    /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
-    /// `reported` is nil and the tier is inferred from OS and memory. Only
-    /// called after a `.available` result; the cache ignores `.unknown`.
+    /// Spec 051 R1, with R0 resolved by spec 058 R2: the iOS 27 SDK (27A266a)
+    /// declares a get-only `SystemLanguageModel.variant` and no way to select
+    /// one, so the tier is *reported* while the OS still chooses the model.
+    /// Before iOS 27, or for a variant this build does not know, `reported` is
+    /// nil and the tier is inferred from OS and memory. Only called after a
+    /// `.available` result; the cache ignores `.unknown`.
     /// False on a simulator, where `ProcessInfo.physicalMemory` is the host
     /// Mac's. Spec 051 R1 infers the tier from the memory class, which is only
     /// meaningful when the memory is the device's own.
@@ -703,12 +705,25 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         #endif
     }
 
+    /// The variant the SDK says `.default` resolves to, or nil where the SDK
+    /// cannot say. Compared with `==`: `Variant` is a struct, not an enum.
+    private static func reportedOnDeviceTier() -> OnDeviceModelTier? {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let variant = onDeviceModel().variant
+            if variant == .coreAdvanced3 { return .afm3CoreAdvanced }
+            if variant == .core3 { return .afm3Core }
+        }
+        #endif
+        return nil
+    }
+
     private static func resolveOnDeviceTierIfNeeded() {
         let cache = OnDeviceModelTierCache.shared
         guard !cache.hasResolved else { return }
         let info = ProcessInfo.processInfo
         cache.store(OnDeviceModelTierResolver.resolve(
-            reported: nil,
+            reported: Self.reportedOnDeviceTier(),
             modelAvailable: true,
             osMajorVersion: info.operatingSystemVersion.majorVersion,
             physicalMemoryBytes: info.physicalMemory,
