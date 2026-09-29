@@ -95,6 +95,26 @@ class AppStateStore: ObservableObject {
             seedUpgradeFixture()
         }
 
+        // App Store screenshots (checklist D9). Guideline 2.3.3 wants the app
+        // shown in use and 2.3.9 wants the content fictional, which is exactly
+        // what the shipping sample journal is — so the screenshot run seeds it
+        // and starts past onboarding, rather than a human tapping through
+        // Settings before every capture and producing slightly different frames
+        // each time.
+        //
+        // Triple-gated: DEBUG only, `-UITesting`, and its own flag. It calls
+        // the same `SampleContentService.load()` the Settings row calls, so
+        // there is no second seeding path to drift.
+        #if DEBUG
+        let shouldSeedScreenshotJournal = isUiTestRun
+            && ProcessInfo.processInfo.arguments.contains("-SeedSampleEntries")
+        if shouldSeedScreenshotJournal {
+            _ = SampleContentService.shared.load()
+            self.hasCompletedOnboarding = true
+            return
+        }
+        #endif
+
         if isUiTestRun && !shouldSeedUpgradeFixture {
             self.hasCompletedOnboarding = false
             return
