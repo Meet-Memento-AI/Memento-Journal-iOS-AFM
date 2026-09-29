@@ -218,3 +218,12 @@ jobs:
       - uses: actions/checkout@v6
       - name: Forbid Intents.framework
         run: scripts/ci/check_no_sirikit.sh
+
+  theme-color-bypass:
+    name: No raw colours outside Theme (docs/app-store/12 A2.2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Forbid Color.white / Color(hex:) outside Theme.swift
+        run: scripts/ci/check_theme_color_bypass.sh

@@ -96,6 +96,17 @@ struct WarmNeutral {
     static let w600 = Color(hex: "#665D55")
 }
 
+/// Welcome runs over a dark video loop in both appearances, so these do not
+/// flip with the scheme. Figma 905:2057 / 1009:9894.
+struct WelcomeOverlay {
+    /// Type, glyphs, and the frosted CTA wash on the video.
+    static let ink = BaseColors.white
+    /// Privacy-point card behind the white copy; applied at 24%.
+    static let cardFill = Color(hex: "#AFAFAF")
+    /// "Open my journal" label — a deeper warm step than `WarmNeutral.w600`.
+    static let ctaLabelStrong = Color(hex: "#4F321D")
+}
+
 /// Cordovan ramp — kept for the darkest ink step (`primary900`) used as
 /// `theme.primary` in light mode, and for leftover chart/tag call sites.
 /// Mid-ramp steps are no longer card or page fills.

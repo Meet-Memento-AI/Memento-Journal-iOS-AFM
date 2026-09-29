@@ -246,8 +246,8 @@ public struct WelcomeView: View {
         // overlay-on-video: not canvas
         LinearGradient(
             colors: [
-                Color.white.opacity(0.32),
-                Color.white.opacity(0.64)
+                WelcomeOverlay.ink.opacity(0.32),
+                WelcomeOverlay.ink.opacity(0.64)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -297,7 +297,7 @@ public struct WelcomeView: View {
                 hint: step == .intro
                     ? "Double-tap to learn how Memento stays private"
                     : "Double-tap to start setting up Memento",
-                labelColor: step == .intro ? WarmNeutral.w600 : Color(hex: "#4F321D")
+                labelColor: step == .intro ? WarmNeutral.w600 : WelcomeOverlay.ctaLabelStrong
             ) {
                 if step == .intro {
                     revealPrivacy()
@@ -322,7 +322,7 @@ public struct WelcomeView: View {
 
                 Text("Journal with your voice, reflect privately on your device.")
                     .font(.custom("Figtree-SemiBold", size: Typography.baseSize2XL, relativeTo: .title))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WelcomeOverlay.ink)
                     .multilineTextAlignment(.leading)
                     .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
                     .fixedSize(horizontal: false, vertical: true)
@@ -339,7 +339,7 @@ public struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 0) {
             IconButtonNav(
                 icon: "chevron.left",
-                foregroundColor: .white,
+                foregroundColor: WelcomeOverlay.ink,
                 enableHaptic: true,
                 accessibilityLabel: "Back",
                 onTap: returnToIntro
@@ -353,14 +353,14 @@ public struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Memento is a fully private app")
                     .font(type.h3)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WelcomeOverlay.ink)
                     .lineSpacing(type.extraLineSpacing(for: Typography.baseSize2XL, lineHeight: 32))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("welcome.privacyTitle")
 
                 Text("This means we cannot read your journal entries or your chats.")
                     .font(.custom("Figtree-SemiBold", size: 18, relativeTo: .title))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(WelcomeOverlay.ink.opacity(0.8))
                     .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 27))
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Spacing.xs)
@@ -421,18 +421,18 @@ public struct WelcomeView: View {
                         .frame(width: 32, height: 32)
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(WelcomeOverlay.ink)
             .frame(width: 32, height: 32)
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(.custom("Figtree-Bold", size: 18, relativeTo: .headline))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(WelcomeOverlay.ink)
                     .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 24))
                 Text(body)
                     .font(.custom("Figtree-Bold", size: 18, relativeTo: .headline))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(WelcomeOverlay.ink.opacity(0.7))
                     .lineSpacing(type.extraLineSpacing(for: 18, lineHeight: 24))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -442,7 +442,7 @@ public struct WelcomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: theme.radius.xl, style: .continuous)
-                .fill(Color(red: 175 / 255, green: 175 / 255, blue: 175 / 255).opacity(0.24))
+                .fill(WelcomeOverlay.cardFill.opacity(0.24))
         )
         .accessibilityElement(children: .combine)
     }
@@ -453,7 +453,7 @@ public struct WelcomeView: View {
             welcomeMark
             Text("Memento")
                 .font(type.h1)
-                .foregroundStyle(.white)
+                .foregroundStyle(WelcomeOverlay.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .accessibilityIdentifier("welcome.headline")
@@ -491,8 +491,8 @@ public struct WelcomeView: View {
                     // overlay-on-video: not canvas
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(Self.ctaFillTopOpacity),
-                            Color.white.opacity(Self.ctaFillBottomOpacity)
+                            WelcomeOverlay.ink.opacity(Self.ctaFillTopOpacity),
+                            WelcomeOverlay.ink.opacity(Self.ctaFillBottomOpacity)
                         ],
                         startPoint: .top,
                         endPoint: .bottom

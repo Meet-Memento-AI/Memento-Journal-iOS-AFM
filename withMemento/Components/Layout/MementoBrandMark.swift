@@ -43,7 +43,7 @@ struct MementoBrandMark: View {
 #Preview("Dark") {
     MementoBrandMark(size: 144)
         .padding()
-        .background(Color.black)
+        .background(Theme.dark.background)
         .useTheme()
         .preferredColorScheme(.dark)
 }

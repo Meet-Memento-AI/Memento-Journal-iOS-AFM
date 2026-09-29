@@ -94,7 +94,7 @@ private func shadowPreviewCard(label: String, shadow: Shadow) -> some View {
             .foregroundStyle(.secondary)
     }
     .frame(width: 200, height: 80)
-    .background(Color.white)
+    .background(Theme.light.card)
     .cornerRadius(12)
     .shadow(shadow)
 }
