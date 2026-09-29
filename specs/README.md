@@ -51,6 +51,8 @@ specs/
 │                        chat, paywall, reminder opt-in, widget); REQ-ONB- — not started
 ├── 054-*.md           ← iPad layout and reading column (two named measures, page-declared
 │                        column, chrome aligned to content); follow-on UI spec to 040
+├── 056-*.md           ← dialogue diffusion (closed-form repair of spans that
+│                        miss the response policy; typed infill not wired)
 ├── 057-*.md           ← Ask output: bounded Markdown and GenUI parts (plan-only until gated)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
