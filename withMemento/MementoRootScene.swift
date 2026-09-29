@@ -40,8 +40,8 @@ struct MementoRootScene: Scene {
         // through a clear window and tint Journal/Chat off-white.
         UIWindow.appearance().backgroundColor = UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(red: 0, green: 0, blue: 0, alpha: 1)
-                : UIColor(red: 1, green: 1, blue: 1, alpha: 1)
+                ? UIColor(Theme.dark.background)
+                : UIColor(Theme.light.background)
         }
         Task { @MainActor in
             NotificationService.shared.installAsDelegate()

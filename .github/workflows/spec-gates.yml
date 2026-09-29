@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce exactly-one FoundationModels importer
         run: scripts/ci/check_single_intelligence_importer.sh
 
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce runtime-derived context budgets
         # Rule 5's corollary: the window is a runtime value. R9 states the
         # acceptance as a grep for 4096/8192/32768, but that alone is worthless
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Lint forbidden absolute-privacy phrasing
         run: python3 scripts/ci/lint_forbidden_phrases.py
 
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Run speakability pattern selftest
         run: python3 scripts/ci/speakability_lint.py --selftest
       # Once spec 022's harness produces fixture-corpus generations, add:
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check SPM deps against allowlist
         # ENFORCING since 2026-08-18. The last off-allowlist package (SVGKit) was
         # linked to no target and imported by no Swift file, so it was removed
@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check PrivacyInfo.xcprivacy in both directions
         # Under-declared -> ITMS-91053 at upload. Over-declared -> an inaccuracy
         # in exactly the metadata class Apple rejected this app on in Nov 2025
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check export compliance, purpose strings, build-number floor
         # 1.0(2) was uploaded and rejected in Nov 2025; build numbers are
         # consumed permanently per version string. The floor lives in
@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check synchronized-group membership exceptions
         # The withMemento/ group is a synchronized root group: every file is a
         # target member unless listed INDIVIDUALLY (directory-level exceptions
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check the four legal URLs and the privacy policy's content
         # This gate existed since August but was wired into NO workflow, which
         # is how it went stale: it forbade any mention of "supabase" while spec
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Scan the TTS path for GPL text and phonemizer components
         # espeak-ng is GPL-3 and sits in the G2P path of Kokoro, sherpa-onnx and
         # Piper alike, two levels down where nobody looks. R12 required this scan
@@ -163,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Check field limits, REQ-POS-001, pricing, clinical framing
         # Holds the App Store Connect copy in docs/app-store/metadata/ to the
         # same standard as the app's own strings.
@@ -174,7 +174,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate corpus structure + honesty scrub + gold set
         # sys.exit(1) on any structural error, missing gold entry id, or
         # honesty-scrub leak. Guards the one real 2.0 asset that specs 016 R8's
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Enforce package-only CoreML importer
         run: scripts/ci/check_single_coreml_importer.sh
 
@@ -206,7 +206,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Grep TTS path for weight hosts
         run: scripts/ci/check_tts_zero_egress.sh
 
@@ -215,6 +215,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Forbid Intents.framework
         run: scripts/ci/check_no_sirikit.sh
+
+  theme-color-bypass:
+    name: No raw colours outside Theme (docs/app-store/12 A2.2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Forbid Color.white / Color(hex:) outside Theme.swift
+        run: scripts/ci/check_theme_color_bypass.sh
