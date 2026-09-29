@@ -398,7 +398,6 @@ def cmd_show_defaults(_: argparse.Namespace) -> int:
 
 
 def selftest() -> int:
-    import tempfile
     import unittest
 
     loader = unittest.TestLoader()
