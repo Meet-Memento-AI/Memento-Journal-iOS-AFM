@@ -614,7 +614,7 @@ struct ChatInputField: View {
             .scaledToFill()
             .frame(maxWidth: .infinity, minHeight: photoThumbHeight, maxHeight: photoThumbHeight)
             .clipped()
-            .background(Color.white.opacity(0.04))
+            .background(theme.foreground.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {

@@ -57,7 +57,7 @@ struct JournalToast: View {
 
 #Preview("Toast • Dark") {
     ZStack {
-        Color.black
+        Theme.dark.background
             .ignoresSafeArea()
 
         VStack {
