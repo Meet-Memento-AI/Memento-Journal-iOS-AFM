@@ -54,6 +54,8 @@ specs/
 ├── 056-*.md           ← dialogue diffusion (closed-form repair of spans that
 │                        miss the response policy; typed infill not wired)
 ├── 057-*.md           ← Ask output: bounded Markdown and GenUI parts (plan-only until gated)
+├── 058-*.md           ← AFM guidance alignment (device-only Ask, SDK-reported tier, plain-prose
+│                        prompts, renderer-held recipe; ask-core@20) — in progress
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
