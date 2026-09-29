@@ -53,9 +53,16 @@ final class ConversationSimulation: XCTestCase {
     }
 
     /// Comma-separated subset, e.g. `CONVO_SIM_ARMS=cold`. Defaults to both.
+    /// `sweep` is not a single arm: it expands to one arm per corpus size,
+    /// `size-001` through `size-<CONVO_SIM_SWEEP_MAX>` (study V).
     private static var armNames: [String] {
         let raw = env["CONVO_SIM_ARMS"] ?? "empty,cold"
         return raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Largest journal in the study V sweep. 100 arms x 2 runs = 200 sessions.
+    private static var sweepMax: Int {
+        Int(env["CONVO_SIM_SWEEP_MAX"] ?? "") ?? 100
     }
 
     /// Total messages per conversation, sampled per run inside this range.
@@ -74,6 +81,21 @@ final class ConversationSimulation: XCTestCase {
         let entries: [Entry]
         let fixtureIDs: [UUID: String]
         let quoteIndex: ChatEvalScoring.QuoteIndex
+
+        /// A citation says which entry was used; only its date says whether the
+        /// model reached for recent or old evidence.
+        var createdAtByUUID: [UUID: Date] {
+            Dictionary(entries.map { ($0.id, $0.createdAt) }, uniquingKeysWith: { first, _ in first })
+        }
+
+        /// Oldest and newest entry, for the manifest. The persona corpus is
+        /// absolutely dated and cold-start is relative to `Date()`, so a reader
+        /// cannot tell what world an arm was without it.
+        var entryDateRange: [String] {
+            guard let first = entries.first?.createdAt, let last = entries.last?.createdAt else { return [] }
+            let iso = ISO8601DateFormatter()
+            return [iso.string(from: min(first, last)), iso.string(from: max(first, last))]
+        }
     }
 
     // MARK: - Test
@@ -99,8 +121,19 @@ final class ConversationSimulation: XCTestCase {
         var messagesWritten = 0
         for arm in arms {
             for runIndex in 0..<Self.runsPerArm {
-                let cell = ConvoSimCast.matrix[runIndex % ConvoSimCast.matrix.count]
                 let runID = "\(Self.label)/\(arm.name)/\(String(format: "%03d", runIndex))"
+                // Studies II-IV walk the 10x10 cast matrix in order, because
+                // runsPerArm is 100 and the walk covers it exactly once. The
+                // study V sweep runs 2 conversations per arm, so an in-order
+                // walk would ask every journal size the same two questions and
+                // any trend across sizes could just as well be a property of
+                // those two. Drawing the cell from the run id instead
+                // decorrelates question type from corpus size while staying
+                // reproducible: the id is fixed, so the draw replays exactly.
+                let cellIndex = Self.armNames.contains("sweep")
+                    ? Int(Self.seed(for: runID) % UInt64(ConvoSimCast.matrix.count))
+                    : runIndex % ConvoSimCast.matrix.count
+                let cell = ConvoSimCast.matrix[cellIndex]
                 messagesWritten += await runConversation(
                     runID: runID, arm: arm, persona: cell.persona, intent: cell.intent,
                     service: service
@@ -152,12 +185,16 @@ final class ConversationSimulation: XCTestCase {
                 var produced: String?
                 for attempt in 0..<2 where produced == nil {
                     let attemptMove = attempt == 0 ? drawn : ConvoSimCast.safeMove
+                    // Rendered before the concurrent closure: `history` is a var
+                    // that later turns append to, and capturing it by reference
+                    // is an error in the Swift 6 language mode.
+                    let attemptPrompt = Self.userPrompt(history: history, move: attemptMove)
                     do {
                         produced = try await Self.withTimeout(Self.turnTimeout) {
                             try await service.evalRawGenerate(
                                 instructions: Self.userInstructions(persona: persona,
                                                                     lifeContext: lifeContext),
-                                prompt: Self.userPrompt(history: history, move: attemptMove),
+                                prompt: attemptPrompt,
                                 temperature: 1.0,
                                 maximumResponseTokens: 90
                             )
@@ -196,6 +233,8 @@ final class ConversationSimulation: XCTestCase {
             )
             let evidence: EvidenceState = arm.entries.isEmpty ? .none : .matched
             let channel = ReplyChannel.resolve(turn: turnType, hasImages: false, evidence: evidence)
+            let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
+            let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
 
             var result: AskResult?
             var failure: String?
@@ -239,21 +278,45 @@ final class ConversationSimulation: XCTestCase {
             row["channel"] = channel.rawValue
             row["history_messages"] = capped.count
             row["history_truncated"] = capped.count < history.count
+            // Recorded before generation, so a refused or timed-out turn still
+            // says which way the pipeline sent it.
+            row["evidence_state"] = evidence.rawValue
+            row["question_shape"] = shape.rawValue
+            row["response_policy"] = policy.rawValue
 
             if let result {
                 row["prompt_version"] = result.promptVersion
                 row["model_identifier"] = result.modelIdentifier
+                // Spec 051 landed after study V: which tier the device
+                // model resolved to, and why, is part of what this run
+                // is measuring.
                 let tier = OnDeviceModelTierCache.shared.current
                 row["model_tier"] = tier.tier.rawValue
                 row["model_tier_source"] = tier.source.rawValue
                 row["was_degraded"] = result.wasDegraded
                 row["tools_called"] = result.toolsCalled
-                row["citations"] = result.citations.map { citation in
-                    [
+                row["heading1"] = result.heading1 ?? ""
+                row["heading2"] = result.heading2 ?? ""
+                // No String raw value on TrustZone; the case name is what a
+                // report wants.
+                row["zone"] = String(describing: result.zoneUsed)
+                row["model_seconds"] = Double(result.latency.components.seconds)
+                    + Double(result.latency.components.attoseconds) / 1e18
+                row["body_chars"] = result.body.count
+                row["body_words"] = result.body.split(whereSeparator: { $0.isWhitespace }).count
+                let createdAt = arm.createdAtByUUID
+                let citationISO = ISO8601DateFormatter()
+                row["citations"] = result.citations.map { citation -> [String: Any] in
+                    var encoded: [String: Any] = [
                         "entry_uuid": citation.entryId.uuidString,
                         "fixture_id": arm.fixtureIDs[citation.entryId] ?? "",
                         "excerpt": citation.excerpt
                     ]
+                    if let date = createdAt[citation.entryId] {
+                        encoded["entry_created_at"] = citationISO.string(from: date)
+                        encoded["entry_age_days"] = Date().timeIntervalSince(date) / 86_400
+                    }
+                    return encoded
                 }
                 row["facts"] = Self.encodeFacts(result.facts)
                 row["render_version"] = ReplyRenderer.version
@@ -263,8 +326,6 @@ final class ConversationSimulation: XCTestCase {
                 }
                 let isCasual = turnType == .social || turnType == .acknowledgement
                 let cap = channel.maximumResponseTokens(retrievalRan: !result.citations.isEmpty)
-                let shape = QuestionShapeResolver.shape(of: cleanedUser, turn: turnType)
-                let policy = ResponsePolicyResolver.policy(shape: shape, evidence: evidence)
                 let bodyEmpty = result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 let openRequired = ResponsePolicyResolver.openRequired(
                     policy: policy, bodyIsEmpty: bodyEmpty || result.promptVersion == "insight-fact@1"
@@ -277,6 +338,7 @@ final class ConversationSimulation: XCTestCase {
                     + ChatEvalScoring.fabricatedQuotes(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations,
                                                    index: arm.quoteIndex)
+                    + ChatEvalScoring.unbackedDate(result.body, citations: result.citations)
                     + ChatEvalScoring.boldNotTheirWords(result.body, index: arm.quoteIndex)
                     + ChatEvalScoring.runaway(result.body, capTokens: cap)
                     + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
@@ -395,18 +457,58 @@ final class ConversationSimulation: XCTestCase {
     // MARK: - Arms
 
     private static func buildArms() throws -> [Arm] {
-        let cold = try ChatEvalCorpus.coldStartCorpus()
-        return armNames.compactMap { name in
+        // Loaded once, outside the map: `QuoteIndex` hashes every 30-char gram,
+        // which on the 262-entry persona journal is not free enough to repeat.
+        let cold = armNames.contains("cold") ? try ChatEvalCorpus.coldStartCorpus() : nil
+        let wantsPersonaCorpus = armNames.contains("persona") || armNames.contains("sweep")
+        let persona = wantsPersonaCorpus ? try ChatEvalCorpus.personaCorpus() : nil
+        let arms: [Arm] = armNames.compactMap { name in
             switch name {
             case "empty":
                 return Arm(name: "empty", entries: [], fixtureIDs: [:],
                            quoteIndex: ChatEvalScoring.QuoteIndex([]))
             case "cold":
+                guard let cold else { return nil }
                 return Arm(name: "cold", entries: cold.entries, fixtureIDs: cold.idByUUID,
                            quoteIndex: ChatEvalScoring.QuoteIndex(cold.entries))
+            // The 262-entry, nine-month journal. Study II's seeded arm; kept
+            // identical here so the only variable between the two runs is the
+            // pipeline.
+            case "persona":
+                guard let persona else { return nil }
+                return Arm(name: "persona", entries: persona.entries, fixtureIDs: persona.idByUUID,
+                           quoteIndex: ChatEvalScoring.QuoteIndex(persona.entries))
             default:
                 return nil
             }
+        }
+        return arms + sweepArms(persona: persona)
+    }
+
+    /// Study V. One arm per journal size n, holding everything else fixed.
+    ///
+    /// The n entries are the **most recent** n of the persona corpus, not a
+    /// random sample and not the oldest n. A person with seven entries wrote
+    /// them over the last few weeks and the newest is today's; taking the
+    /// oldest seven would instead model someone who journalled for a fortnight
+    /// nine months ago and then stopped, which is a different question. The
+    /// cost of this choice is that a small arm also has a short date span, so
+    /// size and recency move together — `entry_date_range` is written per arm
+    /// so the confound is measurable rather than hidden.
+    private static func sweepArms(
+        persona: (entries: [Entry], idByUUID: [UUID: String])?
+    ) -> [Arm] {
+        guard armNames.contains("sweep"), let persona else { return [] }
+        let available = persona.entries.count
+        return (1...max(1, min(sweepMax, available))).map { n in
+            let slice = Array(persona.entries.suffix(n))
+            let ids = Dictionary(uniqueKeysWithValues: slice.compactMap { entry in
+                persona.idByUUID[entry.id].map { (entry.id, $0) }
+            })
+            return Arm(name: String(format: "size-%03d", n),
+                       entries: slice,
+                       fixtureIDs: ids,
+                       quoteIndex: ChatEvalScoring.QuoteIndex(slice))
         }
     }
 
@@ -472,6 +574,7 @@ final class ConversationSimulation: XCTestCase {
         var row: [String: Any] = [
             "run_id": runID,
             "arm": arm.name,
+            "arm_entry_count": arm.entries.count,
             "persona_id": persona.id,
             "intent_id": intent.id,
             "planned_messages": plannedMessages,
@@ -554,12 +657,34 @@ final class ConversationSimulation: XCTestCase {
             "min_messages": minMessages,
             "max_messages": maxMessages,
             "history_message_limit": ChatService.historyMessageLimit,
+            "scorers": [
+                "leaks", "ruleBreaks", "fabricatedQuotes", "uncitedQuote", "unbackedDate",
+                "boldNotTheirWords", "runaway", "insightDigitDisagrees",
+                "insightContradictsSuppressed"
+            ],
             "arms": arms.map { ["name": $0.name, "entry_count": $0.entries.count,
+                                "entry_date_range": $0.entryDateRange,
                                 "fixture_ids": $0.fixtureIDs.values.sorted()] },
             "personas": ConvoSimCast.personas.map { ["id": $0.id, "brief": $0.brief] },
             "intents": ConvoSimCast.intents.map { ["id": $0.id, "opener": $0.opener] },
             "os_version": ProcessInfo.processInfo.operatingSystemVersionString
         ]
+        if armNames.contains("sweep") {
+            manifest["sweep"] = [
+                "max": sweepMax,
+                "entry_selection": "most-recent-n of the persona corpus (suffix)",
+                "cell_draw": "FNV-1a(run_id) % 100 — decorrelates question type from size",
+                "sessions": min(sweepMax, 262) * runsPerArm
+            ]
+        }
+        // A test process on a simulator has no git, so build identity is passed
+        // in. Without it an archived run cannot be tied to the code that made it.
+        for (key, variable) in [("git_sha", "CONVO_SIM_GIT_SHA"),
+                                ("git_branch", "CONVO_SIM_GIT_BRANCH"),
+                                ("git_dirty", "CONVO_SIM_GIT_DIRTY"),
+                                ("notes", "CONVO_SIM_NOTES")] {
+            if let value = env[variable], !value.isEmpty { manifest[key] = value }
+        }
         if let finished { manifest["finished_at"] = iso.string(from: finished) }
         if let messages { manifest["messages_recorded"] = messages }
         if let data = try? JSONSerialization.data(withJSONObject: manifest,

@@ -140,6 +140,8 @@ enum ChatEvalCorpus {
         return try JSONDecoder().decode(GoldFile.self, from: Data(contentsOf: url)).questions
     }
 
+    /// The held-out gold set (051 R5).
+    ///
     /// FNV-1a over the fixture id, widened to 16 bytes. Stable across runs and
     /// processes, so a citation's `entryId` maps back to a fixture id.
     static func deterministicUUID(for fixtureID: String) -> UUID {

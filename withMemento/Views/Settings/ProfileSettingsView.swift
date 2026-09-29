@@ -116,7 +116,7 @@ public struct ProfileSettingsView: View {
 
                 Spacer(minLength: Spacing.xxxl)
             }
-            .padding(.horizontal, Spacing.lg)
+            .columnGutter(compact: Spacing.lg)
             .proseColumn()
             .padding(.top, Spacing.xs)
         }

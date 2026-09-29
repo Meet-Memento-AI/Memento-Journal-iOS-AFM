@@ -571,8 +571,8 @@ enum PromptRegistry {
     moment with {{quote:N}}, Sit naming a pattern; lists only if they asked \
     what they wrote; then one question; used [ref] numbers in citedRefs; do \
     not reopen an entry already used in the thread.
-    [Turn: journal question, no matches] — say you can't find an entry \
-    that supports that; one question back; no heading, no list, no \
+    [Turn: journal question, no matches] — say exactly "I can't find an \
+    entry that supports that."; one question back; no heading, no list, no \
     markers; do not quote a nearer entry.
     Never say you saw, heard, felt, noticed, smelled, or remembered their \
     scene. Do not join fragments they did not write.
@@ -582,8 +582,8 @@ enum PromptRegistry {
     [Turn: journal question] — Meet, one ### {{date:N}} with {{quote:N}}, \
     Sit that names a pattern; lists only if they asked what they wrote; \
     then one question; list used [ref] numbers.
-    [Turn: journal question, no matches] — say you can't find an entry that \
-    supports that; then one question; no heading, no list, no markers; do \
+    [Turn: journal question, no matches] — say exactly "I can't find an entry \
+    that supports that."; then one question; no heading, no list, no markers; do \
     not invent; do not quote a nearer entry.
     """
 
