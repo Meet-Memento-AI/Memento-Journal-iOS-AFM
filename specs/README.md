@@ -15,11 +15,11 @@ specs/
 ├── CONSTITUTION.md    ← architecture baseline + non-regression contract
 ├── ROADMAP.md         ← status board, dependency graph, launch gates
 ├── 001…012-*.md       ← the original twelve specs (pre-2.0 app; 003/004/007/008/010
-│                        obsolete, 002 paused — see ROADMAP.md's Status board)
+│                           obsolete, 002 paused — see ROADMAP.md's Status board)
 ├── 013…025-*.md       ← Memento 2.0 rewrite + Ship CI specs (see below)
 ├── 026…029-*.md       ← post-2.0 experience work (safety, navigation, narration, performance)
 ├── 030…036-*.md       ← on-device neural voice (assets → engine → streaming → catalog →
-│                        full-duplex audio → spoken form → verification); mints REQ-TTS-
+│                           full-duplex audio → spoken form → verification); mints REQ-TTS-
 ├── 037-*.md           ← conversational recall experience (Ask notebook voice, turn cadence, 3–5 cap)
 ├── 038-*.md           ← experience profile and theme estimation (L1 lens)
 ├── 039-*.md           ← reply channels and phatic generation (effort curve, chat-light@4)
@@ -28,29 +28,33 @@ specs/
 ├── 042-*.md           ← verification-only device feedback ingest (opt-in, write-only RPC) — shippable 2026-09-11
 ├── 043-*.md           ← eval run warehouse and origin labeling (run identity, real vs synthetic)
 ├── 044-*.md           ← agentic harness depth (passage RAG, RetrievalGate, bounded tool loop,
-│                        lean ask-core@16, living profile) — draft
+│                           lean ask-core@16, living profile) — draft
 ├── 045-*.md           ← computed insights and period reflection (InsightEngine, entry
-│                        tagging, weekly PeriodReflection, quantitative Ask) — draft
+│                           tagging, weekly PeriodReflection, quantitative Ask) — draft
 ├── 046-*.md           ← grounding and evidence discipline (evidence state gates the
-│                        channel, form withheld by code, typed claims); REQ-EVD- — draft
+│                           channel, form withheld by code, typed claims); REQ-EVD- — draft
 ├── 047-*.md           ← conversational state (reachable follow-ups, correction
-│                        handling); REQ-CST- — draft
+│                           handling); REQ-CST- — draft
 ├── 048-*.md           ← harness depth II (self-testing scorers, route coverage,
-│                        counterfactual worlds, failure corpus); REQ-HAR- — draft
+│                           counterfactual worlds, failure corpus); REQ-HAR- — draft
 ├── 049-*.md           ← epistemic voice and response policy (perception ban,
-│                        narrative-join ban, evidence ladder, one-detail reflection,
-│                        history window); voice non-goal; REQ-EPI- — draft
+│                           narrative-join ban, evidence ladder, one-detail reflection,
+│                           history window); voice non-goal; REQ-EPI- — draft
 ├── 050-*.md           ← evidence pack and reply renderer (the model places
-│                        {{quote:n}} / {{date:n}} markers, Swift inserts the words;
-│                        ask-core@19); REQ-REF- — in progress
+│                           {{quote:n}} / {{date:n}} markers, Swift inserts the words;
+│                           ask-core@19); REQ-REF- — in progress
 ├── 051-*.md           ← on-device model tier (AFM 3 Core Advanced by default on
-│                        ≥12 GB devices, Core otherwise; tier in provenance, perf
-│                        line, and budgets); REQ-TIER- — in progress
+│                           ≥12 GB devices, Core otherwise; tier in provenance, perf
+│                           line, and budgets); REQ-TIER- — in progress
 ├── 052-*.md           ← CI/CD pipeline + TestFlight release automation (Gate T path)
 ├── 053-*.md           ← Day-0 onboarding and first session (quiz, first entry, first
-│                        chat, paywall, reminder opt-in, widget); REQ-ONB- — not started
+│                           chat, paywall, reminder opt-in, widget); REQ-ONB- — not started
 ├── 054-*.md           ← iPad layout and reading column (two named measures, page-declared
-│                        column, chrome aligned to content); follow-on UI spec to 040
+│                           column, chrome aligned to content); follow-on UI spec to 040
+├── 055-*.md           ← reference discipline II and temporal retrieval (do not
+│                        teach a grammar where it cannot apply; the renderer strips
+│                        its own scaffolding; asserted dates get a scorer; retrieval
+│                        fixed at the three misses RetrievalGate measured)
 ├── 056-*.md           ← dialogue diffusion (closed-form repair of spans that
 │                        miss the response policy; typed infill not wired)
 ├── 057-*.md           ← Ask output: bounded Markdown and GenUI parts (plan-only until gated)

@@ -611,6 +611,7 @@ final class ConversationSimulation: XCTestCase {
             "unwrapped_bold": stats.unwrappedBoldCount,
             "stripped_dates": stats.strippedDateCount,
             "dropped_headings": stats.droppedHeadingCount,
+            "stripped_scaffold": stats.strippedScaffoldCount,
             "fallback": stats.usedFallback
         ]
     }
