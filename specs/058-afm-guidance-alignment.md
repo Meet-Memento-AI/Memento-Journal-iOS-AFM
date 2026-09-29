@@ -2,7 +2,7 @@
 id: 058
 title: AFM Guidance Alignment — Plain-Prose Prompts, Swift-Held Recipe, Device-Only Ask
 tier: P1
-status: in-progress (2026-09-28 — R1–R6 code landed; device convo-sim run pending)
+status: in-progress (2026-09-29 — R1–R6 code landed; device convo-sim run pending)
 effort: 1 session plus one device convo-sim run
 depends_on: [014, 017, 039, 050, 051, 055]
 findings:
@@ -115,7 +115,7 @@ Follow-ups.
   instructions, crisis support shown by the app, and no advice when the turn
   says reflect only. Spec 026's classifier and crisis card are unchanged.
 
-### R5 — The renderer holds the recipe (`reply-render@2`)
+### R5 — The renderer holds the recipe (`reply-render@3`)
 
 - **One question.** Everything through the first question is the head; while
   streaming, the tail is held back; at the end, the tail's questions are
@@ -129,6 +129,9 @@ Follow-ups.
   streamed frame and drops the model's own restatement in either person. The
   prompt says the opening is taken (`NoMatchLead.promptLine`) without
   quoting it.
+- **Echoed turn lines.** Spec 055's scaffolding pass also removes the
+  plain-prose lines when the model echoes them: the move cue at the reply's
+  start, and the legend, computed-facts, and lead lines anywhere.
 - Every pass is stream-stable: a streamed body is always a prefix of the
   final and never shrinks. Counts appear in the render log line
   (`extra_questions=`, `openers=`, `lead_restated=`).
