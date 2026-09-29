@@ -35,3 +35,13 @@ user-script sandbox) — there is no standalone `ci/assert_release_endpoint.sh`.
 Scripts tied to retired features (weekly-questions / server-side chat / insights
 poking) were removed when chat, summarization, and embeddings moved on-device.
 Recover them from git history if needed; do not point dev scripts at production.
+
+### `eval/` — on-device harness (not merge CI)
+
+| Script | Purpose | Mode |
+|--------|---------|------|
+| `run_mac_eval.sh` | Self-hosted Mac runner: convo-sim smoke/gate profiles (T5) | device / optional CI |
+| `fm_chat_smoke.sh` | Optional `fm chat` sanity check | dev |
+| `detect_behavioural_change.sh` (in `ci/`) | PR diff → device gate required? (T6) | CI |
+
+See [`eval/README.md`](eval/README.md).

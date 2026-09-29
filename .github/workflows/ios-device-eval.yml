@@ -1,74 +1,111 @@
-name: iOS device / eval (optional)
+name: iOS device / eval
 
-# Spec 025 R3 — non-required lane for on-device Foundation Models generation,
-# Spotlight spikes, and (later) spec 022 Evaluations harness work.
-# Never add this workflow's checks to branch protection.
+# Spec 025 R3 + Ask 100 plan T5/T6 — on-device Foundation Models generation,
+# convo-sim gate slice, and optional spikes.
+#
+# Merge blocking only when scripts/ci/detect_behavioural_change.sh says so
+# (approved 2026-09-29). Scheduled/dispatch runs stay advisory.
 
 on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       run_spikes:
         description: "Set TEST_RUNNER_SPIKE_A/C=1 for Spotlight spikes"
         type: boolean
         default: false
+      profile:
+        description: "MEMENTO_EVAL_PROFILE for run_mac_eval.sh"
+        type: choice
+        options: [smoke, gate, fm]
+        default: smoke
   schedule:
-    # Weekly advisory; failures do not block merges.
     - cron: "17 5 * * 1"
 
 permissions:
   contents: read
 
+concurrency:
+  group: device-eval-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  gate-scope:
+    name: Device gate scope
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.detect.outputs.required }}
+      reason: ${{ steps.detect.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect behavioural change
+        id: detect
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            bash scripts/ci/detect_behavioural_change.sh "${{ github.event.pull_request.base.sha }}"
+          else
+            echo "required=false" >>"$GITHUB_OUTPUT"
+            echo "reason=not_a_pull_request" >>"$GITHUB_OUTPUT"
+          fi
+
   ios-device-eval:
-    name: iOS device / eval
+    name: iOS device gate
+    needs: gate-scope
     runs-on: [self-hosted, macOS, ARM64, ios, xcode]
-    # Advisory: capable hardware / model provisioning is not guaranteed.
-    continue-on-error: true
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    continue-on-error: ${{ github.event_name != 'pull_request' || needs.gate-scope.outputs.required != 'true' }}
     env:
-      # Intentionally unset CI_ONLINE so generation tests may run when the
-      # model is available; they still XCTSkip if the runtime cannot generate.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
-      IOS_SIM_DESTINATION: ${{ vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
-      # Spikes only when manually dispatched with the input enabled (schedule = off).
+      IOS_DEVICE_DESTINATION: ${{ vars.IOS_DEVICE_DESTINATION || vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
       TEST_RUNNER_SPIKE_A: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
       TEST_RUNNER_SPIKE_C: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
       TEST_RUNNER_SPIKE_A_FIXTURES: ${{ github.workspace }}/Fixtures
+      MEMENTO_EVAL_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || (needs.gate-scope.outputs.required == 'true' && 'gate' || 'smoke') }}
     steps:
       - uses: actions/checkout@v7
-        # Model weights are Git LFS (spec 030 R3). Without this the build
-        # receives pointer files and fails at RUNTIME as a model-load error.
         with:
           lfs: true
+          fetch-depth: 0
+
+      - name: PR skip (no behavioural change)
+        if: github.event_name == 'pull_request' && needs.gate-scope.outputs.required != 'true'
+        run: |
+          echo "Skip: no behavioural change (${{ needs.gate-scope.outputs.reason }})."
+          echo "Device gate is not required for this PR."
 
       - name: Show toolchain
+        if: github.event_name != 'pull_request' || needs.gate-scope.outputs.required == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
           xcodebuild -version
-          echo "Destination: $IOS_SIM_DESTINATION"
-          echo "CI_ONLINE is unset (device/eval lane)."
+          echo "Destination: $IOS_DEVICE_DESTINATION"
+          echo "Profile: $MEMENTO_EVAL_PROFILE"
+          echo "Gate required: ${{ needs.gate-scope.outputs.required }} (${{ needs.gate-scope.outputs.reason }})"
           echo "Spikes: A=$TEST_RUNNER_SPIKE_A C=$TEST_RUNNER_SPIKE_C"
 
-      - name: Device / eval test pass
-        run: |
-          set -euo pipefail
-          rm -rf TestResults TestResults.xcresult
-          xcodebuild \
-            -scheme withMemento \
-            -destination "$IOS_SIM_DESTINATION" \
-            -resultBundlePath TestResults \
-            -parallel-testing-enabled NO \
-            -skip-testing:withMementoUITests \
-            test
+      - name: Mac eval runner (T5)
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'pull_request' && needs.gate-scope.outputs.required == 'true')
+        run: bash scripts/eval/run_mac_eval.sh
 
       - name: Document local eval commands
         if: always()
         run: |
           cat <<'EOF'
-          Spec 022 Evaluations harness (when implemented) runs locally:
-            # Z0-only with network disabled — see specs/022-evaluation-and-quality-study.md
-            xcodebuild -scheme withMemento \
-              -destination "$IOS_SIM_DESTINATION" test
+          Self-hosted Mac eval:
+            scripts/eval/README.md
+            MEMENTO_EVAL_PROFILE=smoke|gate scripts/eval/run_mac_eval.sh
 
-          Live FM generation is proven on a physical Apple Intelligence device.
-          Merge CI must not require this job (spec 025).
+          Behavioural PRs require this job when branch protection lists
+          "iOS device gate". Non-behavioural PRs exit early above.
+
+          Override detection (drills): BEHAVIOURAL_GATE_FORCE=1 on gate-scope.
           EOF
