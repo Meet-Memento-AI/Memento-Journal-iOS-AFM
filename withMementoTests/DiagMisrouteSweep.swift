@@ -120,4 +120,13 @@ final class DiagMisrouteSweep: XCTestCase {
         Diag.write(out, "05-misroute.md")
         print(out)
     }
+
+    /// RT1 companion: cast gold vs `TurnClassifier` (same fixture as `TurnKindCastReportTests`).
+    func test_rt1_castGoldTurnKind_report() throws {
+        let file = try TurnKindGoldFixture.load()
+        let metrics = TurnKindCastReport.metrics(rows: file.rows)
+        let body = TurnKindCastReport.renderMarkdown(metrics, fixture: file)
+        Diag.write(body, "05b-turn-kind-cast.md")
+        print(body)
+    }
 }

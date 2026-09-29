@@ -459,4 +459,11 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: index).isEmpty)
         XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: index).isEmpty)
     }
+
+    func test_turnKindMismatch_isReportOnly() {
+        let v = ChatEvalScoring.turnKindMismatch(predicted: .journalQuery, gold: .followup)
+        XCTAssertEqual(v.map(\.code), ["route.turnKindMismatch"])
+        XCTAssertTrue(ChatEvalScoring.reportOnlyCodes.contains("route.turnKindMismatch"))
+        XCTAssertTrue(ChatEvalScoring.gating(v).isEmpty)
+    }
 }
