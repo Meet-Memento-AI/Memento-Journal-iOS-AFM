@@ -269,7 +269,7 @@ final class Session812Tests: XCTestCase {
         )
         XCTAssertNil(ComputedFactsBlock.render([low]))
         let block = ComputedFactsBlock.render([low, ok])
-        XCTAssertTrue(block?.contains("[Computed]") == true)
+        XCTAssertTrue(block?.hasPrefix("Facts the app computed from their journal.") == true)
         XCTAssertTrue(block?.contains("Maya") == true)
         XCTAssertFalse(block?.contains("sleep") == true)
         XCTAssertFalse(block?.contains("5") == true)

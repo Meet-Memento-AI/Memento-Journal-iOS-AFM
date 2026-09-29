@@ -14,7 +14,7 @@ final class ConversationalMoveTests: XCTestCase {
         XCTAssertFalse(move.avoidsName)
         XCTAssertTrue(move.cueLine.contains("Warm hello"))
         XCTAssertTrue(move.cueLine.contains("first or last name is welcome"))
-        XCTAssertTrue(move.cueLine.hasPrefix("[Move: "))
+        XCTAssertTrue(move.cueLine.hasPrefix("How to reply: "))
     }
 
     func test_howAreYou_isNotGreetAndAsk() {
@@ -103,10 +103,10 @@ final class ConversationalMoveTests: XCTestCase {
             "How has the week been treating you?"
         )
         let line = ConversationalMove.antiRepeatLine(from: history)
-        XCTAssertEqual(line, "[Don't ask that again: \"How has the week been treating you?\"]")
+        XCTAssertEqual(line, "You already asked this, so don't ask it again: \"How has the week been treating you?\"")
         XCTAssertEqual(
             ConversationalMove.answeringLastQuestionLine(from: history),
-            "[They are answering your last question: \"How has the week been treating you?\"]"
+            "They are answering your last question: \"How has the week been treating you?\""
         )
     }
 
@@ -119,8 +119,8 @@ final class ConversationalMoveTests: XCTestCase {
 
     func test_everyMove_hasACue() {
         for move in ConversationalMove.allCases {
-            XCTAssertTrue(move.cueLine.hasPrefix("[Move: "), "\(move)")
-            XCTAssertTrue(move.cueLine.hasSuffix("]"), "\(move)")
+            XCTAssertTrue(move.cueLine.hasPrefix("How to reply: "), "\(move)")
+            XCTAssertTrue(move.cueLine.hasSuffix("."), "\(move)")
         }
     }
 }

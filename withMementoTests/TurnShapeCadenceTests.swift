@@ -37,8 +37,8 @@ final class TurnShapeCadenceTests: XCTestCase {
         let overlay = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .nearbyOnly)
         XCTAssertNotNil(overlay)
         XCTAssertFalse(overlay?.contains("not-an-answer") ?? true)
-        XCTAssertTrue(overlay?.contains("can't find an entry") ?? false)
-        XCTAssertTrue(overlay?.contains("Do not quote a nearer entry") ?? false)
+        XCTAssertFalse(overlay?.contains(NoMatchLead.sentence) ?? true, "Swift writes the lead")
+        XCTAssertTrue(TurnStance.nearbyOnly.promptLine.contains("Do not quote a nearer entry"))
     }
 
     func test_reset_staysOpen() {
@@ -66,9 +66,10 @@ final class TurnShapeCadenceTests: XCTestCase {
         }
     }
 
-    func test_overlay_journalIsPatternThenAsk() {
+    func test_overlay_journalStaysWithOneMomentThenAsks() {
         let overlay = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: .journalGrounded)
-        XCTAssertTrue(overlay?.contains("pattern from the evidence") == true)
+        XCTAssertTrue(overlay?.contains("Stay with the moment you placed") == true)
+        XCTAssertFalse(overlay?.contains("pattern") == true)
         XCTAssertTrue(overlay?.contains("one specific question") == true)
     }
 
@@ -84,7 +85,7 @@ final class TurnShapeCadenceTests: XCTestCase {
         let grounded = TurnShapeCadence.overlayLine(
             shape: .answerOpen, stance: .followupThread, isGrounded: true
         )
-        XCTAssertTrue(grounded?.contains("pattern from the evidence") == true)
+        XCTAssertTrue(grounded?.contains("Stay with the moment you placed") == true)
         let social = TurnShapeCadence.overlayLine(
             shape: .answerOpen, stance: .followupThread, isGrounded: false
         )

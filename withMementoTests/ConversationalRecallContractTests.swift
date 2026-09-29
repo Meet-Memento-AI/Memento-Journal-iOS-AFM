@@ -25,7 +25,7 @@ final class ConversationalRecallContractTests: XCTestCase {
 
     func test_interpretation_isForbidden() {
         let text = askText()
-        XCTAssertTrue(text.contains("do not name the meaning") || text.contains("Put evidence in front of them"))
+        XCTAssertTrue(text.contains("let them name what it means"))
         // ask-core@18 rephrased this ban from "Never name their emotions" to
         // "Do not name their emotions or diagnose how they felt". Match the
         // phrasing-agnostic substring, as test_emotionLabel_isForbidden already
@@ -40,8 +40,8 @@ final class ConversationalRecallContractTests: XCTestCase {
             XCTAssertTrue(text.contains("give advice") || text.contains("Never give advice"),
                           "degraded=\(degraded)")
             XCTAssertTrue(text.contains("you should"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Safety hard bans"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("crisis counseling"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("harm themselves or others"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("crisis support is shown by the app"), "degraded=\(degraded)")
         }
     }
 
@@ -53,10 +53,7 @@ final class ConversationalRecallContractTests: XCTestCase {
         XCTAssertTrue(askText().contains("citedRefs"))
         XCTAssertFalse(askText().contains("eleven entries"), "goldens must not teach counts")
         // The rule survives; the worked example does not.
-        XCTAssertTrue(
-            askText().contains("name the pattern without counting")
-                || askText().contains("Sit names a pattern from the evidence")
-        )
+        XCTAssertTrue(askText().contains("never state how many entries there are"))
     }
 
     /// Regression: the span rule used to teach itself with a literal —
@@ -80,27 +77,24 @@ final class ConversationalRecallContractTests: XCTestCase {
     func test_emptyRecall_isDirect() {
         for degraded in [false, true] {
             let text = askText(degraded: degraded)
-            XCTAssertTrue(
-                text.contains("can't find an entry that supports that"),
-                "degraded=\(degraded)"
+            XCTAssertFalse(
+                text.contains(NoMatchLead.sentence),
+                "degraded=\(degraded): Swift writes the no-match sentence, the model never transcribes it"
             )
             XCTAssertFalse(
                 text.contains("invite them to write about it"),
                 "degraded=\(degraded): unsolicited write-invite is gone"
             )
         }
-        XCTAssertTrue(TurnStance.noMatch.promptLine.contains("do not change the subject"))
-        XCTAssertTrue(TurnStance.noMatch.promptLine.contains("do not invent"))
+        XCTAssertTrue(TurnStance.noMatch.promptLine.contains("change the subject"))
+        XCTAssertTrue(TurnStance.noMatch.promptLine.localizedCaseInsensitiveContains("do not invent"))
         XCTAssertFalse(TurnStance.noMatch.promptLine.contains("answer and stop"))
     }
 
     func test_journalTurn_mustNotSkipSit() {
         for degraded in [false, true] {
             let text = askText(degraded: degraded)
-            XCTAssertTrue(text.contains("must not skip Sit"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Meet them"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Notebook"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Open"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("stay with"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Follow it exactly"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("answer and stop"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("three to five"), "degraded=\(degraded)")
@@ -111,25 +105,25 @@ final class ConversationalRecallContractTests: XCTestCase {
     // MARK: R5 / R1 — version and notebook voice
 
     func test_ask9_versions() {
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@19")
-        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@19")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask).version, "ask-core@20")
+        XCTAssertEqual(PromptRegistry.instructions(for: .ask, degraded: true).version, "ask-degraded@20")
     }
 
     func test_notebookVoice_andShapeContract() {
         let text = askText()
-        XCTAssertTrue(text.contains("notebook beside them"))
-        XCTAssertTrue(text.contains("[Shape:]"))
+        XCTAssertTrue(text.contains("beside their notebook"))
+        XCTAssertFalse(text.contains("[Shape"))
         XCTAssertFalse(text.contains("reproduce any quoted field exactly"), "050: markers replace the quoted field")
-        XCTAssertTrue(text.contains("{{quote:N}}"))
+        XCTAssertFalse(text.contains("{{quote:"))
         XCTAssertTrue(
-            text.range(of: "do not reopen an entry already used in", options: .caseInsensitive) != nil
+            TurnStance.journalGrounded.promptLine
+                .range(of: "do not reopen an entry already used in", options: .caseInsensitive) != nil
         )
-        XCTAssertTrue(text.contains("must not skip Sit"))
-        XCTAssertTrue(text.contains("complete spoken reply"))
+        XCTAssertTrue(text.contains("Sit: one or two sentences"))
+        XCTAssertTrue(text.contains("whole spoken reply"))
         XCTAssertTrue(text.contains("praise them for journaling")
                       || text.contains("Never praise journaling"))
-        XCTAssertTrue(text.contains("count, or frequency")
-                      || text.contains("number, count, or frequency"))
+        XCTAssertTrue(text.contains("how many entries there are"))
     }
 
     // MARK: R7 — 3–5 entry cap

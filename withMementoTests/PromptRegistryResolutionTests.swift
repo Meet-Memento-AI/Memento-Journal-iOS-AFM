@@ -119,8 +119,8 @@ final class PromptRegistryResolutionTests: XCTestCase {
         let degraded = PromptRegistry.resolve(
             intent: .ask, zone: .z0Device, degraded: true, channel: .statistic
         )
-        XCTAssertEqual(full.version, "chat-light@4")
-        XCTAssertEqual(degraded.version, "chat-light-degraded@4")
+        XCTAssertEqual(full.version, "chat-light@5")
+        XCTAssertEqual(degraded.version, "chat-light-degraded@5")
         XCTAssertFalse(full.version.contains("ask@15"))
         XCTAssertFalse(full.text.contains("How a reply is built"))
         XCTAssertTrue(ReplyChannel.statistic.usesLightPrompt)
@@ -130,30 +130,30 @@ final class PromptRegistryResolutionTests: XCTestCase {
     func test_phaticChannel_resolvesToChatLight() {
         let full = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .phatic)
         let degraded = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: true, channel: .phatic)
-        XCTAssertEqual(full.version, "chat-light@4")
-        XCTAssertEqual(degraded.version, "chat-light-degraded@4")
+        XCTAssertEqual(full.version, "chat-light@5")
+        XCTAssertEqual(degraded.version, "chat-light-degraded@5")
         XCTAssertNotEqual(full.version, degraded.version)
         XCTAssertFalse(full.text.contains("How a reply is built"))
     }
 
-    /// `.companion` runs `chat-companion@1`, not `chat-light` and not ask@15.
+    /// `.companion` runs `chat-companion@2`, not `chat-light` and not ask@15.
     func test_companionChannel_usesCompanionPrompt() {
         let resolved = PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .companion)
-        XCTAssertEqual(resolved.version, "chat-companion@1")
+        XCTAssertEqual(resolved.version, "chat-companion@2")
     }
 
     func test_metaAndRedirect_useCompanionPrompt() {
         XCTAssertEqual(
             PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .meta).version,
-            "chat-companion@1"
+            "chat-companion@2"
         )
         XCTAssertEqual(
             PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .redirect).version,
-            "chat-companion@1"
+            "chat-companion@2"
         )
         XCTAssertEqual(
             PromptRegistry.resolve(intent: .ask, zone: .z0Device, degraded: false, channel: .notebook).version,
-            "ask-core@19"
+            "ask-core@20"
         )
     }
 

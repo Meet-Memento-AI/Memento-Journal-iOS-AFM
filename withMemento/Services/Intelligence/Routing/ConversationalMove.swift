@@ -4,7 +4,7 @@
 //
 //  Spec 039 R9: short warm cues for the kind of turn, not scripts. AFM
 //  writes the reply. Light user prompts are cue + latest message +
-//  optional don't-repeat — never [Turn:] + [Shape:] + [Move:] stacked
+//  optional don't-repeat — never stance + shape + move lines stacked
 //  on a hello. No `import FoundationModels` — pure Swift.
 //
 
@@ -48,29 +48,30 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
     var cueLine: String {
         switch self {
         case .greetAndAsk:
-            return "[Move: Warm hello in one sentence, then one real question. A first or last name is welcome if it fits.]"
+            return "How to reply: Warm hello in one sentence, then one real question. A first or last name is welcome if it fits."
         case .answerHowAreYou:
-            return "[Move: Answer in a few words, then ask about their day. "
-                + "Do not echo \"how are you.\" A name is optional; do not lead with it instead of answering.]"
+            return "How to reply: Answer in a few words, then ask about their day. "
+                + "Do not echo \"how are you.\" A name is optional; do not lead with it instead of answering."
         case .thanks:
-            return "[Move: Warm and brief. One light question if the thread is open. A first or last name is welcome if it fits.]"
+            return "How to reply: Warm and brief. One light question if the thread is open. "
+                + "A first or last name is welcome if it fits."
         case .farewell:
-            return "[Move: Warm close. No interrogation. A first or last name is welcome if it fits.]"
+            return "How to reply: Warm close. No interrogation. A first or last name is welcome if it fits."
         case .continuer:
-            return "[Move: One short reaction, then a new question. Do not recap the journal. Do not use their name.]"
+            return "How to reply: One short reaction, then a new question. Do not recap the journal. Do not use their name."
         case .reflectAndAsk:
-            return "[Move: Show you heard the specific thing they said; one question about that.]"
+            return "How to reply: Show you heard the specific thing they said; one question about that."
         case .answerThenAsk:
-            return "[Move: Answer first, then one question.]"
+            return "How to reply: Answer first, then one question."
         case .patternThenAsk:
-            return "[Move: One connection from the evidence, then one question. "
-                + "No counts, no emotion labels. Do not use their name.]"
+            return "How to reply: Stay with one moment from the evidence, then one question. "
+                + "No counts, no emotion labels. Do not use their name."
         case .nearestThenAsk:
-            return "[Move: Name the nearest thing you have, say it isn't a direct answer, then one question.]"
+            return "How to reply: Name the nearest thing you have, say it isn't a direct answer, then one question."
         case .emptyThenAsk:
-            return "[Move: Honest that you don't see it, then one question back toward them.]"
+            return "How to reply: Honest that you don't see it, then one question back toward them."
         case .redirectThenAsk:
-            return "[Move: That's outside what you can see; then one question toward them.]"
+            return "How to reply: That's outside what you can see; then one question toward them."
         }
     }
 
@@ -131,13 +132,13 @@ enum ConversationalMove: String, Sendable, Equatable, CaseIterable {
 
     static func antiRepeatLine(from history: [ChatTurn]) -> String? {
         guard let question = lastAssistantQuestion(in: history) else { return nil }
-        return "[Don't ask that again: \"\(question)\"]"
+        return "You already asked this, so don't ask it again: \"\(question)\""
     }
 
     /// Narration cue: they are answering the question Memento just asked.
     static func answeringLastQuestionLine(from history: [ChatTurn]) -> String? {
         guard let question = lastAssistantQuestion(in: history) else { return nil }
-        return "[They are answering your last question: \"\(question)\"]"
+        return "They are answering your last question: \"\(question)\""
     }
 
     // MARK: - Social sub-kinds

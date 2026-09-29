@@ -47,12 +47,14 @@ struct AskTranscriptPlan: Equatable, Sendable {
     /// `LocalChatStore` / `assistantContentJSON`.
     static let exemplarMarker = "[Exemplar]"
 
-    /// Marker form (spec 050): the pair teaches placing {{date:N}} and
-    /// {{quote:N}} from an [Evidence] list, never typing the quote.
+    /// Marker form (spec 050) in the plain-prose turn format (058): the pair
+    /// teaches placing {{date:N}} and {{quote:N}} from the listed moments,
+    /// never typing the quote.
     static let exemplarUser = """
-    [Turn: journal question]
-    [Evidence]
+    \(TurnStance.journalGrounded.promptLine)
+    \(EvidencePack.legendHeader)
     1. {{date:1}} = August 14, 2026 · {{quote:1}} = "Four hours up, and at the top it broke open completely."
+    \(EvidencePack.legendFooter)
     \(exemplarMarker) What did I write about the hike?
     """
 
@@ -62,7 +64,7 @@ struct AskTranscriptPlan: Equatable, Sendable {
     ### {{date:1}}
     {{quote:1}}
 
-    The climb and the quiet at the top sat in the same day.
+    The climb and the quiet at the top stayed with you.
 
     What do you still remember from that view?
     """

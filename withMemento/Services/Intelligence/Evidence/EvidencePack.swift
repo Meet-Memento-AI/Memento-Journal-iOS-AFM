@@ -91,13 +91,16 @@ struct EvidencePack: Sendable, Equatable {
 
 extension EvidencePack {
 
-    static let legendHeader = "[Evidence]\nMarkers only: the app swaps each for that entry's exact words or date. "
-        + "Never type a journal quote or date yourself, never change a number, never use italics."
-    static let legendFooter = "If none fits, use no markers."
-    static let ambientNote = "[Evidence: background only — no quote or date markers this turn. "
-        + "Speak about these entries in your own words; never quote them, never use italics.]"
-    static let noneNote = "[Evidence: none — no quote or date markers this turn. "
-        + "Never write a journal quote, a journal date, or italics.]"
+    /// The only place the marker grammar is taught (058): instructions never
+    /// mention it, so a turn with no moments to place has no grammar to misuse.
+    static let legendHeader = "Journal moments you can place. The app replaces each marker with that entry's "
+        + "exact words or date, so write the marker and never the words or date yourself:"
+    static let legendFooter = "To place a moment, write a ### {{date:N}} heading, then {{quote:N}} on its own line. "
+        + "Place at most one. If none fits, place none. Never use italics."
+    static let ambientNote = "These entries are background only, not an answer to their question. "
+        + "Talk about them in your own words, without quoting or dating them."
+    static let noneNote = "No journal entries are shown this turn, so quote nothing from the journal "
+        + "and give no journal dates."
 
     /// What the journal recipe is told about markers this turn. The matched
     /// legend lists each slot's exact words beside its markers, so the model

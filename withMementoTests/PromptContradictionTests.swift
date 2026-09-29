@@ -90,12 +90,13 @@ final class PromptContradictionTests: XCTestCase {
     func test_miss_doesNotQuoteNearestEntry() {
         let ambient = prompt(stance: .nearbyOnly, retrieval: retrieval(ambient: true), channel: .notebook)
         XCTAssertFalse(ambient.contains("[ref 1 |"))
-        XCTAssertTrue(ambient.contains("I can't find an entry that supports that."))
+        XCTAssertTrue(ambient.contains(NoMatchLead.promptLine), "Swift writes the no-match sentence")
+        XCTAssertFalse(ambient.contains(NoMatchLead.sentence), "the model is not asked to transcribe it")
         XCTAssertFalse(ambient.contains("not an answer"))
 
         let withNone = prompt(stance: .noMatch, retrieval: .empty, channel: .notebook)
         XCTAssertFalse(withNone.contains("[ref 1 |"))
-        XCTAssertTrue(withNone.contains(TurnStance.noMatch.tagPrefix))
+        XCTAssertTrue(withNone.contains(TurnStance.noMatch.label))
     }
 
     func test_nearbyOnlyCopy_doesNotCiteThenDeny() {

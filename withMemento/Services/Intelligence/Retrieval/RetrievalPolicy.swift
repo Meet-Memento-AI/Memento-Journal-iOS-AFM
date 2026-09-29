@@ -36,8 +36,8 @@ enum RetrievalMode: Sendable, Equatable {
 }
 
 /// The stance instruction for this turn — its `promptLine` is prepended as
-/// the first line of the user prompt. Keep these strings in sync with the
-/// stance contract in `PromptRegistry.ask` (enforced by PromptStanceSyncTests).
+/// the first line of the user prompt. Plain prose, never bracketed tags: the
+/// model echoes tag syntax back as output format (058, Study VI).
 enum TurnStance: String, Sendable, Equatable, CaseIterable {
     case casual
     case aboutApp
@@ -51,45 +51,34 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
     var promptLine: String {
         switch self {
         case .casual:
-            return "[Turn: casual — Meet them in a friendly way; then one question; "
-                + "notebook only if they brought it up; no headings or lists; leave citedRefs empty]"
+            return "This is a casual turn. Meet them in a friendly way, then ask one question. "
+                + "Bring up the notebook only if they did. No headings or lists. Leave citedRefs empty."
         case .aboutApp:
-            return "[Turn: about the app — briefly say what you can do together; "
-                + "a short \"- \" list of capabilities; then one question about what they want to look at; "
-                + "no journal references; leave citedRefs empty]"
+            return "They are asking about the app. Briefly say what you can do together "
+                + "as a short \"- \" list, then ask one question about what they want to look at. "
+                + "No journal references. Leave citedRefs empty."
         case .outsideScope:
-            return "[Turn: outside scope — say that's outside what you can see, "
-                + "then gently return to them with one question; no headings or lists; leave citedRefs empty]"
+            return "This is outside what you can see. Say so, then gently return to them with one question. "
+                + "No headings or lists. Leave citedRefs empty."
         case .sharing:
-            return "[Turn: sharing — follow what they said as a friend; "
-                + "no ### unless they asked for the journal; then one question; do not force an insight or citation]"
+            return "They are sharing something. Follow what they said as a friend would, then ask one question. "
+                + "No ### unless they asked for the journal, and do not force an insight or citation."
         case .followupThread:
-            return "[Turn: follow-up — continue your previous point in the same thread; "
-                + "Sit if the thread is about the notebook; "
-                + "journal words only as {{quote:N}} / {{date:N}} from an [Evidence] list; "
-                + "then one question; "
-                + "do not restart with a new heading or begin a new entry inventory]"
+            return "This is a follow-up. Continue your previous point in the same thread, "
+                + "stay with the notebook if the thread is about it, then ask one question. "
+                + "Do not restart with a new heading or begin a new entry inventory."
         case .journalGrounded:
-            return "[Turn: journal question — Meet them, then one ### notebook moment "
-                + "built from {{date:N}} and {{quote:N}} in the [Evidence] list, "
-                + "then Sit that names a pattern from the evidence; "
-                + "lists only if they asked what they wrote about a topic; "
-                + "never type a quote or date yourself; "
-                + "then one question; "
-                + "list only the refs you used in citedRefs; "
-                + "do not reopen an entry already used in this thread]"
+            return "This is a journal question. Meet them, place one moment from the journal moments "
+                + "listed below, stay with that moment, then ask one question. "
+                + "List entries only if they asked what they wrote about a topic. "
+                + "Put only the refs you used in citedRefs, and do not reopen an entry already used in this thread."
         case .nearbyOnly:
-            return "[Turn: journal question, nothing direct — "
-                + "do not quote a nearer entry and then deny it; "
-                + "the evidence line already says this is not a match; "
-                + "then one question back toward them]"
+            return "This is a journal question with nothing direct in the journal. "
+                + "Do not quote a nearer entry and then deny it. Ask one question back toward them."
         case .noMatch:
-            return "[Turn: journal question, no matches — "
-                + "Meet them, then say exactly \"I can't find an entry that supports that.\"; "
-                + "then one question back toward them; "
-                + "no heading, no list; do not invent any; do not change the subject; "
-                + "invite them once to write only if they asked what they have written "
-                + "and the archive is empty]"
+            return "This is a journal question with no matching entry. "
+                + "Do not invent an entry, quote a nearer one, or change the subject. No heading, no list. "
+                + "Invite them to write only if they asked what they have written and the archive is empty."
         }
     }
 
@@ -114,11 +103,11 @@ enum TurnStance: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// The tag name up to the inline instructions — e.g. "[Turn: casual". The
-    /// ask prompt's stance contract must mention every one of these
-    /// (PromptStanceSyncTests keeps prompt and policy from drifting apart).
-    var tagPrefix: String {
-        promptLine.components(separatedBy: " — ").first ?? promptLine
+    /// The turn line's opening sentence — e.g. "This is a casual turn." — which
+    /// names the stance in plain words. Tests use it to find the line in a prompt.
+    var label: String {
+        guard let end = promptLine.firstIndex(of: ".") else { return promptLine }
+        return String(promptLine[...end])
     }
 }
 

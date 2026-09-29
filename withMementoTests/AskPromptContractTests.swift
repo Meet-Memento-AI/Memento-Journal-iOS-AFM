@@ -5,9 +5,10 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_ask5_versionAndHardBans() {
         let resolved = PromptRegistry.instructions(for: .ask)
-        XCTAssertEqual(resolved.version, "ask-core@19")
-        XCTAssertTrue(resolved.text.contains("Hard bans:"))
-        XCTAssertTrue(resolved.text.contains("Never open a reply with \"You wrote\""))
+        XCTAssertEqual(resolved.version, "ask-core@20")
+        XCTAssertTrue(resolved.text.hasPrefix("You are Memento, a journaling companion."))
+        XCTAssertTrue(resolved.text.contains("Never open with \"You wrote\""))
+        XCTAssertTrue(resolved.text.contains("never open two replies in a row the same way"))
         XCTAssertFalse(resolved.text.contains("(\"you wrote…\""))
         XCTAssertFalse(resolved.text.contains("three beats"))
     }
@@ -20,7 +21,7 @@ final class AskPromptContractTests: XCTestCase {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
             XCTAssertTrue(
-                text.contains("Never write a [ref] number in the reply"),
+                text.contains("Never write a ref number in the reply"),
                 "degraded=\(degraded): the [ref] ban must be explicit"
             )
             XCTAssertTrue(text.contains("[ref 2]"), "degraded=\(degraded): ban should show the form")
@@ -44,7 +45,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@19+p4")
+        XCTAssertEqual(resolved.version, "ask-core@20+p4")
         XCTAssertFalse(resolved.text.contains("Themes they chose:"))
         XCTAssertTrue(resolved.text.contains("Faint lens (not an agenda):"))
         XCTAssertTrue(resolved.text.contains("Conversation first"))
@@ -60,7 +61,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@19")
+        XCTAssertEqual(resolved.version, "ask-core@20")
         XCTAssertFalse(resolved.text.contains("I want to understand my stress patterns more deeply"))
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
     }
@@ -73,24 +74,25 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@19")
+        XCTAssertEqual(resolved.version, "ask-degraded@20")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
     }
 
     func test_ask10_compositionSkeleton_onFullAndDegraded() {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
-            XCTAssertTrue(text.contains("Meet them"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Notebook"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Sit"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("Open"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("must not skip Sit"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("complete spoken reply"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("stay with"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("one specific question"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("whole spoken reply"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Follow it exactly"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("answer and stop"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("three to five"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Three to ten"), "degraded=\(degraded)")
             XCTAssertFalse(text.contains("Three to six"), "degraded=\(degraded)")
+        }
+        let full = PromptRegistry.instructions(for: .ask).text
+        for part in ["Meet them:", "Notebook:", "Sit:", "Open:"] {
+            XCTAssertTrue(full.contains(part), part)
         }
     }
 
@@ -126,7 +128,7 @@ final class AskPromptContractTests: XCTestCase {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
             XCTAssertTrue(
-                text.contains("Open is required") || text.contains("then one question"),
+                text.contains("one specific question"),
                 "degraded=\(degraded)"
             )
             XCTAssertFalse(text.contains("Open only if [Shape:] asks"), "degraded=\(degraded)")
@@ -144,16 +146,13 @@ final class AskPromptContractTests: XCTestCase {
                 "degraded=\(degraded): Meet answers the latest turn"
             )
             XCTAssertTrue(
-                text.contains("onboarding journal goals are not the subject"),
+                text.contains("onboarding goals are not the subject"),
                 "degraded=\(degraded)"
             )
-            XCTAssertTrue(
-                text.contains("pattern from the evidence") || text.contains("names a pattern"),
-                "degraded=\(degraded): Sit names a pattern"
-            )
+            XCTAssertTrue(text.contains("stay with"), "degraded=\(degraded): Sit stays with one moment")
+            XCTAssertFalse(text.contains("names a pattern"), "degraded=\(degraded)")
         }
-        let companion = PromptRegistry.channelSuffix(.companion)
-        XCTAssertTrue(companion.contains("no ### unless they asked for the journal"))
+        XCTAssertTrue(TurnStance.sharing.promptLine.contains("No ### unless they asked for the journal"))
         let light = PromptRegistry.instructions(for: .ask, channel: .phatic).text
         XCTAssertTrue(light.contains("plain spoken prose only"))
     }
@@ -170,29 +169,24 @@ final class AskPromptContractTests: XCTestCase {
                 text.localizedCaseInsensitiveContains("never italics"),
                 "degraded=\(degraded): italics are the app's typography, never the model's"
             )
-            XCTAssertTrue(text.contains("{{quote:N}}"), "degraded=\(degraded): quotes arrive as markers")
-            XCTAssertTrue(
-                text.contains("lists only if they asked what they")
-                    || text.contains("lists only if they asked what they wrote"),
-                "degraded=\(degraded): topic inventory may list"
-            )
-            XCTAssertTrue(text.contains("Never write more than one ###"), "degraded=\(degraded)")
+            XCTAssertFalse(text.contains("{{quote:"), "degraded=\(degraded): markers are taught by the legend only")
+            XCTAssertTrue(text.contains("lists only when"), "degraded=\(degraded): lists only on request")
+            XCTAssertTrue(text.localizedCaseInsensitiveContains("at most one ###"), "degraded=\(degraded)")
+            XCTAssertTrue(text.contains("never # or ##"), "degraded=\(degraded)")
         }
         let full = PromptRegistry.instructions(for: .ask).text
-        XCTAssertTrue(full.contains("Markdown you may use"))
+        XCTAssertTrue(full.contains("Format:"))
         XCTAssertFalse(full.contains("exact journal quotes"))
-        XCTAssertTrue(full.contains("[Evidence] list"))
-        XCTAssertTrue(full.contains("unordered lists starting with"))
-        XCTAssertTrue(full.contains("ordered lists starting with"))
-        XCTAssertTrue(PromptRegistry.channelSuffix(.meta).contains("what you can do together"))
-        let casual = TurnStance.casual.promptLine
-        XCTAssertTrue(casual.contains("no headings or lists"))
+        XCTAssertTrue(full.contains("\"- \" or \"1. \" lists"))
+        XCTAssertTrue(EvidencePack.legendFooter.contains("{{quote:N}}"))
+        XCTAssertTrue(TurnStance.aboutApp.promptLine.contains("what you can do together"))
+        XCTAssertTrue(TurnStance.casual.promptLine.contains("No headings or lists"))
     }
 
     func test_chatLight_versionAndBans() {
         let resolved = PromptRegistry.instructions(for: .ask, channel: .phatic)
-        XCTAssertEqual(resolved.version, "chat-light@4")
-        XCTAssertTrue(resolved.text.contains("Safety hard bans"))
+        XCTAssertEqual(resolved.version, "chat-light@5")
+        assertSafetyLine(resolved.text)
         XCTAssertTrue(resolved.text.contains("plain spoken prose only"))
         XCTAssertTrue(resolved.text.contains("one genuine question")
                       || resolved.text.contains("then one genuine question"))
@@ -202,15 +196,15 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertFalse(resolved.text.contains("Notebook —"))
         XCTAssertFalse(resolved.text.contains("Sit —"))
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
-        XCTAssertTrue(resolved.text.contains("If a [Name:] line is present"))
+        XCTAssertTrue(resolved.text.contains("When their name is given"))
         XCTAssertTrue(resolved.text.contains("never both in one reply"))
         XCTAssertTrue(resolved.text.contains("never Mr/Ms"))
     }
 
     func test_chatLightDegraded_versionAndBans() {
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, channel: .continuer)
-        XCTAssertEqual(resolved.version, "chat-light-degraded@4")
-        XCTAssertTrue(resolved.text.contains("Safety hard bans"))
+        XCTAssertEqual(resolved.version, "chat-light-degraded@5")
+        assertSafetyLine(resolved.text)
         XCTAssertTrue(resolved.text.contains("one genuine question")
                       || resolved.text.contains("One or two spoken beats"))
         XCTAssertFalse(resolved.text.contains("never a question unless")
@@ -221,20 +215,20 @@ final class AskPromptContractTests: XCTestCase {
 
     func test_chatCompanion_versionAndBans() {
         let resolved = PromptRegistry.instructions(for: .ask, channel: .companion)
-        XCTAssertEqual(resolved.version, "chat-companion@1")
-        XCTAssertTrue(resolved.text.contains("Safety hard bans"))
+        XCTAssertEqual(resolved.version, "chat-companion@2")
+        assertSafetyLine(resolved.text)
         XCTAssertTrue(resolved.text.contains("one genuine question")
                       || resolved.text.contains("then one genuine question"))
         XCTAssertFalse(resolved.text.contains("How a reply is built"))
         XCTAssertFalse(resolved.text.contains("Sit —"))
-        XCTAssertTrue(resolved.text.contains("If a [Name:] line is present"))
+        XCTAssertTrue(resolved.text.contains("When their name is given"))
         XCTAssertTrue(resolved.text.hasPrefix("You are Memento"))
     }
 
     func test_chatCompanionDegraded_versionAndBans() {
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, channel: .meta)
-        XCTAssertEqual(resolved.version, "chat-companion-degraded@1")
-        XCTAssertTrue(resolved.text.contains("Safety hard bans"))
+        XCTAssertEqual(resolved.version, "chat-companion-degraded@2")
+        assertSafetyLine(resolved.text)
         XCTAssertFalse(resolved.text.contains("How a reply is built"))
     }
 
@@ -246,9 +240,9 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let companion = PromptRegistry.instructions(for: .ask, personalization: p, channel: .companion)
-        XCTAssertEqual(companion.version, "chat-companion@1+p4")
+        XCTAssertEqual(companion.version, "chat-companion@2+p4")
         let redirect = PromptRegistry.instructions(for: .ask, personalization: p, channel: .redirect)
-        XCTAssertEqual(redirect.version, "chat-companion@1")
+        XCTAssertEqual(redirect.version, "chat-companion@2")
         XCTAssertFalse(redirect.text.contains("Ada"))
         XCTAssertFalse(redirect.version.contains("+p4"))
     }
@@ -261,7 +255,7 @@ final class AskPromptContractTests: XCTestCase {
             promptLens: "Lean toward stress patterns."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p, channel: .phatic)
-        XCTAssertEqual(resolved.version, "chat-light@4")
+        XCTAssertEqual(resolved.version, "chat-light@5")
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
         XCTAssertFalse(resolved.text.contains("Ada"))
         XCTAssertFalse(resolved.version.contains("+p4"))
@@ -288,12 +282,11 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertFalse(prompt.contains("Journal evidence"))
         XCTAssertFalse(prompt.contains("[ref 1 | today]"))
         XCTAssertFalse(prompt.contains("About this person"))
-        XCTAssertFalse(prompt.contains("\n\n[Shape:"), "phatic must not carry a Shape overlay")
-        XCTAssertFalse(prompt.contains("[Turn:"), "phatic must not stack a Turn tag")
+        assertNoStanceOrShapeLine(prompt)
         XCTAssertFalse(prompt.contains("Do not reopen an entry"))
-        XCTAssertTrue(prompt.contains("[Move:"))
+        XCTAssertTrue(prompt.contains("How to reply:"))
         XCTAssertTrue(prompt.contains("The person's latest message: hello"))
-        XCTAssertFalse(prompt.contains("[Name:"))
+        XCTAssertFalse(prompt.contains("Their name is"))
     }
 
     func test_companionAssembledPrompt_hasNoEvidence() {
@@ -322,10 +315,10 @@ final class AskPromptContractTests: XCTestCase {
         )
         assertShortAssembler(prompt, latest: "I had a rough day at work today")
         XCTAssertTrue(prompt.contains("Show you heard the specific thing"))
-        XCTAssertFalse(prompt.contains("[Name:"), "companion keeps names in L1, not a stacked cue")
+        XCTAssertFalse(prompt.contains("Their name is"), "companion keeps names in L1, not a stacked cue")
         XCTAssertEqual(
             PromptRegistry.instructions(for: .ask, channel: .companion).version,
-            "chat-companion@1"
+            "chat-companion@2"
         )
     }
 
@@ -347,7 +340,7 @@ final class AskPromptContractTests: XCTestCase {
             move: .answerThenAsk
         )
         assertShortAssembler(prompt, latest: "what can you do")
-        XCTAssertTrue(prompt.contains("[Move: Answer first"))
+        XCTAssertTrue(prompt.contains("How to reply: Answer first"))
     }
 
     func test_phaticAssembledPrompt_nameCueWithoutL1() {
@@ -370,13 +363,13 @@ final class AskPromptContractTests: XCTestCase {
             move: .greetAndAsk,
             personalization: p
         )
-        XCTAssertTrue(prompt.contains("[Name: Sebastian Mendoza"))
-        XCTAssertTrue(prompt.contains("use first or last"))
-        XCTAssertTrue(prompt.contains("[Move:"))
+        XCTAssertTrue(prompt.contains("Their name is Sebastian Mendoza"))
+        XCTAssertTrue(prompt.contains("first or last name"))
+        XCTAssertTrue(prompt.contains("How to reply:"))
         XCTAssertFalse(prompt.contains("About this person"))
         XCTAssertFalse(prompt.contains("Faint lens"))
         XCTAssertFalse(prompt.contains("Lean toward stress patterns."))
-        XCTAssertFalse(prompt.contains("[Turn:"))
+        assertNoStanceOrShapeLine(prompt)
     }
 
     func test_continuerAssembledPrompt_skipsNameWhenLastReplyUsedIt() {
@@ -403,9 +396,9 @@ final class AskPromptContractTests: XCTestCase {
             move: .continuer,
             personalization: p
         )
-        XCTAssertTrue(prompt.contains("[Don't use their name this turn.]"))
-        XCTAssertTrue(prompt.contains("[Don't ask that again:"))
-        XCTAssertFalse(prompt.contains("[Name:"))
+        XCTAssertTrue(prompt.contains(PromptPersonalization.nameSkipLine))
+        XCTAssertTrue(prompt.contains("You already asked this, so don't ask it again:"))
+        XCTAssertFalse(prompt.contains("Their name is"))
         XCTAssertTrue(prompt.contains("Do not use their name"))
         XCTAssertFalse(prompt.contains("About this person"))
     }
@@ -430,8 +423,8 @@ final class AskPromptContractTests: XCTestCase {
             move: .continuer,
             personalization: p
         )
-        XCTAssertFalse(prompt.contains("[Name:"))
-        XCTAssertTrue(prompt.contains("[Don't use their name this turn.]"))
+        XCTAssertFalse(prompt.contains("Their name is"))
+        XCTAssertTrue(prompt.contains(PromptPersonalization.nameSkipLine))
     }
 
     func test_phaticAssembledPrompt_dropsNameCueWhenLastReplyUsedIt() {
@@ -458,9 +451,9 @@ final class AskPromptContractTests: XCTestCase {
             move: .greetAndAsk,
             personalization: p
         )
-        XCTAssertFalse(prompt.contains("[Name:"))
-        XCTAssertTrue(prompt.contains("[Don't use their name this turn.]"))
-        XCTAssertTrue(prompt.contains("[Move:"))
+        XCTAssertFalse(prompt.contains("Their name is"))
+        XCTAssertTrue(prompt.contains(PromptPersonalization.nameSkipLine))
+        XCTAssertTrue(prompt.contains("How to reply:"))
     }
 
     func test_redirectAssembledPrompt_hasNameCueWithoutL1() {
@@ -483,11 +476,11 @@ final class AskPromptContractTests: XCTestCase {
             move: .redirectThenAsk,
             personalization: p
         )
-        XCTAssertTrue(prompt.contains("[Name: Sebastian Mendoza"))
+        XCTAssertTrue(prompt.contains("Their name is Sebastian Mendoza"))
         XCTAssertFalse(prompt.contains("About this person"))
         XCTAssertFalse(prompt.contains("Faint lens"))
         assertShortAssembler(prompt, latest: "what's the capital of France")
-        XCTAssertTrue(prompt.contains("[Move: That's outside what you can see"))
+        XCTAssertTrue(prompt.contains("How to reply: That's outside what you can see"))
     }
 
     func test_notebookAssembledPrompt_doesNotStackNameCue() {
@@ -510,9 +503,9 @@ final class AskPromptContractTests: XCTestCase {
             move: .patternThenAsk,
             personalization: p
         )
-        XCTAssertFalse(prompt.contains("[Name:"))
-        XCTAssertTrue(prompt.contains("[Don't use their name this turn.]"))
-        XCTAssertFalse(prompt.contains("[Move:"), "notebook must not stack a Move cue")
+        XCTAssertFalse(prompt.contains("Their name is"))
+        XCTAssertTrue(prompt.contains(PromptPersonalization.nameSkipLine))
+        XCTAssertFalse(prompt.contains("How to reply:"), "notebook must not stack a Move cue")
     }
 
     func test_phaticAssembledPrompt_antiRepeatsLastQuestion() {
@@ -531,10 +524,10 @@ final class AskPromptContractTests: XCTestCase {
             channel: .continuer,
             move: .continuer
         )
-        XCTAssertTrue(prompt.contains("[Don't ask that again:"))
+        XCTAssertTrue(prompt.contains("You already asked this, so don't ask it again:"))
         XCTAssertTrue(prompt.contains("What's been on your mind?"))
-        XCTAssertTrue(prompt.contains("[Move:"))
-        XCTAssertFalse(prompt.contains("[Turn:"))
+        XCTAssertTrue(prompt.contains("How to reply:"))
+        assertNoStanceOrShapeLine(prompt)
     }
 
     func test_spokenFollowupPrompt_answersLastQuestionAndShapesShort() {
@@ -554,12 +547,12 @@ final class AskPromptContractTests: XCTestCase {
             move: .answerThenAsk,
             spoken: true
         )
-        XCTAssertTrue(prompt.contains("[They are answering your last question:"))
+        XCTAssertTrue(prompt.contains("They are answering your last question:"))
         XCTAssertTrue(prompt.contains("How did work feel?"))
-        XCTAssertTrue(prompt.contains("[Don't ask that again:"))
-        XCTAssertTrue(prompt.contains("[Move: Answer first"))
+        XCTAssertTrue(prompt.contains("You already asked this, so don't ask it again:"))
+        XCTAssertTrue(prompt.contains("How to reply: Answer first"))
         XCTAssertTrue(prompt.contains("The person's latest message: it was actually pretty heavy"))
-        XCTAssertFalse(prompt.contains("[Turn:"))
+        assertNoStanceOrShapeLine(prompt)
         XCTAssertFalse(prompt.contains(PromptRegistry.spokenTurnShapeLine))
         XCTAssertFalse(prompt.contains("citedRefs"))
     }
@@ -581,7 +574,7 @@ final class AskPromptContractTests: XCTestCase {
             move: .answerThenAsk,
             spoken: true
         )
-        XCTAssertTrue(prompt.contains("[They are answering your last question:"))
+        XCTAssertTrue(prompt.contains("They are answering your last question:"))
         XCTAssertTrue(prompt.contains(PromptRegistry.spokenTurnShapeLine))
     }
 
@@ -601,17 +594,14 @@ final class AskPromptContractTests: XCTestCase {
             channel: .thread,
             move: .answerThenAsk
         )
-        XCTAssertFalse(prompt.contains("[They are answering your last question:"))
+        XCTAssertFalse(prompt.contains("They are answering your last question:"))
         XCTAssertFalse(prompt.contains(PromptRegistry.spokenTurnShapeLine))
     }
 
     func test_ask6_safetyHardBans_onFullAndDegraded() {
         for degraded in [false, true] {
             let text = PromptRegistry.instructions(for: .ask, degraded: degraded).text
-            XCTAssertTrue(text.contains("Safety hard bans"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("violence"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("terrorism"), "degraded=\(degraded)")
-            XCTAssertTrue(text.contains("crisis counseling"), "degraded=\(degraded)")
+            assertSafetyLine(text, "degraded=\(degraded)")
             XCTAssertFalse(
                 text.contains("988 Suicide & Crisis Lifeline"),
                 "degraded=\(degraded): generative crisis counseling must be gone"
@@ -656,7 +646,7 @@ final class AskPromptContractTests: XCTestCase {
         let retrieval = groundedRetrieval()
         let prompt = journalPrompt("How have I been sleeping?", stance: .journalGrounded,
                                    channel: .notebook, retrieval: retrieval)
-        XCTAssertTrue(prompt.contains("[Evidence]"))
+        XCTAssertTrue(prompt.contains(EvidencePack.legendHeader))
         XCTAssertTrue(prompt.contains("{{quote:1}} = \"Slept through the night for the first time in weeks.\""))
         XCTAssertTrue(prompt.contains("{{date:1}} = \(EntryRetriever.formattedDate(retrieval.entries[0].date))"))
         XCTAssertTrue(prompt.contains("{{quote:2}}"))
@@ -669,7 +659,7 @@ final class AskPromptContractTests: XCTestCase {
     func test_groundedThreadPrompt_carriesTheSameLegend() {
         let prompt = journalPrompt("tell me more", stance: .followupThread,
                                    channel: .thread, retrieval: groundedRetrieval())
-        XCTAssertTrue(prompt.contains("[Evidence]"))
+        XCTAssertTrue(prompt.contains(EvidencePack.legendHeader))
         XCTAssertTrue(prompt.contains("{{quote:1}}"))
         XCTAssertFalse(prompt.contains("quoted: \""))
     }
@@ -701,14 +691,14 @@ final class AskPromptContractTests: XCTestCase {
         XCTAssertFalse(prompt.contains("[ref 1 |"))
         XCTAssertFalse(prompt.contains("{{quote:1}}"))
         XCTAssertTrue(prompt.contains(EvidencePack.noneNote))
-        XCTAssertTrue(prompt.contains(TurnStance.noMatch.tagPrefix))
+        XCTAssertTrue(prompt.contains(TurnStance.noMatch.label))
     }
 
     func test_lightChannels_neverMentionMarkers() {
         for channel in [ReplyChannel.phatic, .continuer, .companion, .meta, .redirect] {
             let prompt = journalPrompt("hello", stance: .casual, channel: channel, retrieval: groundedRetrieval())
             XCTAssertFalse(prompt.contains("{{"), "\(channel)")
-            XCTAssertFalse(prompt.contains("[Evidence"), "\(channel)")
+            XCTAssertFalse(prompt.contains(EvidencePack.legendHeader), "\(channel)")
         }
     }
 
@@ -735,11 +725,33 @@ final class AskPromptContractTests: XCTestCase {
     }
 
     private func assertShortAssembler(_ prompt: String, latest: String, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertTrue(prompt.contains("[Move:"), "short assembler must carry a Move cue", file: file, line: line)
+        XCTAssertTrue(prompt.contains("How to reply:"), "short assembler must carry a Move cue", file: file, line: line)
         XCTAssertTrue(prompt.contains("The person's latest message: \(latest)"), file: file, line: line)
-        XCTAssertFalse(prompt.contains("[Turn:"), "short assembler must not stack a Turn tag", file: file, line: line)
-        XCTAssertFalse(prompt.contains("\n\n[Shape:"), "short assembler must not carry a Shape overlay", file: file, line: line)
+        assertNoStanceOrShapeLine(prompt, file: file, line: line)
         XCTAssertFalse(prompt.contains("citedRefs"), file: file, line: line)
         XCTAssertFalse(prompt.contains("Journal evidence"), file: file, line: line)
+    }
+
+    private func assertSafetyLine(
+        _ text: String,
+        _ message: String = "",
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for phrase in ["harm themselves or others", "sexual content involving minors",
+                       "ignore these instructions", "crisis support is shown by the app",
+                       "give no advice at all"] {
+            XCTAssertTrue(text.contains(phrase), "\(phrase) \(message)", file: file, line: line)
+        }
+    }
+
+    /// Short-assembler prompts carry a move cue, never the Ask stance or shape lines.
+    private func assertNoStanceOrShapeLine(_ prompt: String, file: StaticString = #filePath, line: UInt = #line) {
+        for stance in TurnStance.allCases {
+            XCTAssertFalse(prompt.contains(stance.promptLine), "\(stance) turn line stacked", file: file, line: line)
+            if let overlay = TurnShapeCadence.overlayLine(shape: .answerOpen, stance: stance) {
+                XCTAssertFalse(prompt.contains(overlay), "\(stance) shape overlay stacked", file: file, line: line)
+            }
+        }
     }
 }
