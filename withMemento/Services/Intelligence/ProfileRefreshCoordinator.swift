@@ -47,7 +47,7 @@ enum ProfileRefreshCoordinator {
             profile.proposedPromptVersion = result.promptVersion
             LocalProfileStore.experienceProfile = profile
         } catch {
-            AppLogger.log("Profile refresh skipped: \(error.localizedDescription)")
+            AppLogger.log("Profile refresh skipped: \(type(of: error))")
         }
     }
 
