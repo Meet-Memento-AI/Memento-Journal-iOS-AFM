@@ -1,0 +1,23 @@
+[
+  {
+    "label": "recipe-second-question",
+    "rawBody": "That walk sounds like it mattered. What was that like? And what stayed with you?",
+    "packState": "none",
+    "context": { "userTexts": [], "lead": null }
+  },
+  {
+    "label": "recipe-banned-opener",
+    "rawBody": "You wrote that the house was quiet. What changed?",
+    "packState": "none",
+    "context": { "userTexts": [], "lead": null }
+  },
+  {
+    "label": "no-match-lead",
+    "rawBody": "Maybe the quiet is the point. What are you listening for?",
+    "packState": "none",
+    "context": {
+      "userTexts": [],
+      "lead": "I don't see an entry that matches that."
+    }
+  }
+]

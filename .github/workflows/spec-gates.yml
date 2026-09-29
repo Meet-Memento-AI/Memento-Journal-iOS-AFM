@@ -169,6 +169,15 @@ jobs:
         # same standard as the app's own strings.
         run: scripts/ci/check_asc_metadata.sh
 
+  renderer-replay-fixtures:
+    name: Renderer replay fixtures (T2 / MEM-324)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Study VI replay corpus matches eval-archive
+        run: scripts/ci/check_renderer_replay_fixtures.sh
+
   corpus-validation:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
     runs-on: ubuntu-latest

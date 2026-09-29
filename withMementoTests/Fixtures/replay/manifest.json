@@ -1,0 +1,7 @@
+{
+  "source_jsonl": "eval-archive/convo-sim/full-2026-09-27-tier.jsonl",
+  "source_sha256": "02bdf3f1e630510d61ee0f567ee47b1ee44fd70142b2f102f399351866df791e",
+  "turn_count": 3319,
+  "rendered_only": true,
+  "notes": "Rendered bubble text only until T1 (MEM-322) records rawBody on synthetic runs. Gating baseline is archived violations at extract time; Swift re-score is checked in RendererReplayTests on CI."
+}

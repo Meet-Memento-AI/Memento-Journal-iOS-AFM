@@ -587,6 +587,30 @@ enum ChatEvalScoring {
         }
     }
 
+    // MARK: - Convo-sim replay
+
+    /// The same mechanical checks `ConversationSimulation` records on each
+    /// generated assistant row. Shared with `RendererReplayTests` (T2).
+    static func scoreGeneratedReply(
+        body: String,
+        isCasual: Bool,
+        quoteIndex: QuoteIndex,
+        citations: [AskCitation],
+        facts: [InsightFact],
+        capTokens: Int,
+        openRequired: Bool
+    ) -> [Violation] {
+        leaks(body)
+            + ruleBreaks(body, isCasual: isCasual, index: quoteIndex, openRequired: openRequired)
+            + fabricatedQuotes(body, index: quoteIndex)
+            + uncitedQuote(body, citations: citations, index: quoteIndex)
+            + unbackedDate(body, citations: citations)
+            + boldNotTheirWords(body, index: quoteIndex)
+            + runaway(body, capTokens: capTokens)
+            + insightDigitDisagrees(body: body, facts: facts)
+            + insightContradictsSuppressed(body: body, facts: facts)
+    }
+
     // MARK: - Gate
 
     /// Families that must be empty for a run to pass.
