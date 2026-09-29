@@ -1,0 +1,23 @@
+[
+ {
+  "label": "Study I",
+  "file": "rows/study-i.js",
+  "rows": 6984,
+  "bytes": 4688540,
+  "source": "full-2026-09-20.jsonl"
+ },
+ {
+  "label": "Study II",
+  "file": "rows/study-ii.js",
+  "rows": 7048,
+  "bytes": 6385842,
+  "source": "full-2026-09-21-persona.jsonl"
+ },
+ {
+  "label": "Study III",
+  "file": "rows/study-iii.js",
+  "rows": 6858,
+  "bytes": 7203042,
+  "source": "full-2026-09-23-resim.jsonl"
+ }
+]

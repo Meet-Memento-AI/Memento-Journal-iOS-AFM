@@ -1,0 +1,840 @@
+<title>Reference Failure</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Paper stock, very slightly cool so the neutrals sit with the blue in the
+     figures rather than against it. The two figure hues are fixed to a meaning
+     and never to a rank: blue is the journal-less condition, orange the seeded
+     one, in every figure. */
+  :root {
+    --paper:      #fbfcfd;
+    --paper-2:    #f2f4f6;
+    --ink:        #111417;
+    --ink-2:      #454e56;
+    --ink-3:      #737d86;
+    --rule:       #cdd4da;
+    --rule-hair:  #e2e7eb;
+    --no-journal: #2a78d6;
+    --has-journal:#eb6834;
+    --critical:   #b6252a;
+    --good:       #1d6b1d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #121417;
+      --paper-2:    #191d21;
+      --ink:        #e9edf1;
+      --ink-2:      #aab4bd;
+      --ink-3:      #7a848d;
+      --rule:       #333b42;
+      --rule-hair:  #242a30;
+      --no-journal: #3987e5;
+      --has-journal:#d95926;
+      --critical:   #e07b7e;
+      --good:       #52b152;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #121417;
+    --paper-2:    #191d21;
+    --ink:        #e9edf1;
+    --ink-2:      #aab4bd;
+    --ink-3:      #7a848d;
+    --rule:       #333b42;
+    --rule-hair:  #242a30;
+    --no-journal: #3987e5;
+    --has-journal:#d95926;
+    --critical:   #e07b7e;
+    --good:       #52b152;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.66 "Source Serif 4", Georgia, "Times New Roman", serif;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1040px; margin: 0 auto; padding: 0 16px; padding-block: 52px 80px; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, h4 { font-family: "Source Serif 4", Georgia, serif; margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(28px, 5.2vw, 42px); font-weight: 700; line-height: 1.14; letter-spacing: -.012em; }
+  h2 { font-size: clamp(20px, 3vw, 25px); font-weight: 600; letter-spacing: -.005em; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0; }
+  .col > p + p { margin-top: 1em; text-indent: 0; }
+  em { font-style: italic; }
+  strong { font-weight: 600; }
+  a { color: var(--no-journal); text-underline-offset: 2px; }
+
+  .sans { font-family: "Source Sans 3", system-ui, sans-serif; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .86em; font-variant-numeric: tabular-nums; }
+  code { background: var(--paper-2); padding: .08em .3em; border-radius: 2px; }
+
+  /* Title block */
+  .title-block { border-bottom: 2px solid var(--ink); padding-bottom: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .venue { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .subtitle { font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 60ch; }
+  .byline { font-family: "Source Sans 3", sans-serif; font-size: 13.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+  .abstract {
+    margin-top: 30px; padding: 20px 0 22px; border-bottom: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .abstract h2 { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .abstract p { font-size: 16.5px; line-height: 1.6; max-width: 72ch; }
+
+  section.sec { margin-top: 42px; display: flex; flex-direction: column; gap: 16px; }
+  section.sec > h2 { display: flex; gap: 12px; align-items: baseline; }
+  .secnum { font-family: "Source Sans 3", sans-serif; font-size: 14px; font-weight: 600; color: var(--ink-3); flex: none; }
+  h3 { margin-top: 10px; }
+
+  /* Booktabs: top rule, mid rule, bottom rule. No verticals, no zebra — the
+     convention actual papers use, and it keeps dense numeric tables legible. */
+  .tbl-wrap { overflow-x: auto; }
+  table.bt { border-collapse: collapse; width: 100%; min-width: 440px; font-family: "Source Sans 3", sans-serif; font-size: 14px; }
+  table.bt thead th {
+    border-top: 1.6px solid var(--ink); border-bottom: 1px solid var(--ink);
+    padding: 8px 14px 7px 0; text-align: left; font-weight: 600; white-space: nowrap;
+  }
+  table.bt tbody td { border-bottom: 1px solid var(--rule-hair); padding: 7px 14px 7px 0; vertical-align: top; }
+  table.bt tbody tr:last-child td { border-bottom: 1.6px solid var(--ink); }
+  table.bt td.n, table.bt th.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; padding-right: 20px; }
+  table.bt tr.group td { padding-top: 14px; font-weight: 600; }
+  table.bt .hl { color: var(--critical); font-weight: 600; }
+  table.bt .ok { color: var(--good); font-weight: 600; }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 11px; }
+  figcaption {
+    font-family: "Source Sans 3", sans-serif; font-size: 13px; line-height: 1.5; color: var(--ink-2);
+    max-width: 78ch;
+  }
+  figcaption b { font-weight: 600; color: var(--ink); }
+  .fignum { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { font-family: "Source Sans 3", sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 1px; flex: none; }
+
+  blockquote {
+    margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--rule);
+    color: var(--ink-2); font-size: 16px; line-height: 1.58; max-width: 66ch;
+  }
+  blockquote em { color: var(--ink); }
+
+  .keyclaim {
+    border-top: 1.6px solid var(--ink); border-bottom: 1.6px solid var(--ink);
+    padding: 16px 0; display: flex; flex-direction: column; gap: 8px; max-width: 72ch;
+  }
+  .keyclaim .lbl { font-family: "Source Sans 3", sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+  .keyclaim p { font-size: 18px; line-height: 1.5; }
+
+  ol.numbered, ul.plain { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 11px; max-width: 70ch; }
+  ol.numbered li, ul.plain li { line-height: 1.6; }
+
+  .refs { display: flex; flex-direction: column; gap: 9px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); max-width: 74ch; }
+  .refs div { padding-left: 38px; text-indent: -38px; }
+  .refs b { font-family: "Source Sans 3", sans-serif; font-weight: 600; color: var(--ink); font-size: 13px; }
+
+  .appendix { background: var(--paper-2); border-radius: 4px; padding: 16px 18px; overflow-x: auto; }
+  .appendix pre { margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; line-height: 1.62; white-space: pre; color: var(--ink-2); }
+
+  footer { margin-top: 52px; border-top: 1px solid var(--rule); padding-top: 16px; font-family: "Source Sans 3", sans-serif; font-size: 12.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="sheet">
+
+  <header class="title-block">
+    <div class="venue">Memento · Evaluation report · 2026-09-22</div>
+    <h1>Reference failure in a 3-billion-parameter on-device journalling assistant</h1>
+    <p class="subtitle">Four hundred long-form conversations across three journal worlds and two
+      generation pipelines, and what they say about the one thing a small on-device model cannot
+      be asked to do.</p>
+    <div class="byline sans">
+      <span>Two self-play studies · 14,032 messages · 6,505 generated turns</span>
+      <span>Apple on-device foundation model (~3B), iOS 27</span>
+    </div>
+  </header>
+
+  <div class="abstract col">
+    <h2>Abstract</h2>
+    <p id="abs-1"></p>
+    <p id="abs-2"></p>
+  </div>
+
+  <section class="sec">
+    <h2><span class="secnum">1</span> Introduction</h2>
+    <div class="col">
+      <p>Memento is a private journalling application whose conversational surface runs entirely
+      on-device, on Apple's ~3B-parameter foundation model. The design question that governs such a
+      product is not whether the model is capable in general, but which specific decisions may be
+      delegated to it and which must be owned by code. Getting that boundary wrong is not visible in
+      unit tests; it is visible only at conversational scale, and only when the same pipeline is put
+      in front of materially different worlds.</p>
+      <p>This report analyses two self-play studies conducted five weeks apart. Both run twenty to
+      fifty message conversations in which a persona-briefed instance of the same on-device model
+      plays the person, and every assistant turn goes through the production retrieval, routing and
+      generation path. The first study (2026-09-20) established a baseline and produced three
+      specifications. The second (2026-09-22) was run after a substantial pipeline change and,
+      for the first time, against a mature nine-month journal.</p>
+      <p>We report three results. First, the grounding defect the first study identified has not been
+      eliminated but relocated: it is now essentially absent when the model has no journal and
+      pervasive when it has one. Second, the two studies together constitute a natural experiment on
+      remediation strategy, and the two strategies did not perform comparably. Third, a failure mode
+      neither study was designed to look for — assertion of dates — is invisible to the entire
+      scoring suite, including in the example the original specification was written around.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">2</span> Background</h2>
+    <div class="col">
+      <p>The relevant architectural commitment predates both studies. Specification 037 states the
+      principle as <em>code decides, the model renders</em>: any rule that must hold is expressed as
+      schema selection or post-generation reconciliation, never as prompt text asking the model to
+      restrain itself. Specification 045 applied this to arithmetic — the model never counts; a
+      Swift path computes statistics and the model narrates them.</p>
+      <p>The first study found two departures from that principle. Reply-channel selection could not
+      observe whether the archive was empty, so a journal question against a zero-entry store still
+      selected the voice that authorises headings and journal quotation, after which the prompt asked
+      the model not to use them. And a scorer intended to catch invented quotations had never executed:
+      its pattern was built in a Swift raw string containing <code>\u{201C}</code>, which the regular
+      expression engine rejects, and the failure was swallowed by a <code>try?</code>. Zero violations
+      had been read as a clean run for the lifetime of the check.</p>
+      <p>Both were addressed before the second study. The scorer was repaired and every pattern given a
+      compile assertion and a firing fixture; channel, policy and evidence-state selection were moved
+      into code. The second study is therefore a measurement of the remediated pipeline, and its
+      zero-entry arm is directly comparable to the first study's.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">3</span> Method</h2>
+
+    <h3 class="col">3.1 Design</h3>
+    <div class="col">
+      <p>Each study runs 100 conversations per arm. Conversation length is sampled per run in
+      [20, 50] messages from a generator seeded by a hash of the run identifier, so any conversation
+      replays deterministically. The person's turn is drawn from a persona brief and a per-turn move
+      (push back, go quiet, change the subject, correct an earlier detail); the assistant's turn goes
+      through the production streaming path, so retrieval, turn classification, channel selection and
+      citation reconciliation are live.</p>
+      <p>The unit of analysis throughout is the <b>generated turn</b>: an assistant row that the model
+      actually wrote. Rows recording an error carry no generation, and rows from the Swift-computed
+      statistics path were not written by the model; both are excluded. All rates are computed over
+      generated turns, and all violation rates count only codes that gate — report-only shape
+      telemetry and the three unarmed grounding codes are excluded, matching the production gating
+      function.</p>
+    </div>
+
+    <h3 class="col">3.2 Conditions</h3>
+    <div class="tbl-wrap" id="t1"></div>
+    <figcaption><b>Table 1.</b> The four arms. The design is incomplete by construction: no world was
+      run under both pipelines except the zero-entry one, which is the only cell that isolates the
+      pipeline change.</figcaption>
+
+    <h3 class="col">3.3 Measures</h3>
+    <div class="col">
+      <p>Eight deterministic scorers run over each reply; none involves a judge model. They fall into
+      four families: scaffolding leaks, output-contract breaks, grounding claims the corpus does not
+      support, and report-only shape. Grounding is the family of interest. Its central check exploits
+      a typographic contract — italics in a reply are reserved for an exact journal quote — so an
+      italicised span of twelve characters or more that does not appear verbatim in the corpus is
+      recorded as a fabricated quotation.</p>
+      <p>This check is only meaningful where a corpus exists. With no journal every italic span
+      satisfies the condition trivially, which is why the seeded arm is the informative one and why
+      the first study, whose seeded arm held eight entries, could say very little about it.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">4</span> Results</h2>
+
+    <h3 class="col">4.1 Headline</h3>
+    <div class="tbl-wrap" id="t2"></div>
+    <figcaption><b>Table 2.</b> Per-arm outcomes over generated turns. <i>Invented material</i> is the
+      union of the five grounding codes. The zero-entry column of Study&nbsp;II is the cleanest result
+      in either study; its seeded column is the worst.</figcaption>
+
+    <figure style="margin-top:10px">
+      <div class="fignum">Figure 1</div>
+      <div id="f1"></div>
+      <div class="legend" id="f1-legend"></div>
+      <figcaption><b>Figure 1.</b> Gating-violation and invented-material rates by arm. The pipeline
+        change moves the zero-entry condition down; introducing a journal moves the seeded condition
+        sharply up. These are not the same axis, and §5 argues they are not the same phenomenon
+        either.</figcaption>
+    </figure>
+
+    <h3 class="col">4.2 What the grounding scorer catches</h3>
+    <div class="col">
+      <p>The rate alone does not identify the failure. Inspection of the flagged spans shows that the
+      seeded arm's violations are overwhelmingly not invented entries but the person's own words,
+      italicised back at them one turn after they were typed:</p>
+    </div>
+    <blockquote>You corrected — the stain isn't on the ceiling — it's in the socket under the sink.
+      That shift changes the way the quiet settles. <em>Socket under the sink</em> — the drip now
+      speaks louder.</blockquote>
+    <div class="col">
+      <p>Under the typographic contract this is a claim that <em>socket under the sink</em> is a
+      verbatim journal quotation. It is not; it is a verbatim <em>conversation</em> quotation. The
+      model is using italics for emphasis, which is what italics mean in essentially all of its
+      training data, and the contract asks it to override that convention on every turn.</p>
+      <p>The first study's seeded arm produces a different and more serious instance. A reply quotes
+      cold-start entry <code>cs-02</code> — "Argument with Dario about the move" — verbatim and
+      correctly, then attributes it to March 12. Every cold-start entry is dated relative to the run,
+      so that entry is three days old and no March 12 entry exists. The quotation is true; the date is
+      invented. Only the attribution code fired.</p>
+    </div>
+
+    <h3 class="col">4.3 Two remediation strategies, measured</h3>
+    <div class="col">
+      <p>The two studies bracket a natural experiment. Between them, two different interventions were
+      applied to two different grounding failures.</p>
+      <p>The first moved decisions out of the prompt and into code: channel selection became a function
+      of observed evidence state rather than a prompt instruction. The second added information to the
+      prompt: the model was given the current date, in the same format as the entry dates it is shown,
+      so it could resolve relative expressions without arithmetic.</p>
+    </div>
+    <div class="tbl-wrap" id="t3"></div>
+    <figcaption><b>Table 3.</b> Outcome of each intervention on its target failure, zero-entry arm
+      only, where any occurrence is necessarily an invention. The code-side intervention eliminated its
+      target. The prompt-side intervention did not, and its target became more frequent.</figcaption>
+
+    <div class="keyclaim">
+      <div class="lbl">Result</div>
+      <p>Supplying a fact in the prompt did not cause the model to use the fact. Removing the
+      decision from the model eliminated the failure entirely.</p>
+    </div>
+
+    <h3 class="col">4.4 An unscored failure mode</h3>
+    <div class="col">
+      <p>No scorer in the suite targets an asserted date. Counting month-name-plus-day assertions in
+      reply bodies gives the distribution below. On seeded arms a date may legitimately be correct, so
+      those counts are not error counts; on zero-entry arms every asserted date is invented by
+      construction.</p>
+    </div>
+    <div class="tbl-wrap" id="t4"></div>
+    <figcaption><b>Table 4.</b> Date assertions and how many carry no gating violation. Between two
+      thirds and nine in ten pass the suite clean.</figcaption>
+    <div class="col">
+      <p>The sharpest instance is the example the original specification was written around, which
+      appears in the first study's zero-entry arm with an empty violations array:</p>
+    </div>
+    <blockquote>I don't see anything from that stretch — the entry from March 12 shows a spike in
+      missed classes — 14 days total — and the average delay between notes is now 21 days.</blockquote>
+    <div class="col">
+      <p>No journal, no entry, no spike, no averages, and no violation. The specification's motivating
+      example is invisible to the suite the specification produced.</p>
+    </div>
+
+    <h3 class="col">4.5 Routing</h3>
+    <figure>
+      <div class="fignum">Figure 2</div>
+      <div id="f2"></div>
+      <figcaption><b>Figure 2.</b> Turn type against reply channel, both studies, every enum case shown
+        including those at zero. One classification absorbed 0.14% of traffic in Study&nbsp;I and 77.1%
+        in Study&nbsp;II. Three cases never fire in either.</figcaption>
+    </figure>
+    <div class="col">
+      <p>This is worth separating from the model's behaviour: turn classification is a deterministic
+      Swift function over the message text, not a model output. Both distributions are degenerate, and
+      both are code defects. That <code>correction</code> never fires — in a study whose cast includes a
+      persona briefed to misremember and correct itself, and whose opening prompts include a flat
+      contradiction of an earlier claim — is a classifier problem with a deterministic fix.</p>
+    </div>
+
+    <h3 class="col">4.6 Persona sensitivity</h3>
+    <div class="tbl-wrap" id="t5"></div>
+    <figcaption><b>Table 5.</b> Gating-violation rate by persona, seeded arm minus zero-entry arm,
+      within each study. A positive value means the model performed worse when it had a journal.</figcaption>
+    <div class="col">
+      <p>In Study&nbsp;I three of ten personas were worse with a journal. In Study&nbsp;II all ten are,
+      and the sign reverses for seven. The persona the eight-entry journal helped most is the one the
+      nine-month journal hurts most.</p>
+      <p>We read this as a property of the failure rather than of the personas. Quoting a person's own
+      words back at them does not depend on who the person is, so a defect that can fire on any
+      conversational turn distributes evenly across the cast — whereas the first study's pattern, in
+      which the personas that interrogate the archive fared worse, is what a retrieval-quality effect
+      looks like.</p>
+    </div>
+
+    <h3 class="col">4.7 Cost</h3>
+    <div class="tbl-wrap" id="t6"></div>
+    <figcaption><b>Table 6.</b> Seconds per generated turn. Generation is strictly serial — a lock is
+      held around every call — so this is a hard constraint on study size and on interactive latency.</figcaption>
+    <div class="col">
+      <p>A thirty-two-fold increase in corpus size costs roughly a doubling of median latency, so the
+      context budget is bounding prompt growth as intended. The tail is the product concern: p90 and
+      maximum latency on the seeded arm are several times the median, and no condition in either study
+      exceeds 262 entries, which is small for a journal of nine months' standing.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">5</span> Discussion: reference, not reasoning</h2>
+    <div class="col">
+      <p>The failures reported above look heterogeneous — invented quotations, invented dates, invented
+      counts — and have historically been treated as separate defects with separate checks. We propose
+      they are one failure with three surfaces.</p>
+      <p>In each case the model is asked to emit a token sequence whose correctness is determined by
+      whether it matches something in an external store. Nothing in the architecture of a
+      3B-parameter decoder provides a mechanism for that check. The model produces text that is
+      plausible given its context, and plausible journal text is by construction indistinguishable
+      from real journal text; plausible dates are indistinguishable from real dates. The model is not
+      reasoning badly. It is doing exactly what it does, on a task that requires a capability it does
+      not have.</p>
+      <p>This reframing has predictive content, and §4.3 is the test. If these were reasoning failures,
+      supplying better information — a date anchor, a clearer instruction — would reduce them. It did
+      not; the target failure became more frequent. If they are reference failures, then removing the
+      opportunity to emit an unverified reference should eliminate them. It did, completely, in the one
+      case where that was done.</p>
+      <p>It also explains the otherwise puzzling shape of Table&nbsp;2. The zero-entry arm is now nearly
+      perfect not because the model improved but because there is nothing to refer to: a condition with
+      no corpus removes the opportunity for reference failure almost entirely. The seeded arm is worse
+      not because a journal degrades the model but because a journal is what makes reference possible
+      at all. <b>The measured difference between the arms is very largely a measure of opportunity,
+      not of competence.</b></p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">6</span> Implications for the product</h2>
+    <div class="col">
+      <p>The existing principle — code decides, the model renders — draws the boundary in the right
+      place but one step too late. Rendering a reference <em>is</em> a decision, and it is the decision
+      the model cannot execute. We propose extending the principle so that the model never emits a
+      reference, only prose and reference tokens.</p>
+    </div>
+    <ol class="numbered">
+      <li><b>Quotations become tokens.</b> To quote entry 3 the model emits a marker; the renderer
+        substitutes the verbatim text from the store. A fabricated quotation becomes structurally
+        impossible rather than something detected afterwards, and the grounding scorer can be deleted
+        rather than tuned.</li>
+      <li><b>Dates become tokens.</b> The model never writes a date; it emits a marker and the renderer
+        formats the entry's own timestamp. This is the same move already made for counts, which is the
+        one reference class the product currently gets right.</li>
+      <li><b>Unmarked emphasis is stripped at render.</b> Any italic span not backed by a token is
+        rendered as plain text, so the typographic contract is enforced by the renderer instead of
+        being asked of the model on every turn.</li>
+      <li><b>Turn classification is a code defect and should be fixed as one.</b> Two degenerate
+        distributions and three permanently silent cases are not model behaviour and do not need a
+        model to repair.</li>
+    </ol>
+    <div class="col">
+      <p>The division of labour this implies is unusually clear for a product of this kind. On the
+      evidence here the model is a capable conversational surface — scaffolding escapes into user-visible
+      text twice in 3,386 turns, safety routing behaves as specified, and tone holds across
+      forty-message sessions. It is an unreliable index. The product should use it as the voice and
+      never as the record.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">7</span> Threats to validity</h2>
+    <ul class="plain">
+      <li><b>The principal comparison is confounded.</b> Study&nbsp;II changed the journal and the
+        pipeline together. Only the zero-entry arm isolates the pipeline and only Study&nbsp;II's two
+        arms isolate the journal; the eight-entry arm crosses both axes and supports neither
+        comparison.</li>
+      <li><b>One seeded world.</b> The nine-month corpus is a single authored persona. No claim here
+        separates model behaviour from properties of that particular corpus, and the counterfactual
+        world-pairs that would do so are not implemented.</li>
+      <li><b>Both interlocutors are synthetic.</b> The person is a persona-briefed instance of the same
+        model. Designed refusals and fallback lines in the data are properties of the harness, not of
+        the application.</li>
+      <li><b>One instrumented field is assumed, not measured.</b> Evidence state in Study&nbsp;II is set
+        from whether the arm has entries rather than from what retrieval returned, so it restates the
+        condition and carries no information. It is reported here for completeness and used for nothing.</li>
+      <li><b>One historical figure is not recoverable.</b> The first study's fabricated-quotation count
+        is a replay figure, obtained by re-running the repaired scorer over archived bodies; the
+        artifact itself records zero, because the scorer could not execute when the run was made.</li>
+      <li><b>A published comparison in the original specification is inconsistent.</b> Its two rates are
+        computed on different bases; recomputed consistently the contrast is wider than published, so
+        the specification's argument survives its own arithmetic error.</li>
+      <li><b>The date measure is textual.</b> Month-day assertions are counted by pattern over reply
+        bodies. It does not detect relative-date errors ("last Tuesday"), so Table&nbsp;4 is a lower
+        bound.</li>
+    </ul>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">8</span> Conclusion</h2>
+    <div class="col">
+      <p>A 3B-parameter on-device model is an adequate conversational surface for a journalling
+      application and an inadequate one for any claim about the journal's contents. The distinction is
+      not one of degree that better prompting narrows; the one controlled comparison available here
+      shows prompting moving the wrong way while a structural change eliminated its target outright.</p>
+      <p>The corresponding product move is to make unverifiable references inexpressible rather than
+      detectable — to route every quotation, date and count through a token the renderer resolves
+      against the store. The evaluation consequence is that the most expensive check in the suite
+      becomes unnecessary, which is a better outcome than the threshold it is currently waiting for.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">A</span> Reproduction</h2>
+    <div class="appendix"><pre id="repro"></pre></div>
+    <div class="col">
+      <p>Every figure and table in this report is generated from the committed run artifacts by the
+      scripts above. None is hand-counted. The complete message-level data for both studies — 14,032
+      rows with routing decisions, scorer output, citations and timings — is browsable in the companion
+      artifact.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secnum">R</span> References</h2>
+    <div class="refs" id="refs"></div>
+  </section>
+
+  <footer>
+    <div id="prov" class="mono"></div>
+    <div>Rates are gating-only throughout, matching the production gating function: report-only shape
+      telemetry and the three unarmed grounding codes are excluded.</div>
+  </footer>
+</div>
+
+<script type="application/json" id="payload">/*__DATA__*/</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("payload").textContent);
+  const NS = "http://www.w3.org/2000/svg";
+  const fmt = (n, d) => (n === null || n === undefined ? "—" : n.toFixed(d === undefined ? 1 : d));
+  const pctOf = (a, b) => (b ? (100 * a) / b : 0);
+  const hue = (arm) => (arm === "empty" ? "var(--no-journal)" : "var(--has-journal)");
+
+  const CELLS = [];
+  DATA.runs.forEach((run) => run.arms.forEach((arm) => {
+    const meta = (run.arms_meta || []).find((m) => m.name === arm.arm) || {};
+    CELLS.push({
+      run: run.label, arm: arm.arm, entries: meta.entry_count ?? null,
+      range: meta.entry_date_range || null, label: `${run.label} · ${arm.arm}`, d: arm,
+      manifest: run.manifest || {}, complete: run.complete,
+    });
+  }));
+  const cell = (run, arm) => CELLS.find((c) => c.run === run && c.arm === arm);
+  const seeded = (run) => CELLS.find((c) => c.run === run && c.arm !== "empty");
+
+  function el(tag, attrs, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function table(host, head, rows, aligns) {
+    const t = document.createElement("table");
+    t.className = "bt";
+    const th = document.createElement("thead");
+    const hr = document.createElement("tr");
+    head.forEach((h, i) => {
+      const c = document.createElement("th");
+      if (aligns && aligns[i] === "n") c.className = "n";
+      c.textContent = h;
+      hr.appendChild(c);
+    });
+    th.appendChild(hr);
+    t.appendChild(th);
+    const tb = document.createElement("tbody");
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      if (row.group) tr.className = "group";
+      (row.cells || row).forEach((v, i) => {
+        const td = document.createElement("td");
+        if (aligns && aligns[i] === "n") td.className = "n";
+        if (v instanceof Node) td.appendChild(v); else td.textContent = v;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    host.innerHTML = "";
+    host.appendChild(t);
+  }
+  function mark(text, cls) {
+    const s = document.createElement("span");
+    s.className = cls;
+    s.textContent = text;
+    return s;
+  }
+
+  // ---------------------------------------------------------------- abstract
+  (function abstract() {
+    const i = cell("Study I", "empty"), ii = cell("Study II", "empty"), s2 = seeded("Study II");
+    const fabI = i.d.codes["hall.fabricatedQuote"] || 0;
+    document.getElementById("abs-1").textContent =
+      `We report two self-play evaluation studies of an on-device journalling assistant running on a `
+      + `~3B-parameter model, totalling 14,032 messages across 400 conversations of twenty to fifty `
+      + `messages each. The studies bracket a pipeline change and differ in the journal the assistant `
+      + `is given: zero entries, eight entries, or a 262-entry nine-month archive. The grounding defect `
+      + `identified by the first study has not been eliminated but relocated. With no journal the `
+      + `pipeline is now essentially clean — ${fmt(pctOf(ii.d.invented_material, ii.d.generated), 1)}% of `
+      + `${ii.d.generated.toLocaleString()} generated turns carry unsupported journal material, and the `
+      + `voice that authorises journal quotation is unreachable, down from `
+      + `${fmt(pctOf(i.d.notebook, i.d.generated), 1)}%. Against a nine-month journal the same measure is `
+      + `${fmt(pctOf(s2.d.invented_material, s2.d.generated), 1)}%.`;
+    document.getElementById("abs-2").textContent =
+      `Inspection of the flagged spans shows the seeded failure is not the invention of entries but the `
+      + `italicisation of the person's own words, which a typographic contract reads as a verbatim `
+      + `quotation. We argue that this, invented dates, and the previously conceded inability to count `
+      + `are one failure — the model cannot verify a reference against an external store — and that the `
+      + `two studies constitute a natural experiment distinguishing remediation strategies: supplying the `
+      + `model with the current date left its target failure more frequent, while removing a decision `
+      + `from the model eliminated its target outright. We conclude that unverifiable references should `
+      + `be made inexpressible rather than detectable, by routing every quotation, date and count through `
+      + `a token the renderer resolves against the store.`;
+  })();
+
+  // ---------------------------------------------------------------- Table 1
+  table(document.getElementById("t1"),
+    ["Study", "Arm", "Entries", "Window", "Conversations", "Messages", "Generated turns"],
+    CELLS.map((c) => ({
+      cells: [
+        c.run, c.arm, c.entries,
+        c.range ? `${c.range[0].slice(0, 10)} → ${c.range[1].slice(0, 10)}` : "—",
+        c.d.conversations, (c.d.messages ?? 0).toLocaleString(), c.d.generated.toLocaleString(),
+      ],
+    })), [null, null, "n", null, "n", "n", "n"]);
+
+  // ---------------------------------------------------------------- Table 2
+  table(document.getElementById("t2"),
+    ["Study · arm", "Generated", "Gating viol.", "Invented material", "Notebook voice", "Cited", "Median cited age"],
+    CELLS.map((c) => {
+      const inv = pctOf(c.d.invented_material, c.d.generated);
+      const invCell = mark(`${c.d.invented_material} (${fmt(inv)}%)`,
+        inv > 25 ? "hl" : inv < 1 ? "ok" : "");
+      return { cells: [
+        c.label, c.d.generated.toLocaleString(),
+        `${c.d.gating_violations} (${fmt(pctOf(c.d.gating_violations, c.d.generated))}%)`,
+        invCell,
+        `${c.d.notebook} (${fmt(pctOf(c.d.notebook, c.d.generated))}%)`,
+        `${c.d.cited_turns} (${fmt(pctOf(c.d.cited_turns, c.d.generated))}%)`,
+        c.d.median_cited_entry_age_days === null ? "—" : `${Math.round(c.d.median_cited_entry_age_days)} d`,
+      ] };
+    }), [null, "n", "n", "n", "n", "n", "n"]);
+
+  // ---------------------------------------------------------------- Figure 1
+  (function fig1() {
+    const host = document.getElementById("f1");
+    const W = 760, rowH = 50, padL = 168, padR = 56, top = 22;
+    const H = top + CELLS.length * rowH + 12;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+    const max = Math.max(20, ...CELLS.map((c) => Math.max(
+      pctOf(c.d.gating_violations, c.d.generated), pctOf(c.d.invented_material, c.d.generated))));
+    const plot = W - padL - padR;
+    const x = (v) => padL + (v / max) * plot;
+
+    const defs = el("defs", {});
+    ["empty", "cold", "persona"].forEach((arm) => {
+      const p = el("pattern", { id: `h-${arm}`, width: 5, height: 5,
+        patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+      p.appendChild(el("rect", { width: 5, height: 5, fill: hue(arm) }));
+      p.appendChild(el("rect", { width: 2.2, height: 5, fill: "var(--paper)", opacity: .8 }));
+      defs.appendChild(p);
+    });
+    s.appendChild(defs);
+
+    [0, max / 2, max].forEach((v) => {
+      s.appendChild(el("line", { x1: x(v), y1: top - 6, x2: x(v), y2: H - 14,
+        stroke: "var(--rule-hair)", "stroke-width": 1 }));
+      s.appendChild(el("text", { x: x(v), y: top - 11, "text-anchor": "middle",
+        "font-size": 10.5, fill: "var(--ink-3)" }, fmt(v, 0) + "%"));
+    });
+    CELLS.forEach((c, i) => {
+      const y = top + i * rowH;
+      s.appendChild(el("text", { x: padL - 12, y: y + 14, "text-anchor": "end",
+        "font-size": 12, fill: "var(--ink)" }, c.run));
+      s.appendChild(el("text", { x: padL - 12, y: y + 28, "text-anchor": "end",
+        "font-size": 10.5, fill: "var(--ink-3)" }, `${c.arm} · ${c.entries} entries`));
+      [["gating violation", pctOf(c.d.gating_violations, c.d.generated), false],
+       ["invented material", pctOf(c.d.invented_material, c.d.generated), true]
+      ].forEach(([name, v, hatch], k) => {
+        const by = y + 3 + k * 16;
+        const w = Math.max(3, x(v) - padL);
+        s.appendChild(el("rect", { x: padL, y: by, width: w, height: 12, rx: 1.5,
+          fill: hatch ? `url(#h-${c.arm})` : hue(c.arm) }));
+        s.appendChild(el("text", { x: padL + w + 7, y: by + 10, "font-size": 10.5,
+          fill: "var(--ink-2)" }, fmt(v) + "%"));
+      });
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
+
+    const lg = document.getElementById("f1-legend");
+    lg.innerHTML = "";
+    [["var(--no-journal)", "no journal", false], ["var(--has-journal)", "has a journal", false],
+     ["var(--ink-3)", "hatched = invented material", true]].forEach(([color, label, hatch]) => {
+      const sp = document.createElement("span");
+      const sw = document.createElement("i");
+      sw.className = "sw";
+      sw.style.background = color;
+      if (hatch) sw.style.backgroundImage =
+        "repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 2px, transparent 2px 4px)";
+      sp.appendChild(sw);
+      sp.appendChild(document.createTextNode(label));
+      lg.appendChild(sp);
+    });
+  })();
+
+  // ---------------------------------------------------------------- Table 3
+  (function t3() {
+    const i = cell("Study I", "empty"), ii = cell("Study II", "empty");
+    const nbBefore = pctOf(i.d.notebook, i.d.generated), nbAfter = pctOf(ii.d.notebook, ii.d.generated);
+    const dBefore = i.d.date_assertions, dAfter = ii.d.date_assertions;
+    table(document.getElementById("t3"),
+      ["Intervention", "Where it acts", "Target failure", "Study I", "Study II", "Outcome"],
+      [
+        { cells: ["Evidence-aware channel selection", "code", "journal voice with no journal",
+          `${i.d.notebook} (${fmt(nbBefore)}%)`, `${ii.d.notebook} (${fmt(nbAfter)}%)`,
+          mark("eliminated", "ok")] },
+        { cells: ["Date anchor in the prompt", "prompt", "invented dates, zero-entry arm",
+          `${dBefore.n}`, `${dAfter.n}`, mark("target rose", "hl")] },
+      ], [null, null, null, "n", "n", null]);
+  })();
+
+  // ---------------------------------------------------------------- Table 4
+  table(document.getElementById("t4"),
+    ["Study · arm", "Entries", "Generated", "Assert a date", "Rate", "No gating violation"],
+    CELLS.map((c) => {
+      const d = c.d.date_assertions || { n: 0, rate: 0, unflagged: 0 };
+      return { cells: [
+        c.label, c.entries, c.d.generated.toLocaleString(), d.n, fmt(d.rate, 1) + "%",
+        c.entries === 0 && d.unflagged
+          ? mark(`${d.unflagged} (${fmt(pctOf(d.unflagged, d.n))}%)`, "hl")
+          : `${d.unflagged}${d.n ? ` (${fmt(pctOf(d.unflagged, d.n))}%)` : ""}`,
+      ] };
+    }), [null, "n", "n", "n", "n", "n"]);
+
+  // ---------------------------------------------------------------- Figure 2
+  (function fig2() {
+    const host = document.getElementById("f2");
+    const channels = DATA.reply_channels;
+    const runs = DATA.runs;
+    const cellW = 38, cellH = 19, padL = 132, top = 56, gap = 30;
+    const blockH = top + DATA.turn_types.length * cellH + 22;
+    const W = padL + channels.length * cellW + 48;
+    const H = runs.length * blockH + gap;
+    const s = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+
+    runs.forEach((run, r) => {
+      const oy = r * blockH + (r ? gap : 0);
+      const totalTurns = run.turn_matrix.reduce((a, b) => a + b.total, 0);
+      s.appendChild(el("text", { x: 0, y: oy + 16, "font-size": 12.5, "font-weight": 600,
+        fill: "var(--ink)" }, `${run.label} — ${totalTurns.toLocaleString()} assistant turns`));
+      const maxCell = Math.max(1, ...run.turn_matrix.flatMap((m) => Object.values(m.cells)));
+      channels.forEach((ch, j) => {
+        const cx = padL + j * cellW + cellW / 2;
+        s.appendChild(el("text", { x: cx, y: oy + top - 7, "font-size": 9.5, fill: "var(--ink-3)",
+          transform: `rotate(-45 ${cx} ${oy + top - 7})`, "text-anchor": "start" }, ch));
+      });
+      run.turn_matrix.forEach((row, i) => {
+        const y = oy + top + i * cellH;
+        const silent = row.total === 0;
+        s.appendChild(el("text", { x: padL - 9, y: y + 13, "text-anchor": "end", "font-size": 10,
+          fill: silent ? "var(--ink-3)" : "var(--ink)" }, row.turn_type));
+        channels.forEach((ch, j) => {
+          const v = row.cells[ch] || 0;
+          // Single-hue sequential; zero is the paper, so absence reads as absence.
+          const t = v === 0 ? 0 : 0.14 + 0.86 * Math.sqrt(v / maxCell);
+          s.appendChild(el("rect", { x: padL + j * cellW + 1, y: y + 1,
+            width: cellW - 2, height: cellH - 2, rx: 1.5,
+            fill: v === 0 ? "var(--paper-2)" : "var(--no-journal)", opacity: v === 0 ? 1 : t }));
+          if (v > 0) {
+            s.appendChild(el("text", { x: padL + j * cellW + cellW / 2, y: y + 13,
+              "text-anchor": "middle", "font-size": 9,
+              fill: t > 0.6 ? "var(--paper)" : "var(--ink)" }, v));
+          }
+        });
+        s.appendChild(el("text", { x: W - 42, y: y + 13, "font-size": 9.5,
+          fill: silent ? "var(--ink-3)" : "var(--ink-2)" }, fmt(row.rate) + "%"));
+      });
+    });
+    host.innerHTML = "";
+    host.appendChild(s);
+  })();
+
+  // ---------------------------------------------------------------- Table 5
+  (function t5() {
+    const series = DATA.runs.map((run) => {
+      const arms = run.arms.map((a) => a.arm);
+      const base = arms.indexOf("empty") >= 0 ? "empty" : arms[0];
+      return { run: run.label, base, seed: arms.find((a) => a !== base), rows: run.personas };
+    }).filter((x) => x.seed);
+    const keys = [...new Set(series.flatMap((x) => x.rows.map((r) => r.key)))];
+    const delta = (x, key) => {
+      const row = x.rows.find((r) => r.key === key);
+      if (!row || !row[x.base] || !row[x.seed]) return null;
+      if (row[x.base].rate === null || row[x.seed].rate === null) return null;
+      return row[x.seed].rate - row[x.base].rate;
+    };
+    const last = series[series.length - 1];
+    keys.sort((a, b) => (delta(last, b) ?? -99) - (delta(last, a) ?? -99));
+    table(document.getElementById("t5"),
+      ["Persona", ...series.flatMap((x) => [`${x.run} ${x.base}`, `${x.run} ${x.seed}`, `${x.run} Δ`])],
+      keys.map((key) => ({ cells: [key, ...series.flatMap((x) => {
+        const row = x.rows.find((r) => r.key === key) || {};
+        const d = delta(x, key);
+        return [
+          row[x.base] ? fmt(row[x.base].rate) + "%" : "—",
+          row[x.seed] ? fmt(row[x.seed].rate) + "%" : "—",
+          d === null ? "—" : mark((d > 0 ? "+" : "") + fmt(d), d > 0.5 ? "hl" : d < -0.5 ? "ok" : ""),
+        ];
+      })] })),
+      [null, "n", "n", "n", "n", "n", "n"]);
+  })();
+
+  // ---------------------------------------------------------------- Table 6
+  table(document.getElementById("t6"),
+    ["Study · arm", "Entries", "n", "p50", "p90", "max"],
+    CELLS.map((c) => ({ cells: [c.label, c.entries, c.d.latency.n.toLocaleString(),
+      fmt(c.d.latency.p50, 2) + " s", fmt(c.d.latency.p90, 2) + " s", fmt(c.d.latency.max, 1) + " s"] })),
+    [null, "n", "n", "n", "n", "n"]);
+
+  // ------------------------------------------------------- appendix + refs
+  document.getElementById("repro").textContent =
+    "# the analysis — every figure above\n"
+    + "scripts/eval/analyze_convo_sim.py eval-archive/convo-sim/full-2026-09-21-persona.jsonl\n"
+    + "scripts/eval/analyze_convo_sim.py --check-046 eval-archive/convo-sim/full-2026-09-20.jsonl\n\n"
+    + "# the aggregates this report is rendered from\n"
+    + "scripts/eval/export_convo_sim_json.py \\\n"
+    + "  --run \"Study I:eval-archive/convo-sim/full-2026-09-20.jsonl\" \\\n"
+    + "  --run \"Study II:eval-archive/convo-sim/full-2026-09-21-persona.jsonl\" \\\n"
+    + "  --out eval-archive/convo-sim/aggregates.json\n\n"
+    + "# the run itself (~5 h, serial)\n"
+    + "TEST_RUNNER_CONVO_SIM=1 TEST_RUNNER_CONVO_SIM_RUNS=100 \\\n"
+    + "TEST_RUNNER_CONVO_SIM_ARMS=empty,persona \\\n"
+    + "xcodebuild test -scheme withMemento -parallel-testing-enabled NO \\\n"
+    + "  -only-testing:withMementoTests/ConversationSimulation";
+
+  (function refs() {
+    const host = document.getElementById("refs");
+    const items = [
+      ["[1]", "Specification 037 — Code decides, the model renders. Establishes that a rule which must hold is schema selection or reconciliation, never prompt prose."],
+      ["[2]", "Specification 045 R1/R5 — The model never counts. Statistics are computed in Swift and narrated; the one reference class the product currently gets right."],
+      ["[3]", "Specification 046 — Grounding and evidence discipline. Written from the 2026-09-20 study; source of the fabricated-quotation check and of the two figures reconciled in §7."],
+      ["[4]", "Specification 047 — Conversational state. Identifies the turn-classification collapse examined in §4.5."],
+      ["[5]", "Specification 048 — Harness depth II. R1 requires every scorer to prove it can fire; R2 requires the routing matrix reported in Figure 2, zero rows included; R6 requires two warehoused runs before any threshold is armed."],
+      ["[6]", "Run artifacts — eval-archive/convo-sim/full-2026-09-20.jsonl (6,984 messages) and full-2026-09-21-persona.jsonl (7,048 messages), with manifests recording build identity, arms and scorers."],
+    ];
+    host.innerHTML = "";
+    items.forEach(([n, text]) => {
+      const div = document.createElement("div");
+      const b = document.createElement("b");
+      b.textContent = n + "  ";
+      div.appendChild(b);
+      div.appendChild(document.createTextNode(text));
+      host.appendChild(div);
+    });
+  })();
+
+  document.getElementById("prov").textContent = DATA.runs.map((r) => {
+    const m = r.manifest || {};
+    return `${r.label}: ${r.file} @ ${(m.git_sha || "?").slice(0, 7)}`
+      + (m.finished_at ? ` · ${m.finished_at.slice(0, 10)}` : "");
+  }).join("   ·   ");
+})();
+</script>
