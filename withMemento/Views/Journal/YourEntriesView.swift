@@ -146,24 +146,19 @@ struct YourEntriesView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// The mark alone. The copy and the "Start writing" button are gone: the
+    /// new-entry FAB is the only call to action on this screen, and an empty
+    /// journal had been offering two.
+    ///
+    /// The label stays. Without it the empty state is silent to VoiceOver —
+    /// the mark is decorative, so nothing would announce that the journal is
+    /// empty rather than still loading.
     private var emptyState: some View {
         VStack(spacing: 12) {
             Spacer()
-            VStack(spacing: 12) {
-                JournalEmptyMark()
-                Text("Nothing here yet. A few lines about today is a good start.")
-                    .font(type.body1)
-                    .foregroundStyle(theme.mutedForeground)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("No journal entries yet. A few lines about today is a good start.")
-            Button("Start writing") {
-                onNavigateToEntry(.create)
-            }
-            .padding(.top, 8)
-            .accessibilityIdentifier("journal.empty.startWriting")
+            JournalEmptyMark()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("No journal entries yet.")
             Spacer()
         }
         .contentColumn()
