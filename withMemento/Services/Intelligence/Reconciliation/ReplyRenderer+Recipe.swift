@@ -50,13 +50,14 @@ extension RenderPass {
                          options: [.caseInsensitive])
     ]
 
-    /// Every opener `reportOpeners` removes, spelled out, so a streamed reply
+    /// Every opening the renderer removes — the report openers here and the
+    /// echoed move cue in `stripScaffolding` — spelled out, so a streamed reply
     /// can tell whether its first words might still become one.
     private static let reportOpenerForms: [String] = {
         let wrote = ["you wrote that ", "you mentioned that ", "you said that ", "you noted that "]
         let looking = ["looking at your ", "looking back at your ", "going through your ", "in your ", "from your "]
             .flatMap { lead in ["entries,", "journal,", "notebook,"].map { lead + $0 } }
-        return wrote + looking
+        return wrote + looking + ["how to reply:"]
     }()
 
     /// Strips a banned report opener from the start of the reply. While

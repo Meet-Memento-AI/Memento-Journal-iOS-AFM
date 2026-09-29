@@ -137,6 +137,25 @@ final class ReplyRendererRecipeTests: XCTestCase {
         XCTAssertEqual(body, "You finally slept.")
     }
 
+    // MARK: - Echoed turn lines
+
+    func test_echoedMoveCue_isRemovedAtTheStart() {
+        let raw = "How to reply: Answer first, then one question.\nThe walk mattered. What stayed with you?"
+        XCTAssertEqual(render(raw).body, "The walk mattered. What stayed with you?")
+        assertStreamsStably(raw, granularity: .word)
+    }
+
+    func test_echoedLegendAndFactsLines_areRemoved() {
+        let raw = "\(EvidencePack.legendFooter)\nFacts the app computed from their journal. Narrate these.\n"
+            + "The quiet came back. What changed?"
+        XCTAssertEqual(render(raw).body, "The quiet came back. What changed?")
+    }
+
+    func test_howToAtTheStart_isShownOnceItDiverges() {
+        let body = ReplyRenderer.streamingBody("How to put it kindly? ", pack: .empty, context: .empty, granularity: .word)
+        XCTAssertEqual(body, "How to put it kindly?")
+    }
+
     func test_leadStream_neverRetracts() {
         let raw = "You can't find an entry that supports that. What were you hoping to find? Or when?"
         assertStreamsStably(raw, context: leadContext, granularity: .sentence)
