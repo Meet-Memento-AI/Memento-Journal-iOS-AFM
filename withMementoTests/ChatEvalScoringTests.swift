@@ -111,6 +111,19 @@ final class ChatEvalScoringTests: XCTestCase {
             .contains("leak.promptTag"))
     }
 
+    /// The per-turn lines are plain prose now (058), so an echo looks like prose too.
+    func test_leak_plainTurnScaffolding() {
+        for echoed in [
+            "How to reply: Answer first, then one question.",
+            "This is a journal question. The hike stayed with you.",
+            "Journal moments you can place: the climb."
+        ] {
+            XCTAssertTrue(codes(ChatEvalScoring.leaks(echoed)).contains("leak.promptTag"), echoed)
+        }
+        XCTAssertFalse(codes(ChatEvalScoring.leaks("This is a lot to carry. What helped today?"))
+            .contains("leak.promptTag"))
+    }
+
     func test_leak_evidenceChrome() {
         XCTAssertTrue(codes(ChatEvalScoring.leaks("From [ref 2] you wrote about sleep"))
             .contains("leak.evidenceChrome"))

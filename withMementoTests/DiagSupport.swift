@@ -126,8 +126,8 @@ enum Diag {
                 break
             }
         }
-        if body.range(of: #"\[Turn:|\[Shape:|\[Name:"#, options: .regularExpression) != nil {
-            v.append(.init(code: "leak.promptTag", detail: "[Turn:/[Shape:/[Name: echoed"))
+        if body.range(of: ChatEvalScoring.promptTagPattern, options: .regularExpression) != nil {
+            v.append(.init(code: "leak.promptTag", detail: "turn scaffolding echoed"))
         }
         if body.contains("}") && body.contains("citedRefs") {
             v.append(.init(code: "leak.rawSchema", detail: "JSON brace in body"))

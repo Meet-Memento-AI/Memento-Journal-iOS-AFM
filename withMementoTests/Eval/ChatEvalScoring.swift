@@ -234,7 +234,7 @@ enum ChatEvalScoring {
 
     static let placeholderPattern = #"\[[A-Za-z][A-Za-z ]{1,20}\]"#
     static let emptyBracketPattern = #"\[\s*[^\]\d]{0,6}\s*\]"#
-    static let promptTagPattern = #"\[Turn:|\[Shape:|\[Name:|\[Safety:"#
+    static let promptTagPattern = #"\[Turn:|\[Shape:|\[Name:|\[Safety:|How to reply:|Journal moments you can place|Facts the app computed|The app opens this reply|This is a (casual turn|journal question|follow-up)\."#
     static let entryCountPattern =
         #"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+entries\b"#
     static let badHeadingPattern = #"(^|\n)#{1,2}[^#]"#
@@ -317,7 +317,7 @@ enum ChatEvalScoring {
     static let compiledPatterns: [String] = [
         #"\[[A-Za-z][A-Za-z ]{1,20}\]"#,
         #"\[\s*[^\]\d]{0,6}\s*\]"#,
-        #"\[Turn:|\[Shape:|\[Name:|\[Safety:"#,
+        #"\[Turn:|\[Shape:|\[Name:|\[Safety:|How to reply:|Journal moments you can place|Facts the app computed|The app opens this reply|This is a (casual turn|journal question|follow-up)\."#,
         #"\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+entries\b"#,
         #"(^|\n)#{1,2}[^#]"#,
         #"###\s*($|\n)"#,
