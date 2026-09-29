@@ -49,18 +49,20 @@ final class Session812Tests: XCTestCase {
 
     // MARK: Session 9
 
-    func test_weekly_sdkUnsupported_isBaselineNotDegradation() {
+    func test_weekly_routesOnDeviceInteractive() {
+        let row = ModelRouter.row(for: .weeklyReflection)
+        XCTAssertEqual(row?.defaultZone, .z0Device)
+        XCTAssertNil(row?.degradedZone)
+        XCTAssertEqual(row?.priority, .interactive)
         let route = ModelRouter.resolve(
-            intent: .weeklyReflection, pinnedToDevice: false, pccCapability: .sdkUnsupported
+            intent: .weeklyReflection, pinnedToDevice: false, pccCapability: .available
         )
         XCTAssertEqual(route.executionZone, .z0Device)
         XCTAssertFalse(route.wasDegraded)
-        XCTAssertEqual(route.reason, .sdkUnsupported)
-        let full = PromptRegistry.resolve(intent: .weeklyReflection, zone: .z0Device, degraded: false)
-        let degraded = PromptRegistry.resolve(intent: .weeklyReflection, zone: .z0Device, degraded: true)
-        XCTAssertEqual(full.version, "weekly@1")
-        XCTAssertEqual(degraded.version, "weekly-degraded@1")
-        XCTAssertNotEqual(full.text, degraded.text)
+        XCTAssertEqual(route.reason, .deviceOnlyIntent)
+        let resolved = PromptRegistry.resolve(intent: .weeklyReflection, zone: .z0Device, degraded: false)
+        XCTAssertEqual(resolved.version, "weekly@1")
+        XCTAssertFalse(resolved.text.isEmpty)
     }
 
     func test_sparseWeek_marksCoveredWithQuietCopy() {
