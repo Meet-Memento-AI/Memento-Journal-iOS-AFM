@@ -38,12 +38,14 @@ struct ReplyRenderStats: Sendable, Equatable {
     var droppedQuotationCount = 0
     var unwrappedBoldCount = 0
     var strippedDateCount = 0
+    /// Bracketed prompt furniture the model echoed back (055 R2).
+    var strippedScaffoldCount = 0
     var droppedHeadingCount = 0
     /// Questions after the reply's first one (058 R5).
     var droppedQuestionCount = 0
     /// Banned report openers removed from the reply's start (058 R5).
     var strippedOpenerCount = 0
-    /// The model's own copy of the Swift-written no-match lead (058 R4).
+    /// The model's own copy of the Swift-written no-match lead (058 R5).
     var droppedLeadRestatementCount = 0
     var usedFallback = false
 
@@ -53,8 +55,9 @@ struct ReplyRenderStats: Sendable, Equatable {
             + "dropped_markers=\(droppedMarkerCount) duplicates=\(droppedDuplicateQuoteCount) "
             + "italics=\(strippedItalicCount) quotations=\(droppedQuotationCount) "
             + "bold=\(unwrappedBoldCount) raw_dates=\(strippedDateCount) "
-            + "headings=\(droppedHeadingCount) extra_questions=\(droppedQuestionCount) "
-            + "openers=\(strippedOpenerCount) lead_restated=\(droppedLeadRestatementCount) "
+            + "headings=\(droppedHeadingCount) scaffold=\(strippedScaffoldCount) "
+            + "extra_questions=\(droppedQuestionCount) openers=\(strippedOpenerCount) "
+            + "lead_restated=\(droppedLeadRestatementCount) "
             + "fallback=\(usedFallback ? 1 : 0)"
     }
 }
@@ -93,7 +96,7 @@ struct RenderContext: Sendable, Equatable {
 }
 
 enum ReplyRenderer {
-    static let version = "reply-render@2"
+    static let version = "reply-render@3"
 
     /// Used only when a reply that had words renders to none.
     static let emptyFallback = "Say a little more about that. What's on your mind?"
@@ -108,6 +111,7 @@ enum ReplyRenderer {
         var text = OutputSafetyScanner.strippingHarnessMarkup(raw)
         text = pass.placeMarkers(in: text)
         text = CitationReconciliation.strippingReferenceMarkers(text)
+        text = pass.stripScaffolding(in: text)
         text = pass.resolveQuoteShapedSpans(in: text)
         text = pass.verifyBold(in: text)
         text = pass.banUnbackedDates(in: text)

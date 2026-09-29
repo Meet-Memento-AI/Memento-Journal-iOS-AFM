@@ -243,7 +243,7 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertEqual(ChatEvalScoring.uncitedQuote(body, citations: [citation], index: index), [])
     }
 
-    // MARK: - hall.unbackedDate (051 R3)
+    // MARK: - hall.unbackedDate (055 R3)
 
     private func citation(_ month: Int, _ day: Int, _ year: Int = 2026) -> AskCitation {
         var parts = DateComponents()

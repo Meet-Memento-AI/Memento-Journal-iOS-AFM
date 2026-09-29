@@ -97,6 +97,9 @@ extension EvidencePack {
         + "exact words or date, so write the marker and never the words or date yourself:"
     static let legendFooter = "To place a moment, write a ### {{date:N}} heading, then {{quote:N}} on its own line. "
         + "Place at most one. If none fits, place none. Never use italics."
+    // The none and ambient notes keep their prohibition: Study IV measured that
+    // dropping it while the grammar was still taught raised phantom markers from
+    // 18.4% to 25.7% of none-state turns.
     static let ambientNote = "These entries are background only, not an answer to their question. "
         + "Talk about them in your own words, without quoting or dating them."
     static let noneNote = "No journal entries are shown this turn, so quote nothing from the journal "
