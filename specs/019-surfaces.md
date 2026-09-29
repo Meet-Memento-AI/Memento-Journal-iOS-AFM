@@ -334,6 +334,11 @@ Ask.**
   and two searches blended into one list). This is the
   richer-than-a-chat-bubble surface a design-led product should spend on —
   and it extends PRES-042's rendering contract rather than replacing it.
+  **Follow-on (plan only):** spec [057](057-ask-markdown-and-genui.md) is the
+  dialect for doing this together with bounded Markdown — one ordered part
+  list per turn, computed values from Swift/pipeline stages, Markdown only
+  as the prose channel. Do not implement 057 until this R-block's host
+  (PRES-040…048) is what is being extended.
 - **`REQ-SUR-003` — grounded or silent (notebook channel):** when a
   **journal** question cannot be answered from the corpus, Ask says so and
   **shows what it searched** ("I don't find anything about your brother
