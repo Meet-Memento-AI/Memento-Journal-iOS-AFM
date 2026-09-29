@@ -66,11 +66,11 @@ final class EvidenceCaptureUITests: XCTestCase {
 
     private func unlock(_ app: XCUIApplication) {
         settle(1)
-        app.typeText("4829")
+        enterLockPIN("4829", in: app)
         dismissKeyboardIntro(app)
         if app.buttons["PIN digit 1 of 4"].exists {
             settle(1)
-            if app.buttons["PIN digit 1 of 4"].exists { app.typeText("4829") }
+            if app.buttons["PIN digit 1 of 4"].exists { enterLockPIN("4829", in: app) }
         }
         _ = app.buttons["Menu"].waitForExistence(timeout: 15)
         settle(2)
