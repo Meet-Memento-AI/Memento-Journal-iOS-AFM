@@ -192,6 +192,15 @@ jobs:
           fi
           echo "OK: resolved gold set is in sync with the corpus."
 
+  conversation-judge:
+    name: Conversation judge tooling (CQ2 / MEM-334)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unit tests for judge_convo.py
+        run: python3 scripts/eval/test_judge_convo.py -v
+
   single-coreml-importer:
     name: CoreML stays in the TTS package (spec 031)
     runs-on: ubuntu-latest
