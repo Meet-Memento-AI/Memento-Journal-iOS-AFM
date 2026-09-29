@@ -92,7 +92,8 @@ final class ModelRouterTests: XCTestCase {
     /// be labelled. Labelling every reply "degraded" would drain spec 014 R2's
     /// disclosure copy of meaning exactly when it later matters.
     func test_sdkUnsupported_isBaselineNotDegradation() {
-        let route = ModelRouter.resolve(intent: .ask, pinnedToDevice: false, pccCapability: .sdkUnsupported)
+        let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
+                                        pccCapability: .sdkUnsupported)
 
         XCTAssertEqual(route.executionZone, .z0Device)
         XCTAssertEqual(route.requestedZone, .z0Device, "nothing was asked of PCC, so nothing was denied")
@@ -106,10 +107,11 @@ final class ModelRouterTests: XCTestCase {
     /// model (REQ-INT-010 — never the heavy prompt behind a lighter model).
     func test_liveFallback_isDegradedAndUsesTheDegradedPrompt() {
         for capability in [PCCCapability.unavailable, .quotaConstrained] {
-            let route = ModelRouter.resolve(intent: .ask, pinnedToDevice: false, pccCapability: capability)
+            let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
+                                            pccCapability: capability)
 
             XCTAssertEqual(route.executionZone, .z0Device)
-            XCTAssertEqual(route.requestedZone, .z1AppleContent(reasoningLevel: .light),
+            XCTAssertEqual(route.requestedZone, .z1AppleContent(reasoningLevel: .moderate),
                            "the requested zone records what was asked for, so the gap is visible")
             XCTAssertTrue(route.wasDegraded, "\(capability) is a real shortfall and must be disclosed")
             XCTAssertTrue(route.useDegradedPrompt)
@@ -117,9 +119,10 @@ final class ModelRouterTests: XCTestCase {
     }
 
     func test_pccAvailable_routesToZ1AtTheTablesReasoningLevel() {
-        let route = ModelRouter.resolve(intent: .ask, pinnedToDevice: false, pccCapability: .available)
+        let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
+                                        pccCapability: .available)
 
-        XCTAssertEqual(route.executionZone, .z1AppleContent(reasoningLevel: .light))
+        XCTAssertEqual(route.executionZone, .z1AppleContent(reasoningLevel: .moderate))
         XCTAssertFalse(route.wasDegraded)
         XCTAssertEqual(route.reason, .defaultRoute)
     }
@@ -160,5 +163,29 @@ final class ModelRouterTests: XCTestCase {
                 }
             }
         }
+    }
+
+    // MARK: Privacy defaults
+
+    /// The privacy policy promises the conversation runs on the device. Ask has
+    /// no Z1 leg at all, so no capability or preference can move it off.
+    func test_ask_isDeviceOnly_underEveryCapability() {
+        XCTAssertEqual(ModelRouter.row(for: .ask)?.defaultZone, .z0Device)
+        XCTAssertNil(ModelRouter.row(for: .ask)?.degradedZone)
+        for capability in [PCCCapability.available, .sdkUnsupported, .unavailable, .quotaConstrained] {
+            let route = ModelRouter.resolve(intent: .ask, pinnedToDevice: false, pccCapability: capability)
+            XCTAssertEqual(route.executionZone, .z0Device, "ask left the device under \(capability)")
+        }
+    }
+
+    /// Off-device processing is opt-in: turning "On-Device Only" off is not
+    /// consent by itself, and consent never overrides the switch.
+    func test_offDeviceProcessing_requiresSwitchOffAndExplicitConsent() {
+        XCTAssertFalse(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: false, consented: false),
+                       "the shipped default must keep every request on the device")
+        XCTAssertFalse(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: true, consented: false))
+        XCTAssertFalse(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: true, consented: true),
+                       "the switch is the kill switch; consent never overrides it")
+        XCTAssertTrue(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: false, consented: true))
     }
 }

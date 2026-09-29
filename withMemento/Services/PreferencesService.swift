@@ -19,6 +19,7 @@ class PreferencesService: ObservableObject {
         static let themePreference = "themePreference"
         static let aiEnabled = "aiEnabled"
         static let processOnDeviceOnly = "processOnDeviceOnly"
+        static let consentedToPrivateCloudCompute = "consentedToPrivateCloudCompute"
         static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
         static let speechRate = "speechRate"
         static let shareFeedbackWithDeveloper = PreferencesService.shareFeedbackKey
@@ -58,6 +59,30 @@ class PreferencesService: ObservableObject {
             defaults.set(processOnDeviceOnly, forKey: Keys.processOnDeviceOnly)
             LocalProfileStore.persistMirroredProfile()
         }
+    }
+
+    /// Explicit, informed consent to send a request to Private Cloud Compute.
+    ///
+    /// Off-device processing is opt-in: with `processOnDeviceOnly` off (its
+    /// default) the router still pins to Z0 until this is true. Only an in-app
+    /// consent screen that names Private Cloud Compute may set it, and the
+    /// privacy policy must describe that path before such a build ships — so
+    /// no stored preference written before the consent existed can count as it.
+    @Published var consentedToPrivateCloudCompute: Bool {
+        didSet {
+            defaults.set(consentedToPrivateCloudCompute, forKey: Keys.consentedToPrivateCloudCompute)
+        }
+    }
+
+    /// Whether any generation may leave the device. The single rule the
+    /// intelligence boundary reads (REQ-INT-004), kept pure so it is testable.
+    static func allowsOffDeviceProcessing(onDeviceOnly: Bool, consented: Bool) -> Bool {
+        !onDeviceOnly && consented
+    }
+
+    var allowsOffDeviceProcessing: Bool {
+        Self.allowsOffDeviceProcessing(onDeviceOnly: processOnDeviceOnly,
+                                       consented: consentedToPrivateCloudCompute)
     }
 
     /// Read-aloud voice choice (spec 018 R7). nil = Automatic: the best
@@ -161,6 +186,8 @@ class PreferencesService: ObservableObject {
         let storedEnabled = defaults.object(forKey: Keys.aiEnabled) as? Bool
         self.aiEnabled = storedEnabled ?? true
         self.processOnDeviceOnly = defaults.object(forKey: Keys.processOnDeviceOnly) as? Bool ?? false
+        self.consentedToPrivateCloudCompute =
+            defaults.object(forKey: Keys.consentedToPrivateCloudCompute) as? Bool ?? false
         self.selectedVoiceIdentifier = defaults.string(forKey: Keys.selectedVoiceIdentifier)
         self.speechRate = defaults.object(forKey: Keys.speechRate) as? Float
             ?? SpeechRatePreset.brisk.rawValue
@@ -179,6 +206,7 @@ class PreferencesService: ObservableObject {
         defaults.removeObject(forKey: Keys.themePreference)
         defaults.removeObject(forKey: Keys.aiEnabled)
         defaults.removeObject(forKey: Keys.processOnDeviceOnly)
+        defaults.removeObject(forKey: Keys.consentedToPrivateCloudCompute)
         defaults.removeObject(forKey: Keys.selectedVoiceIdentifier)
         defaults.removeObject(forKey: Keys.speechRate)
         defaults.removeObject(forKey: Keys.shareFeedbackWithDeveloper)
@@ -192,6 +220,7 @@ class PreferencesService: ObservableObject {
         defaults.removeObject(forKey: Keys.weeklyReadyEnabled)
         aiEnabled = true
         processOnDeviceOnly = false
+        consentedToPrivateCloudCompute = false
         selectedVoiceIdentifier = nil
         speechRate = SpeechRatePreset.brisk.rawValue
         shareFeedbackWithDeveloper = false

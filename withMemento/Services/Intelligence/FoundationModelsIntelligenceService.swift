@@ -250,14 +250,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     private let quotaGovernor: QuotaGovernor
     private let pccProvider: PCCSessionProviding
-    /// Reads the user's Z0 pin. Injected so routing tests don't depend on
-    /// whatever the simulator's UserDefaults happen to hold.
+    /// Reads the user's Z0 pin: true unless they turned "On-Device Only" off
+    /// *and* gave explicit Private Cloud Compute consent. Injected so routing
+    /// tests don't depend on whatever the simulator's UserDefaults happen to hold.
     private let isPinnedToDevice: @Sendable () -> Bool
 
     init(
         quotaGovernor: QuotaGovernor = .shared,
         pccProvider: PCCSessionProviding = UnavailablePCCProvider(),
-        isPinnedToDevice: @escaping @Sendable () -> Bool = { PreferencesService.shared.processOnDeviceOnly }
+        isPinnedToDevice: @escaping @Sendable () -> Bool = {
+            !PreferencesService.shared.allowsOffDeviceProcessing
+        }
     ) {
         self.quotaGovernor = quotaGovernor
         self.pccProvider = pccProvider
