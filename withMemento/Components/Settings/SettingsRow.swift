@@ -19,6 +19,7 @@ struct SettingsRow: View {
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(
         icon: String,
@@ -62,17 +63,28 @@ struct SettingsRow: View {
         }
     }
 
+    // Icon — fixed 20pt to match toggle/selectable/info rows
+    private var iconView: some View {
+        Image(systemName: icon)
+            .font(.system(size: 20)) // icon-size: not user text
+            .foregroundStyle(isDestructive ? theme.destructive : theme.foreground)
+            .frame(width: 28, height: 28)
+            .accessibilityHidden(true)
+    }
+
     private var rowContent: some View {
         HStack(spacing: Spacing.sm) {
-            // Icon — fixed 20pt to match toggle/selectable/info rows
-            Image(systemName: icon)
-                .font(.system(size: 20)) // icon-size: not user text
-                .foregroundStyle(isDestructive ? theme.destructive : theme.foreground)
-                .frame(width: 28, height: 28)
-                .accessibilityHidden(true)
+            // At accessibility sizes the icon moves above the title: beside
+            // it, the 40pt it takes broke single words ("Notification / s").
+            if !dynamicTypeSize.isAccessibilitySize {
+                iconView
+            }
 
             // Title and subtitle
             VStack(alignment: .leading, spacing: Spacing.xxs) {
+                if dynamicTypeSize.isAccessibilitySize {
+                    iconView
+                }
                 Text(title)
                     .font(type.body1Bold)
                     .foregroundStyle(isDestructive ? theme.destructive : theme.foreground)

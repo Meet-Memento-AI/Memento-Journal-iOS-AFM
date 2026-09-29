@@ -89,7 +89,6 @@ final class ChatEvalGate: XCTestCase {
         var body: String = ""
         var citations: Int = 0
         var promptVersion: String = ""
-        var modelIdentifier: String = ""
         var citedFixtureIDs: [String] = []
         var seconds: Double = 0
         var error: String?
@@ -188,7 +187,6 @@ final class ChatEvalGate: XCTestCase {
         sample.body = result.body
         sample.citations = result.citations.count
         sample.promptVersion = result.promptVersion
-        sample.modelIdentifier = result.modelIdentifier
 
         if result.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             sample.error = "empty body"
@@ -204,6 +202,7 @@ final class ChatEvalGate: XCTestCase {
             + ChatEvalScoring.ruleBreaks(result.body, isCasual: isCasual, index: index)
             + ChatEvalScoring.fabricatedQuotes(result.body, index: index)
             + ChatEvalScoring.uncitedQuote(result.body, citations: result.citations, index: index)
+            + ChatEvalScoring.unbackedDate(result.body, citations: result.citations)
             + ChatEvalScoring.boldNotTheirWords(result.body, index: index)
             + ChatEvalScoring.runaway(result.body, capTokens: cap)
             + ChatEvalScoring.insightDigitDisagrees(body: result.body, facts: result.facts)
@@ -331,8 +330,6 @@ final class ChatEvalGate: XCTestCase {
                 "chars": s.body.count,
                 "seconds": s.seconds,
                 "promptVersion": s.promptVersion,
-                "modelIdentifier": s.modelIdentifier,
-                "citedFixtureIDs": s.citedFixtureIDs,
                 "violations": s.violations.map { ["code": $0.code, "detail": $0.detail] },
                 "body": s.body
             ]
