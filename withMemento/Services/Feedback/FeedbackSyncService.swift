@@ -99,18 +99,19 @@ final class FeedbackSyncService: @unchecked Sendable {
     }
 
     func flush() async {
-        flushLock.lock()
-        if isFlushing {
-            flushLock.unlock()
-            return
+        // `NSLock.lock()` / `unlock()` are unavailable from an async context —
+        // a Swift 6 error, because a bare pair like that cannot be proven not
+        // to span a suspension. The shape here was already correct: the lock
+        // guards only the flag flip and is released before the first `await`.
+        // So this is the same logic expressed scoped, not a change of
+        // behaviour — acquire, claim the flush, release; reset on the way out.
+        let claimedFlush = flushLock.withLock { () -> Bool in
+            if isFlushing { return false }
+            isFlushing = true
+            return true
         }
-        isFlushing = true
-        flushLock.unlock()
-        defer {
-            flushLock.lock()
-            isFlushing = false
-            flushLock.unlock()
-        }
+        guard claimedFlush else { return }
+        defer { flushLock.withLock { isFlushing = false } }
 
         guard client.isConfigured else { return }
         await flushEraseTombstone()

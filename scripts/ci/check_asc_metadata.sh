@@ -88,7 +88,15 @@ echo ""
 
 # --- No pricing in metadata (Guideline 2.3.7) --------------------------------
 # The description may name the subscription, but never a price.
-if grep -rnE '\$[0-9]|[0-9]+\.[0-9]{2} ?(USD|EUR|GBP)|[0-9]+ ?% (accurate|accuracy)' \
+#
+# `--include='*.txt'` because this directory stopped being text-only on
+# 2026-09-24, when the App Store screenshots landed in it (D9). A recursive grep
+# over PNG bytes matches these patterns by chance and reports "pricing found in
+# metadata" for all eight frames. The check is about store *copy*; the frames
+# are checked by `export_screenshots.sh` instead, on dimensions and
+# distinctness.
+if grep -rnE --include='*.txt' \
+     '\$[0-9]|[0-9]+\.[0-9]{2} ?(USD|EUR|GBP)|[0-9]+ ?% (accurate|accuracy)' \
      "$META_DIR" 2>/dev/null; then
   echo "FAIL: pricing or an accuracy claim found in metadata."
   note "Guideline 2.3.7 forbids pricing in metadata - the store shows it."

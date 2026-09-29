@@ -21,7 +21,7 @@ different place by a different mechanism:
 |---|---|---|---|
 | **App Privacy nutrition label** | App Store Connect → App Privacy | Editable **at any time, without shipping a build** | App Review, and every user on the product page |
 | **`PrivacyInfo.xcprivacy`** | `withMemento/PrivacyInfo.xcprivacy` | Ships in the binary | Automated validation at upload (ITMS-9105x) |
-| **Privacy policy** | `docs/privacy.html` (published), `PRIVACY_POLICY.md` (source) | Published to GitHub Pages | App Review, and legally binding on us |
+| **Privacy policy** | `docs/privacy.html` — the single source **and** what is served | Published to GitHub Pages; `check_live_legal_urls.sh` asserts the live page is byte-identical | App Review, and legally binding on us |
 
 The label being editable without a build is precisely how it drifted last time:
 the binary changed, the label did not. **Any change to one of these three
@@ -53,7 +53,7 @@ Apple's definition of "collect", verbatim:
 | Journal entries, transcripts, reflections | SwiftData on device; mirrored to the **user's own CloudKit private database** | **No** — CloudKit private database is the user's iCloud account, not our infrastructure. We have no access to it |
 | Audio | Live buffers only. `SpeechAnalyzerEngine.swift` uses `AVAudioEngine` + `SpeechAnalyzer`/`SpeechTranscriber` against locally installed assets; there is **no `AVAudioRecorder`, no `.m4a`, no persisted audio file** | **No** — transcription is local-asset-backed with no server fallback, see below |
 | Display name / experience profile | `StoredProfile` in SwiftData; mirrored to the user's CloudKit private DB (spec 040). Not a Memento account. | **No** — we cannot read the user's private DB |
-| Model prompts and completions | On-device (Z0) or **Apple Private Cloud Compute** (Z1), which stores nothing | **No** |
+| Model prompts and completions | **On-device (Z0) only** in 1.x — `FoundationModelsIntelligenceService` is the single generation path and there is no Z1 routing in the binary. `specs/017`'s Apple Private Cloud Compute path adds Z1; until it ships, do not describe it here or anywhere user-facing (`00` submit-gate 2, row B4) | **No** |
 | Analytics | **There is no analytics SDK.** Study telemetry is collected manually via surveys and interviews (`REQ-EVAL-005`) | **No** |
 | Crash and performance data | Apple's own, opt-in at the OS level, never surfaced to us via an SDK | **No** |
 | Quality feedback (opt-in, spec 042) | Write-only RPC to the evaluations Supabase project: ratings, reason, note; question/answer only on explicit Report + include-text | **Yes** — Other User Content, Other Data Types, User ID. Linked, not tracking. Purposes: App Functionality + Analytics |

@@ -13,6 +13,7 @@ struct JournalEmptyMark: View {
     var size: CGFloat = 144
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.theme) private var theme
 
     var body: some View {
         ZStack {
@@ -33,14 +34,14 @@ struct JournalEmptyMark: View {
 
     private var fillColor: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.08)
+            ? theme.foreground.opacity(0.08)
             : GrayScale.gray200
     }
 
     private var innerShadowColor: Color {
         colorScheme == .dark
-            ? Color.black.opacity(0.45)
-            : Color.black.opacity(0.07)
+            ? Color.black.opacity(0.45) // theme-exempt: inner shadow
+            : Color.black.opacity(0.07) // theme-exempt: inner shadow
     }
 }
 
@@ -54,7 +55,7 @@ struct JournalEmptyMark: View {
 
 #Preview("Dark") {
     ZStack {
-        Color(hex: "#0A0A0A").ignoresSafeArea()
+        Theme.dark.secondaryBackground.ignoresSafeArea()
         JournalEmptyMark()
     }
     .useTheme()
