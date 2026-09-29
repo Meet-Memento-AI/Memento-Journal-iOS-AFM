@@ -530,7 +530,7 @@ enum EntryRetriever {
             let recency = origin ? 0.0 : recencyScore(entry: m.entry, now: now)
             // 055 R6. Suppressing recency is not the same as preferring the
             // earliest, and an origin question wants the earliest.
-            let earliest = origin ? originScore(entry: m.entry, oldest: oldestDate, now: now) : 0.0
+            let earliest = origin ? originScore(entry: m.entry, oldest: oldestDate) : 0.0
             var score = semantic * tuning.semanticWeight + m.keyword
                 + recency * tuning.recencyWeight + earliest * tuning.originWeight
             score -= PassageDownrankStore.penalty(entryID: m.entry.id)
@@ -1075,7 +1075,7 @@ enum EntryRetriever {
     /// Anchored to the oldest *candidate* rather than to `now` so the ramp
     /// works on a nine-month journal and on a three-entry one, and so a
     /// windowed origin question ranks inside its window.
-    private static func originScore(entry: Entry, oldest: Date, now: Date) -> Double {
+    private static func originScore(entry: Entry, oldest: Date) -> Double {
         let ageFromOldest = max(0, entry.createdAt.timeIntervalSince(oldest) / 86_400)
         return max(0.0, 1.0 - ageFromOldest / 180.0)
     }
