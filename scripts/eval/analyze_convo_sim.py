@@ -248,6 +248,22 @@ def report(path: Path) -> None:
                     sum(r.get("tools_called", 0) for r in g)))
     table("Latency and generation state", lat)
 
+    # --- Harness counters (T1; absent on pre-2026 archives)
+    if any("hit_response_cap" in r for r in assistant):
+        harness = [("arm", "generated", "hit cap", "mean prompt tok", "refusals", "guardrails")]
+        for arm in arms:
+            g = generated(rows, arm)
+            caps = sum(1 for r in g if r.get("hit_response_cap"))
+            prompts = [r["prompt_tokens"] for r in g if isinstance(r.get("prompt_tokens"), int)]
+            harness.append((
+                arm, len(g),
+                f"{caps} ({pct(caps, len(g))})",
+                f"{statistics.mean(prompts):.0f}" if prompts else "—",
+                sum(r.get("refusal_count", 0) for r in g),
+                sum(r.get("guardrail_count", 0) for r in g),
+            ))
+        table("Harness counters (generated turns)", harness)
+
     # --- The history window: the reason the run is 20–50 messages and not 10
     win = [("arm", "before window closes", "gating rate", "after window closes", "gating rate")]
     for arm in arms:

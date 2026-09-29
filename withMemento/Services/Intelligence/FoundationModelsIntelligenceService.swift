@@ -347,6 +347,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Content-free last-turn perf for diagnostics (`DiagLatencyProfile`).
     private var lastTurnPerf: AskTurnPerf?
 
+    /// Per-turn harness counters for convo-sim (T1). Cleared at each ask start.
+    private struct TurnHarnessScratch {
+        var refusals = 0
+        var guardrails = 0
+        var responseTokens: Int?
+        var maximumResponseTokens = 0
+        var promptVersion = ""
+    }
+
+    private var turnHarness = TurnHarnessScratch()
+    private var lastAskHarness: AskHarnessCounters?
+
     /// Consumes the speculative session iff its plan fingerprint matches.
     /// Pool keys carry the model tier (spec 051 R2), so a session prewarmed
     /// before the tier resolved is never adopted as if it were resolved.
@@ -388,6 +400,108 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let value = lastTurnPerf
         lastTurnPerf = nil
         return value
+    }
+
+    /// Last turn's harness counters, including failed generations. Consumed once.
+    func consumeLastAskHarness() -> AskHarnessCounters? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        let value = lastAskHarness
+        lastAskHarness = nil
+        return value
+    }
+
+    /// Variant and window for rows that did not call the model (user turns).
+    func ambientHarnessSnapshot(promptVersion: String = "") -> AskHarnessCounters {
+        AskHarnessCounters(
+            refusalCount: 0,
+            guardrailCount: 0,
+            hitResponseCap: false,
+            promptTokens: nil,
+            responseTokens: nil,
+            variant: Self.harnessVariantLabel(),
+            contextSize: Self.harnessContextSize(),
+            promptVersion: promptVersion
+        )
+    }
+
+    private func beginTurnHarness(promptVersion: String, maximumResponseTokens: Int) {
+        stateLock.lock()
+        turnHarness = TurnHarnessScratch(
+            refusals: 0,
+            guardrails: 0,
+            responseTokens: nil,
+            maximumResponseTokens: maximumResponseTokens,
+            promptVersion: promptVersion
+        )
+        lastAskHarness = nil
+        stateLock.unlock()
+    }
+
+    private func noteTurnRefusal() {
+        stateLock.lock()
+        turnHarness.refusals += 1
+        stateLock.unlock()
+    }
+
+    private func noteTurnGuardrail() {
+        stateLock.lock()
+        turnHarness.guardrails += 1
+        stateLock.unlock()
+    }
+
+    private func noteResponseUsage(from value: Any) {
+        guard let tokens = Self.responseTokens(from: value) else { return }
+        stateLock.lock()
+        turnHarness.responseTokens = tokens
+        stateLock.unlock()
+    }
+
+    private static func recordResponseUsage(from value: Any) {
+        shared.noteResponseUsage(from: value)
+    }
+
+    private func storeAskHarness(_ counters: AskHarnessCounters) {
+        stateLock.lock()
+        lastAskHarness = counters
+        stateLock.unlock()
+    }
+
+    private func buildHarnessCounters(promptTokens: Int?) -> AskHarnessCounters {
+        stateLock.lock()
+        let scratch = turnHarness
+        stateLock.unlock()
+        let hitCap = scratch.responseTokens != nil
+            && scratch.maximumResponseTokens > 0
+            && scratch.responseTokens == scratch.maximumResponseTokens
+        return AskHarnessCounters(
+            refusalCount: scratch.refusals,
+            guardrailCount: scratch.guardrails,
+            hitResponseCap: hitCap,
+            promptTokens: promptTokens,
+            responseTokens: scratch.responseTokens,
+            variant: Self.harnessVariantLabel(),
+            contextSize: Self.harnessContextSize(),
+            promptVersion: scratch.promptVersion
+        )
+    }
+
+    private static func harnessVariantLabel() -> String {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let variant = onDeviceModel().variant
+            if variant == .coreAdvanced3 { return "coreAdvanced3" }
+            if variant == .core3 { return "core3" }
+            return String(describing: variant)
+        }
+        #endif
+        return OnDeviceModelTierCache.shared.current.tier.rawValue
+    }
+
+    private static func harnessContextSize() -> Int? {
+        switch currentWindow() {
+        case .reported(let tokens): return tokens
+        case .unavailable: return nil
+        }
     }
 
     private func recordTurnPerf(promptVersion: String, channel: ReplyChannel, speculativeHit: Bool) {
@@ -494,10 +608,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // *run* is infrastructure, not a judgement about what the person
             // wrote, and must stay retryable rather than becoming a permanent
             // "I don't have an observation for this one."
-            mapped = Self.isInfrastructureFailure(String(reflecting: violation))
-                ? .generationFailed(error.localizedDescription)
-                : .guardrailRefusal
+            if Self.isInfrastructureFailure(String(reflecting: violation)) {
+                mapped = .generationFailed(error.localizedDescription)
+            } else {
+                noteTurnGuardrail()
+                mapped = .guardrailRefusal
+            }
         case .refusal:
+            noteTurnRefusal()
             mapped = .guardrailRefusal
         case .contextSizeExceeded:
             mapped = .generationFailed("Context window exceeded: \(error.localizedDescription)")
@@ -515,6 +633,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func mapGenerationErrorTrackingOutage(
         _ error: LanguageModelSession.GenerationError
     ) -> IntelligenceError {
+        switch error {
+        case .guardrailViolation: noteTurnGuardrail()
+        case .refusal: noteTurnRefusal()
+        default: break
+        }
         return recordOutcome(Self.mapGenerationError(error))
     }
 
@@ -885,6 +1008,32 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return nil
     }
 
+    /// `Usage.Output.totalTokenCount` when the response or snapshot exposes it.
+    private static func responseTokens(from value: Any) -> Int? {
+        let mirror = Mirror(reflecting: value)
+        for child in mirror.children where child.label == "usage" {
+            return responseTokensFromUsage(child.value)
+        }
+        return responseTokensFromUsage(value)
+    }
+
+    private static func responseTokensFromUsage(_ usage: Any) -> Int? {
+        let mirror = Mirror(reflecting: usage)
+        for child in mirror.children {
+            if child.label == "output" {
+                for field in Mirror(reflecting: child.value).children {
+                    if field.label == "totalTokenCount" {
+                        return field.value as? Int
+                    }
+                }
+            }
+            if child.label == "totalTokenCount" {
+                return child.value as? Int
+            }
+        }
+        return nil
+    }
+
     // MARK: Ask
 
     /// Everything the model call needs, computed once and shared by the
@@ -957,6 +1106,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         clock: ContinuousClock
     ) -> AskResult {
         let facts = InsightEngine.answer(query: core.question, entries: entries)
+        beginTurnHarness(promptVersion: "insight-fact@1", maximumResponseTokens: 0)
+        let harness = buildHarnessCounters(promptTokens: nil)
+        storeAskHarness(harness)
         if facts.count == 1, facts[0].value == InsightEngine.unsupportedCopy {
             return AskResult(
                 heading1: nil,
@@ -968,7 +1120,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 promptVersion: "insight-fact@1",
                 modelIdentifier: "swift",
                 latency: clock.now - started,
-                facts: []
+                facts: [],
+                harness: harness
             )
         }
         return AskResult(
@@ -981,7 +1134,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: "insight-fact@1",
             modelIdentifier: "swift",
             latency: clock.now - started,
-            facts: facts
+            facts: facts,
+            harness: harness
         )
     }
 
@@ -1413,6 +1567,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         entryCount: prep.retrieval.entries.count,
                         promptTokens: promptTokens, cachedTokens: cachedTokens,
                         tools: toolsCalled)
+        let harness = buildHarnessCounters(promptTokens: promptTokens)
+        storeAskHarness(harness)
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
@@ -1425,7 +1581,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             latency: latency,
             toolsCalled: toolsCalled,
             chips: rendered.chips,
-            renderStats: rendered.stats
+            renderStats: rendered.stats,
+            rawBody: body,
+            harness: harness
         )
     }
 
@@ -1469,6 +1627,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             channel: prep.channel,
             speculativeHit: prepared.adopted.hit
         )
+        beginTurnHarness(
+            promptVersion: prep.request.promptVersion,
+            maximumResponseTokens: prep.generationOptions.maximumResponseTokens
+        )
         do {
             let (body, citedRefs) = try await Self.respondToAsk(
                 session: prepared.adopted.session,
@@ -1488,6 +1650,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             )
         } catch {
             let mapped = (error as? IntelligenceError) ?? mapAnyGenerationError(error)
+            storeAskHarness(buildHarnessCounters(promptTokens: nil))
             if let recovered = await recoverOrdinaryRefusal(
                 mapped: mapped, core: core, question: question, clock: clock, started: started
             ) {
@@ -1685,6 +1848,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         Attachment(item.image).label(item.label)
                     }
                 }
+                recordResponseUsage(from: response)
                 return response.content
             }
         }
@@ -1703,6 +1867,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             options: options
         )
         #endif
+        recordResponseUsage(from: response)
         return response.content
     }
 
@@ -1882,6 +2047,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         channel: prep.channel,
                         speculativeHit: prepared.adopted.hit
                     )
+                    beginTurnHarness(
+                        promptVersion: prep.request.promptVersion,
+                        maximumResponseTokens: prep.generationOptions.maximumResponseTokens
+                    )
 
                     LiveTurnClock.shared.start(.modelFirstToken)
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
@@ -1994,6 +2163,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                         // cached count, not the snapshot.
                                         let cached: Int? = Self.cachedTokens(from: snapshot)
                                         cachedLock.withLock { $0 = $0 ?? cached }
+                                        Self.recordResponseUsage(from: snapshot)
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
                                     }
                                 } else {
@@ -2005,6 +2175,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     for try await snapshot in stream {
                                         let cached: Int? = Self.cachedTokens(from: snapshot)
                                         cachedLock.withLock { $0 = $0 ?? cached }
+                                        Self.recordResponseUsage(from: snapshot)
                                         let refs = snapshot.content.citedRefs ?? nil
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
                                     }
@@ -2056,6 +2227,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     continuation.finish()
                 } catch {
                     let mapped = (error as? IntelligenceError) ?? self.mapAnyGenerationError(error)
+                    self.storeAskHarness(self.buildHarnessCounters(promptTokens: nil))
                     if let core = coreForRetry, let recovered = await self.recoverOrdinaryRefusal(
                         mapped: mapped, core: core, question: question, clock: clock, started: started
                     ) {

@@ -142,6 +142,30 @@ struct AskCitation: Sendable, Equatable {
     let excerpt: String
 }
 
+/// Content-free generation counters for convo-sim and diagnostics (spec 058 / T1).
+struct AskHarnessCounters: Sendable, Equatable {
+    let refusalCount: Int
+    let guardrailCount: Int
+    let hitResponseCap: Bool
+    let promptTokens: Int?
+    let responseTokens: Int?
+    /// SDK `SystemLanguageModel.variant` when reported; otherwise the resolved tier id.
+    let variant: String
+    let contextSize: Int?
+    let promptVersion: String
+
+    static let zero = AskHarnessCounters(
+        refusalCount: 0,
+        guardrailCount: 0,
+        hitResponseCap: false,
+        promptTokens: nil,
+        responseTokens: nil,
+        variant: "",
+        contextSize: nil,
+        promptVersion: ""
+    )
+}
+
 /// The complete result of an Ask turn. One-shot for now; a streaming variant
 /// (spec 017 R6) is a follow-up — the current UI already animates the reply in.
 struct AskResult: Sendable {
@@ -167,6 +191,9 @@ struct AskResult: Sendable {
     /// Spec 050 R7: what the renderer did, in counts. Nil where no model
     /// text was rendered (statistic, authored copy).
     let renderStats: ReplyRenderStats?
+    /// Model text before `ReplyRenderer` (convo-sim replay only; nil on recovery copy).
+    let rawBody: String?
+    let harness: AskHarnessCounters?
 
     init(
         heading1: String?,
@@ -181,7 +208,9 @@ struct AskResult: Sendable {
         facts: [InsightFact] = [],
         toolsCalled: Int = 0,
         chips: [QuoteChip] = [],
-        renderStats: ReplyRenderStats? = nil
+        renderStats: ReplyRenderStats? = nil,
+        rawBody: String? = nil,
+        harness: AskHarnessCounters? = nil
     ) {
         self.heading1 = heading1
         self.heading2 = heading2
@@ -196,6 +225,8 @@ struct AskResult: Sendable {
         self.toolsCalled = toolsCalled
         self.chips = chips
         self.renderStats = renderStats
+        self.rawBody = rawBody
+        self.harness = harness
     }
 }
 

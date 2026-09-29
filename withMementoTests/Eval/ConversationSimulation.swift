@@ -217,7 +217,7 @@ final class ConversationSimulation: XCTestCase {
 
             var userRow = Self.row(runID: runID, arm: arm, persona: persona, intent: intent,
                                    plannedMessages: plannedMessages, index: messageIndex,
-                                   role: "user", text: cleanedUser)
+                                   role: "user", text: cleanedUser, service: service)
             if let move { userRow["move"] = move }
             if !userErrors.isEmpty { userRow["generation_errors"] = userErrors }
             Self.flush(userRow)
@@ -270,9 +270,21 @@ final class ConversationSimulation: XCTestCase {
             var row = Self.row(runID: runID, arm: arm, persona: persona, intent: intent,
                                plannedMessages: plannedMessages, index: messageIndex,
                                role: "assistant",
-                               text: result?.body ?? failureFallback ?? "", error: failure)
+                               text: result?.body ?? failureFallback ?? "", error: failure,
+                               service: service)
             if failureFallback != nil { row["text_is_fallback"] = true }
             if failure != nil { row["designed_refusal"] = isDesignedRefusal }
+            if let result {
+                row.merge(ChatEvalScoring.convoSimHarnessFields(
+                    counters: result.harness ?? service.ambientHarnessSnapshot(
+                        promptVersion: result.promptVersion),
+                    includeRawBody: true,
+                    rawBody: result.rawBody
+                ))
+            } else if let harness = service.consumeLastAskHarness() {
+                row.merge(ChatEvalScoring.convoSimHarnessFields(
+                    counters: harness, includeRawBody: false))
+            }
             row["seconds"] = seconds
             row["turn_type"] = turnType.rawValue
             row["channel"] = channel.rawValue
@@ -285,7 +297,6 @@ final class ConversationSimulation: XCTestCase {
             row["response_policy"] = policy.rawValue
 
             if let result {
-                row["prompt_version"] = result.promptVersion
                 row["model_identifier"] = result.modelIdentifier
                 // Spec 051 landed after study V: which tier the device
                 // model resolved to, and why, is part of what this run
@@ -319,7 +330,6 @@ final class ConversationSimulation: XCTestCase {
                     return encoded
                 }
                 row["facts"] = Self.encodeFacts(result.facts)
-                row["render_version"] = ReplyRenderer.version
                 row["chips"] = result.chips.count
                 if let stats = result.renderStats {
                     row["evidence_pack"] = Self.encodeRenderStats(stats)
@@ -570,7 +580,8 @@ final class ConversationSimulation: XCTestCase {
     private static func row(runID: String, arm: Arm,
                             persona: ConvoSimCast.Persona, intent: ConvoSimCast.Intent,
                             plannedMessages: Int, index: Int,
-                            role: String, text: String, error: String? = nil) -> [String: Any] {
+                            role: String, text: String, error: String? = nil,
+                            service: FoundationModelsIntelligenceService) -> [String: Any] {
         var row: [String: Any] = [
             "run_id": runID,
             "arm": arm.name,
@@ -584,6 +595,8 @@ final class ConversationSimulation: XCTestCase {
             "recorded_at": ISO8601DateFormatter().string(from: Date())
         ]
         if let error { row["error"] = error }
+        row.merge(ChatEvalScoring.convoSimHarnessFields(
+            counters: service.ambientHarnessSnapshot(), includeRawBody: false))
         return row
     }
 
