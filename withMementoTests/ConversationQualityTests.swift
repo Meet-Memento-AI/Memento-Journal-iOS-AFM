@@ -5,7 +5,7 @@ final class ConversationQualityTests: XCTestCase {
 
     func test_telemetry_questionClosedAndContraction() {
         let turn = ConversationQualityTurn(
-            body: "That run sounded rough — what part is still with you?",
+            body: "That's a rough run — what part is still with you?",
             latestUserMessage: "My knee hurt after the run.",
             priorAssistantBodies: [],
             turnType: .share,
