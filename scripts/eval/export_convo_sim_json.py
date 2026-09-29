@@ -34,7 +34,7 @@ SHAPE_PATTERNS = {
     "italics": re.compile(r"(?<!\*)\*(?!\*)[^*\n]{3,}?(?<!\*)\*(?!\*)"),
     "bold": re.compile(r"\*\*[^*\n]{2,}?\*\*"),
     "list": re.compile(r"(^|\n)\s*([-*+]|\d+\.)\s"),
-    "marker_leak": re.compile(r"\{\{|\[Evidence\]|\[Today:|\[ref\s"),
+    "marker_leak": re.compile(r"\{\{|\[Evidence\]|\[Today:|\[ref\s|How to reply:|Journal moments you can place"),
 }
 
 DATE_ASSERTION = re.compile(

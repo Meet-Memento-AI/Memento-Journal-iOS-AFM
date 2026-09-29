@@ -47,19 +47,18 @@ struct TurnShapeCadence: Sendable, Equatable {
         let notebookOn = stance == .journalGrounded
             || (stance == .followupThread && isGrounded)
         if stance == .aboutApp {
-            return "[Shape: say what you can do together, then one question about what they want to look at. Never a second question.]"
+            return "Say what you can do together, then ask one question about what they want to look at."
         }
         if stance == .nearbyOnly || stance == .noMatch {
-            return "[Shape: open with \"I can't find an entry that supports that.\" "
-                + "then one question back toward them. Never a second question. "
-                + "Do not quote a nearer entry.]"
+            return "Ask one question back toward them about what they were hoping to find."
         }
         if stance == .outsideScope {
-            return "[Shape: that's outside what you can see, then one question toward them. Never a second question.]"
+            return "Say that's outside what you can see, then ask one question toward them."
         }
         if notebookOn {
-            return "[Shape: connect one pattern from the evidence, then one specific question about that. Never a second question. No counts, no emotion labels.]"
+            return "Stay with the moment you placed, then ask one specific question about it. No counts, no emotion labels."
         }
-        return "[Shape: Meet them, then one specific question about how they are or what they just said. Never about the journal unless they brought it up. Never a second question.]"
+        return "Meet them, then ask one specific question about how they are or what they just said. "
+            + "Keep the journal out of it unless they brought it up."
     }
 }

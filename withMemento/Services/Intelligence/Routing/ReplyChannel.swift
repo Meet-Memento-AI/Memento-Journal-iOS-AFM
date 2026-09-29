@@ -66,7 +66,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
 
     /// The recipes `prewarmConversation` warms for the next turn: one per
     /// distinct instruction text a live send can resolve to on device.
-    /// `continuer` shares `chat-light@4` with phatic and `meta` shares the
+    /// `continuer` shares `chat-light@5` with phatic and `meta` shares the
     /// lensed companion prompt, so both adopt without their own slot;
     /// `redirect` is the lens-free companion text; `thread` is the
     /// follow-up recipe — every second turn of a journal conversation
@@ -76,7 +76,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         .phatic, .companion, .redirect, .thread, .notebook
     ]
 
-    /// Ranks 0–1 leave ask@15 for `chat-light@4`.
+    /// Ranks 0–1 leave the Ask core for `chat-light@5`.
     var usesLightPrompt: Bool {
         switch self {
         case .phatic, .continuer, .statistic: return true
@@ -88,7 +88,7 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
     /// count still lands when Apple Intelligence is off or not ready.
     var requiresOnDeviceModel: Bool { self != .statistic }
 
-    /// Rank 2 / redirect leave ask@15 for `chat-companion@1`. Notebook and
+    /// Rank 2 / redirect leave the Ask core for `chat-companion@2`. Notebook and
     /// RAG-thread keep the heavy recipe.
     var usesCompanionPrompt: Bool {
         switch self {
@@ -97,9 +97,9 @@ enum ReplyChannel: String, Sendable, Equatable, CaseIterable {
         }
     }
 
-    /// User prompt is `[Move:]` + latest message, not the ask@15 `[Turn:]` /
-    /// `[Shape:]` stack. Light and companion recipes both need this; mixing
-    /// chat-companion@1 instructions with Meet/Sit/Open is what killed replies.
+    /// User prompt is the move cue + latest message, not the Ask stance /
+    /// shape stack. Light and companion recipes both need this; mixing
+    /// companion instructions with Meet/Sit/Open is what killed replies.
     var usesShortAssembler: Bool { usesLightPrompt || usesCompanionPrompt }
 
     /// Body-only Generable (`LightAskAnswer`) — no `citedRefs`. Companion and

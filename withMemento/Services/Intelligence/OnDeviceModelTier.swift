@@ -6,17 +6,19 @@
 //  two — AFM 3 Core (3B, dense) on every Apple Intelligence device and AFM 3
 //  Core Advanced (20B, sparse) on devices with at least 12 GB of unified
 //  memory — and `SystemLanguageModel.default` resolves to whichever the
-//  device runs. Nothing in the SDK verified so far names the tier, so this
-//  file infers it from the OS version and physical memory, and says so
-//  (`source == .inferred`). A tier the SDK reports always wins.
+//  device runs. On iOS 27 the importer reads the SDK's get-only
+//  `SystemLanguageModel.variant` and passes it as `reported`, which always
+//  wins (spec 058 R2). Before iOS 27, or for an unknown variant, this file
+//  infers the tier from the OS version and physical memory, and says so
+//  (`source == .inferred`).
 //
 //  Pure Swift; no `FoundationModels` import (single-importer gate,
 //  scripts/ci/check_single_intelligence_importer.sh). The importer supplies
 //  the inputs; the rules live here so they are testable off device.
 //
-//  The tier is provenance and budget input only. On path B (spec 051 R0) the
-//  OS still chooses the model, so a mislabelled device never runs the wrong
-//  one — it only writes the wrong suffix on a row.
+//  The tier is provenance and budget input only. The OS always chooses the
+//  model, so a mislabelled device never runs the wrong one — it only writes
+//  the wrong suffix on a row.
 //
 
 import Foundation
@@ -43,7 +45,7 @@ enum OnDeviceModelTier: String, Sendable, Equatable, CaseIterable {
 }
 
 enum OnDeviceModelTierSource: String, Sendable, Equatable {
-    /// Read from the SDK (spec 051 R0 path A).
+    /// Read from `SystemLanguageModel.variant` (iOS 27; spec 058 R2).
     case reported
     /// Derived from OS version and physical memory (path B).
     case inferred

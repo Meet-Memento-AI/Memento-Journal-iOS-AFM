@@ -51,7 +51,7 @@ final class PromptDateAnchorTests: XCTestCase {
 
         XCTAssertEqual(
             FoundationModelsIntelligenceService.todayLine(now: date),
-            "[Today: Thursday, March 12, 2026]"
+            "Today is Thursday, March 12, 2026."
         )
     }
 
@@ -79,7 +79,7 @@ final class PromptDateAnchorTests: XCTestCase {
             channel: .notebook,
             stance: .journalGrounded
         )
-        XCTAssertTrue(prompt.contains("[Today: "), "notebook prompt has no clock")
+        XCTAssertTrue(prompt.contains("Today is "), "notebook prompt has no clock")
     }
 
     /// The short assembler talks about "today" and "yesterday" constantly, so it
@@ -90,7 +90,7 @@ final class PromptDateAnchorTests: XCTestCase {
             channel: .companion,
             stance: .sharing
         )
-        XCTAssertTrue(prompt.contains("[Today: "), "companion prompt has no clock")
+        XCTAssertTrue(prompt.contains("Today is "), "companion prompt has no clock")
     }
 
     /// An empty archive is where the invented dates were worst — the anchor has
@@ -102,6 +102,6 @@ final class PromptDateAnchorTests: XCTestCase {
             stance: .noMatch,
             archiveEmpty: true
         )
-        XCTAssertTrue(prompt.contains("[Today: "), "empty-archive prompt has no clock")
+        XCTAssertTrue(prompt.contains("Today is "), "empty-archive prompt has no clock")
     }
 }

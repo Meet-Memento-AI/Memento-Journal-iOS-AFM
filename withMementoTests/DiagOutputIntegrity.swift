@@ -76,7 +76,7 @@ final class DiagOutputIntegrity: XCTestCase {
             detail += "\n\n---\n\n## \(probe.label)\n\n"
             detail += "**Q:** \(probe.question)  \n"
             detail += "route: `\(turn.rawValue)` → `\(channel.rawValue)` "
-            detail += "(\(channel.usesLightPrompt ? "chat-light@4" : "ask@14"), cap \(cap) tok, "
+            detail += "(\(channel.usesLightPrompt ? "chat-light@5" : "ask@14"), cap \(cap) tok, "
             detail += "temp \(String(format: "%.1f", channel.temperature(retrievalRan: channel.allowsRetrieval))))\n"
 
             for path in ["stream", "oneshot"] {

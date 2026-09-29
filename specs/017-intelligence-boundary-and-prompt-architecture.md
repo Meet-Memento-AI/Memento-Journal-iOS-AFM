@@ -150,7 +150,7 @@ reasoning-level column per `technology/02` §5 (levels ✅ verified:
 | Entry reflection | Z0 | — | none needed |
 | Weekly reflection | Z1 (PCC) | `.moderate` | Z0, reduced entry set, labeled |
 | Monthly insight | Z1 (PCC) | `.deep` | Z0, shortened form, labeled |
-| Ask (chat) | Z1 (PCC) | `.light` | Z0, narrower retrieval, labeled |
+| Ask (chat) | Z0 | — | none needed (amended by spec 058 R1: conversation never leaves the device) |
 | Image understanding | Z0 | — | **none — no Z1 path exists** |
 
 The reasoning column is a **starting hypothesis**, seeded from
@@ -161,6 +161,11 @@ large retrieved set can exhaust context before producing output). Image
 understanding is Z0-only with no degradation path: images are never sent to
 PCC (`technology/01` §6). Z1 rows encode as
 `.z1AppleContent(reasoningLevel:)` per R1's reconciliation.
+
+**Amendment (spec 058 R1, 2026-09-28):** Ask is Z0 with no Z1 leg, and any
+Z1 route additionally requires explicit Private Cloud Compute consent
+(`PreferencesService.consentedToPrivateCloudCompute`, default false) on top of
+the "On-Device Only" switch being off. Off-device processing is opt-in.
 
 `REQ-INT-004`: the table MUST be overridable by a user-facing setting
 (source doc §10.2) that pins everything to Z0. The pin is a router-level

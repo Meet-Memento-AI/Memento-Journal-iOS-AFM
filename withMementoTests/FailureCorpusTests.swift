@@ -80,7 +80,7 @@ final class FailureCorpusTests: XCTestCase {
         )
         XCTAssertEqual(
             EvidenceLadder.promptLine(.none, retrieval: .empty),
-            "I can't find an entry that supports that."
+            "No entry in the journal supports this."
         )
 
         let (entries, ids) = try ChatEvalCorpus.coldStartCorpus()

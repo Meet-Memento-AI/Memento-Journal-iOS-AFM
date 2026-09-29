@@ -10,10 +10,10 @@ import XCTest
 /// recipe pool is filled before TTFT is sampled.
 ///
 /// Spec 029 R2 gates to read off the table:
-/// - phatic/continuer: version `chat-light@4`, high speculative hit rate, TTFT p50 < 1.2 s
-/// - companion/share: version `chat-companion@1`, TTFT down vs ask-core@19 prefill
-/// - spoken companion / spoken no-RAG follow-up: `chat-companion@1`, 80 tok, LightAskAnswer
-/// - notebook: version `ask-core@19`, 512 typed / 256 spoken; do not raise caps
+/// - phatic/continuer: version `chat-light@5`, high speculative hit rate, TTFT p50 < 1.2 s
+/// - companion/share: version `chat-companion@2`, TTFT down vs ask-core@20 prefill
+/// - spoken companion / spoken no-RAG follow-up: `chat-companion@2`, 80 tok, LightAskAnswer
+/// - notebook: version `ask-core@20`, 512 typed / 256 spoken; do not raise caps
 ///
 /// Size sweep is empty / ~50 / fixture 262 / ~500+. Attribute
 /// `retrieve` vs `ttft` vs `stream` from `LiveTurnClock.snapshot()`.
@@ -113,12 +113,12 @@ final class DiagLatencyProfile: XCTestCase {
             ChatTurn(role: .assistant, text: "You went up Mount Tamalpais with Maya.")
         ]
         let scenarios: [(String, String, [ChatTurn], [Entry], Bool)] = [
-            ("phatic (chat-light@4, 80 tok)", "Hey", [], c, false),
-            ("meta (chat-companion@1, 128 tok)", "What can you do?", [], c, false),
-            ("companion / share (chat-companion@1, 128 tok)", "I had a rough day at work today", [], c, false),
-            ("spoken companion (chat-companion@1, 80 tok)", "I had a rough day at work today", [], c, true),
+            ("phatic (chat-light@5, 80 tok)", "Hey", [], c, false),
+            ("meta (chat-companion@2, 128 tok)", "What can you do?", [], c, false),
+            ("companion / share (chat-companion@2, 128 tok)", "I had a rough day at work today", [], c, false),
+            ("spoken companion (chat-companion@2, 80 tok)", "I had a rough day at work today", [], c, true),
             ("spoken no-RAG follow-up (companion, 80 tok)", "it was actually pretty heavy", companionHistory, c, true),
-            ("notebook (ask-core@19, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
+            ("notebook (ask-core@20, RAG, 512 tok)", "What have I been writing about lately?", [], c, false),
             ("thread / follow-up (journal-anchored)", "Tell me more about that.", journalFollowHistory, c, false)
         ]
 

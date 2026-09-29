@@ -41,6 +41,12 @@ struct ReplyRenderStats: Sendable, Equatable {
     /// Bracketed prompt furniture the model echoed back (055 R2).
     var strippedScaffoldCount = 0
     var droppedHeadingCount = 0
+    /// Questions after the reply's first one (058 R5).
+    var droppedQuestionCount = 0
+    /// Banned report openers removed from the reply's start (058 R5).
+    var strippedOpenerCount = 0
+    /// The model's own copy of the Swift-written no-match lead (058 R5).
+    var droppedLeadRestatementCount = 0
     var usedFallback = false
 
     var logLine: String {
@@ -50,6 +56,8 @@ struct ReplyRenderStats: Sendable, Equatable {
             + "italics=\(strippedItalicCount) quotations=\(droppedQuotationCount) "
             + "bold=\(unwrappedBoldCount) raw_dates=\(strippedDateCount) "
             + "headings=\(droppedHeadingCount) scaffold=\(strippedScaffoldCount) "
+            + "extra_questions=\(droppedQuestionCount) openers=\(strippedOpenerCount) "
+            + "lead_restated=\(droppedLeadRestatementCount) "
             + "fallback=\(usedFallback ? 1 : 0)"
     }
 }
@@ -72,20 +80,23 @@ struct RenderedReply: Sendable, Equatable {
 /// quoted back or dated; they are never journal evidence.
 struct RenderContext: Sendable, Equatable {
     let userTexts: [String]
+    /// A sentence Swift writes at the front of the reply (`NoMatchLead`).
+    let lead: String?
 
     static let empty = RenderContext(userTexts: [])
 
-    init(userTexts: [String]) {
+    init(userTexts: [String], lead: String? = nil) {
         self.userTexts = userTexts
+        self.lead = lead
     }
 
-    init(question: String, history: [ChatTurn]) {
-        self.init(userTexts: [question] + history.reversed().filter { $0.role == .user }.map(\.text))
+    init(question: String, history: [ChatTurn], lead: String? = nil) {
+        self.init(userTexts: [question] + history.reversed().filter { $0.role == .user }.map(\.text), lead: lead)
     }
 }
 
 enum ReplyRenderer {
-    static let version = "reply-render@2"
+    static let version = "reply-render@3"
 
     /// Used only when a reply that had words renders to none.
     static let emptyFallback = "Say a little more about that. What's on your mind?"
@@ -106,8 +117,12 @@ enum ReplyRenderer {
         text = pass.banUnbackedDates(in: text)
         text = pass.dropHeadings(in: text)
         text = RenderText.dropFlaggedSentences(text)
+        text = pass.stripReportOpener(in: text, isFinal: isFinal)
+        if context.lead != nil { text = pass.droppingLeadRestatement(in: text) }
+        text = pass.keepingOneQuestion(in: text, isFinal: isFinal)
         text = RenderText.recapitalizeAfterRemovals(text)
         text = RenderText.tidy(text)
+        if let lead = context.lead { text = RenderText.prependingLead(lead, to: text, isFinal: isFinal) }
         return pass.finish(text, isFinal: isFinal, rawHadWords: RenderText.hasContent(raw))
     }
 }

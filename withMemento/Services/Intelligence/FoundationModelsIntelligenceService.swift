@@ -82,7 +82,7 @@ struct AskAnswer {
     // `strippingReferenceMarkers`.
     //
     // So: do NOT make this non-optional again without re-running that grid.
-    @Guide(description: "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries.")
+    @Guide(description: "The complete spoken reply, speaking to them as you. Sound like a person talking. End with one specific question; skip the question only on goodbye. Paragraphs, - lists, 1. lists, at most one ### heading, and bold only on a short span of their wording; no italics or emoji. Never write a ref number such as ref 2 or [2]; name an entry by its date or subject. Leave citedRefs empty when you did not use an entry. Do not name their emotions, give advice, or state a count of entries.")
     let body: String
 
     @Guide(description: "The [ref] numbers of the journal entries from the context block that were actually referenced. Empty if none. These belong here only — never in the body.")
@@ -92,7 +92,7 @@ struct AskAnswer {
 /// Testable twin of the `@Guide` copy (spec 037 R8). Keep in sync with the
 /// descriptions above — the macro takes string literals.
 enum AskAnswerGuides {
-    static let body = "The complete spoken reply in second person. Sound like a person talking. End with one specific question; skip the question only on goodbye. Markdown subset: one ### heading, paragraphs, - lists, 1. lists, bold on a short span of their wording; no italics. Journal quotes and dates only as {{quote:N}} and {{date:N}} markers from the [Evidence] list. Leave citedRefs empty when you did not use an entry. No emoji, no [ref] numbers such as [ref 2], (ref 2), ref 2, or [2]. Name an entry by {{date:N}} or its subject instead. Do not name their emotions, give advice, or state a count of entries."
+    static let body = "The complete spoken reply, speaking to them as you. Sound like a person talking. End with one specific question; skip the question only on goodbye. Paragraphs, - lists, 1. lists, at most one ### heading, and bold only on a short span of their wording; no italics or emoji. Never write a ref number such as ref 2 or [2]; name an entry by its date or subject. Leave citedRefs empty when you did not use an entry. Do not name their emotions, give advice, or state a count of entries."
 }
 
 enum LightAskAnswerGuides {
@@ -250,14 +250,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
 
     private let quotaGovernor: QuotaGovernor
     private let pccProvider: PCCSessionProviding
-    /// Reads the user's Z0 pin. Injected so routing tests don't depend on
-    /// whatever the simulator's UserDefaults happen to hold.
+    /// Reads the user's Z0 pin: true unless they turned "On-Device Only" off
+    /// *and* gave explicit Private Cloud Compute consent. Injected so routing
+    /// tests don't depend on whatever the simulator's UserDefaults happen to hold.
     private let isPinnedToDevice: @Sendable () -> Bool
 
     init(
         quotaGovernor: QuotaGovernor = .shared,
         pccProvider: PCCSessionProviding = UnavailablePCCProvider(),
-        isPinnedToDevice: @escaping @Sendable () -> Bool = { PreferencesService.shared.processOnDeviceOnly }
+        isPinnedToDevice: @escaping @Sendable () -> Bool = {
+            !PreferencesService.shared.allowsOffDeviceProcessing
+        }
     ) {
         self.quotaGovernor = quotaGovernor
         self.pccProvider = pccProvider
@@ -336,8 +339,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private var refusalOutage = RefusalOutageTracker()
 
     /// Speculatively prewarmed next-turn sessions (spec 029 Amendment A,
-    /// dual-slot). Light (`chat-light@4`) and heavy (`ask-core@19` or
-    /// `chat-companion@1`) recipes for the same history coexist so a hello
+    /// dual-slot). Light (`chat-light@5`) and heavy (`ask-core@20` or
+    /// `chat-companion@2`) recipes for the same history coexist so a hello
     /// does not miss a pool that only warmed the notebook prompt.
     private var speculativePool = FingerprintPool<LanguageModelSession>()
 
@@ -649,10 +652,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// session, availability check, window read, and token count goes
     /// through here, so they all describe the model that will actually run.
     ///
-    /// Path B: `.default` is AFM 3 Core Advanced on devices with at least
-    /// 12 GB and AFM 3 Core elsewhere; the OS does the fallback. If spec 051
-    /// R0 finds an SDK tier selector (path A), explicit selection with a
-    /// one-retry fallback to Core lands here and nowhere else.
+    /// `.default` is AFM 3 Core Advanced where the device supports it and AFM 3
+    /// Core elsewhere; the OS does the fallback. The iOS 27 SDK reports the
+    /// variant but has no selector, so there is nothing to choose here.
     private static func onDeviceModel() -> SystemLanguageModel {
         SystemLanguageModel.default
     }
@@ -686,9 +688,12 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return resolved
     }
 
-    /// Spec 051 R1. Path B: no SDK member names the tier (R0 unverified), so
-    /// `reported` is nil and the tier is inferred from OS and memory. Only
-    /// called after a `.available` result; the cache ignores `.unknown`.
+    /// Spec 051 R1, with R0 resolved by spec 058 R2: the iOS 27 SDK (27A266a)
+    /// declares a get-only `SystemLanguageModel.variant` and no way to select
+    /// one, so the tier is *reported* while the OS still chooses the model.
+    /// Before iOS 27, or for a variant this build does not know, `reported` is
+    /// nil and the tier is inferred from OS and memory. Only called after a
+    /// `.available` result; the cache ignores `.unknown`.
     /// False on a simulator, where `ProcessInfo.physicalMemory` is the host
     /// Mac's. Spec 051 R1 infers the tier from the memory class, which is only
     /// meaningful when the memory is the device's own.
@@ -700,12 +705,25 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         #endif
     }
 
+    /// The variant the SDK says `.default` resolves to, or nil where the SDK
+    /// cannot say. Compared with `==`: `Variant` is a struct, not an enum.
+    private static func reportedOnDeviceTier() -> OnDeviceModelTier? {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let variant = onDeviceModel().variant
+            if variant == .coreAdvanced3 { return .afm3CoreAdvanced }
+            if variant == .core3 { return .afm3Core }
+        }
+        #endif
+        return nil
+    }
+
     private static func resolveOnDeviceTierIfNeeded() {
         let cache = OnDeviceModelTierCache.shared
         guard !cache.hasResolved else { return }
         let info = ProcessInfo.processInfo
         cache.store(OnDeviceModelTierResolver.resolve(
-            reported: nil,
+            reported: Self.reportedOnDeviceTier(),
             modelAvailable: true,
             osMajorVersion: info.operatingSystemVersion.majorVersion,
             physicalMemoryBytes: info.physicalMemory,
@@ -1259,7 +1277,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
             channel: core.channel, evidence: core.evidence, prompt: prompt, resolved: core.resolved,
             budget: core.budget, generationOptions: generationOptions, spoken: core.spoken,
-            pack: pack, renderContext: RenderContext(question: core.question, history: core.history)
+            pack: pack, renderContext: RenderContext(
+                question: core.question, history: core.history,
+                lead: Self.noMatchLead(stance: stance, pack: pack, channel: core.channel,
+                                       archiveEmpty: core.entries.isEmpty)
+            )
         )
     }
 
@@ -1494,7 +1516,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 citations: [],
                 zoneUsed: core.route.executionZone,
                 wasDegraded: false,
-                promptVersion: "chat-light@4",
+                promptVersion: "chat-light@5",
                 modelIdentifier: Self.modelIdentifier(for: core.route.executionZone),
                 latency: clock.now - started
             )
@@ -1506,7 +1528,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         case .showCrisisCard, .hardRefuse:
             return nil
         }
-        AppLogger.log("[Intelligence] refusal case=guardrailRefusal retry=chat-light@4", type: .error)
+        AppLogger.log("[Intelligence] refusal case=guardrailRefusal retry=chat-light@5", type: .error)
         let (resolved, plan) = AskTranscriptPlan.forAsk(
             channel: .phatic,
             stored: .none,
@@ -2261,7 +2283,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         formatter.calendar = calendar
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return "[Today: \(formatter.string(from: now))]"
+        return "Today is \(formatter.string(from: now))."
+    }
+
+    /// The Swift-written opening for this turn, if the stance the prompt
+    /// actually carries is a miss. Uses the same effective stance as
+    /// `buildAskPrompt`, so the prompt's promise and the render agree.
+    static func noMatchLead(stance: TurnStance, pack: EvidencePack, channel: ReplyChannel,
+                            archiveEmpty: Bool) -> String? {
+        let effective = stanceMatchingEvidence(stance, hasEvidenceBlock: pack.carriesEvidence,
+                                               archiveEmpty: archiveEmpty)
+        return NoMatchLead.applies(to: effective, channel: channel) ? NoMatchLead.sentence : nil
     }
 
     static func stanceMatchingEvidence(
@@ -2293,7 +2325,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        evidencePack: EvidencePack? = nil) -> String {
         // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
         // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
-        // [Name:] only when the channel omits L1 (phatic / continuer / redirect).
+        // The name cue only when the channel omits L1 (phatic / continuer / redirect).
         if channel.usesShortAssembler {
             let fallbackMove: ConversationalMove = channel.usesLightPrompt
                 ? .greetAndAsk : .reflectAndAsk
@@ -2354,6 +2386,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
         )
         var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
+        if NoMatchLead.applies(to: effectiveStance, channel: channel) {
+            parts.append(NoMatchLead.promptLine)
+        }
         if channel == .notebook || channel == .thread {
             let shipped = hasEvidenceBlock ? retrieval : .empty
             let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
@@ -2378,7 +2413,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         }
         let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
         let skipName = move?.avoidsName == true || usedNameLastTurn
-        // Redirect still gets [Name:] (no L1). Companion/notebook keep names
+        // Redirect still gets the name cue (no L1). Companion/notebook keep names
         // in L1 only — never stack a second cue. Skip the cue when this
         // beat avoids names or the last reply already used one.
         if channel.omitsLens, !skipName, let name = personalization.nameCueLine {
@@ -2415,13 +2450,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // that answers all three. That revert still stands: every character
             // of the ambient text stays in the prompt. Only the instruction
             // that contradicted it changed.
-            let framing = "Journal evidence (use only if this turn's stance needs it; do not summarize all of it):\n"
+            let framing = "Journal entries for this turn (use only what this turn needs; do not summarize all of them):\n"
             parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
         } else if effectiveStance == .noMatch || grounded {
             if archiveEmpty {
-                parts.append("[No journal entries in the archive]")
+                parts.append("There are no journal entries yet.")
             } else {
-                parts.append("[No journal entries matched this topic]")
+                parts.append("No journal entries matched this topic.")
             }
         }
         if let legend = pack.promptLegend(channel: channel) {

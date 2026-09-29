@@ -108,7 +108,7 @@ final class ChatContinuityTests: XCTestCase {
             heading1: nil,
             heading2: nil,
             sources: [],
-            promptVersion: "ask-core@19",
+            promptVersion: "ask-core@20",
             modelIdentifier: identifier,
             zone: "z0.device",
             wasDegraded: false

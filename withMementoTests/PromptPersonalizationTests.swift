@@ -12,7 +12,7 @@ final class PromptPersonalizationTests: XCTestCase {
 
     func test_emptyPersonalization_keepsBasePromptAndVersion() {
         let resolved = PromptRegistry.instructions(for: .ask, personalization: .none)
-        XCTAssertEqual(resolved.version, "ask-core@19")
+        XCTAssertEqual(resolved.version, "ask-core@20")
         // Assert on the section HEADER, not the bare phrase. ask@4 added
         // `Never recite … the "About this person" section` to the Hard bans, so
         // the base prompt legitimately contains that phrase and the old
@@ -30,7 +30,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: "Lean toward noticing stress patterns without prescribing fixes."
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@19+p4")
+        XCTAssertEqual(resolved.version, "ask-core@20+p4")
         XCTAssertTrue(resolved.text.contains("About this person"))
         XCTAssertTrue(resolved.text.contains("Sebastian"))
         XCTAssertTrue(resolved.text.contains("first or last"))
@@ -51,7 +51,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: nil
         )
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@19")
+        XCTAssertEqual(resolved.version, "ask-core@20")
         XCTAssertFalse(resolved.text.contains("About this person (quiet background"))
         XCTAssertFalse(resolved.text.contains("I want to understand my stress patterns more deeply"))
     }
@@ -72,7 +72,7 @@ final class PromptPersonalizationTests: XCTestCase {
             promptLens: "Stay conversational."
         )
         let resolved = PromptRegistry.instructions(for: .ask, degraded: true, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-degraded@19+p4")
+        XCTAssertEqual(resolved.version, "ask-degraded@20+p4")
         XCTAssertFalse(resolved.text.contains("my long reflection text"))
         XCTAssertFalse(resolved.text.contains("Honesty"))
         XCTAssertTrue(resolved.text.contains("Conversation first"))
@@ -116,7 +116,7 @@ final class PromptPersonalizationTests: XCTestCase {
         XCTAssertFalse(p.isEmpty)
         XCTAssertTrue(p.hasAskPersonalization)
         XCTAssertEqual(p.spokenName, "Sebastian Mendoza")
-        XCTAssertTrue(p.nameCueLine?.contains("[Name: Sebastian Mendoza") == true)
+        XCTAssertTrue(p.nameCueLine?.hasPrefix("Their name is Sebastian Mendoza.") == true)
     }
 
     func test_nameAntiRepeat_whenLastAssistantUsedAName() {
@@ -125,13 +125,13 @@ final class PromptPersonalizationTests: XCTestCase {
             reflection: nil, goals: [], promptLens: nil
         )
         let usedFirst = [ChatTurn(role: .assistant, text: "Hey Sebastian. How has the week been?")]
-        XCTAssertEqual(p.nameAntiRepeatLine(from: usedFirst), "[Don't use their name this turn.]")
+        XCTAssertEqual(p.nameAntiRepeatLine(from: usedFirst), PromptPersonalization.nameSkipLine)
         let usedLast = [ChatTurn(role: .assistant, text: "Take care, Mendoza.")]
-        XCTAssertEqual(p.nameAntiRepeatLine(from: usedLast), "[Don't use their name this turn.]")
+        XCTAssertEqual(p.nameAntiRepeatLine(from: usedLast), PromptPersonalization.nameSkipLine)
         let unused = [ChatTurn(role: .assistant, text: "Hey. How has the week been?")]
         XCTAssertNil(p.nameAntiRepeatLine(from: unused))
         let possessive = [ChatTurn(role: .assistant, text: "Sebastian's week sounded full.")]
-        XCTAssertEqual(p.nameAntiRepeatLine(from: possessive), "[Don't use their name this turn.]")
+        XCTAssertEqual(p.nameAntiRepeatLine(from: possessive), PromptPersonalization.nameSkipLine)
     }
 
     func test_nameAntiRepeat_requiresWholeToken() {
@@ -148,7 +148,7 @@ final class PromptPersonalizationTests: XCTestCase {
         ]))
         XCTAssertEqual(
             p.nameAntiRepeatLine(from: [ChatTurn(role: .assistant, text: "Hey Ann. How was it?")]),
-            "[Don't use their name this turn.]"
+            PromptPersonalization.nameSkipLine
         )
     }
 
@@ -163,7 +163,7 @@ final class PromptPersonalizationTests: XCTestCase {
         XCTAssertTrue(p.hasAskPersonalization)
         XCTAssertEqual(p.spokenName, "Mendoza")
         let resolved = PromptRegistry.instructions(for: .ask, personalization: p)
-        XCTAssertEqual(resolved.version, "ask-core@19+p4")
+        XCTAssertEqual(resolved.version, "ask-core@20+p4")
         XCTAssertTrue(resolved.text.contains("Mendoza"))
         XCTAssertTrue(resolved.text.contains("first or last"))
         XCTAssertFalse(resolved.text.contains("Use it sparingly"))

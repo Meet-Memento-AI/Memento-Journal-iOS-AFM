@@ -33,8 +33,7 @@ enum ComputedFactsBlock {
         let usable = Array(facts.filter { !$0.isLowConfidence }.prefix(maxFacts))
         guard !usable.isEmpty else { return nil }
         var lines = [
-            "[Computed]",
-            "Narrate these Swift-computed facts. Do not invent counts or frequencies."
+            "Facts the app computed from their journal. Narrate these; do not invent counts or frequencies."
         ]
         for fact in usable {
             lines.append("- \(fact.kind.rawValue): \(fact.label) — \(FactMagnitude.word(for: fact.n))")

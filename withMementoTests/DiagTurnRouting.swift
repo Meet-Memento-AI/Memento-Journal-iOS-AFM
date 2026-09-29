@@ -4,7 +4,7 @@ import XCTest
 /// Diagnostic: TurnClassifier → ReplyChannel → generation recipe.
 /// Pure Swift, no model calls, so it can sweep a wide utterance set.
 /// A misroute here is expensive: a journal question landing on `phatic`
-/// gets chat-light@4, no retrieval and an 80-token ceiling.
+/// gets chat-light@5, no retrieval and an 80-token ceiling.
 final class DiagTurnRouting: XCTestCase {
 
     struct Case {
@@ -117,7 +117,7 @@ final class DiagTurnRouting: XCTestCase {
                 let rag = channel.allowsRetrieval
                 out += "- `\(c.text)`\n"
                 out += "  expected **\(c.expect.rawValue)**, got **\(actual.rawValue)** → channel `\(channel.rawValue)`"
-                out += " (\(channel.usesLightPrompt ? "chat-light@4" : "ask@14"), "
+                out += " (\(channel.usesLightPrompt ? "chat-light@5" : "ask@14"), "
                 out += "retrieval \(rag ? "on" : "OFF"), \(channel.maximumResponseTokens(retrievalRan: rag)) tok)\n"
                 if c.expect == .journalQuery && !rag {
                     out += "  > journal question with retrieval OFF — cannot be grounded\n"
@@ -133,7 +133,7 @@ final class DiagTurnRouting: XCTestCase {
         out += "\n## Recipe table (all channels)\n\n"
         out += "| channel | prompt | lens | retrieval | max tok (RAG) | max tok (no RAG) | temp |\n|---|---|---|---|---|---|---|\n"
         for ch in ReplyChannel.allCases {
-            out += "| \(ch.rawValue) | \(ch.usesLightPrompt ? "chat-light@4" : "ask@14") "
+            out += "| \(ch.rawValue) | \(ch.usesLightPrompt ? "chat-light@5" : "ask@14") "
             out += "| \(ch.omitsLens ? "omitted" : "included") | \(ch.allowsRetrieval ? "yes" : "no") "
             out += "| \(ch.maximumResponseTokens(retrievalRan: true)) | \(ch.maximumResponseTokens(retrievalRan: false)) "
             out += "| \(String(format: "%.1f", ch.temperature)) |\n"

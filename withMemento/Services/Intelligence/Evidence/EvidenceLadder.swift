@@ -70,7 +70,7 @@ enum EvidenceLadder {
         case .ambiguous:
             return "One entry may be what you mean."
         case .none:
-            return "I can't find an entry that supports that."
+            return "No entry in the journal supports this."
         case .conversationOnly:
             return "Stay with what they just said."
         }

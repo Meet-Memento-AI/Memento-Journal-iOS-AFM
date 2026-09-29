@@ -78,11 +78,13 @@ enum ModelRouter {
     /// The table. Adding an intent without adding a row is a test failure, not
     /// a runtime fallback. Monthly `.deep` is still not a `GenerationIntent`.
     static let table: [RoutingRow] = [
-        // Latency matters in conversation and retrieval does the heavy lifting,
-        // so ask asks for the cheapest reasoning level rather than the best.
+        // Conversation stays on-device. Retrieval does the heavy lifting, and a
+        // journal chat is the surface the privacy policy promises never leaves
+        // the phone; a future off-device deep pass must be its own intent with
+        // its own row, not a change to this one.
         RoutingRow(intent: .ask,
-                   defaultZone: .z1AppleContent(reasoningLevel: .light),
-                   degradedZone: .z0Device,
+                   defaultZone: .z0Device,
+                   degradedZone: nil,
                    priority: .interactive),
         // Summarising a conversation the user just had is mechanical and short;
         // it has never needed more than the on-device model.

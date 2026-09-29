@@ -141,7 +141,7 @@ final class EvidencePackBuilderTests: XCTestCase {
         let rows = retrieval([entry(1, sleep, date: date), entry(2, "{{quote:9}} broke the grammar today.")])
         let pack = EvidencePackBuilder.build(retrieval: rows, stance: .journalGrounded, channel: .notebook)
         let legend = pack.promptLegend(channel: .notebook) ?? ""
-        XCTAssertTrue(legend.hasPrefix("[Evidence]\n"))
+        XCTAssertTrue(legend.hasPrefix(EvidencePack.legendHeader + "\n"))
         XCTAssertTrue(legend.contains(
             "1. {{date:1}} = \(EntryRetriever.formattedDate(date)) · {{quote:1}} = \"Slept through the night for the first time in weeks.\""
         ))
@@ -181,7 +181,7 @@ final class EvidencePackBuilderTests: XCTestCase {
         XCTAssertEqual(EvidenceLadder.promptLine(.exact, retrieval: rows), "One entry is about this.")
         XCTAssertEqual(EvidenceLadder.promptLine(.exact, retrieval: .empty), "One entry may be what you mean.")
         XCTAssertFalse(EvidenceLadder.promptLine(.exact, retrieval: rows).contains("Slept"))
-        XCTAssertEqual(EvidenceLadder.promptLine(.none, retrieval: .empty), "I can't find an entry that supports that.")
+        XCTAssertEqual(EvidenceLadder.promptLine(.none, retrieval: .empty), "No entry in the journal supports this.")
     }
 
     // MARK: - Extractor reuse

@@ -490,7 +490,6 @@ extension RenderPass {
         // The Swift-computed facts block header (045).
         RenderText.regex(#"\[\s*Computed\s*\]"#, options: [.caseInsensitive]),
         // Turn and shape tags from the per-turn prompt line.
-        // Turn and shape tags from the per-turn prompt line.
         //
         // The closing bracket is optional and the body match stops at a
         // newline: Study IV produced "[shape: Meet them — how the envelope…"
@@ -506,7 +505,16 @@ extension RenderPass {
         RenderText.regex(#"(?m)(^|```|\n)\s*(Meet them|Meet|Notebook|Sit|Open)\s*[—–-]\s*"#),
         // A bare legend line the model reproduced verbatim.
         RenderText.regex(#"(?m)^\s*Markers only:.*$"#),
-        RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#)
+        RenderText.regex(#"(?m)^\s*If none fits, use no markers\.?\s*$"#),
+        // The plain-prose turn lines (058) echoed back. The move cue is only
+        // removed at the reply's start, where `stripReportOpener` holds a
+        // streamed reply that could still become it; the legend, facts, and
+        // lead lines reach only sentence-streamed channels.
+        RenderText.regex(#"^\s*How to reply:[^\n]*"#, options: [.caseInsensitive]),
+        RenderText.regex(#"(?m)^\s*Journal moments you can place\.[^\n]*"#),
+        RenderText.regex(#"(?m)^\s*To place a moment, write[^\n]*"#),
+        RenderText.regex(#"(?m)^\s*Facts the app computed from their journal\.[^\n]*"#),
+        RenderText.regex(#"(?m)^\s*The app opens this reply[^\n]*"#)
     ]
 
     /// Removes prompt scaffolding from the body and counts it.
