@@ -59,5 +59,5 @@ d5766fd9c66e2542860ed318d98d1da16d0ad85d:MeetMemento/Services/Auth/JWTGenerator.
 # Study I-V eval scenario/persona labels under eval-archive/ are allowlisted
 # by path and pattern in .gitleaks.toml, so they stay clean on every commit.
 
-# generic-api-key: UserDefaults key name (defaultsKey = "memento.passageDownrank.v1"), not a credential (triaged 2026-09-29)
+# generic-api-key: PassageDownrank's UserDefaults key name (memento.passageDownrank.v1), not a credential (triaged 2026-09-29)
 5fa700f308e7fcfb5ad5c91eddacaa8c6fb78895:withMemento/Services/Intelligence/Evidence/PassageDownrank.swift:generic-api-key:13
