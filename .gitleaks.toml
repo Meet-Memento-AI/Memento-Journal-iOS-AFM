@@ -1,0 +1,23 @@
+# gitleaks reads this automatically from the scan root. It extends the default
+# ruleset; per-commit triage of historical findings lives in .gitleaksignore.
+
+[extend]
+useDefault = true
+
+# Study I–V research archive (#59). The data and the self-contained HTML papers
+# key rows by eval scenario/persona label, e.g. "key": "p07-nostalgic", which
+# generic-api-key reads as a credential. Path-based so it holds on every commit
+# (squash-merged or not); all three conditions must match, so a real secret in
+# these files, or any other value under "key", is still reported.
+[[allowlists]]
+description = "Study I–V eval scenario/persona labels under a JSON \"key\" field"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''^eval-archive/convo-sim/aggregates\.json$''',
+  '''^eval-archive/(grounding-study-ii|reference-failure-paper|renderer-result-paper)\.html$''',
+]
+regexTarget = "match"
+regexes = [
+  '''^key"\s*:\s*"[ip]\d{2}(-[a-z]+)+"$''',
+]

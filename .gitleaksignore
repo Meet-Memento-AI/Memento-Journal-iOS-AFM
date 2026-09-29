@@ -56,48 +56,8 @@ aa2db8cbdc51dcee4c9a6477286ad76499fc38d0:MeetMemento/Services/SupabaseService.sw
 # private-key: false positive: literal PEM header strings in cleanPrivateKey(), no key body
 d5766fd9c66e2542860ed318d98d1da16d0ad85d:MeetMemento/Services/Auth/JWTGenerator.swift:private-key:76
 
-# generic-api-key: eval scenario/persona label (e.g. p01-word-word) under a JSON "key" field, not a credential (triaged 2026-09-28)
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:472
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:552
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:630
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:643
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1138
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1218
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1296
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1309
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1805
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1885
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1963
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:1976
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:2475
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:2555
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:2633
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/convo-sim/aggregates.json:generic-api-key:2646
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/grounding-study-ii.html:generic-api-key:448
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/reference-failure-paper.html:generic-api-key:501
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
-7bcb2eb910c8a3e3b5ee41d762d0858a425fa734:eval-archive/renderer-result-paper.html:generic-api-key:468
+# Study I-V eval scenario/persona labels under eval-archive/ are allowlisted
+# by path and pattern in .gitleaks.toml, so they stay clean on every commit.
+
+# generic-api-key: UserDefaults key name (defaultsKey = "memento.passageDownrank.v1"), not a credential (triaged 2026-09-29)
+5fa700f308e7fcfb5ad5c91eddacaa8c6fb78895:withMemento/Services/Intelligence/Evidence/PassageDownrank.swift:generic-api-key:13
