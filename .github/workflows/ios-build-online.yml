@@ -207,7 +207,7 @@ jobs:
 
       - name: Periphery regression gate (new issues only)
         if: github.event_name == 'pull_request'
-        run: bash scripts/ci/check_periphery_regression.sh periphery-report.txt "${{ github.base_ref }}"
+        run: bash scripts/ci/check_periphery_regression.sh periphery-report.txt "${{ github.base_ref }}" periphery-exit.txt
 
       - name: Upload Periphery report
         if: always()
