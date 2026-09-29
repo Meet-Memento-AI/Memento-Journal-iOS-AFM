@@ -70,8 +70,8 @@ struct ProgressiveBlurEdge: View {
     private func maskGradient(for index: Int) -> some View {
         // Layer 0 spans the whole band, the last spans only the edge-most slice.
         let coverage = 1.0 - (Double(index) / Double(max(1, layers)))
-        let opaque = Color.black
-        let clear = Color.black.opacity(0)
+        let opaque = Color.black // theme-exempt: mask alpha
+        let clear = Color.black.opacity(0) // theme-exempt: mask alpha
 
         return LinearGradient(
             stops: edge == .top

@@ -7,7 +7,7 @@ public struct SkeletonView: View {
     let height: CGFloat
     let cornerRadius: CGFloat
 
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.theme) private var theme
     @State private var phase: Double = 0.0
 
     public init(width: CGFloat? = nil, height: CGFloat, cornerRadius: CGFloat = 8) {
@@ -20,11 +20,11 @@ public struct SkeletonView: View {
         ZStack {
             // Base layer
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                .fill(theme.foreground.opacity(0.05))
 
             // Breathing wave layer (static when reduce motion enabled)
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                .fill(theme.foreground.opacity(0.08))
                 .opacity(reduceMotion ? 0.5 : (0.3 + 0.7 * (0.5 + 0.5 * sin(phase))))
         }
         .frame(width: width, height: height)

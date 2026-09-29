@@ -30,10 +30,8 @@ final class withMementoUpgradeMigrationUITests: XCTestCase {
         XCTAssertFalse(app.textFields["First name"].exists)
 
         // The migrated PIN lock is real, not bypassed — a wrong PIN must not
-        // unlock. The hidden PIN field auto-focuses shortly after the lock
-        // screen appears; typeText drives the OS keyboard directly rather
-        // than tapping the (purely visual) digit slot buttons.
-        app.typeText("9999") // seeded PIN is 4829 — this is deliberately wrong
+        // unlock.
+        enterLockPIN("9999", in: app) // seeded PIN is 4829 — this is deliberately wrong
 
         let pinError = app.staticTexts["Incorrect PIN"]
         _ = pinError.waitForExistence(timeout: 5)
@@ -57,7 +55,7 @@ final class withMementoUpgradeMigrationUITests: XCTestCase {
         let firstPinDigit = app.buttons["PIN digit 1 of 4"]
         XCTAssertTrue(firstPinDigit.waitForExistence(timeout: 15))
 
-        app.typeText("4829") // matches the PIN seedUpgradeFixture() saves
+        enterLockPIN("4829", in: app) // matches the PIN seedUpgradeFixture() saves
 
         let unlocked = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: firstPinDigit)
         wait(for: [unlocked], timeout: 10)
@@ -102,7 +100,7 @@ final class withMementoUpgradeMigrationUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.buttons["PIN digit 1 of 4"].waitForExistence(timeout: 15))
-        app.typeText("4829")
+        enterLockPIN("4829", in: app)
 
         let menuButton = app.buttons["Menu"]
         XCTAssertTrue(menuButton.waitForExistence(timeout: 10))

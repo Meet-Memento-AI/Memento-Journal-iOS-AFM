@@ -3,19 +3,11 @@
 //  withMemento
 //
 //  WCAG 2.2 AAA Accessible Emotions Chart
-//  All colors tested for contrast ratios against #2C1E19 background
+//  Canvas, text, emotion fills, and the focus ring all come from `Theme`, so
+//  contrast follows the light/dark ratios documented there.
 //
 
 import SwiftUI
-
-// MARK: - Accessibility Color Tokens
-
-/// Chart-only tokens with no `Theme` equivalent. Canvas, text, and emotion
-/// fills come from `Theme` so the chart follows light/dark appearance.
-struct ChartAccessibilityTokens {
-    /// Focus ring color - Cyan outline, 9.98:1 contrast
-    static let focusRing = Color(hex: "#6FD9FF")
-}
 
 // MARK: - Data Model
 
@@ -176,9 +168,10 @@ struct PercentageBarChart: View {
                                 .fill(Color.clear)
                         )
                         .overlay(
-                            // Focus ring for keyboard navigation (3px, high contrast)
+                            // Focus ring for keyboard navigation (3px). `ring` clears the
+                            // 3:1 UI-component floor on both canvases.
                             RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(ChartAccessibilityTokens.focusRing, lineWidth: 3)
+                                .strokeBorder(theme.ring, lineWidth: 3)
                                 .opacity(focusedIndex == index ? 1 : 0)
                         )
                         .focusable()

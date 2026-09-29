@@ -195,7 +195,7 @@ public struct PositionedNewEntryFAB: View {
 
 #Preview("Labeled • Dark") {
     ZStack {
-        Color(hex: "#0A0A0A").ignoresSafeArea()
+        Theme.dark.secondaryBackground.ignoresSafeArea()
         VStack { Spacer(); HStack { Spacer(); NewEntryFAB(title: "Write your first entry") { }.padding(20) } }
     }
     .useTheme().useTypography().preferredColorScheme(.dark)

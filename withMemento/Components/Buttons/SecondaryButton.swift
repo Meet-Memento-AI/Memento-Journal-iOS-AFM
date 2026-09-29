@@ -41,11 +41,11 @@ public struct SecondaryButton: View {
             .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(customColor ?? theme.foreground)
-            .background(isDarkVariant ? Color.white.opacity(0.15) : theme.muted)
+            .background(isDarkVariant ? Color.white.opacity(0.15) : theme.muted) // theme-exempt: on-primary variant
             .clipShape(RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: theme.radius.button, style: .continuous)
-                    .stroke(isDarkVariant ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
+                    .stroke(isDarkVariant ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1) // theme-exempt: on-primary variant
             )
         }
         .buttonStyle(SecondaryButtonPressStyle())

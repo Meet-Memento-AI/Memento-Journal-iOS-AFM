@@ -29,6 +29,11 @@ struct LockScreenView: View {
 
     private let pinLength = 4
 
+    /// iPad ignores `.numberPad` and raises the full keyboard, so the PIN is
+    /// entered through an on-screen digit keypad there instead. Idiom, not
+    /// size class: a compact-width iPad window still gets the full keyboard.
+    private let usesOnScreenKeypad = UIDevice.current.userInterfaceIdiom == .pad
+
     var body: some View {
         ZStack {
             // Theme background — was hardcoded white "matching LaunchScreen",
@@ -62,8 +67,8 @@ struct LockScreenView: View {
             }
             .contentColumn()
 
-            // Hidden TextField for iOS keyboard (PIN mode only)
-            if viewModel.showPINFallback {
+            // Hidden TextField for the iPhone number pad (PIN mode only)
+            if viewModel.showPINFallback && !usesOnScreenKeypad {
                 TextField("", text: $enteredPIN)
                     .keyboardType(.numberPad)
                     .focused($isPinFieldFocused)
@@ -246,6 +251,11 @@ struct LockScreenView: View {
                     .foregroundStyle(Color.red)
             }
 
+            if usesOnScreenKeypad {
+                digitKeypad
+                    .padding(.top, 8)
+            }
+
             // Biometric fallback
             if viewModel.isBiometricAvailable {
                 Button {
@@ -294,7 +304,7 @@ struct LockScreenView: View {
         HStack(spacing: 16) {
             ForEach(0..<pinLength, id: \.self) { index in
                 Button {
-                    // Focus the hidden TextField to show keyboard
+                    // Focus the hidden TextField (iPhone) or keypad (iPad)
                     isPinFieldFocused = true
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
@@ -357,6 +367,82 @@ struct LockScreenView: View {
                 shakeOffset = 0
             }
         }
+    }
+
+    // MARK: - Digit Keypad (iPad)
+
+    private var digitKeypad: some View {
+        Grid(horizontalSpacing: 24, verticalSpacing: 16) {
+            ForEach([["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"]], id: \.self) { row in
+                GridRow {
+                    ForEach(row, id: \.self) { digit in
+                        keypadDigitButton(digit)
+                    }
+                }
+            }
+            GridRow {
+                Color.clear
+                    .gridCellUnsizedAxes([.horizontal, .vertical])
+                keypadDigitButton("0")
+                Button {
+                    deleteLastDigit()
+                } label: {
+                    Image(systemName: "delete.left")
+                        .font(.system(size: 24)) // icon-size: not user text
+                        .foregroundStyle(theme.iconForeground)
+                        .frame(minWidth: 72, minHeight: 72)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(enteredPIN.isEmpty)
+                .accessibilityLabel("Delete")
+                .accessibilityIdentifier("lock.keypad.delete")
+            }
+        }
+        // Hardware keyboards still work on iPad: the keypad takes focus in
+        // place of the hidden TextField and accepts digit and delete keys.
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isPinFieldFocused)
+        .onKeyPress(characters: .decimalDigits) { press in
+            press.characters.forEach { appendDigit($0) }
+            return .handled
+        }
+        .onKeyPress(.delete) {
+            deleteLastDigit()
+            return .handled
+        }
+    }
+
+    private func keypadDigitButton(_ digit: String) -> some View {
+        Button {
+            appendDigit(Character(digit))
+        } label: {
+            Text(digit)
+                .font(type.h2)
+                .foregroundStyle(theme.foreground)
+                .frame(minWidth: 72, minHeight: 72)
+                .background(Circle().fill(theme.muted))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(digit)
+        .accessibilityIdentifier("lock.keypad.\(digit)")
+    }
+
+    private func appendDigit(_ digit: Character) {
+        guard digit.isASCII, digit.isNumber, enteredPIN.count < pinLength else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        enteredPIN.append(digit)
+        if enteredPIN.count == pinLength {
+            validatePIN()
+        }
+    }
+
+    private func deleteLastDigit() {
+        guard !enteredPIN.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        enteredPIN.removeLast()
     }
 
     // MARK: - Helpers
