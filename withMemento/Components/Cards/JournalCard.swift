@@ -65,7 +65,7 @@ struct JournalCard: View {
     /// reads as a photo card. Uses the cover's average when we have it.
     static func photoPlaceholderFill(sample: JournalBackdropSample?) -> Color {
         let rgb = photoPlaceholderRGB(sample: sample)
-        return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
+        return Color(red: rgb.red, green: rgb.green, blue: rgb.blue) // theme-exempt: sampled from the cover
     }
 
     static func photoPlaceholderRGB(sample: JournalBackdropSample?) -> (red: Double, green: Double, blue: Double) {

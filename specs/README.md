@@ -55,6 +55,9 @@ specs/
 │                        teach a grammar where it cannot apply; the renderer strips
 │                        its own scaffolding; asserted dates get a scorer; retrieval
 │                        fixed at the three misses RetrievalGate measured)
+├── 056-*.md           ← dialogue diffusion (closed-form repair of spans that
+│                        miss the response policy; typed infill not wired)
+├── 057-*.md           ← Ask output: bounded Markdown and GenUI parts (plan-only until gated)
 └── reference/
     ├── memento-2.0-architecture-spec.md      ← 2.0 source-of-truth, cited by REQ-/DEC- ID
     ├── frontend-preservation-contract.md     ← front-end non-regression contract, cited by PRES- ID
@@ -76,7 +79,8 @@ Apple-framework API behavior (`tech_refs:` front-matter plus a "Technology
 References" body section — a WWDC26-sourced API library using the same
 ✅ VERIFIED / 🟡 LIKELY / 🔴 UNVERIFIED confidence markers as the source document's
 `⚠️ VERIFY` items, see `specs/reference/technology/00-INDEX.md`). `ROADMAP.md`'s
-"2.0 Rewrite — Phase Plan" section is the status board for these.
+"2.0 Rewrite — Phase Plan" section is the status board for these. Spec
+[057](057-ask-markdown-and-genui.md) is plan-only until its gates are green.
 
 ---
 

@@ -10,7 +10,7 @@ import Foundation
 
 /// Journal entry model for UI rendering. The device is the system of record;
 /// CloudKit private DB is the user's replica, not a Memento server.
-public struct Entry: Identifiable, Hashable {
+public struct Entry: Identifiable, Hashable, Sendable {
     public let id: UUID
     public var title: String
     public var text: String

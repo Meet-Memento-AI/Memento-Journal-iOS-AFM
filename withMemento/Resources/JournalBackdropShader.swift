@@ -37,13 +37,13 @@ struct JournalChromeTint: Equatable, Sendable {
     var opacity: Double
 
     var color: Color {
-        Color(red: red, green: green, blue: blue).opacity(opacity)
+        Color(red: red, green: green, blue: blue).opacity(opacity) // theme-exempt: solved per cover
     }
 
     /// Same wash, with opacity scaled. AddEntry photo chrome keeps ~30% of
     /// the solved wash so the cover shows through the pills.
     func color(opacityKeep: Double) -> Color {
-        Color(red: red, green: green, blue: blue).opacity(opacity * opacityKeep)
+        Color(red: red, green: green, blue: blue).opacity(opacity * opacityKeep) // theme-exempt: solved per cover
     }
 }
 
@@ -88,7 +88,7 @@ extension Glass {
             increaseContrast: increaseContrast,
             reduceTransparency: reduceTransparency
         )
-        let wash = (colorScheme == .dark ? Color.white : Color.black)
+        let wash = (colorScheme == .dark ? Theme.dark : Theme.light).foreground
             .opacity(opacity)
         return chrome(tint: wash, interactive: interactive)
     }
@@ -112,7 +112,7 @@ enum JournalBackdropShader {
     /// greys the photo and reads as another darkening pass.
     static let saturation: Double = 1.0
     /// Shader `scrimColor` `vec3f(0.039)`.
-    static let scrimColor = Color(red: 0.039, green: 0.039, blue: 0.039)
+    static let scrimColor = Color(red: 0.039, green: 0.039, blue: 0.039) // theme-exempt: mirrors the shader constant
     static let scrimRed = 0.039
     static let scrimGreen = 0.039
     static let scrimBlue = 0.039

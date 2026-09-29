@@ -65,7 +65,7 @@ struct AvatarInitialButton: View {
 
 #Preview("With Initial") {
     ZStack {
-        Color.white.ignoresSafeArea()
+        Theme.light.background.ignoresSafeArea()
 
         HStack(spacing: 16) {
             AvatarInitialButton(initial: "S", onTap: { AppLogger.log("Menu") })
@@ -77,7 +77,7 @@ struct AvatarInitialButton: View {
 
 #Preview("Fallback (No Name)") {
     ZStack {
-        Color.white.ignoresSafeArea()
+        Theme.light.background.ignoresSafeArea()
 
         AvatarInitialButton(initial: nil, onTap: { AppLogger.log("Menu") })
     }

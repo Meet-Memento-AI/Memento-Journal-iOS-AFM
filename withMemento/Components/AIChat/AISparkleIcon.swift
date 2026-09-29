@@ -121,7 +121,7 @@ struct AISparkleIcon: View {
         AISparkleIcon(size: 48)
     }
     .padding()
-    .background(Color.white)
+    .background(Theme.light.background)
 }
 
 #Preview("AI Sparkle Icon - Dark") {
@@ -130,5 +130,5 @@ struct AISparkleIcon: View {
         AISparkleIcon(size: 32)
     }
     .padding()
-    .background(Color.black)
+    .background(Theme.dark.background)
 }

@@ -226,6 +226,26 @@ Best regards,
 
 ### 5.2 If asked about AI processing (Guideline 5.1.2(i))
 
+> **1.x wording. Do not mention Private Cloud Compute.** This block is meant to
+> be pasted to Apple, and until `specs/017`'s PCC routing ships there is no Z1
+> path in the binary — naming it would be an inaccuracy in the same reply that
+> is answering an accuracy question. `00` submit-gate item 2 and row B4 both say
+> so. The Z1 variant is below, unused until that lands.
+
+```
+Memento does not share user content with any third-party AI service.
+
+Text generation runs on the device using Apple's Foundation Models framework.
+There is no other AI provider, no analytics SDK, and no account system.
+
+Entries are stored on the device and synced only through the user's own iCloud
+private database, which we cannot read. Users may optionally send a rating on
+an individual reply; that is opt-in, carries no journal text, and is described
+in our privacy policy at [URL].
+```
+
+**Z1 variant — do not use until `specs/017` PCC routing ships (row B4).**
+
 ```
 Memento does not share user content with any third-party AI service.
 
