@@ -248,6 +248,22 @@ def report(path: Path) -> None:
                     sum(r.get("tools_called", 0) for r in g)))
     table("Latency and generation state", lat)
 
+    # --- Harness counters (T1; absent on pre-2026 archives)
+    if any("hit_response_cap" in r for r in assistant):
+        harness = [("arm", "generated", "hit cap", "mean prompt tok", "refusals", "guardrails")]
+        for arm in arms:
+            g = generated(rows, arm)
+            caps = sum(1 for r in g if r.get("hit_response_cap"))
+            prompts = [r["prompt_tokens"] for r in g if isinstance(r.get("prompt_tokens"), int)]
+            harness.append((
+                arm, len(g),
+                f"{caps} ({pct(caps, len(g))})",
+                f"{statistics.mean(prompts):.0f}" if prompts else "—",
+                sum(r.get("refusal_count", 0) for r in g),
+                sum(r.get("guardrail_count", 0) for r in g),
+            ))
+        table("Harness counters (generated turns)", harness)
+
     # --- The history window: the reason the run is 20–50 messages and not 10
     win = [("arm", "before window closes", "gating rate", "after window closes", "gating rate")]
     for arm in arms:
@@ -401,15 +417,49 @@ def check_046(path: Path) -> int:
     return 1 if bad else 0
 
 
+def judge_paths(jsonl_paths: list[Path], prereg_path: Path) -> int:
+    """Score run(s) against a frozen pre-registration document (MEM-327 / T8)."""
+    import importlib.util
+
+    here = Path(__file__).resolve().parent
+    spec = importlib.util.spec_from_file_location("preregister", here / "preregister.py")
+    prereg_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(prereg_mod)
+
+    doc = json.loads(prereg_path.read_text())
+    prereg_mod.assert_frozen(doc, prereg_path)
+    return max(prereg_mod.judge_run(load(p), doc) for p in jsonl_paths)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("jsonl", nargs="+", type=Path)
     parser.add_argument("--check-046", action="store_true",
                         help="verify the archive reproduces specs 046/047's published figures")
+    parser.add_argument(
+        "--judge",
+        action="store_true",
+        help="fail unless the run meets a frozen prereg (--prereg required)",
+    )
+    parser.add_argument(
+        "--prereg",
+        type=Path,
+        help="frozen .prereg.json from scripts/eval/preregister.py freeze",
+    )
     args = parser.parse_args()
     if args.check_046:
         return max(check_046(p) for p in args.jsonl)
+    if args.judge:
+        if not args.prereg:
+            print(
+                "ERROR: --judge requires --prereg <frozen .prereg.json>\n"
+                "       Freeze thresholds before the run:\n"
+                "         python3 scripts/eval/preregister.py freeze ...",
+                file=sys.stderr,
+            )
+            return 2
+        return judge_paths(args.jsonl, args.prereg)
     for path in args.jsonl:
         report(path)
     return 0

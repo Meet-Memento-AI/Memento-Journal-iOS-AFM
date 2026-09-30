@@ -187,6 +187,19 @@ jobs:
       - name: Study VI replay corpus matches eval-archive
         run: scripts/ci/check_renderer_replay_fixtures.sh
 
+  eval-preregister:
+    name: Convo-sim prereg helper selftest (MEM-327 / T8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: preregister.py unit tests + judge refuses without frozen prereg
+        run: |
+          python3 scripts/eval/preregister.py selftest
+          python3 scripts/eval/analyze_convo_sim.py --judge eval-archive/convo-sim/full-2026-09-24-spec051.jsonl \
+            && { echo "FAIL: --judge without --prereg should exit non-zero"; exit 1; } \
+            || test $? -eq 2
+
   corpus-validation:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
     runs-on: ubuntu-latest
