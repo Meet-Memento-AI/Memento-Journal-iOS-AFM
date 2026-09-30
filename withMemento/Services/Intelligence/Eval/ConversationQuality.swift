@@ -162,7 +162,9 @@ enum ConversationQuality {
     ]
 
     private static let contractionPattern =
-        #"(?i)\b(i'm|i've|i'll|i'd|you're|you've|you'll|you'd|it's|it'll|that's|that'll|there's|here's|what's|who's|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|shouldn't|isn't|aren't|wasn't|weren't|haven't|hasn't|hadn't)\b"#
+        #"(?i)\b(i'm|i've|i'll|i'd|you're|you've|you'll|you'd|it's|it'll|that's|that'll|"#
+        + #"there's|here's|what's|who's|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|"#
+        + #"shouldn't|isn't|aren't|wasn't|weren't|haven't|hasn't|hadn't)\b"#
 
     static func contentLemmas(_ text: String) -> Set<String> {
         let tagger = NLTagger(tagSchemes: [.lemma])
@@ -178,8 +180,8 @@ enum ConversationQuality {
         }
         if lemmas.isEmpty {
             for word in text.lowercased().split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }) {
-                let w = String(word)
-                if w.count > 2, !stopwords.contains(w) { lemmas.insert(w) }
+                let token = String(word)
+                if token.count > 2, !stopwords.contains(token) { lemmas.insert(token) }
             }
         }
         return lemmas
@@ -316,7 +318,8 @@ enum ConversationQuality {
 
     private static func lengthOutOfBandDetail(_ turn: ConversationQualityTurn) -> String? {
         guard let limits = lengthLimits(
-            channel: turn.channel, spoken: turn.spoken,
+            channel: turn.channel,
+            spoken: turn.spoken,
             hasEvidence: turn.placedEvidence || turn.evidenceState == .matched
         ) else { return nil }
         let words = turn.body.split(whereSeparator: { $0.isWhitespace }).count
@@ -326,16 +329,20 @@ enum ConversationQuality {
     }
 
     private static func questionText(_ body: String) -> String? {
-        guard let q = body.lastIndex(of: "?") else { return nil }
-        let start = body[..<q].lastIndex(of: "?").map { body.index(after: $0) } ?? body.startIndex
-        return String(body[start...q])
+        guard let questionEnd = body.lastIndex(of: "?") else { return nil }
+        let start = body[..<questionEnd].lastIndex(of: "?").map { body.index(after: $0) } ?? body.startIndex
+        return String(body[start...questionEnd])
     }
 
-    private static func tokenJaccard(_ a: String, _ b: String) -> Double {
-        let ta = Set(a.lowercased().split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init))
-        let tb = Set(b.lowercased().split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init))
-        guard !ta.isEmpty, !tb.isEmpty else { return 0 }
-        return Double(ta.intersection(tb).count) / Double(ta.union(tb).count)
+    private static func tokenJaccard(_ left: String, _ right: String) -> Double {
+        let leftTokens = Set(
+            left.lowercased().split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init)
+        )
+        let rightTokens = Set(
+            right.lowercased().split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init)
+        )
+        guard !leftTokens.isEmpty, !rightTokens.isEmpty else { return 0 }
+        return Double(leftTokens.intersection(rightTokens).count) / Double(leftTokens.union(rightTokens).count)
     }
 
     private static func repeatedQuestionDetail(_ body: String, prior: [String]) -> String? {
