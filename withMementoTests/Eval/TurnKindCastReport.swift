@@ -72,6 +72,7 @@ enum TurnKindCastReport {
     static func renderMarkdown(_ metrics: TurnKindCastMetrics, fixture: TurnKindGoldFixture.File) -> String {
         var out = "# RT1 turn-kind cast gold (report-only)\n\n"
         out += "Source: `\(fixture.source)` — \(fixture.study)\n\n"
+        out += "Labelling: \(fixture.labelling) · version \(fixture.version) · rows \(fixture.rowCount)\n\n"
         out += "Rows: **\(metrics.rowCount)** · agreement **"
         out += String(format: "%.1f%%", metrics.agreementRate * 100)
         out += "** · mismatch rate **"
