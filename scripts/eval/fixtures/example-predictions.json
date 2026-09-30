@@ -1,0 +1,20 @@
+[
+  {
+    "id": "P3",
+    "metric": "persona_gating_rate_pct",
+    "op": "lt",
+    "value": 9.0
+  },
+  {
+    "id": "P5-empty-gating",
+    "metric": "empty_gating_rate_pct",
+    "op": "lte",
+    "value": 6.0
+  },
+  {
+    "id": "P5-empty-invented",
+    "metric": "empty_invented_rate_pct",
+    "op": "eq",
+    "value": 0.0
+  }
+]

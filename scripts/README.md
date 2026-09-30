@@ -15,6 +15,7 @@
 | `check_content_free_logs.sh` | `spec-gates.yml` | no journal text in `Services/Intelligence` log interpolations (PS6) | blocking |
 | `lint_forbidden_phrases.py` | `spec-gates.yml` | no absolute-privacy claims (comment-aware; `// REQ-POS-001-EXEMPT` opt-out) | blocking |
 | `speakability_lint.py` | `spec-gates.yml` | no markdown/bullets/emoji/URLs in spoken prose (`--selftest`) | blocking (selftest) |
+| `eval/preregister.py` | `spec-gates.yml` | frozen study thresholds + guardrail pairing (`selftest`) | blocking (selftest) |
 | `check_dependency_allowlist.sh` | `spec-gates.yml` | SPM deps ⊆ `specs/dependency-allowlist.txt` | report-only (supabase-swift still used by the two live edge functions) |
 | `../Fixtures/validate_corpus.py` | `spec-gates.yml` | fixture corpus structure + honesty scrub + gold integrity | blocking |
 
