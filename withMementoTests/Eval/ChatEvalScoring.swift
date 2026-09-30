@@ -579,10 +579,6 @@ enum ChatEvalScoring {
         return row
     }
 
-    static func convoSimHarnessDefaults() -> [String: Any] {
-        convoSimHarnessFields(counters: .zero, includeRawBody: false)
-    }
-
     // MARK: - insight.* (045 R5 / Session 12 — gated)
 
     /// Body states a digit that is not any attached fact's `n` or numeric value.
