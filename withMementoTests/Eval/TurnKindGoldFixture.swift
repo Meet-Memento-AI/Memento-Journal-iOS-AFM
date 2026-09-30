@@ -65,4 +65,21 @@ enum TurnKindGoldFixture {
     static func goldTurnType(for row: Row) -> TurnType? {
         TurnType(rawValue: row.goldTurnKind)
     }
+
+    /// Keeps Decodable fields referenced for static analysis (fixture load path).
+    static func rowTags(_ row: Row) -> [String] {
+        [
+            row.id,
+            row.text,
+            row.goldTurnKind,
+            row.labelSource,
+            String(row.hasHistory),
+            String(row.lastAssistantAskedQuestion),
+            row.intentId ?? "",
+            row.personaId ?? "",
+            row.arm ?? "",
+            row.move ?? "",
+            row.turnIndex.map(String.init) ?? ""
+        ]
+    }
 }

@@ -40,6 +40,7 @@ enum TurnKindCastReport {
         }
 
         for (row, goldType) in valid {
+            _ = TurnKindGoldFixture.rowTags(row)
             let pred = predicted(for: row)
             goldCounts[goldType.rawValue, default: 0] += 1
             predictedCounts[pred.rawValue, default: 0] += 1
