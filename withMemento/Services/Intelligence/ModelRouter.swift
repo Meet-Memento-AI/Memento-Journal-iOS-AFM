@@ -103,10 +103,12 @@ enum ModelRouter {
                    defaultZone: .z0Device,
                    degradedZone: nil,
                    priority: .interactive),
-        // Weekly wants Z1 moderate; this SDK is `.sdkUnsupported` → Z0 baseline.
+        // Weekly reflection stays on-device (045 R4 / PS5). Salience-ranked
+        // selection keeps the corpus within the on-device window; a future
+        // off-device pass must be its own intent with its own row.
         RoutingRow(intent: .weeklyReflection,
-                   defaultZone: .z1AppleContent(reasoningLevel: .moderate),
-                   degradedZone: .z0Device,
+                   defaultZone: .z0Device,
+                   degradedZone: nil,
                    priority: .interactive),
         // Living-profile proposal is scheduled and on-device (044 R6 / 017 R3).
         RoutingRow(intent: .profileRefresh,
