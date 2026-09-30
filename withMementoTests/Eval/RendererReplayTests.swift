@@ -127,7 +127,9 @@ final class RendererReplayTests: XCTestCase {
             from: Data(contentsOf: dir.appendingPathComponent("manifest.json"))
         )
         XCTAssertTrue(manifest.renderedOnly, "remove rendered_only gate when T1 lands rawBody")
+        XCTAssertFalse(manifest.sourceJSONL.isEmpty)
         XCTAssertEqual(manifest.turnCount, baseline.turnCount)
+        XCTAssertTrue(baseline.renderedOnly)
 
         let (personaEntries, _) = try ChatEvalCorpus.personaCorpus()
         let personaIndex = ChatEvalScoring.QuoteIndex(personaEntries)
