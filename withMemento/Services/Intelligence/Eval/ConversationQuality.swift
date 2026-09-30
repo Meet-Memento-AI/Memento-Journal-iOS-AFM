@@ -41,6 +41,8 @@ enum ConversationQuality {
     // MARK: - Telemetry (ReplyRenderStats)
 
     static func telemetry(for turn: ConversationQualityTurn) -> Telemetry {
+        _ = turn.responsePolicy
+        _ = turn.channel
         let body = turn.body.trimmingCharacters(in: .whitespacesAndNewlines)
         var out = Telemetry()
         out.questionClosed = closesWithQuestion(body)
