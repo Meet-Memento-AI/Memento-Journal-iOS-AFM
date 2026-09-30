@@ -145,7 +145,8 @@ enum SafetyClassifier {
         #"\b(ignore|disregard|forget)\b.{0,40}\b(system (prompt|instructions)|your (rules|instructions|guidelines)|previous instructions)\b"#,
         #"\b(dan mode|do anything now|developer mode|jailbreak)\b"#,
         #"\byou are now\b.{0,60}\b(unrestricted|uncensored|dan|without (rules|limits|guardrails)|no (rules|limits|restrictions|guardrails))\b"#,
-        #"\b(pretend|act as if|imagine)\b.{0,50}\b(you have no|there (are|is) no|with no|no)\s+(safety |content )?(rules|filters|policies|restrictions|limits|guardrails)\b"#,
+        #"\b(pretend|act as if|imagine)\b.{0,50}\b(you have no|there (are|is) no|with no|no)\s+"#
+            + #"(safety |content )?(rules|filters|policies|restrictions|limits|guardrails)\b"#,
         #"\b(disregard|ignore)\b.{0,40}\b(all )?(safety )?(policies|rules|guardrails)\b"#
     ]
 
