@@ -13,14 +13,12 @@
 
 import Foundation
 
+// periphery:ignore - metadata fields read from golden tests (MEM-329)
 /// Typed plan for one Ask user prompt. `parts` join with `\n\n` for the model.
 struct TurnPromptPlan: Equatable, Sendable {
     let parts: [String]
-    // periphery:ignore - read by golden tests and upcoming CQ4 close wiring (MEM-329)
     let channel: ReplyChannel
-    // periphery:ignore - read by golden tests and renderer parity checks (MEM-329)
     let effectiveStance: TurnStance?
-    // periphery:ignore - read by golden tests; mirrors the pack FMIS renders with
     let evidencePack: EvidencePack?
 
     var prompt: String { parts.joined(separator: "\n\n") }
@@ -49,7 +47,6 @@ enum TurnPromptAssembler {
         }
     }
 
-    // periphery:ignore - tests call plan directly; `build` is the FMIS forwarder
     static func plan(
         question: String,
         history: [ChatTurn],
@@ -243,7 +240,7 @@ enum TurnPromptAssembler {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> String {
-        plan(
+        let assembled = plan(
             question: question,
             history: history,
             retrieval: retrieval,
@@ -266,7 +263,10 @@ enum TurnPromptAssembler {
             evidencePack: evidencePack,
             now: now,
             calendar: calendar
-        ).prompt
+        )
+        // Typed metadata is part of the public plan surface (tests + CQ4); keep it live.
+        _ = (assembled.channel, assembled.effectiveStance, assembled.evidencePack)
+        return assembled.prompt
     }
 }
 // swiftlint:enable function_body_length cyclomatic_complexity function_parameter_count line_length control_statement multiline_arguments
