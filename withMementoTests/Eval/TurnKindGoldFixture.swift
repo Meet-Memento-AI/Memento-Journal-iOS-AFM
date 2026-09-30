@@ -4,6 +4,7 @@ import Foundation
 /// Gold turn-kind rows for RT1 (Study cast, stratified sample).
 enum TurnKindGoldFixture {
 
+    // periphery:ignore - JSON fixture decode (RT1 / MEM-333)
     struct Row: Decodable, Equatable {
         let id: String
         let text: String
