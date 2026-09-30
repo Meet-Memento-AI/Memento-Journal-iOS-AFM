@@ -24,6 +24,7 @@ final class RendererReplayTests: XCTestCase {
         }
     }
 
+    // periphery:ignore - Decodable scaffolding for replay fixtures (T2 / MEM-324)
     private struct ReplayBaseline: Decodable {
         let turnCount: Int
         let renderedOnly: Bool
