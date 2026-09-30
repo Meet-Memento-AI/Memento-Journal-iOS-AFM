@@ -19,6 +19,7 @@ enum TurnKindGoldFixture {
         let turnIndex: Int?
     }
 
+    // periphery:ignore - JSON fixture decode (RT1 / MEM-333)
     struct File: Decodable {
         let version: Int
         let source: String
