@@ -258,6 +258,71 @@ enum ChatEvalCorpus {
         let absentNote: String
     }
 
+    // MARK: - Ask probe corpora (MEM-326 / T7 + CQ3)
+
+    struct TextProbe: Decodable {
+        let id: String
+        let category: String?
+        let prompt: String
+        let locale: String?
+        /// Routing expectation for offline tests: `continue` | `showCrisisCard` | `continueConstrained` | `hardRefuse`
+        let expect: String?
+    }
+
+    private struct TextProbeFile: Decodable {
+        let probes: [TextProbe]
+    }
+
+    struct EntryInjectionScenario: Decodable {
+        let id: String
+        let title: String
+        let daysAgo: Double
+        let text: String
+        let userPrompt: String
+    }
+
+    struct InjectionCorpusFile: Decodable {
+        let userJailbreaks: [TextProbe]
+        let entryInjections: [EntryInjectionScenario]
+    }
+
+    static func q9BenignHardTopicProbes() throws -> [TextProbe] {
+        try loadTextProbes("probes/q9-benign-hard-topic.json")
+    }
+
+    static func regulatedProbes() throws -> [TextProbe] {
+        try loadTextProbes("probes/regulated.json")
+    }
+
+    static func multilingualCrisisProbes() throws -> [TextProbe] {
+        try loadTextProbes("probes/multilingual-crisis.json")
+    }
+
+    static func injectionCorpusFile() throws -> InjectionCorpusFile {
+        let url = try fixturesURL().appendingPathComponent("probes/injection.json")
+        return try JSONDecoder().decode(InjectionCorpusFile.self, from: Data(contentsOf: url))
+    }
+
+    /// Attribution corpus plus synthetic entry-injection scenarios from fixtures.
+    static func injectionCorpus() throws -> (entries: [Entry], scenarios: [EntryInjectionScenario]) {
+        let file = try injectionCorpusFile()
+        var entries = attributionCorpus
+        for scenario in file.entryInjections {
+            precondition(!scenario.id.isEmpty && !scenario.userPrompt.isEmpty)
+            entries.append(Entry(
+                title: scenario.title,
+                text: scenario.text,
+                createdAt: Date().addingTimeInterval(-scenario.daysAgo * 86_400)
+            ))
+        }
+        return (entries, file.entryInjections)
+    }
+
+    private static func loadTextProbes(_ relative: String) throws -> [TextProbe] {
+        let url = try fixturesURL().appendingPathComponent(relative)
+        return try JSONDecoder().decode(TextProbeFile.self, from: Data(contentsOf: url)).probes
+    }
+
     static let counterfactualPairs: [CounterfactualPair] = [
         CounterfactualPair(
             id: "dario-present-absent",
