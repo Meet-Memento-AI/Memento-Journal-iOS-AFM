@@ -42,6 +42,7 @@ for path in "${changed[@]}"; do
   [[ "$path" == withMemento/* ]] || continue
   case "$path" in
     withMemento/Services/Intelligence/FoundationModelsIntelligenceService.swift|\
+    withMemento/Services/Intelligence/Prompt/TurnPromptAssembler.swift|\
     withMemento/ViewModels/ChatViewModel.swift|\
     withMemento/Services/ChatService.swift|\
     withMemento/Components/AIChat/ChatMessagesView.swift)
