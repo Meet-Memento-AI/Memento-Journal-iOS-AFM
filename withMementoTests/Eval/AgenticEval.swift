@@ -98,7 +98,6 @@ final class AgenticEval: XCTestCase {
         let script: [String]
         /// Optional seeded history before turn 1.
         let priming: [ChatTurn]
-        let corpus: [Entry]
         /// Corpus override when nil uses `ChatEvalCorpus.attributionCorpus`.
         let corpusOverride: [Entry]?
 
