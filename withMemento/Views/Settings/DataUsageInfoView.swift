@@ -121,7 +121,9 @@ public struct DataUsageInfoView: View {
             SettingsInfoRow(
                 icon: "iphone.gen3",
                 title: "On-Device Processing",
-                description: "Speech-to-text, search, retrieval, and lighter companion turns run on \(DeviceCopy.thisDevice). Heavier reflections may use Apple's Private Cloud Compute, which stores nothing. No third-party AI. PIN, audio, and search index stay on this device."
+                description:
+                    "Speech-to-text, search, retrieval, Ask, and weekly reflections run on \(DeviceCopy.thisDevice). "
+                    + "No third-party AI. PIN, audio, and search index stay on this device."
             )
 
             SettingsRowDivider()
