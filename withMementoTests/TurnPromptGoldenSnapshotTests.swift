@@ -50,7 +50,7 @@ final class TurnPromptGoldenSnapshotTests: XCTestCase {
             policy: inputs.policy,
             evidencePack: inputs.evidencePack
         )
-        let viaAssembler = TurnPromptAssembler.build(
+        let viaAssembler = TurnPromptAssembler.plan(
             question: inputs.question,
             history: inputs.history,
             retrieval: inputs.retrieval,
@@ -61,7 +61,7 @@ final class TurnPromptGoldenSnapshotTests: XCTestCase {
             move: inputs.move,
             policy: inputs.policy,
             evidencePack: inputs.evidencePack
-        )
+        ).prompt
         XCTAssertEqual(viaFMIS, viaAssembler)
     }
 

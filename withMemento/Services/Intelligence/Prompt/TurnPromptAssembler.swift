@@ -215,58 +215,5 @@ enum TurnPromptAssembler {
             parts: parts, channel: channel, effectiveStance: effectiveStance, evidencePack: pack
         )
     }
-
-    static func build(
-        question: String,
-        history: [ChatTurn],
-        retrieval: RetrievalResult,
-        stance: TurnStance,
-        shape: RecallTurnShape,
-        archiveEmpty: Bool,
-        safetyConstrained: Bool = false,
-        imageCount: Int = 0,
-        historyImageCount: Int = 0,
-        canSeeImages: Bool = false,
-        visionBlock: String? = nil,
-        channel: ReplyChannel = .companion,
-        move: ConversationalMove? = nil,
-        personalization: PromptPersonalization = .none,
-        spoken: Bool = false,
-        computedFacts: [InsightFact] = [],
-        policy: ResponsePolicy? = nil,
-        retracted: [String] = [],
-        interpretationCut: Bool = false,
-        evidencePack: EvidencePack? = nil,
-        now: Date = Date(),
-        calendar: Calendar = .current
-    ) -> String {
-        let assembled = plan(
-            question: question,
-            history: history,
-            retrieval: retrieval,
-            stance: stance,
-            shape: shape,
-            archiveEmpty: archiveEmpty,
-            safetyConstrained: safetyConstrained,
-            imageCount: imageCount,
-            historyImageCount: historyImageCount,
-            canSeeImages: canSeeImages,
-            visionBlock: visionBlock,
-            channel: channel,
-            move: move,
-            personalization: personalization,
-            spoken: spoken,
-            computedFacts: computedFacts,
-            policy: policy,
-            retracted: retracted,
-            interpretationCut: interpretationCut,
-            evidencePack: evidencePack,
-            now: now,
-            calendar: calendar
-        )
-        // Typed metadata is part of the public plan surface (tests + CQ4); keep it live.
-        _ = (assembled.channel, assembled.effectiveStance, assembled.evidencePack)
-        return assembled.prompt
-    }
 }
 // swiftlint:enable function_body_length cyclomatic_complexity function_parameter_count line_length control_statement multiline_arguments

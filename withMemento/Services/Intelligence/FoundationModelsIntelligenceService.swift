@@ -2266,7 +2266,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        retracted: [String] = [],
                                        interpretationCut: Bool = false,
                                        evidencePack: EvidencePack? = nil) -> String {
-        TurnPromptAssembler.build(
+        let assembled = TurnPromptAssembler.plan(
             question: question,
             history: history,
             retrieval: retrieval,
@@ -2288,6 +2288,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             interpretationCut: interpretationCut,
             evidencePack: evidencePack
         )
+        _ = (assembled.channel, assembled.effectiveStance, assembled.evidencePack)
+        return assembled.prompt
     }
 
     // MARK: - Reference-marker stripping
