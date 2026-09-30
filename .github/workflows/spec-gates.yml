@@ -27,6 +27,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  content-free-logs:
+    name: Content-free intelligence logs (PS6 / CONSTITUTION §4 rule 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint AppLogger calls in Services/Intelligence
+        run: scripts/ci/check_content_free_logs.sh
+
   single-intelligence-importer:
     name: Single FoundationModels importer (spec 017 R1 / P3)
     runs-on: ubuntu-latest

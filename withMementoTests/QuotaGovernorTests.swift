@@ -61,11 +61,9 @@ final class QuotaGovernorTests: XCTestCase {
 
     // MARK: Priority — chat yields first
 
-    /// Spec 017 R3's acceptance, verbatim: "given isApproachingLimit == true,
-    /// when a chat request and a scheduled weekly reflection are both pending,
-    /// then chat routes to Z0 and the weekly reflection keeps its Z1 route."
-    /// A user must never lose their Sunday reflection because they had a long
-    /// conversation on Saturday.
+    /// Spec 017 R3's acceptance: when budget is tight, interactive chat yields
+    /// before scheduled synthesis. Weekly reflection is on-device today; this
+    /// ordering still matters for future scheduled Z1 intents (e.g. monthly).
     func test_approachingLimit_chatDegradesFirst_scheduledKeepsItsSlot() async {
         let sut = governor(belowLimit(approaching: true))
 
