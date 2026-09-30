@@ -78,7 +78,7 @@ enum ConversationQuality {
         if body.lowercased().hasPrefix("it sounds like") {
             out.append(("conv.itSoundsLike", "It sounds like opener"))
         }
-        if let generic = genericQuestionDetail(body) {
+        if let generic = genericQuestionDetail(body, policy: turn.responsePolicy) {
             out.append(("conv.genericQuestion", generic))
         }
         if let hedge = overHedgeDetail(body, exactRung: turn.exactRung) {
@@ -277,7 +277,8 @@ enum ConversationQuality {
         return nil
     }
 
-    private static func genericQuestionDetail(_ body: String) -> String? {
+    private static func genericQuestionDetail(_ body: String, policy: ResponsePolicy?) -> String? {
+        if policy == .acknowledge || policy == .list || policy == .abstain { return nil }
         guard let qEnd = body.lastIndex(of: "?") else { return nil }
         let before = body[..<qEnd]
         let qStart = before.lastIndex(of: "?").map { body.index(after: $0) } ?? body.startIndex
