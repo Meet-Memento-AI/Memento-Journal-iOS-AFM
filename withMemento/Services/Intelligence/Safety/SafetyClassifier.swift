@@ -23,6 +23,7 @@ enum SafetyClassifier {
         if matches(normalized, anyOf: terrorismRegexes) { hits.append(.terrorismMassViolence) }
         if matches(normalized, anyOf: violenceRegexes) { hits.append(.violenceOthers) }
         if matches(normalized, anyOf: crisisRegexes) { hits.append(.selfHarmCrisis) }
+        if matches(normalized, anyOf: multilingualCrisisRegexes) { hits.append(.selfHarmCrisis) }
         if matches(normalized, anyOf: hateRegexes) { hits.append(.hateHarassment) }
         if matches(normalized, anyOf: jailbreakRegexes) { hits.append(.jailbreak) }
         if matches(normalized, anyOf: regulatedAdviceRegexes) { hits.append(.regulatedAdvice) }
@@ -102,6 +103,28 @@ enum SafetyClassifier {
         #"\bwant (it|everything) to (stop|end)\b"#
     ]
 
+    /// PS1 / MEM-326 fixture-backed crisis phrases (non-English). Kept literal and
+    /// separate from English packs so recall can be measured per locale without
+    /// widening the English benign set.
+    static let multilingualCrisisPatterns: [String] = [
+        #"\bquiero matarme\b"#,
+        #"\bno quiero seguir viviendo\b"#,
+        #"\bje veux me suicider\b"#,
+        #"\bje ne veux plus vivre\b"#,
+        #"\bich will mich umbringen\b"#,
+        #"\bich will nicht mehr leben\b"#,
+        #"\beu quero me matar\b"#,
+        #"\bnão quero mais viver\b"#,
+        #"\bvoglio uccidermi\b"#,
+        #"\bnon voglio più vivere\b"#,
+        "死にたい。",
+        "もう生きたくない。",
+        "我想自杀。",
+        "我不想再活了。",
+        "자살하고 싶어.",
+        "더 이상 살고 싶지 않아."
+    ]
+
     /// Calls to harm a protected class / group — hard refuse assistance.
     static let hatePatterns: [String] = [
         #"\b(how (do|can|to)|help me)\b.{0,40}\b(attack|hurt|harm|kill)\b.{0,40}\b(jews|muslims|christians|immigrants|gays|trans|black people|white people)\b"#,
@@ -122,7 +145,8 @@ enum SafetyClassifier {
         #"\b(ignore|disregard|forget)\b.{0,40}\b(system (prompt|instructions)|your (rules|instructions|guidelines)|previous instructions)\b"#,
         #"\b(dan mode|do anything now|developer mode|jailbreak)\b"#,
         #"\byou are now\b.{0,60}\b(unrestricted|uncensored|dan|without (rules|limits|guardrails)|no (rules|limits|restrictions|guardrails))\b"#,
-        #"\b(pretend|act as if|imagine)\b.{0,50}\b(you have no|there (are|is) no|with no|no)\s+(safety |content )?(rules|filters|policies|restrictions|limits|guardrails)\b"#
+        #"\b(pretend|act as if|imagine)\b.{0,50}\b(you have no|there (are|is) no|with no|no)\s+(safety |content )?(rules|filters|policies|restrictions|limits|guardrails)\b"#,
+        #"\b(disregard|ignore)\b.{0,40}\b(all )?(safety )?(policies|rules|guardrails)\b"#
     ]
 
     /// Directive medical / legal / financial advice seeking → constrained continue.
@@ -133,8 +157,12 @@ enum SafetyClassifier {
         // never picked up `constrainedStanceLine` — the one rule whose whole
         // job is "do not diagnose". Measured 2026-08-23.
         #"\b(diagnose|diagnosis|do i have|(tell me |know )?(if|whether) i have|am i (depressed|bipolar|adhd|autistic)|mental health conditions?)\b"#,
+        #"\b(symptoms sound like|sound like bipolar)\b"#,
         #"\b(prove (it|i have)|do my entries prove)\b"#,
         #"\b(prescribe|prescription|dosage|medication plan)\b"#,
+        #"\b(is it safe to)\b.{0,30}\b(double|dose|medication)\b"#,
+        #"\b(can i sue|sue my)\b"#,
+        #"\b(how much life insurance)\b"#,
         #"\b(legal advice|is it legal|sue them|draft a (will|contract))\b"#,
         #"\b(invest(ment)? advice|which stock|guaranteed return)\b"#
     ]
@@ -153,6 +181,7 @@ enum SafetyClassifier {
     static let terrorismRegexes = compile(terrorismPatterns)
     static let violenceRegexes = compile(violencePatterns)
     static let crisisRegexes = compile(crisisPatterns)
+    static let multilingualCrisisRegexes = compile(multilingualCrisisPatterns)
     static let hateRegexes = compile(hatePatterns)
     static let jailbreakRegexes = compile(jailbreakPatterns)
     static let regulatedAdviceRegexes = compile(regulatedAdvicePatterns)

@@ -11,7 +11,14 @@ final class ProbeCorpusTests: XCTestCase {
 
     func test_q9BenignCorpus_doesNotCrisisRoute() throws {
         let probes = try ChatEvalCorpus.q9BenignHardTopicProbes()
-        let falsePositives = probes.filter { SafetyRouter.decide($0.prompt).action != .continue }
+        let falsePositives = probes.filter { probe in
+            switch SafetyRouter.decide(probe.prompt).action {
+            case .showCrisisCard, .hardRefuse:
+                return true
+            case .continue, .continueConstrained:
+                return false
+            }
+        }
         XCTAssertEqual(falsePositives.count, 0,
                        "benign hard-topic prompts must not crisis-route: \(falsePositives.prefix(3).map(\.id))")
     }
