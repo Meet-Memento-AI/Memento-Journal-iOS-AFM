@@ -541,6 +541,44 @@ enum ChatEvalScoring {
         return [.init(code: "gen.hitTokenCap", detail: "~\(Int(approxTokens)) tok vs cap \(capTokens)")]
     }
 
+    /// SDK-measured cap hit (T1). Distinct from `runaway`, which is a char proxy.
+    static func hitResponseCap(responseTokens: Int?, maximumTokens: Int) -> Bool {
+        guard let responseTokens, maximumTokens > 0 else { return false }
+        return responseTokens == maximumTokens
+    }
+
+    // MARK: - Convo-sim harness (T1)
+
+    /// Content-free counters every convo-sim row carries. Older archives omit
+    /// these keys; analyzers must tolerate their absence.
+    static func convoSimHarnessFields(
+        counters: AskHarnessCounters,
+        includeRawBody: Bool,
+        rawBody: String? = nil
+    ) -> [String: Any] {
+        var row: [String: Any] = [
+            "refusal_count": counters.refusalCount,
+            "guardrail_count": counters.guardrailCount,
+            "hit_response_cap": counters.hitResponseCap,
+            "variant": counters.variant,
+            "prompt_version": counters.promptVersion,
+            "render_version": ReplyRenderer.version,
+        ]
+        if let promptTokens = counters.promptTokens {
+            row["prompt_tokens"] = promptTokens
+        }
+        if let responseTokens = counters.responseTokens {
+            row["response_tokens"] = responseTokens
+        }
+        if let contextSize = counters.contextSize {
+            row["context_size"] = contextSize
+        }
+        if includeRawBody, let rawBody {
+            row["raw_body"] = rawBody
+        }
+        return row
+    }
+
     // MARK: - insight.* (045 R5 / Session 12 — gated)
 
     /// Body states a digit that is not any attached fact's `n` or numeric value.
