@@ -16,6 +16,7 @@ struct ConversationQualityTurn: Sendable, Equatable {
     let priorAssistantBodies: [String]
     let turnType: TurnType?
     let questionShape: QuestionShape?
+    // periphery:ignore - wired in CQ3 probes; reserved for policy-aware scorers (CQ1)
     let responsePolicy: ResponsePolicy?
     let channel: ReplyChannel?
     let evidenceState: EvidenceState?
