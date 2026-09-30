@@ -57,7 +57,7 @@ jobs:
   ios-device-eval:
     name: iOS device gate
     needs: gate-scope
-    runs-on: [self-hosted, macOS, ARM64, ios, xcode]
+    runs-on: ${{ fromJSON(needs.gate-scope.outputs.required == 'true' && '["self-hosted", "macOS", "ARM64", "ios", "xcode"]' || '["ubuntu-latest"]') }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     continue-on-error: ${{ github.event_name != 'pull_request' || needs.gate-scope.outputs.required != 'true' }}
     env:
