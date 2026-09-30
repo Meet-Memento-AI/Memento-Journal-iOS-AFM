@@ -1629,7 +1629,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         )
         beginTurnHarness(
             promptVersion: prep.request.promptVersion,
-            maximumResponseTokens: prep.generationOptions.maximumResponseTokens
+            maximumResponseTokens: prep.generationOptions.maximumResponseTokens ?? 0
         )
         do {
             let (body, citedRefs) = try await Self.respondToAsk(
