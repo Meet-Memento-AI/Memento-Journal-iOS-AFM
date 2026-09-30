@@ -1,5 +1,4 @@
 import XCTest
-@testable import withMemento
 
 final class EvalIssueCategoryTests: XCTestCase {
     func test_categoriesHaveStableRawValues() {
