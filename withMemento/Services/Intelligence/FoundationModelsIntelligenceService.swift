@@ -681,12 +681,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     }
 
     /// Maps the pure plan 1:1 onto a FoundationModels transcript session.
-    private func makeSession(
-        from plan: AskTranscriptPlan,
-        entries journal: [Entry] = [],
-        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
-        attachSearch: Bool = false
-    ) -> LanguageModelSession {
+    private func makeSession(from plan: AskTranscriptPlan) -> LanguageModelSession {
         var transcriptEntries: [Transcript.Entry] = []
         transcriptEntries.reserveCapacity(plan.entries.count)
         for entry in plan.entries {
@@ -708,15 +703,6 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             }
         }
         let transcript = Transcript(entries: transcriptEntries)
-        // Guided Ask (`respond(generating:)` / `streamResponse(generating:)`)
-        // cannot host Tool-calling sessions: the AFM decoder faults
-        // (EXC_BAD_ACCESS) when schema tokens and tool-call tokens mix.
-        // Swift-side retrieve already supplies the journal slice.
-        if attachSearch {
-            AppLogger.log("[Intelligence] searchJournal requested; guided decode cannot host tools")
-        }
-        _ = journal
-        _ = limits
         return LanguageModelSession(model: Self.onDeviceModel(), transcript: transcript)
     }
 
@@ -1251,8 +1237,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         core: AskCore,
         adopted: (session: LanguageModelSession, hit: Bool),
         wide: RetrievalResult,
-        visionBlock: String?,
-        toolsAttached: Bool
+        visionBlock: String?
     ) {
         let entries = await Self.resolveJournalEntries(
             channel: core.channel, provided: core.entries, loadEntries: loadEntries
@@ -1270,26 +1255,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             current: visionImages, history: visionHistory
         )
         async let wideTask: RetrievalResult = retrieveIfNeeded(prepared)
-        let attachOnMiss = SearchJournalPolicy.shouldAttach(channel: filled.channel)
-            && Self.canAttachSearchTool
-            && !entries.isEmpty
-        let adopted = adoptOrCreateSession(
-            plan: filled.plan,
-            journal: entries,
-            limits: filled.poolLimits,
-            attachSearchOnMiss: attachOnMiss
-        )
-        let toolsAttached = SearchJournalPolicy.shouldAttachOnMiss(
-            channel: filled.channel,
-            speculativeHit: adopted.hit,
-            journalIsEmpty: entries.isEmpty
-        ) && Self.canAttachSearchTool
+        let adopted = adoptOrCreateSession(plan: filled.plan)
         let wide = await wideTask
         let visionBlock = await visionTask
         if filled.evidence != .none, wide.isEmpty || wide.isAmbient {
             filled.evidence = .ambient
         }
-        return (filled, adopted, wide, visionBlock, toolsAttached)
+        return (filled, adopted, wide, visionBlock)
     }
 
     /// Empty archive is known before retrieval. Notebook and thread drop to
@@ -1368,8 +1340,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func finishAskPrep(
         _ core: AskCore,
         wideRetrieval: RetrievalResult,
-        visionBlock: String?,
-        toolsAttached: Bool
+        visionBlock: String?
     ) -> AskPreparation {
         let isNewConversation = startsNewConversation(history: core.history)
         let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
@@ -1424,8 +1395,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             for: core.channel,
             retrievalRan: retrievalRan,
             spoken: core.spoken,
-            deep: core.deep,
-            toolsAttached: toolsAttached
+            deep: core.deep
         )
         return AskPreparation(
             request: core.request, route: core.route, retrieval: retrieval, stance: stance,
@@ -1443,19 +1413,13 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Do not `prewarm()` here: the idle pool already prefills during
     /// `prewarmConversation`, and warming the session this turn will stream
     /// races `streamResponse` (`concurrentRequests` → empty reply).
-    private func adoptOrCreateSession(
-        plan: AskTranscriptPlan,
-        journal: [Entry] = [],
-        limits: RetrievalLimits = RetrievalLimits(budget: ContextBudget(window: .unavailable)),
-        attachSearchOnMiss: Bool = false
-    ) -> (session: LanguageModelSession, hit: Bool) {
+    private func adoptOrCreateSession(plan: AskTranscriptPlan) -> (session: LanguageModelSession, hit: Bool) {
         if let adopted = takeSpeculativeSession(matching: plan.fingerprint) {
             askSearchState = nil
             return (adopted, true)
         }
         askSearchState = nil
-        _ = attachSearchOnMiss
-        return (makeSession(from: plan, entries: journal, limits: limits), false)
+        return (makeSession(from: plan), false)
     }
 
     private func resolveTurnShape(for stance: TurnStance, isNewConversation: Bool) -> RecallTurnShape {
@@ -1619,8 +1583,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let prep = finishAskPrep(
             prepared.core,
             wideRetrieval: prepared.wide,
-            visionBlock: prepared.visionBlock,
-            toolsAttached: prepared.toolsAttached
+            visionBlock: prepared.visionBlock
         )
         recordTurnPerf(
             promptVersion: prep.request.promptVersion,
@@ -1735,10 +1698,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         for channel: ReplyChannel,
         retrievalRan: Bool,
         spoken: Bool,
-        deep: Bool = false,
-        toolsAttached: Bool = false
+        deep: Bool = false
     ) -> GenerationOptions {
-        _ = toolsAttached
         return GenerationOptions(
             temperature: channel.temperature(retrievalRan: retrievalRan),
             maximumResponseTokens: channel.maximumResponseTokens(
@@ -2038,8 +1999,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     let prep = finishAskPrep(
                         prepared.core,
                         wideRetrieval: prepared.wide,
-                        visionBlock: prepared.visionBlock,
-                        toolsAttached: prepared.toolsAttached
+                        visionBlock: prepared.visionBlock
                     )
                     signposter.endInterval("prep", prepState)
                     recordTurnPerf(

@@ -33,7 +33,9 @@ Executable plan/acceptance: [`specs/025-ci-online-ios-build-gates.md`](../specs/
 **iOS build specifications (online job contract):** scheme `withMemento`;
 destination `platform=iOS Simulator,name=iPhone 17,OS=latest` (overridable);
 `IPHONEOS_DEPLOYMENT_TARGET >= 26.0`; UITests skipped; device-gated generation
-suites skipped by `CI_ONLINE=1` (asserted by `scripts/ci/assert_ios_build_specs.sh`).
+suites skipped by `CI_ONLINE=1` (asserted by `scripts/ci/assert_ios_build_specs.sh`);
+`RetrievalGate` runs with `TEST_RUNNER_RETRIEVAL_GATE=1` (SDK-free, recall@5 floors
+on fitted and held-out gold).
 
 ## Runners
 
