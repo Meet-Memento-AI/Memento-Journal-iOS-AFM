@@ -6,6 +6,10 @@
 //  `FoundationModelsIntelligenceService.buildAskPrompt` forwards here so FMIS
 //  stays the single SDK adapter.
 //
+//  SwiftLint: same carve-out as `FoundationModelsIntelligenceService.swift`
+//  (`.swiftlint.yml` + `scripts/ci/lint_changed_swift.sh`). Monolithic until
+//  CQ4–CQ7 split this further.
+// swiftlint:disable function_body_length cyclomatic_complexity function_parameter_count line_length control_statement multiline_arguments
 
 import Foundation
 
@@ -84,7 +88,7 @@ enum TurnPromptAssembler {
                     light.append(PromptPersonalization.nameSkipLine)
                 }
             }
-            if spoken, (channel == .continuer || channel.usesCompanionPrompt),
+            if spoken, channel == .continuer || channel.usesCompanionPrompt,
                let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
                 light.append(answering)
             }
@@ -122,8 +126,11 @@ enum TurnPromptAssembler {
             parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
         }
         let grounded = effectiveStance.isGrounded(retrieval: retrieval)
-        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
-                                                      isGrounded: grounded) {
+        if let overlay = TurnShapeCadence.overlayLine(
+            shape: shape,
+            stance: effectiveStance,
+            isGrounded: grounded
+        ) {
             parts.append(overlay)
         }
         if spoken {
@@ -258,3 +265,4 @@ enum TurnPromptAssembler {
         ).prompt
     }
 }
+// swiftlint:enable function_body_length cyclomatic_complexity function_parameter_count line_length control_statement multiline_arguments
