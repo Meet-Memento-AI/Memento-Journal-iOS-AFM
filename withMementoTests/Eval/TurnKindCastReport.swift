@@ -31,8 +31,8 @@ enum TurnKindCastReport {
 
     static func metrics(rows: [TurnKindGoldFixture.Row]) -> TurnKindCastMetrics {
         var matchCount = 0
-        var predicted: [String: Int] = [:]
-        var gold: [String: Int] = [:]
+        var predictedCounts: [String: Int] = [:]
+        var goldCounts: [String: Int] = [:]
 
         let valid = rows.compactMap { row -> (TurnKindGoldFixture.Row, TurnType)? in
             guard let goldType = TurnKindGoldFixture.goldTurnType(for: row) else { return nil }
@@ -41,15 +41,15 @@ enum TurnKindCastReport {
 
         for (row, goldType) in valid {
             let pred = predicted(for: row)
-            gold[goldType.rawValue, default: 0] += 1
-            predicted[pred.rawValue, default: 0] += 1
+            goldCounts[goldType.rawValue, default: 0] += 1
+            predictedCounts[pred.rawValue, default: 0] += 1
             if pred == goldType { matchCount += 1 }
         }
 
         let n = valid.count
         let mismatch = n - matchCount
-        let predFollow = Double(predicted["followup", default: 0]) / Double(max(n, 1))
-        let goldFollow = Double(gold["followup", default: 0]) / Double(max(n, 1))
+        let predFollow = Double(predictedCounts["followup", default: 0]) / Double(max(n, 1))
+        let goldFollow = Double(goldCounts["followup", default: 0]) / Double(max(n, 1))
         return TurnKindCastMetrics(
             rowCount: n,
             matchCount: matchCount,
@@ -57,8 +57,8 @@ enum TurnKindCastReport {
             predictedFollowupShare: predFollow,
             goldFollowupShare: goldFollow,
             followupShareDeltaPoints: (predFollow - goldFollow) * 100,
-            predictedCounts: predicted,
-            goldCounts: gold
+            predictedCounts: predictedCounts,
+            goldCounts: goldCounts
         )
     }
 
