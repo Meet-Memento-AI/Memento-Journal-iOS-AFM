@@ -16,8 +16,11 @@ import Foundation
 /// Typed plan for one Ask user prompt. `parts` join with `\n\n` for the model.
 struct TurnPromptPlan: Equatable, Sendable {
     let parts: [String]
+    // periphery:ignore - read by golden tests and upcoming CQ4 close wiring (MEM-329)
     let channel: ReplyChannel
+    // periphery:ignore - read by golden tests and renderer parity checks (MEM-329)
     let effectiveStance: TurnStance?
+    // periphery:ignore - read by golden tests; mirrors the pack FMIS renders with
     let evidencePack: EvidencePack?
 
     var prompt: String { parts.joined(separator: "\n\n") }
@@ -46,6 +49,7 @@ enum TurnPromptAssembler {
         }
     }
 
+    // periphery:ignore - tests call plan directly; `build` is the FMIS forwarder
     static func plan(
         question: String,
         history: [ChatTurn],
