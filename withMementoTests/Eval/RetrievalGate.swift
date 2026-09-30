@@ -1,12 +1,14 @@
 import XCTest
 @testable import withMemento
 
-/// Spec 044 R2 — SDK-free retrieval gate.
+/// Spec 044 R2 — SDK-free retrieval gate (blocking in merge CI since T3 / MEM-325).
 ///
 /// Loads the persona corpus + resolved gold set, runs `EntryRetriever.retrieve`
 /// for every question, and writes recall@5 / precision@5 / MRR / abstention
-/// accuracy to `.eval-runs/retrieval/`. Report-only: no threshold `XCTAssert`
-/// until two measured runs are warehoused (044 / 022).
+/// accuracy to `.eval-runs/retrieval/`. Merge CI sets `TEST_RUNNER_RETRIEVAL_GATE=1`
+/// and asserts recall@5 floors on the fitted and held-out gold sets warehoused
+/// after spec 055 R6 (`eval-archive/retrieval-after-051-R6.json`,
+/// `eval-archive/retrieval-heldout-after-051-R6.json`).
 ///
 /// ```
 /// TEST_RUNNER_RETRIEVAL_GATE=1 xcodebuild test \
@@ -21,7 +23,12 @@ final class RetrievalGate: XCTestCase {
 
     private static let promptCap = EntryRetriever.maxEntries
 
-    func test_retrievalGate_reportOnly() throws {
+    /// Fitted gold recall@5 after spec 055 R6 (34/42 hits).
+    private static let minFittedRecallAt5 = 0.783
+    /// Held-out gold recall@5 after spec 055 R6 (7/10 hits); never used to fit weights.
+    private static let minHeldOutRecallAt5 = 0.700
+
+    func test_retrievalGate_meetsWarehousedRecallThresholds() throws {
         let env = ProcessInfo.processInfo.environment
         try XCTSkipUnless(
             env["TEST_RUNNER_RETRIEVAL_GATE"] == "1" || env["RETRIEVAL_GATE"] == "1",
@@ -53,6 +60,7 @@ final class RetrievalGate: XCTestCase {
         )
         report += "\n\n## Held-out set (055 R5 — never fitted)\n\n"
             + Self.renderReport(heldOutScored)
+        Self.assertGatingThresholds(fitted: scored, heldOut: heldOutScored)
         print(report)
         Self.write(report: report, items: scored, extra: ("heldout.md", Self.renderReport(heldOutScored)))
         // The held-out items as JSON too, so a threshold can be calibrated
@@ -102,6 +110,21 @@ final class RetrievalGate: XCTestCase {
             XCTAssertEqual(a.ambient, b.ambient, "\(a.id): different ambient verdict")
             XCTAssertEqual(a.empty, b.empty, "\(a.id): different empty verdict")
         }
+    }
+
+    // MARK: - Gating
+
+    private static func assertGatingThresholds(fitted: Summary, heldOut: Summary) {
+        XCTAssertGreaterThanOrEqual(
+            fitted.recallAt5, minFittedRecallAt5,
+            "fitted recall@5 regressed below \(pct(minFittedRecallAt5)) "
+                + "(warehoused after 055 R6; got \(pct(fitted.recallAt5)))"
+        )
+        XCTAssertGreaterThanOrEqual(
+            heldOut.recallAt5, minHeldOutRecallAt5,
+            "held-out recall@5 regressed below \(pct(minHeldOutRecallAt5)) "
+                + "(warehoused after 055 R6; got \(pct(heldOut.recallAt5)))"
+        )
     }
 
     // MARK: - Scoring
@@ -318,8 +341,8 @@ final class RetrievalGate: XCTestCase {
 
     private static func renderReport(_ summary: Summary) -> String {
         var out = "# RetrievalGate (spec 044 R2)\n\n"
-        out += "kind: `harness_retrieval` · prompt cap \(promptCap) · report-only "
-        out += "(no 0.85 bar on this run)\n\n"
+        out += "kind: `harness_retrieval` · prompt cap \(promptCap) · gating "
+        out += "(fitted recall@5 ≥ \(pct(minFittedRecallAt5)), held-out ≥ \(pct(minHeldOutRecallAt5)))\n\n"
         out += "## Headline\n\n"
         out += "| metric | value |\n|---|---|\n"
         out += "| questions | \(summary.items.count) |\n"
@@ -378,7 +401,11 @@ final class RetrievalGate: XCTestCase {
         let payload: [String: Any] = [
             "kind": "harness_retrieval",
             "promptCap": promptCap,
-            "reportOnly": true,
+            "reportOnly": false,
+            "thresholds": [
+                "fittedRecall@5": minFittedRecallAt5,
+                "heldOutRecall@5": minHeldOutRecallAt5
+            ],
             "metrics": [
                 "recall@5": summary.recallAt5,
                 "precision@5": summary.precisionAt5,

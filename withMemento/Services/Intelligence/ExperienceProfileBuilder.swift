@@ -61,7 +61,7 @@ enum ExperienceProfileBuilder {
             if replaceConfirmedWithSuggestions, !suggested.isEmpty {
                 profile.confirmedThemeIds = ThemeCatalog.validate(suggested)
             }
-            AppLogger.log("⚠️ ExperienceProfileBuilder fell back to keywords: \(error.localizedDescription)")
+            AppLogger.log("⚠️ ExperienceProfileBuilder fell back to keywords: \(type(of: error))")
         }
 
         // If themes exist but lens is still empty, synthesize a quiet lens.

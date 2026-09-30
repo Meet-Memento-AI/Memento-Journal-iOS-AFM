@@ -85,46 +85,34 @@ final class ModelRouterTests: XCTestCase {
         XCTAssertEqual(calls, 0, "the pin must short-circuit before the PCC seam is touched")
     }
 
-    // MARK: Degradation honesty
+    // MARK: Shipped on-device table (PS5 / MEM-332)
 
-    /// The load-bearing distinction. On a build whose SDK has no PCC, a Z1 row
-    /// running on-device is the *baseline* — not a degradation — so it must not
-    /// be labelled. Labelling every reply "degraded" would drain spec 014 R2's
-    /// disclosure copy of meaning exactly when it later matters.
-    func test_sdkUnsupported_isBaselineNotDegradation() {
-        let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
-                                        pccCapability: .sdkUnsupported)
+    /// The shipped default keeps every intent on-device: consent is off and the
+    /// boundary mirrors that as `pinnedToDevice: true` before routing.
+    func test_withoutConsent_allIntentsResolveToZ0() {
+        XCTAssertFalse(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: false, consented: false))
+        let capabilities: [PCCCapability] = [.available, .sdkUnsupported, .unavailable, .quotaConstrained]
 
-        XCTAssertEqual(route.executionZone, .z0Device)
-        XCTAssertEqual(route.requestedZone, .z0Device, "nothing was asked of PCC, so nothing was denied")
-        XCTAssertFalse(route.wasDegraded)
-        XCTAssertFalse(route.useDegradedPrompt, "the shipped prompts are authored for the on-device model")
-        XCTAssertEqual(route.reason, .sdkUnsupported)
-    }
-
-    /// The inverse: PCC exists and could not take the request. That is a real
-    /// shortfall, so it is disclosed *and* uses the prompt tuned for the smaller
-    /// model (REQ-INT-010 — never the heavy prompt behind a lighter model).
-    func test_liveFallback_isDegradedAndUsesTheDegradedPrompt() {
-        for capability in [PCCCapability.unavailable, .quotaConstrained] {
-            let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
-                                            pccCapability: capability)
-
-            XCTAssertEqual(route.executionZone, .z0Device)
-            XCTAssertEqual(route.requestedZone, .z1AppleContent(reasoningLevel: .moderate),
-                           "the requested zone records what was asked for, so the gap is visible")
-            XCTAssertTrue(route.wasDegraded, "\(capability) is a real shortfall and must be disclosed")
-            XCTAssertTrue(route.useDegradedPrompt)
+        for intent in GenerationIntent.allCases {
+            for capability in capabilities {
+                let route = ModelRouter.resolve(intent: intent, pinnedToDevice: true, pccCapability: capability)
+                XCTAssertEqual(route.executionZone, .z0Device,
+                               "\(intent)/\(capability) must stay on-device without PCC consent")
+                XCTAssertFalse(route.wasDegraded)
+            }
         }
     }
 
-    func test_pccAvailable_routesToZ1AtTheTablesReasoningLevel() {
-        let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false,
-                                        pccCapability: .available)
-
-        XCTAssertEqual(route.executionZone, .z1AppleContent(reasoningLevel: .moderate))
-        XCTAssertFalse(route.wasDegraded)
-        XCTAssertEqual(route.reason, .defaultRoute)
+    /// Even after the user opts into PCC, every shipped intent is device-only in
+    /// the table — nothing can leave the phone without a new routing row.
+    func test_withConsentUnpinned_allIntentsStayOnDevice_whenPCCAvailable() {
+        XCTAssertTrue(PreferencesService.allowsOffDeviceProcessing(onDeviceOnly: false, consented: true))
+        for intent in GenerationIntent.allCases {
+            let route = ModelRouter.resolve(intent: intent, pinnedToDevice: false, pccCapability: .available)
+            XCTAssertEqual(route.executionZone, .z0Device, "\(intent) must not acquire a Z1 leg")
+            XCTAssertEqual(route.reason, .deviceOnlyIntent)
+            XCTAssertFalse(route.wasDegraded)
+        }
     }
 
     /// Device-only intents resolve identically no matter what PCC reports —
@@ -175,6 +163,15 @@ final class ModelRouterTests: XCTestCase {
         for capability in [PCCCapability.available, .sdkUnsupported, .unavailable, .quotaConstrained] {
             let route = ModelRouter.resolve(intent: .ask, pinnedToDevice: false, pccCapability: capability)
             XCTAssertEqual(route.executionZone, .z0Device, "ask left the device under \(capability)")
+        }
+    }
+
+    func test_weekly_isDeviceOnly_underEveryCapability() {
+        XCTAssertEqual(ModelRouter.row(for: .weeklyReflection)?.defaultZone, .z0Device)
+        XCTAssertNil(ModelRouter.row(for: .weeklyReflection)?.degradedZone)
+        for capability in [PCCCapability.available, .sdkUnsupported, .unavailable, .quotaConstrained] {
+            let route = ModelRouter.resolve(intent: .weeklyReflection, pinnedToDevice: false, pccCapability: capability)
+            XCTAssertEqual(route.executionZone, .z0Device, "weekly reflection left the device under \(capability)")
         }
     }
 
