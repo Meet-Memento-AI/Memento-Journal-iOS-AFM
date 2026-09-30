@@ -308,6 +308,7 @@ enum ChatEvalCorpus {
         let file = try injectionCorpusFile()
         var entries = attributionCorpus
         for scenario in file.entryInjections {
+            precondition(!scenario.id.isEmpty && !scenario.userPrompt.isEmpty)
             entries.append(Entry(
                 title: scenario.title,
                 text: scenario.text,

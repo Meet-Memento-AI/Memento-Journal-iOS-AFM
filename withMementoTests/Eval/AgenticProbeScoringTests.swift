@@ -1,5 +1,4 @@
 import XCTest
-@testable import withMemento
 
 /// SDK-free checks for `ChatEvalScoring.agentic*` (MEM-326 / T7).
 final class AgenticProbeScoringTests: XCTestCase {

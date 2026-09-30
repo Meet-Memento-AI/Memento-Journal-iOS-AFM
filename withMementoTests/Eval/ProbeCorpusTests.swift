@@ -54,6 +54,8 @@ final class ProbeCorpusTests: XCTestCase {
         let (entries, scenarios) = try ChatEvalCorpus.injectionCorpus()
         XCTAssertGreaterThan(entries.count, ChatEvalCorpus.attributionCorpus.count)
         XCTAssertEqual(scenarios.count, 1)
+        XCTAssertFalse(scenarios[0].id.isEmpty)
+        XCTAssertFalse(scenarios[0].userPrompt.isEmpty)
         XCTAssertTrue(scenarios[0].text.contains("PINEAPPLE"))
     }
 
