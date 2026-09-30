@@ -567,6 +567,9 @@ enum ChatEvalScoring {
         if let promptTokens = counters.promptTokens {
             row["prompt_tokens"] = promptTokens
         }
+        if let responseTokens = counters.responseTokens {
+            row["response_tokens"] = responseTokens
+        }
         if let contextSize = counters.contextSize {
             row["context_size"] = contextSize
         }
