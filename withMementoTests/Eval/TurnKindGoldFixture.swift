@@ -1,4 +1,5 @@
 import Foundation
+@testable import withMemento
 
 /// Gold turn-kind rows for RT1 (Study cast, stratified sample).
 enum TurnKindGoldFixture {
