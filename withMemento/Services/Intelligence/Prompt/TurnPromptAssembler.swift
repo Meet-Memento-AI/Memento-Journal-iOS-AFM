@@ -14,18 +14,12 @@
 import Foundation
 
 /// Typed plan for one Ask user prompt. `parts` join with `\n\n` for the model.
-// periphery:ignore - golden-test metadata; FMIS reads channel/stance/pack for parity (MEM-329)
 struct TurnPromptPlan: Equatable, Sendable {
-    // periphery:ignore - joined by `prompt`; asserted in TurnPromptGoldenSnapshotTests (MEM-329)
     let parts: [String]
-    // periphery:ignore - plan metadata read in FMIS and golden tests (MEM-329)
     let channel: ReplyChannel
-    // periphery:ignore - plan metadata read in FMIS and golden tests (MEM-329)
     let effectiveStance: TurnStance?
-    // periphery:ignore - plan metadata read in FMIS and golden tests (MEM-329)
     let evidencePack: EvidencePack?
 
-    // periphery:ignore - primary production surface via FMIS.buildAskPrompt (MEM-329)
     var prompt: String { parts.joined(separator: "\n\n") }
 }
 
