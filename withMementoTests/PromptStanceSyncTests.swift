@@ -192,14 +192,17 @@ final class PromptStanceSyncTests: XCTestCase {
         XCTAssertFalse(line.contains("answer and stop"))
     }
 
-    func test_localeLine_isApplesExactPhrase_outsideUSEnglish() {
+    func test_localeLine_isApplesExactPhrase_gatedByEnglishAndSafetyPacks() {
         XCTAssertNil(PromptRegistry.localeLine(for: Locale(identifier: "en_US")))
         XCTAssertEqual(PromptRegistry.localeLine(for: Locale(identifier: "en_GB")),
                        "The person's locale is en_GB.")
-        XCTAssertEqual(PromptRegistry.localeLine(for: Locale(identifier: "es_MX")),
-                       "The person's locale is es_MX.")
-        let spanish = PromptRegistry.instructions(for: .ask, locale: Locale(identifier: "es_MX"))
-        XCTAssertTrue(spanish.text.hasPrefix("The person's locale is es_MX.\n\nYou are Memento"))
-        XCTAssertEqual(spanish.version, "ask-core@20+loc")
+        XCTAssertNil(PromptRegistry.localeLine(for: Locale(identifier: "es_ES")))
+        XCTAssertNil(PromptRegistry.localeLine(for: Locale(identifier: "ja_JP")))
+        let british = PromptRegistry.instructions(for: .ask, locale: Locale(identifier: "en_GB"))
+        XCTAssertTrue(british.text.hasPrefix("The person's locale is en_GB.\n\nYou are Memento"))
+        XCTAssertEqual(british.version, "ask-core@20+loc")
+        let spanish = PromptRegistry.instructions(for: .ask, locale: Locale(identifier: "es_ES"))
+        XCTAssertTrue(spanish.text.hasPrefix("You are Memento"))
+        XCTAssertEqual(spanish.version, "ask-core@20")
     }
 }

@@ -36,6 +36,8 @@ jobs:
       # XCTSkipIf(CI_ONLINE == "1") guards never fire and this lane runs live
       # on-device generation it means to skip.
       TEST_RUNNER_CI_ONLINE: "1"
+      # SDK-free retrieval gate (spec 044 R2 / ask-chat T3): fitted + held-out recall@5.
+      TEST_RUNNER_RETRIEVAL_GATE: "1"
       # On the xcode-27 image /Applications/Xcode.app is Xcode 27.
       # Override IOS_DEVELOPER_DIR / IOS_SIM_DESTINATION as repo variables.
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
