@@ -275,15 +275,15 @@ final class ConversationSimulation: XCTestCase {
             if failureFallback != nil { row["text_is_fallback"] = true }
             if failure != nil { row["designed_refusal"] = isDesignedRefusal }
             if let result {
-                row.merge(ChatEvalScoring.convoSimHarnessFields(
+                Self.applyHarnessFields(
+                    &row,
                     counters: result.harness ?? service.ambientHarnessSnapshot(
                         promptVersion: result.promptVersion),
                     includeRawBody: true,
                     rawBody: result.rawBody
-                ))
+                )
             } else if let harness = service.consumeLastAskHarness() {
-                row.merge(ChatEvalScoring.convoSimHarnessFields(
-                    counters: harness, includeRawBody: false))
+                Self.applyHarnessFields(&row, counters: harness, includeRawBody: false)
             }
             row["seconds"] = seconds
             row["turn_type"] = turnType.rawValue
@@ -595,9 +595,21 @@ final class ConversationSimulation: XCTestCase {
             "recorded_at": ISO8601DateFormatter().string(from: Date())
         ]
         if let error { row["error"] = error }
-        row.merge(ChatEvalScoring.convoSimHarnessFields(
-            counters: service.ambientHarnessSnapshot(), includeRawBody: false))
+        applyHarnessFields(&row, counters: service.ambientHarnessSnapshot(), includeRawBody: false)
         return row
+    }
+
+    private static func applyHarnessFields(
+        _ row: inout [String: Any],
+        counters: AskHarnessCounters,
+        includeRawBody: Bool,
+        rawBody: String? = nil
+    ) {
+        for (key, value) in ChatEvalScoring.convoSimHarnessFields(
+            counters: counters, includeRawBody: includeRawBody, rawBody: rawBody
+        ) {
+            row[key] = value
+        }
     }
 
     private static func encodeFacts(_ facts: [InsightFact]) -> [Any] {
