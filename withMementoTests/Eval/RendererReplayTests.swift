@@ -11,6 +11,7 @@ import XCTest
 /// rendered-surface only (see `Fixtures/replay/README.md`).
 final class RendererReplayTests: XCTestCase {
 
+    // periphery:ignore - Decodable scaffolding for replay fixtures (T2 / MEM-324)
     private struct ReplayManifest: Decodable {
         let sourceJSONL: String
         let turnCount: Int
