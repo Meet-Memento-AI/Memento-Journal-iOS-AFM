@@ -294,10 +294,16 @@ enum PromptRegistry {
 
     /// Apple's multilingual hint, which must be this exact English sentence at
     /// the start of the instructions: it comes from the model's training and
-    /// reduces hallucination outside U.S. English. Stable per device, so it
-    /// never costs a speculative miss.
+    /// reduces hallucination outside U.S. English. Shown only for non-U.S.
+    /// English and for locales with a PS1 safety pack (PS3); stable per device.
     static func localeLine(for locale: Locale) -> String? {
-        if locale.language.languageCode == .english, locale.region == .unitedStates { return nil }
+        let invitesLocaleLine: Bool
+        if locale.language.languageCode == .english {
+            invitesLocaleLine = locale.region != .unitedStates
+        } else {
+            invitesLocaleLine = SafetyLocales.packed.contains(locale.identifier)
+        }
+        guard invitesLocaleLine else { return nil }
         return "The person's locale is \(locale.identifier)."
     }
 
