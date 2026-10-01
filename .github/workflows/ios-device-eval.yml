@@ -57,10 +57,15 @@ jobs:
   ios-device-eval:
     name: iOS device gate
     needs: gate-scope
-    runs-on: ${{ fromJSON(needs.gate-scope.outputs.required == 'true' && '["self-hosted", "macOS", "ARM64", "ios", "xcode"]' || '["ubuntu-latest"]') }}
+    # Behavioural PRs: GitHub-hosted macOS (same as ios-build-online.yml). Self-hosted
+    # labels were never registered on this repo, so the old matrix queued forever and
+    # blocked merge. Override with IOS_RUNNER (e.g. self-hosted labels) when registered.
+    runs-on: ${{ needs.gate-scope.outputs.required == 'true' && (vars.IOS_RUNNER || 'xcode-27') || 'ubuntu-latest' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     continue-on-error: ${{ github.event_name != 'pull_request' || needs.gate-scope.outputs.required != 'true' }}
     env:
+      CI_ONLINE: "1"
+      TEST_RUNNER_CI_ONLINE: "1"
       DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
       IOS_DEVICE_DESTINATION: ${{ vars.IOS_DEVICE_DESTINATION || vars.IOS_SIM_DESTINATION || 'platform=iOS Simulator,name=iPhone 17,OS=latest' }}
       TEST_RUNNER_SPIKE_A: ${{ github.event_name == 'workflow_dispatch' && inputs.run_spikes && '1' || '0' }}
