@@ -90,6 +90,7 @@ resolving each:
 | `DEC-004` — final pricing and trial length | 021 | P1 | **Superseded by DEC-013 (2026-09-26).** |
 | `DEC-013` — Monetization Strategy (September 2026) | 021, 053 | P1 | **Adopted within governance (2026-09-26).** $59.99/yr, preselected; $9.99/mo; no lifetime or weekly plan. Free chat: one chat, current entry only, daily limit. Day-0 offer after the first chat; six re-offer moments, at most one full-screen a day. No email, analytics, streaks or sharing. |
 | `DEC-014` — free trial? | 021, 053 | P1 | **No free trial (2026-09-26).** The free tier is the trial. The paywall is a straight conversion ("Upgrade for $59.99 a year"). No introductory offer in App Store Connect; the day-25 reminder and trial win-back offer are dropped; the billing toggle is allowed again. |
+| `DEC-015` — monthly price | 021 | P1 | **$59.99/yr and $5.99/mo (2026-09-30).** Annual saves 16%. RevenueCat switched on for live testing the same day. |
 | `DEC-008` — ANE placement with dynamic shapes, or fixed-shape buckets? | 031 | P1 | **Lock `.cpuAndNeuralEngine`, GPU excluded, dynamic shapes.** V29 device traces still to be archived; code already matches this lock. |
 | `DEC-009` — is the provisional voice roster the shipping roster, under AEC? | 033 | P1 | **Four-voice catalog ships (F1/F2/M1/M3).** Freeze under AEC after V30 audition; picker already replaced the system-voice list (`DEC-011`). |
 | `DEC-010` — model-weight attribution placement | 030 | ✅ | Settings → About → Acknowledgments |

@@ -4,7 +4,7 @@ The code side is in place (spec 021 R3/R4). This document covers the dashboard a
 
 ## On/off switch
 
-`RevenueCatConfig.isPaywallEnabled` (`withMemento/Services/Purchases/RevenueCatConfig.swift`) turns Memento Pro on or off. It is currently **off**. When off, the SDK is never configured and every paid surface is open. No Pro section or Restore Purchases appears in Settings. This is the same fail-open path as a missing key. To turn the paywall on, set it to `true`.
+`RevenueCatConfig.isPaywallEnabled` (`withMemento/Services/Purchases/RevenueCatConfig.swift`) turns Memento Pro on or off. It is currently **on** (2026-09-30). When off, the SDK is never configured and every paid surface is open. No Pro section or Restore Purchases appears in Settings. This is the same fail-open path as a missing key. To turn the paywall on, set it to `true`.
 
 To see the paywall while it is off, launch a Debug build with `-UITesting -PaywallPreview`. It presents over sample data and never configures the SDK.
 
@@ -15,20 +15,20 @@ To test the **live** flow while the switch is off, launch a Debug build with `-E
 | What | Value | Used in |
 |---|---|---|
 | Entitlement | `memento_ai_pro` | `EntitlementStore.entitlementID` |
-| Products | `monthly`, `yearly` | Settings plan subtitle (`SettingsView.proPlanSubtitle`) |
+| Products | `monthly`, `yearly` (App Store); `memento_pro_monthly`, `memento_pro_yearly` (Test Store) | Settings plan subtitle (`SettingsView.proPlanSubtitle`, matches any id containing `monthly`) |
 | Offering | the **current** offering | `PaywallModel.load()` → `PaywallPlan.ordered(from:)` |
 
 ## App Store Connect
 
 1. Create a subscription group **Memento Pro** with two auto-renewable subscriptions: `monthly` (1 month) and `yearly` (1 year). There is no lifetime purchase.
-2. Set prices in App Store Connect only: **9.99 USD** for `monthly` and **59.99 USD** for `yearly` (DEC-013, 2026-09-26; this supersedes DEC-004's 5.99), with other storefronts at Apple's equivalents. The app never contains a price literal. The paywall shows the store's own price (spec 021 R1).
+2. Set prices in App Store Connect only: **5.99 USD** for `monthly` and **59.99 USD** for `yearly` (DEC-015, 2026-09-30), with other storefronts at Apple's equivalents. The app never contains a price literal. The paywall shows the store's own price (spec 021 R1).
 3. **No free trial** (DEC-014, 2026-09-26): **do not create an introductory offer on either product.** The free tier is the trial. The paywall never mentions a trial, so an offer set up here would make the App Store sheet disagree with the paywall's copy.
 4. **Billing Grace Period:** turn it on for the subscription group (spec 021 R11). Billing retry is automatic.
 5. Add the in-app purchase key (App Store Connect API key) to the RevenueCat project so RevenueCat can validate receipts.
 
 ## RevenueCat dashboard
 
-1. **Products:** import `monthly` and `yearly`. For Debug builds, set the same prices (9.99 and 59.99 USD, no introductory offer) on the matching **Test Store** products, because the `test_` key reads prices from there, not from App Store Connect.
+1. **Products:** import `monthly` and `yearly`. For Debug builds, the **Test Store** uses `memento_pro_monthly` (5.99 USD) and `memento_pro_yearly` (59.99 USD), no introductory offer, because the `test_` key reads prices from there, not from App Store Connect. Test Store prices can't be edited once set, so these replaced the earlier `monthly`/`yearly` Test Store products (9.99/79.99) on 2026-09-30.
 2. **Entitlement:** create `memento_ai_pro` and attach both products.
 3. **Offering:** create `default` and mark it **Current**. Add these packages:
    - `$rc_annual` → `yearly`, listed **first**, because spec 021 R1 requires annual-first presentation.
@@ -62,7 +62,7 @@ The free chat's **✦ Upgrade** pill, the reset dialog's **Keep it with Pro**, a
 
 1. **App Store Connect**
    - The **Paid Apps agreement**, tax and banking forms are active. Without them no purchase can complete.
-   - Subscription group **Memento Pro**: `yearly` 59.99 USD and `monthly` 9.99 USD, **no introductory offer** (DEC-014), Billing Grace Period on.
+   - Subscription group **Memento Pro**: `yearly` 59.99 USD and `monthly` 5.99 USD, **no introductory offer** (DEC-014), Billing Grace Period on.
    - Each product has its display name and description, and a review screenshot of the paywall.
 2. **RevenueCat**
    - Products, entitlement `memento_ai_pro`, and the current `default` offering (`$rc_annual` first).

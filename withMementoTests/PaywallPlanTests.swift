@@ -29,8 +29,8 @@ final class PaywallPlanTests: XCTestCase {
 
     // MARK: - Savings
 
-    /// 59.99 a year against 12 × 9.99 (119.88) is a 49.96% saving, shown as
-    /// 49. It rounds down, never up to "half off".
+    /// 59.99 a year against 12 × 5.99 (71.88) is a 16.54% saving, shown as
+    /// 16. It always rounds down, so the claim is never overstated.
     func testSavingsRoundsDown() {
         let all = plans()
         XCTAssertEqual(
@@ -38,7 +38,7 @@ final class PaywallPlanTests: XCTestCase {
                 annual: all.first { $0.kind == .annual },
                 monthly: all.first { $0.kind == .monthly }
             ),
-            49
+            16
         )
     }
 
@@ -73,9 +73,9 @@ final class PaywallPlanTests: XCTestCase {
     }
 
     func testPlanAccessibilityLabelReadsAsOnePhrase() throws {
-        let label = try plan(.annual).accessibilityLabel(savingsPercent: 49)
+        let label = try plan(.annual).accessibilityLabel(savingsPercent: 16)
         XCTAssertTrue(label.hasPrefix("Yearly, "), label)
-        XCTAssertTrue(label.hasSuffix("save 49 percent"), label)
+        XCTAssertTrue(label.hasSuffix("save 16 percent"), label)
     }
 
     // MARK: - Features (R4)
@@ -238,7 +238,7 @@ final class PaywallPlanTests: XCTestCase {
     func testPreviewModelSelectsAnnualAndNeverPurchases() async {
         let model = PaywallModel.preview()
         XCTAssertEqual(model.selected?.kind, .annual)
-        XCTAssertEqual(model.savingsPercent, 49)
+        XCTAssertEqual(model.savingsPercent, 16)
         let purchased = await model.purchase()
         XCTAssertFalse(purchased)
         EntitlementStore.shared.lastError = nil

@@ -296,7 +296,7 @@ struct SettingsView: View {
     #if MEMENTO_AI
     private var proPlanSubtitle: String {
         guard let active = entitlements.activeEntitlement else { return "Active" }
-        let plan = active.productIdentifier == "monthly" ? "Monthly" : "Yearly"
+        let plan = active.productIdentifier.contains("monthly") ? "Monthly" : "Yearly"
         guard let date = active.expirationDate else { return plan }
         let verb = active.willRenew ? "Renews" : "Ends"
         return "\(plan) · \(verb) \(date.formatted(date: .abbreviated, time: .omitted))"

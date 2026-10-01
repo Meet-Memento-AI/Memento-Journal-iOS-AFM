@@ -34,7 +34,7 @@ final class ChatSendPinUITests: XCTestCase {
     /// `test_secondMessage_…` is the one that proves the scroll.
     func test_sentMessage_restsThirtyTwoPointsBelowTheHeaderRow() {
         let app = XCUIApplication()
-        app.launchArguments = ["-InstantSendScroll"]
+        app.launchArguments = ["-InstantSendScroll", "-DisablePaywall"]
         app.launch()
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
@@ -96,7 +96,7 @@ final class ChatSendPinUITests: XCTestCase {
         // ScrollViewProxy scroll — every query issued after one blocks until it
         // times out. This asserts the resting position, which the animation
         // does not change.
-        app.launchArguments = ["-SeedChatTranscript", "-InstantSendScroll"]
+        app.launchArguments = ["-SeedChatTranscript", "-InstantSendScroll", "-DisablePaywall"]
         app.launch()
 
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
