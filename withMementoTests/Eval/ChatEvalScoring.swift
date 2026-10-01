@@ -13,6 +13,7 @@ import Foundation
 ///   `rule.*` — an explicit ask@14 rule, checkable from the text alone
 ///   `hall.*` — a claim about the journal the corpus does not support
 ///   `gen.*`  — generation-shape problems (runaway, truncation signature)
+///   `route.*` — routing / classifier checks (RT1 turn-kind mismatch)
 enum ChatEvalScoring {
 
     struct Violation: Equatable {
@@ -625,6 +626,16 @@ enum ChatEvalScoring {
         }
     }
 
+    // MARK: - route.*
+
+    /// RT1: `TurnClassifier` output vs cast gold label. Report-only until the
+    /// retrieval exit criteria (≥90% agreement, follow-up within ±10pp of gold).
+    static func turnKindMismatch(predicted: TurnType, gold: TurnType) -> [Violation] {
+        guard predicted != gold else { return [] }
+        return [.init(code: "route.turnKindMismatch",
+                      detail: "gold=\(gold.rawValue) predicted=\(predicted.rawValue)")]
+    }
+
     // MARK: - agentic.* — AgenticEval probe judges (SDK-free)
 
     /// Minimum body length for grief / hard-topic engagement (was `AgenticEval` ≥ 40 chars).
@@ -808,7 +819,8 @@ enum ChatEvalScoring {
         "hall.fabricatedQuote",
         "hall.firstPersonPerception",
         "hall.narrativeJoin",
-        "hall.unbackedDate"
+        "hall.unbackedDate",
+        "route.turnKindMismatch"
     ]
 
     static func gating(_ violations: [Violation]) -> [Violation] {
