@@ -76,9 +76,21 @@ CI_ONLINE=1 xcodebuild -scheme withMemento \
   -skip-testing:withMementoUITests test
 ```
 
-Device/eval (optional): run without `CI_ONLINE`, or dispatch
-`.github/workflows/ios-device-eval.yml`. Live Foundation Models generation needs
-a physical Apple Intelligence device.
+Device/eval (self-hosted Mac): see [`scripts/eval/README.md`](scripts/eval/README.md).
+
+```bash
+# 10-conversation smoke (calibrate Mac vs iPhone)
+MEMENTO_EVAL_PROFILE=smoke IOS_DEVICE_DESTINATION='platform=iOS,id=<UDID>' \
+  scripts/eval/run_mac_eval.sh
+
+# 50-conversation gate slice (+ ChatEvalGate) when a behavioural PR is open
+MEMENTO_EVAL_PROFILE=gate scripts/eval/run_mac_eval.sh
+```
+
+CI: `.github/workflows/ios-device-eval.yml` on same-repo PRs — **blocking** only
+when `scripts/ci/detect_behavioural_change.sh` reports `required=true` (Ask 100
+plan). Register the check name **`iOS device gate`** in branch protection.
+Live generation needs Apple Intelligence hardware (physical iPhone recommended).
 
 ### Branching and CI/CD
 - Branch model: feature branches merge into `dev`, then `dev` is promoted into `main` by pull request.

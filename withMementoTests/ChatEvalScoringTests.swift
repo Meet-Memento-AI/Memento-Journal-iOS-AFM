@@ -44,6 +44,12 @@ final class ChatEvalScoringTests: XCTestCase {
                 "\(code): pattern does not compile, so the scorer silently returns no violations"
             )
         }
+        for (index, pattern) in ChatEvalScoring.compiledPatterns.enumerated() {
+            XCTAssertNoThrow(
+                try NSRegularExpression(pattern: pattern),
+                "compiledPatterns[\(index)]: pattern does not compile"
+            )
+        }
     }
 
     /// The exact spelling that was broken, pinned so nobody "simplifies" it back.
@@ -425,40 +431,79 @@ final class ChatEvalScoringTests: XCTestCase {
     // MARK: - Empty corpus (S3)
 
     func test_emptyCorpus_pinsQuoteSemantics() {
-        let index = ChatEvalScoring.QuoteIndex([])
-        XCTAssertTrue(index.isEmpty)
-        XCTAssertFalse(index.contains("the harbor was quiet before the train"))
-        XCTAssertNil(index.quotesCorpus(
+        XCTAssertTrue(emptyIndex.isEmpty)
+        XCTAssertFalse(emptyIndex.contains("the harbor was quiet before the train"))
+        XCTAssertNil(emptyIndex.quotesCorpus(
             "The harbor was quiet before the first train left the station today."
         ))
 
         let italic = ChatEvalScoring.fabricatedQuotes(
             "Nothing here, but *the invented pottery night* showed up anyway.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertTrue(italic.contains { $0.code == "hall.fabricatedQuote" })
 
         let heading = ChatEvalScoring.fabricatedQuotes(
             "### First pottery class\nI don't see anything.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertTrue(heading.contains { $0.detail.contains("###") })
 
         XCTAssertTrue(ChatEvalScoring.uncitedQuote(
             "The harbor was quiet before the first train left the station today.",
             citations: [],
-            index: index
+            index: emptyIndex
         ).isEmpty)
 
         let bold = ChatEvalScoring.boldNotTheirWords(
             "They called it **invented phrasing** today.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertEqual(bold.map(\.code), ["rule.boldNotTheirWords"])
 
         let plain = "I don't see anything from that stretch. What are you holding onto?"
-        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(plain, index: index).isEmpty)
-        XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: index).isEmpty)
-        XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: index).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(plain, index: emptyIndex).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: emptyIndex).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: emptyIndex).isEmpty)
+    }
+
+    // MARK: - Convo-sim harness (T1)
+
+    func test_hitResponseCap_requiresExactEquality() {
+        XCTAssertFalse(ChatEvalScoring.hitResponseCap(responseTokens: nil, maximumTokens: 128))
+        XCTAssertFalse(ChatEvalScoring.hitResponseCap(responseTokens: 127, maximumTokens: 128))
+        XCTAssertTrue(ChatEvalScoring.hitResponseCap(responseTokens: 128, maximumTokens: 128))
+    }
+
+    func test_convoSimHarnessFields_carriesCountersAndRawBody() {
+        let counters = AskHarnessCounters(
+            refusalCount: 1,
+            guardrailCount: 2,
+            hitResponseCap: true,
+            promptTokens: 900,
+            responseTokens: 128,
+            variant: "core3",
+            contextSize: 4096,
+            promptVersion: "ask-core@20"
+        )
+        let fields = ChatEvalScoring.convoSimHarnessFields(
+            counters: counters,
+            includeRawBody: true,
+            rawBody: "model text before render"
+        )
+        XCTAssertEqual(fields["refusal_count"] as? Int, 1)
+        XCTAssertEqual(fields["guardrail_count"] as? Int, 2)
+        XCTAssertEqual(fields["hit_response_cap"] as? Bool, true)
+        XCTAssertEqual(fields["prompt_tokens"] as? Int, 900)
+        XCTAssertEqual(fields["context_size"] as? Int, 4096)
+        XCTAssertEqual(fields["variant"] as? String, "core3")
+        XCTAssertEqual(fields["prompt_version"] as? String, "ask-core@20")
+        XCTAssertEqual(fields["render_version"] as? String, ReplyRenderer.version)
+        XCTAssertEqual(fields["raw_body"] as? String, "model text before render")
+    }
+
+    func test_convoSimHarnessFields_omitsRawBodyWhenNotRequested() {
+        let fields = ChatEvalScoring.convoSimHarnessFields(counters: .zero, includeRawBody: false)
+        XCTAssertNil(fields["raw_body"])
     }
 }

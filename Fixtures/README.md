@@ -16,8 +16,15 @@ Fixtures/
 ├── gold/
 │   ├── questions.json   ← ≥40 retrieval queries with known-correct entry IDs
 │   └── adversarial.json ← persona-adherence prompts (never answered with advice)
+├── probes/              ← Q9 / safety / injection probe prompts (MEM-326)
+│   ├── q9-benign-hard-topic.json
+│   ├── regulated.json
+│   ├── injection.json
+│   └── multilingual-crisis.json
 └── validate_corpus.py   ← structural validation (counts, IDs, classes, dates)
 ```
+
+Probe corpora are validated by `validate_probes.py` (also run in CI).
 
 ## Entry schema
 

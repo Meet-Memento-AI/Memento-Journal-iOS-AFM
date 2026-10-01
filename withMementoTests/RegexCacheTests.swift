@@ -210,6 +210,7 @@ final class RegexCacheTests: XCTestCase {
             (SafetyClassifier.terrorismPatterns, SafetyClassifier.terrorismRegexes),
             (SafetyClassifier.violencePatterns, SafetyClassifier.violenceRegexes),
             (SafetyClassifier.crisisPatterns, SafetyClassifier.crisisRegexes),
+            (SafetyClassifier.multilingualCrisisPatterns, SafetyClassifier.multilingualCrisisRegexes),
             (SafetyClassifier.hatePatterns, SafetyClassifier.hateRegexes),
             (SafetyClassifier.jailbreakPatterns, SafetyClassifier.jailbreakRegexes),
             (SafetyClassifier.regulatedAdvicePatterns, SafetyClassifier.regulatedAdviceRegexes)

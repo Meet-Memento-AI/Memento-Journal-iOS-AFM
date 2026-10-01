@@ -28,7 +28,7 @@ Executable plan/acceptance: [`specs/025-ci-online-ios-build-gates.md`](../specs/
 | Spec gates (2.0) + store hygiene | `spec-gates.yml` | Yes | `ubuntu-latest` | Constitution / App Store machine checks, fixture corpus |
 | Security | `security.yml` | Yes | `ubuntu-latest` | gitleaks, dependency-review; Sonar when configured |
 | iOS build (online) | `ios-build-online.yml` | Yes | `xcode-27` (hosted) | Build specs + mockable unit tests + size gate; **not** live FM generation |
-| Device / eval | `ios-device-eval.yml` | **No** | self-hosted macOS (optional) | On-device model, Spotlight spikes, Evaluations harness |
+| Device / eval | `ios-device-eval.yml` | **When behavioural** (PR + `detect_behavioural_change.sh`) | self-hosted macOS | On-device gate slice (`run_mac_eval.sh`), spikes, eval harness |
 
 **iOS build specifications (online job contract):** scheme `withMemento`;
 destination `platform=iOS Simulator,name=iPhone 17,OS=latest` (overridable);
@@ -43,7 +43,7 @@ on fitted and held-out gold).
 |--------|---------|-------|
 | `ubuntu-latest` | `spec-gates.yml`, `security.yml` | Python 3, curl, git preinstalled; gitleaks installed per run |
 | `xcode-27` | `ios-build-online.yml` | GitHub's Xcode 27 image ([runner-images#14404](https://github.com/actions/runner-images/issues/14404)), still a *preview* label. The Xcode 26.x images **cannot compile the app** (iOS 27 FoundationModels APIs). Swap to the GA label via the `IOS_RUNNER` variable when it ships |
-| `[self-hosted, macOS, ARM64, ios, xcode]` | `ios-device-eval.yml` only | Advisory lane; needs Apple Intelligence hardware, which hosted runners lack. Never trigger it from `pull_request` — this repo is public |
+| `[self-hosted, macOS, ARM64, ios, xcode]` | `ios-device-eval.yml` only | Apple Intelligence hardware. Same-repo PRs only (fork PRs skip the Mac job). Behavioural PRs block merge; schedule/dispatch stay advisory |
 
 ### Device classes for model evals (spec 051 R6)
 
@@ -87,5 +87,6 @@ API keys.
 - **`xcode-27` preview capacity** can queue for a while (GitHub's note on the
   preview). A job that is merely slow is fine; if the label is withdrawn, set
   `IOS_RUNNER` to its successor rather than editing the workflow.
-- **Self-hosted device lane down** → only `ios-device-eval.yml` is affected, and it
-  is advisory.
+- **Self-hosted device lane down** → behavioural PRs cannot merge until the
+  runner is back; non-behavioural PRs still pass via the skip step. Scheduled
+  runs remain advisory.
