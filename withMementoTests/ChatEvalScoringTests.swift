@@ -465,8 +465,6 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(plain, index: emptyIndex).isEmpty)
         XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: emptyIndex).isEmpty)
         XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: emptyIndex).isEmpty)
-<<<<<<< HEAD
-=======
     }
 
     func test_turnKindMismatch_isReportOnly() {
@@ -474,7 +472,6 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertEqual(v.map(\.code), ["route.turnKindMismatch"])
         XCTAssertTrue(ChatEvalScoring.reportOnlyCodes.contains("route.turnKindMismatch"))
         XCTAssertTrue(ChatEvalScoring.gating(v).isEmpty)
->>>>>>> origin/main
     }
 
     // MARK: - Convo-sim harness (T1)
