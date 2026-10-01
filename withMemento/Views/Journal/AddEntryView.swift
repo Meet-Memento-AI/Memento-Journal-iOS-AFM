@@ -181,21 +181,10 @@ public struct AddEntryView: View {
 
     private var hasCoverPhoto: Bool { photoPreviewImage != nil }
 
-    /// Ink on Liquid Glass chrome. Black is the default — the material
-    /// already frosts the capsule, so it holds dark glyphs on almost any
-    /// cover. White only when the treated surface is so dark that black
-    /// would fall below the UI-component contrast floor.
-    private var chromeForeground: Color {
-        if hasCoverPhoto,
-           JournalBackdropContrast.prefersWhiteChromeGlyphs(
-               sample: photoSample,
-               params: editorBackdropParameters,
-               scrimFactor: shaderRevealProgress
-           ) {
-            return BaseColors.white
-        }
-        return BaseColors.black
-    }
+    /// Ink on Liquid Glass chrome: black in light mode, white in dark,
+    /// whatever the cover. The material frosts the capsule, so one fixed
+    /// ink per appearance reads on any photo and never flips between covers.
+    private var chromeForeground: Color { theme.foreground }
 
     private var titleForeground: Color {
         hasCoverPhoto ? BaseColors.white : theme.foreground
@@ -616,7 +605,7 @@ public struct AddEntryView: View {
     private var titleField: some View {
         TextField("", text: $title, axis: .vertical)
             .font(type.h3)
-            .foregroundStyle(titleForeground)
+            .photoCoverForeground(titleForeground, shadowed: hasCoverPhoto)
             .tint(isViewingExisting ? .clear : titleForeground)
             .focused($focusedField, equals: .title)
             .textInputAutocapitalization(.words)
@@ -657,6 +646,13 @@ public struct AddEntryView: View {
                 .font(type.inputLarge)
                 .lineSpacing(editorBodyLineSpacing)
                 .foregroundStyle(bodyForeground)
+                // Clear without a cover, so the view type stays the same.
+                .shadow(
+                    color: hasCoverPhoto ? Shadows.photoText.color : .clear,
+                    radius: Shadows.photoText.radius,
+                    x: Shadows.photoText.x,
+                    y: Shadows.photoText.y
+                )
                 .tint(isViewingExisting ? .clear : titleForeground)
                 .focused($focusedField, equals: .body)
                 .scrollContentBackground(.hidden)
