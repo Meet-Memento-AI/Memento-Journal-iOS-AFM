@@ -39,8 +39,8 @@
             <li><strong>There is no account and no sign-in.</strong> We do not know who you are.</li>
             <li><strong>Your journal is not uploaded to us.</strong> We have no server copy and no way to read your entries.</li>
             <li><strong>The AI companion runs on your device.</strong> Your entries are not sent to us or to any third-party AI service.</li>
-            <li><strong>There are no analytics SDKs, no advertising, and no tracking.</strong> The app links no third-party code.</li>
-            <li><strong>Three things do leave the device</strong>, and each is described below: a place name lookup (to Apple), an iCloud copy of your journal (to <em>your</em> iCloud account), and quality feedback you choose to send us.</li>
+            <li><strong>There are no analytics SDKs, no advertising, and no tracking.</strong> The app links one third-party library, RevenueCat, and only to run subscriptions. It never sees your journal.</li>
+            <li><strong>Four things do leave the device</strong>, and each is described below: a place name lookup (to Apple), an iCloud copy of your journal (to <em>your</em> iCloud account), quality feedback you choose to send us, and — if you subscribe — your purchase status.</li>
         </ul>
     </div>
 
@@ -134,10 +134,20 @@
     </ul>
     <p>If the device is offline at the time, the erase request is held and sent on the next launch. You can also email us and we will delete it manually.</p>
 
+    <h2>7a. Subscriptions, if you buy one</h2>
+    <p>Memento Pro is optional. If you never subscribe, nothing in this section happens.</p>
+    <p>Purchases are processed by <strong>Apple</strong> through the App Store. We never see or hold your payment details, and we are never told your name, email address, or Apple account.</p>
+    <p>To know whether your subscription is active, the app uses <strong>RevenueCat</strong> as our processor. RevenueCat receives an <strong>anonymous identifier it generates itself</strong> — not an account, not an email address, and nothing from your journal — together with the purchase status Apple reports: which product you bought, when it renews, and whether it is active. That is the whole of it.</p>
+    <ul>
+        <li>This is recorded in our App Store privacy label as <strong>Purchases → Purchase History</strong>, <strong>not linked to your identity</strong> and <strong>not used for tracking</strong>.</li>
+        <li>Your entries, chats, photos, and voice recordings are never sent to RevenueCat.</li>
+        <li>Restoring a purchase on a new device uses the same anonymous identifier and your Apple account; it does not create a profile of you.</li>
+    </ul>
+
     <h2>8. What we do not do</h2>
     <ul>
         <li><strong>No accounts.</strong> No email address, no sign-in, no user ID.</li>
-        <li><strong>No analytics or crash SDKs.</strong> The app links no third-party libraries at all. Any crash reports you send are sent by iOS to Apple, under your own iOS settings, and we see only what Apple shows every developer — aggregate, anonymous crash traces.</li>
+        <li><strong>No analytics or crash SDKs.</strong> The one third-party library the app links is RevenueCat, and it exists only to manage subscriptions (section 9a). There is no analytics, attribution, or crash SDK. Any crash reports you send are sent by iOS to Apple, under your own iOS settings, and we see only what Apple shows every developer — aggregate, anonymous crash traces.</li>
         <li><strong>No tracking.</strong> We do not track you across apps or websites, and we do not use App Tracking Transparency because there is nothing to ask you about.</li>
         <li><strong>No advertising, and no sale or sharing of personal information</strong> — including no "sale" or "sharing" as those terms are defined under California law.</li>
     </ul>
