@@ -211,6 +211,8 @@ jobs:
         # honesty-scrub leak. Guards the one real 2.0 asset that specs 016 R8's
         # recall@5 gate and 022's harness both consume.
         run: python3 Fixtures/validate_corpus.py
+      - name: Validate Ask probe corpora (MEM-326 / Q9)
+        run: python3 Fixtures/validate_probes.py
       - name: Guard against a stale resolved gold set
         # The validator regenerates Fixtures/gold/questions.resolved.json from the
         # corpus; if the committed copy drifted, fail with guidance instead of
