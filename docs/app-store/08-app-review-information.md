@@ -86,7 +86,10 @@ reviewer can tick items off:
 must be described with specificity… Generic descriptions rejected"* — so the
 feature list is rewritten every release and never carried forward.
 
-**No IAP section is needed while 1.x ships free.** `DEC-004` and `specs/021` are
+**Superseded 2026-10-01: an IAP section IS needed.** 1.x ships Memento Pro, so
+the notes must say what is free, what Pro unlocks, and how a reviewer reaches
+the paywall without buying — see `metadata/en-US/review_notes.txt` §1. The
+paragraph below applied only while the app shipped free. `DEC-004` and `specs/021` are
 2.0. If a subscription ever ships, 2.1(b) requires product identifiers, the
 paywall location, and Ready-to-Submit confirmation to be added here.
 

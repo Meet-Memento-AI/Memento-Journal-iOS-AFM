@@ -49,7 +49,7 @@ moment it makes the most sense.
 | Step order | Name → Learn about yourself → Themes → app lock → loading | `OnboardingCoordinatorView.swift:16-23`, PRES-061 |
 | First entry | None. Onboarding ends on an empty journal with **Write your first entry** | 023 R3, PRES-063, 038 |
 | Chat in onboarding | None | — |
-| Paywall | Only on locked surfaces. Switched off (`RevenueCatConfig.isPaywallEnabled = false`) | 021 R4, `ProGate.swift` |
+| Paywall | Only on locked surfaces. **Switched ON** (`RevenueCatConfig.isPaywallEnabled = true`, 2026-09-30) | 021 R4, `ProGate.swift` |
 | Notifications | Two in total: an opt-in daily reminder (off by default) and weekly-ready. Never requested in onboarding | 019 R8, `NotificationServiceTests.test_exactlyTwoIdentifiers` |
 | Lock Screen widget | A view (`MementoLockWidgetView`) with **no WidgetKit extension target** | 020 R4, `project.pbxproj` |
 

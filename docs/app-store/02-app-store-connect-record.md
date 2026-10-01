@@ -75,7 +75,7 @@ an individual developer."* Memento is enrolled as an individual. **Lifestyle**
 | **App Previews** | Optional for 1.0 | ☐ `04` §6 |
 | **App Review Information** | contact, notes, attachments | ☐ `08` |
 | **Version Release option** | **Manually release this version** | ☐ `10` §3 |
-| **Price and tax category** | Free **or** paid download (no IAP) | 1.x; subscription `DEC-004` deferred. `13` |
+| **Price and tax category** | Free download **plus** the Memento Pro auto-renewable subscription | **Corrected 2026-10-01**: 1.x has IAP (`68553fc`). Prices per `DEC-015`. Blocked on A2. `13` |
 | **Availability / territories** | Exclude mainland China; 1.x default also exclude EU | `05` §7, `10`, `13` |
 
 ---
