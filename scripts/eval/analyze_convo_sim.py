@@ -104,7 +104,11 @@ def violated(row: dict, *, include_report_only: bool = False) -> bool:
     """
     for violation in row.get("violations", []):
         code = violation["code"]
-        if not include_report_only and (code.startswith("gen.") or code in REPORT_ONLY_CODES):
+        if not include_report_only and (
+            code.startswith("gen.")
+            or code.startswith("conv.")
+            or code in REPORT_ONLY_CODES
+        ):
             continue
         return True
     return False
@@ -170,6 +174,17 @@ def report(path: Path) -> None:
         per = [counter[arm][code] for arm in arms]
         codes.append((code, *per, sum(per)))
     table("Violations by code (occurrences, generated turns only)", codes)
+
+    conv_codes = [("code", *arms, "total")]
+    conv_counter = {arm: collections.Counter(v["code"] for r in generated(rows, arm)
+                                              for v in r.get("violations", [])
+                                              if v["code"].startswith("conv.")) for arm in arms}
+    every_conv = sorted({c for arm in arms for c in conv_counter[arm]})
+    for code in every_conv:
+        per = [conv_counter[arm][code] for arm in arms]
+        conv_codes.append((code, *per, sum(per)))
+    if len(every_conv) > 0:
+        table("Conversation quality (`conv.*`, report-only, generated turns only)", conv_codes)
 
     # --- Rate per arm × channel: 046's 38.3% vs 6.8% comparison
     grid = [("arm", "channel", "generated", "gating violation", "invented material")]
@@ -299,6 +314,11 @@ def report(path: Path) -> None:
 
         counters = [("counter", *arms, "reads as")]
         meaning = {
+            "question_closed": "reply ends with a question (CQ1 telemetry)",
+            "repeated_opening": "first three words match an earlier reply",
+            "hedge_count": "hedge tokens in the reply",
+            "stock_phrase_hit": "stock empathy phrase present",
+            "contraction_present": "spoken contraction present",
             "adopted_quotes": "model wrote pack text verbatim but unmarked",
             "stripped_italics": "model still reached for italics",
             "dropped_quotations": "model quoted something nothing backs — sentence dropped",
@@ -310,8 +330,20 @@ def report(path: Path) -> None:
             "slots": "evidence slots offered to the model",
         }
         for key, note in meaning.items():
-            per = [sum(r["evidence_pack"].get(key, 0)
-                       for r in generated(rows, arm) if r.get("evidence_pack")) for arm in arms]
+            if key in ("question_closed", "repeated_opening", "stock_phrase_hit", "contraction_present"):
+                per = [
+                    sum(
+                        1 for r in generated(rows, arm) if r.get("evidence_pack", {}).get(key)
+                    ) for arm in arms
+                ]
+            elif key == "hedge_count":
+                per = [
+                    sum(r["evidence_pack"].get(key, 0)
+                        for r in generated(rows, arm) if r.get("evidence_pack")) for arm in arms
+                ]
+            else:
+                per = [sum(r["evidence_pack"].get(key, 0)
+                           for r in generated(rows, arm) if r.get("evidence_pack")) for arm in arms]
             counters.append((key, *per, note))
         table("Renderer counters (occurrences)", counters)
 

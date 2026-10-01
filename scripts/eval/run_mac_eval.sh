@@ -21,6 +21,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 PROFILE="${MEMENTO_EVAL_PROFILE:-smoke}"
+# Hosted merge/device-eval lanes set CI_ONLINE=1; tests skip live FM instead of failing.
+ONLINE_CI_LANE="${CI_ONLINE:-}"
 SCHEME="${MEMENTO_EVAL_SCHEME:-withMemento}"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export DEVELOPER_DIR
@@ -71,9 +73,11 @@ case "$PROFILE" in
     ;;
 esac
 
-# Unset merge-lane skip so generation runs when the model is available.
-unset CI_ONLINE
-unset TEST_RUNNER_CI_ONLINE
+# Unset merge-lane skip so generation runs on self-hosted when the model is available.
+if [[ "$ONLINE_CI_LANE" != "1" ]]; then
+  unset CI_ONLINE
+  unset TEST_RUNNER_CI_ONLINE
+fi
 
 rm -rf "$RESULT"
 set -x

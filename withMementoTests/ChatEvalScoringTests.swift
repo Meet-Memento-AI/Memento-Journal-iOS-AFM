@@ -306,6 +306,8 @@ final class ChatEvalScoringTests: XCTestCase {
     /// model inventing journal text. `test_reportOnlyHallucinationCodes_doNotGate`
     /// pins the full set; this one pins that the other families still gate.
     func test_gating_excludesGenAndReportOnlyButIncludesTheRest() {
+        XCTAssertTrue(ChatEvalScoring.gating([.init(code: "conv.unanchored", detail: "")]).isEmpty)
+
         let all: [ChatEvalScoring.Violation] = [
             .init(code: "gen.hitTokenCap", detail: ""),
             .init(code: "hall.fabricatedQuote", detail: ""),

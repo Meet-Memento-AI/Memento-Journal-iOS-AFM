@@ -48,6 +48,12 @@ struct ReplyRenderStats: Sendable, Equatable {
     /// The model's own copy of the Swift-written no-match lead (058 R5).
     var droppedLeadRestatementCount = 0
     var usedFallback = false
+    /// Conversation-quality telemetry (CQ1); counts only, no text.
+    var questionClosed = false
+    var repeatedOpening = false
+    var hedgeCount = 0
+    var stockPhraseHit = false
+    var contractionPresent = false
 
     var logLine: String {
         "pack=\(packState.rawValue) slots=\(slotCount) quotes=\(expandedQuoteSlots.count) "
@@ -58,7 +64,16 @@ struct ReplyRenderStats: Sendable, Equatable {
             + "headings=\(droppedHeadingCount) scaffold=\(strippedScaffoldCount) "
             + "extra_questions=\(droppedQuestionCount) openers=\(strippedOpenerCount) "
             + "lead_restated=\(droppedLeadRestatementCount) "
-            + "fallback=\(usedFallback ? 1 : 0)"
+            + "fallback=\(usedFallback ? 1 : 0) "
+            + "q_closed=\(questionClosed ? 1 : 0) repeat_open=\(repeatedOpening ? 1 : 0) "
+            + "hedges=\(hedgeCount) stock_phrase=\(stockPhraseHit ? 1 : 0) "
+            + "contraction=\(contractionPresent ? 1 : 0)"
+    }
+
+    var perfCounterFields: String {
+        "q_closed=\(questionClosed ? 1 : 0) repeat_open=\(repeatedOpening ? 1 : 0) "
+            + "hedges=\(hedgeCount) stock_phrase=\(stockPhraseHit ? 1 : 0) "
+            + "contraction=\(contractionPresent ? 1 : 0)"
     }
 }
 
@@ -80,18 +95,26 @@ struct RenderedReply: Sendable, Equatable {
 /// quoted back or dated; they are never journal evidence.
 struct RenderContext: Sendable, Equatable {
     let userTexts: [String]
+    /// Prior assistant bubbles in this thread, oldest first.
+    let priorAssistantTexts: [String]
     /// A sentence Swift writes at the front of the reply (`NoMatchLead`).
     let lead: String?
 
     static let empty = RenderContext(userTexts: [])
 
-    init(userTexts: [String], lead: String? = nil) {
+    init(userTexts: [String], priorAssistantTexts: [String] = [], lead: String? = nil) {
         self.userTexts = userTexts
+        self.priorAssistantTexts = priorAssistantTexts
         self.lead = lead
     }
 
     init(question: String, history: [ChatTurn], lead: String? = nil) {
-        self.init(userTexts: [question] + history.reversed().filter { $0.role == .user }.map(\.text), lead: lead)
+        let reversed = history.reversed()
+        self.init(
+            userTexts: [question] + reversed.filter { $0.role == .user }.map(\.text),
+            priorAssistantTexts: reversed.filter { $0.role == .assistant }.map(\.text),
+            lead: lead
+        )
     }
 }
 
@@ -263,6 +286,34 @@ struct RenderPass {
         expansions.contains { $0.kind == .quote && $0.slotIndex == slotIndex }
     }
 
+    private static func conversationTelemetry(
+        body: String, context: RenderContext, stats: ReplyRenderStats
+    ) -> ReplyRenderStats {
+        var stats = stats
+        let turn = ConversationQualityTurn(
+            body: body,
+            latestUserMessage: context.userTexts.first ?? "",
+            priorAssistantBodies: context.priorAssistantTexts,
+            turnType: nil,
+            questionShape: nil,
+            responsePolicy: nil,
+            channel: nil,
+            evidenceState: stats.packState,
+            placedEvidence: !stats.expandedQuoteSlots.isEmpty || !stats.expandedDateSlots.isEmpty,
+            exactRung: stats.packState == .matched,
+            isMetaTurn: false,
+            isCrisisTurn: false,
+            spoken: false
+        )
+        let telemetry = ConversationQuality.telemetry(for: turn)
+        stats.questionClosed = telemetry.questionClosed
+        stats.repeatedOpening = telemetry.repeatedOpening
+        stats.hedgeCount = telemetry.hedgeCount
+        stats.stockPhraseHit = telemetry.stockPhraseHit
+        stats.contractionPresent = telemetry.contractionPresent
+        return stats
+    }
+
     // MARK: Finish
 
     func finish(_ glue: String, isFinal: Bool, rawHadWords: Bool) -> RenderedReply {
@@ -316,6 +367,7 @@ struct RenderPass {
         body = RenderText.replacing(RenderText.regex(#"([.!?…])\*([.!?])"#), in: body) { groups in
             groups[1] + "*"
         }
+        stats = Self.conversationTelemetry(body: body, context: context, stats: stats)
         if isFinal, rawHadWords, !RenderText.hasContent(body) {
             stats.usedFallback = true
             stats.expandedQuoteSlots = []
