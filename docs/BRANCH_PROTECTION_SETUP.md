@@ -10,7 +10,10 @@ Use this checklist to enforce the main + dev model and required online CI gates
   - `.github/workflows/ios-build-online.yml`
   - `.github/workflows/security.yml`
   - `.github/workflows/spec-gates.yml`
-- Optional (never required): `.github/workflows/ios-device-eval.yml`
+- Optional advisory: scheduled/dispatch `ios-device-eval.yml`
+- **Required for behavioural PRs (Ask 100 plan):** check name **`iOS device gate`**
+  from `ios-device-eval.yml` — non-behavioural PRs skip the Mac work and still
+  go green (`scripts/ci/detect_behavioural_change.sh`)
 
 ## Required branch rules: dev
 
@@ -36,7 +39,8 @@ Add required status checks (names must match `jobs.*.name`):
 - `Secret scanning`
 
 Remove any stale required check named `iOS quality gates` (replaced by
-`iOS build (online)`). Do not require `iOS device / eval`.
+`iOS build (online)`). Add **`iOS device gate`** (behavioural PRs only; skip path
+for others). Do not use the old name `iOS device / eval`.
 
 ## Required branch rules: main
 
@@ -67,4 +71,5 @@ Run these checks after configuration:
 2. Open a PR from `dev` to `main` and verify required checks and approval gates.
 3. Attempt a direct push to `dev` and `main` and confirm it is rejected.
 4. Merge a PR to `dev` and verify `ios-build-online`, `security`, and
-   `spec-gates` run; confirm `ios-device-eval` is not required.
+   `spec-gates` run; confirm `iOS device gate` passes on behavioural PRs and
+   skips cleanly on docs-only PRs.

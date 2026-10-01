@@ -466,4 +466,44 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertTrue(ChatEvalScoring.reportOnlyCodes.contains("route.turnKindMismatch"))
         XCTAssertTrue(ChatEvalScoring.gating(v).isEmpty)
     }
+
+    // MARK: - Convo-sim harness (T1)
+
+    func test_hitResponseCap_requiresExactEquality() {
+        XCTAssertFalse(ChatEvalScoring.hitResponseCap(responseTokens: nil, maximumTokens: 128))
+        XCTAssertFalse(ChatEvalScoring.hitResponseCap(responseTokens: 127, maximumTokens: 128))
+        XCTAssertTrue(ChatEvalScoring.hitResponseCap(responseTokens: 128, maximumTokens: 128))
+    }
+
+    func test_convoSimHarnessFields_carriesCountersAndRawBody() {
+        let counters = AskHarnessCounters(
+            refusalCount: 1,
+            guardrailCount: 2,
+            hitResponseCap: true,
+            promptTokens: 900,
+            responseTokens: 128,
+            variant: "core3",
+            contextSize: 4096,
+            promptVersion: "ask-core@20"
+        )
+        let fields = ChatEvalScoring.convoSimHarnessFields(
+            counters: counters,
+            includeRawBody: true,
+            rawBody: "model text before render"
+        )
+        XCTAssertEqual(fields["refusal_count"] as? Int, 1)
+        XCTAssertEqual(fields["guardrail_count"] as? Int, 2)
+        XCTAssertEqual(fields["hit_response_cap"] as? Bool, true)
+        XCTAssertEqual(fields["prompt_tokens"] as? Int, 900)
+        XCTAssertEqual(fields["context_size"] as? Int, 4096)
+        XCTAssertEqual(fields["variant"] as? String, "core3")
+        XCTAssertEqual(fields["prompt_version"] as? String, "ask-core@20")
+        XCTAssertEqual(fields["render_version"] as? String, ReplyRenderer.version)
+        XCTAssertEqual(fields["raw_body"] as? String, "model text before render")
+    }
+
+    func test_convoSimHarnessFields_omitsRawBodyWhenNotRequested() {
+        let fields = ChatEvalScoring.convoSimHarnessFields(counters: .zero, includeRawBody: false)
+        XCTAssertNil(fields["raw_body"])
+    }
 }

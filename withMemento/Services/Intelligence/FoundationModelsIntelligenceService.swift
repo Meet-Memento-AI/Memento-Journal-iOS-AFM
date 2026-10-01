@@ -347,6 +347,18 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// Content-free last-turn perf for diagnostics (`DiagLatencyProfile`).
     private var lastTurnPerf: AskTurnPerf?
 
+    /// Per-turn harness counters for convo-sim (T1). Cleared at each ask start.
+    private struct TurnHarnessScratch {
+        var refusals = 0
+        var guardrails = 0
+        var responseTokens: Int?
+        var maximumResponseTokens = 0
+        var promptVersion = ""
+    }
+
+    private var turnHarness = TurnHarnessScratch()
+    private var lastAskHarness: AskHarnessCounters?
+
     /// Consumes the speculative session iff its plan fingerprint matches.
     /// Pool keys carry the model tier (spec 051 R2), so a session prewarmed
     /// before the tier resolved is never adopted as if it were resolved.
@@ -388,6 +400,108 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         let value = lastTurnPerf
         lastTurnPerf = nil
         return value
+    }
+
+    /// Last turn's harness counters, including failed generations. Consumed once.
+    func consumeLastAskHarness() -> AskHarnessCounters? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        let value = lastAskHarness
+        lastAskHarness = nil
+        return value
+    }
+
+    /// Variant and window for rows that did not call the model (user turns).
+    func ambientHarnessSnapshot(promptVersion: String = "") -> AskHarnessCounters {
+        AskHarnessCounters(
+            refusalCount: 0,
+            guardrailCount: 0,
+            hitResponseCap: false,
+            promptTokens: nil,
+            responseTokens: nil,
+            variant: Self.harnessVariantLabel(),
+            contextSize: Self.harnessContextSize(),
+            promptVersion: promptVersion
+        )
+    }
+
+    private func beginTurnHarness(promptVersion: String, maximumResponseTokens: Int) {
+        stateLock.lock()
+        turnHarness = TurnHarnessScratch(
+            refusals: 0,
+            guardrails: 0,
+            responseTokens: nil,
+            maximumResponseTokens: maximumResponseTokens,
+            promptVersion: promptVersion
+        )
+        lastAskHarness = nil
+        stateLock.unlock()
+    }
+
+    private func noteTurnRefusal() {
+        stateLock.lock()
+        turnHarness.refusals += 1
+        stateLock.unlock()
+    }
+
+    private func noteTurnGuardrail() {
+        stateLock.lock()
+        turnHarness.guardrails += 1
+        stateLock.unlock()
+    }
+
+    private func noteResponseUsage(from value: Any) {
+        guard let tokens = Self.responseTokens(from: value) else { return }
+        stateLock.lock()
+        turnHarness.responseTokens = tokens
+        stateLock.unlock()
+    }
+
+    private static func recordResponseUsage(from value: Any) {
+        shared.noteResponseUsage(from: value)
+    }
+
+    private func storeAskHarness(_ counters: AskHarnessCounters) {
+        stateLock.lock()
+        lastAskHarness = counters
+        stateLock.unlock()
+    }
+
+    private func buildHarnessCounters(promptTokens: Int?) -> AskHarnessCounters {
+        stateLock.lock()
+        let scratch = turnHarness
+        stateLock.unlock()
+        let hitCap = scratch.responseTokens != nil
+            && scratch.maximumResponseTokens > 0
+            && scratch.responseTokens == scratch.maximumResponseTokens
+        return AskHarnessCounters(
+            refusalCount: scratch.refusals,
+            guardrailCount: scratch.guardrails,
+            hitResponseCap: hitCap,
+            promptTokens: promptTokens,
+            responseTokens: scratch.responseTokens,
+            variant: Self.harnessVariantLabel(),
+            contextSize: Self.harnessContextSize(),
+            promptVersion: scratch.promptVersion
+        )
+    }
+
+    private static func harnessVariantLabel() -> String {
+        #if compiler(>=6.3)
+        if #available(iOS 27.0, *) {
+            let variant = onDeviceModel().variant
+            if variant == .coreAdvanced3 { return "coreAdvanced3" }
+            if variant == .core3 { return "core3" }
+            return String(describing: variant)
+        }
+        #endif
+        return OnDeviceModelTierCache.shared.current.tier.rawValue
+    }
+
+    private static func harnessContextSize() -> Int? {
+        switch currentWindow() {
+        case .reported(let tokens): return tokens
+        case .unavailable: return nil
+        }
     }
 
     private func recordTurnPerf(promptVersion: String, channel: ReplyChannel, speculativeHit: Bool) {
@@ -494,10 +608,14 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             // *run* is infrastructure, not a judgement about what the person
             // wrote, and must stay retryable rather than becoming a permanent
             // "I don't have an observation for this one."
-            mapped = Self.isInfrastructureFailure(String(reflecting: violation))
-                ? .generationFailed(error.localizedDescription)
-                : .guardrailRefusal
+            if Self.isInfrastructureFailure(String(reflecting: violation)) {
+                mapped = .generationFailed(error.localizedDescription)
+            } else {
+                noteTurnGuardrail()
+                mapped = .guardrailRefusal
+            }
         case .refusal:
+            noteTurnRefusal()
             mapped = .guardrailRefusal
         case .contextSizeExceeded:
             mapped = .generationFailed("Context window exceeded: \(error.localizedDescription)")
@@ -515,6 +633,11 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     private func mapGenerationErrorTrackingOutage(
         _ error: LanguageModelSession.GenerationError
     ) -> IntelligenceError {
+        switch error {
+        case .guardrailViolation: noteTurnGuardrail()
+        case .refusal: noteTurnRefusal()
+        default: break
+        }
         return recordOutcome(Self.mapGenerationError(error))
     }
 
@@ -871,6 +994,32 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         return nil
     }
 
+    /// `Usage.Output.totalTokenCount` when the response or snapshot exposes it.
+    private static func responseTokens(from value: Any) -> Int? {
+        let mirror = Mirror(reflecting: value)
+        for child in mirror.children where child.label == "usage" {
+            return responseTokensFromUsage(child.value)
+        }
+        return responseTokensFromUsage(value)
+    }
+
+    private static func responseTokensFromUsage(_ usage: Any) -> Int? {
+        let mirror = Mirror(reflecting: usage)
+        for child in mirror.children {
+            if child.label == "output" {
+                for field in Mirror(reflecting: child.value).children {
+                    if field.label == "totalTokenCount" {
+                        return field.value as? Int
+                    }
+                }
+            }
+            if child.label == "totalTokenCount" {
+                return child.value as? Int
+            }
+        }
+        return nil
+    }
+
     // MARK: Ask
 
     /// Everything the model call needs, computed once and shared by the
@@ -943,6 +1092,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         clock: ContinuousClock
     ) -> AskResult {
         let facts = InsightEngine.answer(query: core.question, entries: entries)
+        beginTurnHarness(promptVersion: "insight-fact@1", maximumResponseTokens: 0)
+        let harness = buildHarnessCounters(promptTokens: nil)
+        storeAskHarness(harness)
         if facts.count == 1, facts[0].value == InsightEngine.unsupportedCopy {
             return AskResult(
                 heading1: nil,
@@ -954,7 +1106,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                 promptVersion: "insight-fact@1",
                 modelIdentifier: "swift",
                 latency: clock.now - started,
-                facts: []
+                facts: [],
+                harness: harness
             )
         }
         return AskResult(
@@ -967,7 +1120,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             promptVersion: "insight-fact@1",
             modelIdentifier: "swift",
             latency: clock.now - started,
-            facts: facts
+            facts: facts,
+            harness: harness
         )
     }
 
@@ -1377,6 +1531,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         entryCount: prep.retrieval.entries.count,
                         promptTokens: promptTokens, cachedTokens: cachedTokens,
                         tools: toolsCalled)
+        let harness = buildHarnessCounters(promptTokens: promptTokens)
+        storeAskHarness(harness)
         return AskResult(
             heading1: heading1?.isEmpty == true ? nil : heading1,
             heading2: heading2?.isEmpty == true ? nil : heading2,
@@ -1389,7 +1545,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             latency: latency,
             toolsCalled: toolsCalled,
             chips: rendered.chips,
-            renderStats: rendered.stats
+            renderStats: rendered.stats,
+            rawBody: body,
+            harness: harness
         )
     }
 
@@ -1432,6 +1590,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             channel: prep.channel,
             speculativeHit: prepared.adopted.hit
         )
+        beginTurnHarness(
+            promptVersion: prep.request.promptVersion,
+            maximumResponseTokens: prep.generationOptions.maximumResponseTokens ?? 0
+        )
         do {
             let (body, citedRefs) = try await Self.respondToAsk(
                 session: prepared.adopted.session,
@@ -1451,6 +1613,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             )
         } catch {
             let mapped = (error as? IntelligenceError) ?? mapAnyGenerationError(error)
+            storeAskHarness(buildHarnessCounters(promptTokens: nil))
             if let recovered = await recoverOrdinaryRefusal(
                 mapped: mapped, core: core, question: question, clock: clock, started: started
             ) {
@@ -1646,6 +1809,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         Attachment(item.image).label(item.label)
                     }
                 }
+                recordResponseUsage(from: response)
                 return response.content
             }
         }
@@ -1664,6 +1828,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             options: options
         )
         #endif
+        recordResponseUsage(from: response)
         return response.content
     }
 
@@ -1842,6 +2007,10 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                         channel: prep.channel,
                         speculativeHit: prepared.adopted.hit
                     )
+                    beginTurnHarness(
+                        promptVersion: prep.request.promptVersion,
+                        maximumResponseTokens: prep.generationOptions.maximumResponseTokens ?? 0
+                    )
 
                     LiveTurnClock.shared.start(.modelFirstToken)
                     let ttftState = signposter.beginInterval("model.ttft", id: spid)
@@ -1954,6 +2123,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                         // cached count, not the snapshot.
                                         let cached: Int? = Self.cachedTokens(from: snapshot)
                                         cachedLock.withLock { $0 = $0 ?? cached }
+                                        Self.recordResponseUsage(from: snapshot)
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: [])
                                     }
                                 } else {
@@ -1965,6 +2135,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                     for try await snapshot in stream {
                                         let cached: Int? = Self.cachedTokens(from: snapshot)
                                         cachedLock.withLock { $0 = $0 ?? cached }
+                                        Self.recordResponseUsage(from: snapshot)
                                         let refs = snapshot.content.citedRefs ?? nil
                                         try emitDelta(body: snapshot.content.body ?? "", citedRefs: refs)
                                     }
@@ -2016,6 +2187,7 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                     continuation.finish()
                 } catch {
                     let mapped = (error as? IntelligenceError) ?? self.mapAnyGenerationError(error)
+                    self.storeAskHarness(self.buildHarnessCounters(promptTokens: nil))
                     if let core = coreForRetry, let recovered = await self.recoverOrdinaryRefusal(
                         mapped: mapped, core: core, question: question, clock: clock, started: started
                     ) {
@@ -2227,23 +2399,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// promises nearby entries it does not have, whatever the caller passed.
     /// The model has no clock. Without this it cannot resolve "last Tuesday",
     /// "yesterday" or "this week" against the dated entries in the context
-    /// block, so it guesses — and a guessed date in a journal reads as fact.
-    ///
-    /// Measured on the 2026-09-20 study: 90 of 3,119 generated replies asserted
-    /// a specific date, 14 of them on the arm with **no journal at all**,
-    /// including "I don't see anything from that stretch — the entry from
-    /// March 12 shows a spike in missed classes". It invented a dated entry in
-    /// the same sentence that admitted it had none.
-    ///
-    /// Same format as `EntryRetriever.formattedDate` plus the weekday, so the
-    /// model can compare this line against `[ref N | March 12, 2026]` directly
-    /// and resolve a weekday name without arithmetic it cannot do.
     static func todayLine(now: Date = Date(), calendar: Calendar = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return "Today is \(formatter.string(from: now))."
+        TurnPromptAssembler.todayLine(now: now, calendar: calendar)
     }
 
     /// The Swift-written opening for this turn, if the stance the prompt
@@ -2259,11 +2416,9 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     static func stanceMatchingEvidence(
         _ stance: TurnStance, hasEvidenceBlock: Bool, archiveEmpty: Bool = false
     ) -> TurnStance {
-        if archiveEmpty { return stance }
-        switch stance {
-        case .nearbyOnly where !hasEvidenceBlock: return .noMatch
-        default: return stance
-        }
+        TurnPromptAssembler.stanceMatchingEvidence(
+            stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
+        )
     }
 
     static func buildAskPrompt(question: String, history: [ChatTurn], retrieval: RetrievalResult,
@@ -2283,196 +2438,30 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        retracted: [String] = [],
                                        interpretationCut: Bool = false,
                                        evidencePack: EvidencePack? = nil) -> String {
-        // Spec 039 ranks 0–2 + redirect: Move cue + latest message + optional
-        // don't-repeat. No [Turn:] / [Shape:] stack, no evidence. Names ride
-        // The name cue only when the channel omits L1 (phatic / continuer / redirect).
-        if channel.usesShortAssembler {
-            let fallbackMove: ConversationalMove = channel.usesLightPrompt
-                ? .greetAndAsk : .reflectAndAsk
-            let cue = move?.cueLine ?? fallbackMove.cueLine
-            var light: [String] = [cue, Self.todayLine()]
-            if safetyConstrained {
-                light.insert(SafetyRouter.constrainedStanceLine, at: 0)
-            }
-            let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
-            let skipName = move?.avoidsName == true || usedNameLastTurn
-            if channel.omitsLens {
-                if !skipName, let name = personalization.nameCueLine {
-                    light.append(name)
-                }
-                if skipName, personalization.spokenName != nil {
-                    light.append(PromptPersonalization.nameSkipLine)
-                }
-            }
-            if spoken, (channel == .continuer || channel.usesCompanionPrompt),
-               let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
-                light.append(answering)
-            }
-            if let anti = ConversationalMove.antiRepeatLine(from: history) {
-                light.append(anti)
-            }
-            light.append("The person's latest message: \(question)")
-            if let policy {
-                light.append(PromptRegistry.policySuffix(policy, interpretationCut: interpretationCut))
-            }
-            if let retractedLine = RetractedClaims.promptLine(
-                claims: retracted, interpretationCut: interpretationCut
-            ) {
-                light.append(retractedLine)
-            }
-            return light.joined(separator: "\n\n")
-        }
-
-        // The stance line is the first thing the model reads for this turn —
-        // the deterministic instruction that stops it from grounding casual
-        // conversation in journal entries. Spec 037 / 039: [Shape:] says how
-        // to Open; Open is required. Light channels skip this stack.
-        //
-        // `.nearbyOnly` promises the model that nearby entries are in front of
-        // it. If the block is not actually going to be rendered — a journal
-        // question on a channel that does not retrieve, or a pool slice that
-        // emptied (`sliceRetrieval`) — that promise is the contradiction in the
-        // other direction, so the stance falls back to the honest-empty copy.
-        // Every line below reads `effectiveStance`, never `stance`.
-        // A miss does not carry the nearest entry. Quoting it and then denying
-        // it is the cite-then-deny hedge. The pack makes that call (spec 050),
-        // so the prompt and the renderer agree on what evidence exists; the
-        // live path passes the same pack it renders with.
-        let pack = evidencePack ?? EvidencePackBuilder.build(
-            retrieval: retrieval, stance: stance, channel: channel, archiveEmpty: archiveEmpty
+        let assembled = TurnPromptAssembler.plan(
+            question: question,
+            history: history,
+            retrieval: retrieval,
+            stance: stance,
+            shape: shape,
+            archiveEmpty: archiveEmpty,
+            safetyConstrained: safetyConstrained,
+            imageCount: imageCount,
+            historyImageCount: historyImageCount,
+            canSeeImages: canSeeImages,
+            visionBlock: visionBlock,
+            channel: channel,
+            move: move,
+            personalization: personalization,
+            spoken: spoken,
+            computedFacts: computedFacts,
+            policy: policy,
+            retracted: retracted,
+            interpretationCut: interpretationCut,
+            evidencePack: evidencePack
         )
-        let hasEvidenceBlock = pack.carriesEvidence
-        let effectiveStance = Self.stanceMatchingEvidence(
-            stance, hasEvidenceBlock: hasEvidenceBlock, archiveEmpty: archiveEmpty
-        )
-        var parts: [String] = [effectiveStance.promptLine, Self.todayLine()]
-        if NoMatchLead.applies(to: effectiveStance, channel: channel) {
-            parts.append(NoMatchLead.promptLine)
-        }
-        if channel == .notebook || channel == .thread {
-            let shipped = hasEvidenceBlock ? retrieval : .empty
-            let rung = EvidenceLadder.rung(stance: effectiveStance, retrieval: shipped, question: question)
-            parts.append(EvidenceLadder.promptLine(rung, retrieval: shipped, pack: pack))
-        }
-        let grounded = effectiveStance.isGrounded(retrieval: retrieval)
-        if let overlay = TurnShapeCadence.overlayLine(shape: shape, stance: effectiveStance,
-                                                      isGrounded: grounded) {
-            parts.append(overlay)
-        }
-        if spoken {
-            parts.append(PromptRegistry.spokenTurnShapeLine)
-            if let answering = ConversationalMove.answeringLastQuestionLine(from: history) {
-                parts.append(answering)
-            }
-            if let anti = ConversationalMove.antiRepeatLine(from: history) {
-                parts.append(anti)
-            }
-        }
-        if safetyConstrained {
-            parts.insert(SafetyRouter.constrainedStanceLine, at: 0)
-        }
-        let usedNameLastTurn = personalization.lastAssistantTurnContainsName(history)
-        let skipName = move?.avoidsName == true || usedNameLastTurn
-        // Redirect still gets the name cue (no L1). Companion/notebook keep names
-        // in L1 only — never stack a second cue. Skip the cue when this
-        // beat avoids names or the last reply already used one.
-        if channel.omitsLens, !skipName, let name = personalization.nameCueLine {
-            parts.append(name)
-        }
-        if channel == .notebook, let computed = ComputedFactsBlock.render(computedFacts) {
-            parts.append(computed)
-        }
-        if hasEvidenceBlock {
-            // Frame as optional evidence so the model does not treat the block
-            // as a script to paraphrase ("you wrote this, this, and this").
-            //
-            // Ambient retrieval is the hard case: it ships the full text of
-            // recent entries, so a journal question with no topical hit used to
-            // be told "say you don't see anything from that stretch" while
-            // holding five quotable entries. The model resolved that
-            // contradiction by doing both — denying the topic and then
-            // paraphrasing the entries anyway. Reported most often at cold
-            // start, where a three-entry journal almost always lands here.
-            //
-            // The fix is to stop giving a contradictory instruction. Ambient is
-            // now its own stance (`.nearbyOnly`), and its framing says the true
-            // thing: nothing here is on topic, and you may name the nearest
-            // entry *as* a near-miss. `.noMatch` keeps the flat denial and is
-            // now reachable only where the prompt genuinely carries no evidence
-            // (the `else if` below).
-            //
-            // NOTE (2026-08-23): withholding the text entirely was tried here
-            // and reverted. It fixed the bait cases outright — 8/8 no-match
-            // turns stopped quoting and stopped citing — but broke ordinary
-            // recall in the same run: "How have I been sleeping?", "What did I
-            // write about the hike?" and "What happened with Priya?" all came
-            // back "I don't see anything from that stretch" against a journal
-            // that answers all three. That revert still stands: every character
-            // of the ambient text stays in the prompt. Only the instruction
-            // that contradicted it changed.
-            let framing = "Journal entries for this turn (use only what this turn needs; do not summarize all of them):\n"
-            parts.append(framing + EvidencePack.promptContextBlock(retrieval.contextBlock))
-        } else if effectiveStance == .noMatch || grounded {
-            if archiveEmpty {
-                parts.append("There are no journal entries yet.")
-            } else {
-                parts.append("No journal entries matched this topic.")
-            }
-        }
-        if let legend = pack.promptLegend(channel: channel) {
-            parts.append(legend)
-        }
-        // Casual / about-app / outside-scope / sharing-without-context turns get
-        // no journal block at all — the stance line already says how to reply.
-        // History no longer renders here (spec 029 Amendment A): it rides the
-        // session transcript as real turns (AskTranscriptPlan), where its
-        // prefill can be paid speculatively. Only the anti-repeat rule stays
-        // per-turn — it must not fire on turn one.
-        if !history.isEmpty {
-            parts.append(
-                "Do not reuse openings, questions, or entry summaries you already used "
-                    + "earlier in this conversation. Do not reopen an entry you already used "
-                    + "in this thread."
-            )
-        }
-        if skipName, personalization.spokenName != nil {
-            parts.append(PromptPersonalization.nameSkipLine)
-        }
-        if imageCount > 0 || historyImageCount > 0 {
-            if canSeeImages {
-                var vision: [String] = []
-                if historyImageCount > 0 {
-                    vision.append(
-                        "Earlier messages in this conversation included photos, labeled earlier-turn-N-photo-M. If they ask about those photos, look at them."
-                    )
-                }
-                if imageCount > 0 {
-                    vision.append(
-                        "The person attached \(imageCount) photo\(imageCount == 1 ? "" : "s") to this message, labeled this-message-photo-1… in order. Look at each image. Ground what you say in what is visibly there. Refer to them as \"this photo\" or \"the first photo\" when it helps. Do not invent details that are not visible."
-                    )
-                }
-                parts.append(vision.joined(separator: " "))
-            } else if let visionBlock, !visionBlock.isEmpty {
-                parts.append(
-                    "The person attached photo\(imageCount + historyImageCount == 1 ? "" : "s"). A visual reading of each follows. Treat it as what is in the images. Refer to them as \"this photo\" or \"the first photo\" when it helps. Do not invent details beyond this reading and what they wrote.\n\n"
-                    + visionBlock
-                )
-            } else {
-                parts.append(
-                    "The person attached photo\(imageCount + historyImageCount == 1 ? "" : "s"). Image understanding is not available on this device, so you cannot see them. Acknowledge the attachment without describing what you cannot see."
-                )
-            }
-        }
-        parts.append("The person's latest message: \(question)")
-        if let policy {
-            parts.append(PromptRegistry.policySuffix(policy, interpretationCut: interpretationCut))
-        }
-        if let retractedLine = RetractedClaims.promptLine(
-            claims: retracted, interpretationCut: interpretationCut
-        ) {
-            parts.append(retractedLine)
-        }
-        return parts.joined(separator: "\n\n")
+        _ = (assembled.channel, assembled.effectiveStance, assembled.evidencePack)
+        return assembled.prompt
     }
 
     // MARK: - Reference-marker stripping

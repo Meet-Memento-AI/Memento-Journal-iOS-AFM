@@ -178,6 +178,19 @@ jobs:
         # same standard as the app's own strings.
         run: scripts/ci/check_asc_metadata.sh
 
+  eval-preregister:
+    name: Convo-sim prereg helper selftest (MEM-327 / T8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: preregister.py unit tests + judge refuses without frozen prereg
+        run: |
+          python3 scripts/eval/preregister.py selftest
+          python3 scripts/eval/analyze_convo_sim.py --judge eval-archive/convo-sim/full-2026-09-24-spec051.jsonl \
+            && { echo "FAIL: --judge without --prereg should exit non-zero"; exit 1; } \
+            || test $? -eq 2
+
   corpus-validation:
     name: Fixture corpus validation (spec 013 R4 / 016 R8 / 022 R1)
     runs-on: ubuntu-latest
@@ -189,6 +202,8 @@ jobs:
         # honesty-scrub leak. Guards the one real 2.0 asset that specs 016 R8's
         # recall@5 gate and 022's harness both consume.
         run: python3 Fixtures/validate_corpus.py
+      - name: Validate Ask probe corpora (MEM-326 / Q9)
+        run: python3 Fixtures/validate_probes.py
       - name: Guard against a stale resolved gold set
         # The validator regenerates Fixtures/gold/questions.resolved.json from the
         # corpus; if the committed copy drifted, fail with guidance instead of
@@ -200,6 +215,15 @@ jobs:
             exit 1
           fi
           echo "OK: resolved gold set is in sync with the corpus."
+
+  conversation-judge:
+    name: Conversation judge tooling (CQ2 / MEM-334)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Unit tests for judge_convo.py
+        run: python3 scripts/eval/test_judge_convo.py -v
 
   single-coreml-importer:
     name: CoreML stays in the TTS package (spec 031)

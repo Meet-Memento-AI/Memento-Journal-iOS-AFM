@@ -119,7 +119,18 @@ on-device" above.
 "on-device / eval" work: either a stub workflow that documents the local commands
 from README + spec 022, or a real optional job that runs without `-skip-testing`
 the device suites when `vars.IOS_DEVICE_EVAL=1`. Merge to `dev`/`main` must not
-require this check. Spec 022 remains owner of harness implementation.
+require this check **by default**. Spec 022 remains owner of harness implementation.
+
+**2026-09-29 (Ask chat 100/100, decision 3 — approved):** behavioural PRs
+(prompt versions, `ReplyRenderer.version`, `PromptExperiments` defaults,
+`ReplyChannel` caps/temperature, safety packs) **must** pass a blocking
+**`iOS device gate`** check on the self-hosted Mac runner. Detection lives in
+`scripts/ci/detect_behavioural_change.sh`; execution in
+`scripts/eval/run_mac_eval.sh` + `.github/workflows/ios-device-eval.yml`.
+Non-behavioural PRs skip the heavy step but still report green so branch
+protection can list one stable check name. Scheduled/dispatch runs stay
+advisory (`continue-on-error: true`). Override of a failing gate: repo owner
+only, recorded in the PR.
 
 ### R4. Policy docs match the on-device-only product
 **Acceptance:** `docs/BRANCHING_AND_CI_POLICY.md` and
@@ -175,6 +186,11 @@ not weaken privacy/store/corpus gates.
       **"iOS build (online)"**. (R2)
 - [x] 5. Add `ios-device-eval.yml` (dispatch/schedule, non-required) that documents
       or optionally runs device/eval commands; link from README. (R3)
+- [x] 5b. **T5/T6 (MEM-335):** Mac eval runner (`scripts/eval/run_mac_eval.sh`),
+      behavioural diff filter (`scripts/ci/detect_behavioural_change.sh`), PR
+      trigger + blocking path on self-hosted runner when the filter fires (R3
+      amendment per Ask 100 plan). Hardware smoke proofs owed: see MEM-335 /
+      Project store `internal/ask-100/t5-t6-device-gate-proofs-owed.md`.
 - [x] 6. Document why `MIN_COVERAGE=13` remains valid for the online suite
       (skipped generation was already non-executing). Raise only via spec 011. (R2)
 - [x] 7. Update `ROADMAP.md` / quality-rollout notes; mark 012 #8 as partially

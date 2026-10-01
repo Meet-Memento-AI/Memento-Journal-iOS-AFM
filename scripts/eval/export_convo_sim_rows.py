@@ -34,6 +34,7 @@ def main() -> None:
     for item in args.run:
         label, _, path = item.partition(":")
         rows = [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+        # Rows may omit T1 harness keys; downstream analyzers must tolerate that.
         name = f"{slug(label)}.js"
         # One row per line keeps the file diffable and lets a human read it
         # without a formatter; `JSON.parse` of one big string beats a JS array
