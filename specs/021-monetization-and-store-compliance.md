@@ -2,7 +2,7 @@
 id: 021
 title: Monetization and Store Compliance
 tier: P1
-status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-013 (2026-09-26) = Monetization Strategy: $59.99/yr, $9.99/mo, free chat with a daily limit, Day-0 offer (supersedes DEC-004's prices); DEC-014 (2026-09-26) = no free trial, the free tier is the trial; Support URL / privacy policy P0s closed in docs/app-store
+status: in-progress (2026-08-19) — DEC-001 = Reduced-tier capture-only no paywall; DEC-013 (2026-09-26) = Monetization Strategy: free chat with a daily limit, Day-0 offer (supersedes DEC-004's prices); DEC-014 (2026-09-26) = no free trial, the free tier is the trial; DEC-015 (2026-09-30) = $59.99/yr and $5.99/mo; RevenueCat switched on (2026-09-30); Support URL / privacy policy P0s closed in docs/app-store
 effort: 2 sessions
 depends_on: [017]
 findings: [dec-004-pricing-open, dec-001-reduced-tier-open, revenuecat-z2-data-diet, privacy-label-verify-first, dependency-allowlist-ci-lint, sbp-pcc-eligibility-ops]
@@ -56,8 +56,8 @@ does not renegotiate it. Quota/upsell copy rules are owned by spec 017 R3
 (`REQ-INT-008`); R4 constrains the paywall so it can never blend with them.
 
 ### R1. Pricing posture — `DEC-004` OPEN, do not resolve here silently
-**Resolved (DEC-013 and DEC-014, 2026-09-26):** $59.99 a year, preselected,
-and $9.99 a month. **No free trial:** the free tier is the trial.
+**Resolved (DEC-013, DEC-014, DEC-015):** $59.99 a year, preselected, and
+$5.99 a month (DEC-015, 2026-09-30). **No free trial:** the free tier is the trial.
 Annual-first holds. See the two decision records and R10. The rest of this
 section is kept as history.
 
@@ -559,7 +559,7 @@ a straight conversion.
   description as the paywall they open, with an **Upgrade** button.
 - **Primary button:** frames Pro as an upgrade and names exactly what is
   charged and how often, from the store: "Upgrade for $59.99 a year" /
-  "Upgrade for $9.99 a month".
+  "Upgrade for $5.99 a month".
 - **Terms line:** "Auto-renews yearly. Cancel anytime." (or monthly).
 - **Enforced by `PaywallPlanTests`,** across 200+ journal states:
   - no trial
@@ -607,7 +607,8 @@ alternative", measured in the Search Ads console only. The store metadata
 still never names competitors (`docs/app-store/04`).
 
 **Unit economics** after the 15% Small Business rate: an annual subscriber
-brings in about $4.25 a month, a monthly subscriber about $8.49.
+brings in about $4.25 a month, a monthly subscriber about $5.09 (DEC-015,
+$5.99 × 0.85).
 
 **Billing:**
 - Turn on App Store Connect's **Billing Grace Period**; billing retry is
@@ -623,7 +624,8 @@ never client-side:
 2. Free daily message limit: the `free_daily_messages` offering metadata.
 3. First-chat placement and length: the `first_chat_mode` offering metadata,
    read by 053 R4, with a bundled default.
-4. Monthly at $9.99 vs $7.99: two monthly products.
+4. ~~Monthly at $9.99 vs $7.99.~~ Settled at $5.99 by DEC-015. Any other
+   monthly price test needs its own decision record.
 5. A $99.99 lifetime plan offered only to people who decline or cancel.
    **This needs its own decision record first**, because it reverses the
    2026-09-26 "no lifetime" decision, and `PaywallPlan.ordered` ignores
@@ -705,6 +707,16 @@ DEC-014.
   skips `Purchases.configure`, so every paid surface is open and Settings
   has no Pro section. The integration stays in place. Setting the flag to
   `true` turns it back on.
+- **Switched on (2026-09-30):** product owner's call, for live testing.
+  `isPaywallEnabled = true`.
+  - Debug builds run against RevenueCat's Test Store (`test_` key).
+  - Release builds need the `appl_` key in `RevenueCat.release.xcconfig`,
+    or Pro fails open.
+  - DEBUG-only launch arguments: `-EnablePaywall` / `-DisablePaywall`
+    override the switch per launch. UI tests that measure the full chat pass
+    `-DisablePaywall`. `-ForceFreeTier` shows the free chat.
+  - The go-live checklist in `docs/app-store/revenuecat-setup.md` still
+    applies before any App Store submission.
 - **Paywall UI (2026-09-26): the app draws its own.** `PaywallView`
   (`Views/Purchases/`) renders the current offering from `EntitlementStore`.
   It replaces RevenueCatUI's template, whose copy contradicted R4 and which
@@ -800,6 +812,17 @@ the paywall is a straight conversion that says exactly what is charged.
 - **Code:** trial eligibility (`EntitlementStore.trialEligibleProductIDs`,
   `PaywallModel.isTrialEligible`) and every trial string were removed from
   `Views/Purchases/`.
+
+## Decision record — `DEC-015` monthly price (2026-09-30)
+
+- **Prices: $59.99 a year (preselected) and $5.99 a month**, set by the
+  product owner. This replaces DEC-013's $9.99 monthly. No free trial
+  (DEC-014).
+- **The annual plan saves 16%** against twelve monthly payments ($71.88).
+  The paywall computes this from store prices and rounds it down, so the
+  chip reads "Save 16%".
+- **Where the prices live:** App Store Connect (production) and RevenueCat's
+  Test Store products (Debug). The app never contains a price (R1).
 
 ## Tasks
 - [x] 1. Resolve `DEC-004`: superseded by DEC-013 and DEC-014 (2026-09-26). $59.99/yr and $9.99/mo, no free trial.

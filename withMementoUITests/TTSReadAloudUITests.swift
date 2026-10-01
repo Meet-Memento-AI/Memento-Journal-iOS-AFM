@@ -17,6 +17,8 @@ final class TTSReadAloudUITests: XCTestCase {
 
     func test_readAloudButton_appearsAfterReply_andToggles() {
         let app = XCUIApplication()
+        // Full chat, whatever RevenueCat's live state (no free-tier limit).
+        app.launchArguments = ["-DisablePaywall"]
         app.launch()
 
         // Navigate Journal → Chat by swiping the root pager. Tapping the
