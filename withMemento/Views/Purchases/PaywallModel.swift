@@ -122,10 +122,10 @@ enum PaywallFixtures {
 
     static func offering() -> Offering {
         // Monthly listed before annual on purpose: the paywall must still
-        // lead with the year. DEC-013 prices (2026-09-26): 59.99 a year and
-        // 9.99 a month. No trial on either: the free tier is the trial.
+        // lead with the year. DEC-015 prices (2026-09-30): 59.99 a year and
+        // 5.99 a month. No trial on either: the free tier is the trial.
         let packages = [
-            package("$rc_monthly", .monthly, product("monthly", 9.99, .init(value: 1, unit: .month))),
+            package("$rc_monthly", .monthly, product("monthly", 5.99, .init(value: 1, unit: .month))),
             package("$rc_annual", .annual, product("yearly", 59.99, .init(value: 1, unit: .year)))
         ]
         return Offering(

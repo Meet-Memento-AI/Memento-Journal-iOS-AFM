@@ -20,8 +20,8 @@ struct EditorDictationPill: View {
     /// Session-ownership key. `SpeechService` is a singleton shared with the
     /// chat composer, so every observer below filters on it.
     let ownerId: String
-    /// Editor chrome ink: black on glass; white only on an exceptionally
-    /// dark cover (see `JournalBackdropContrast.prefersWhiteChromeGlyphs`).
+    /// Editor chrome ink: black in light mode, white in dark (the theme
+    /// foreground), whatever the cover.
     let foreground: Color
     /// `.interactive()` press refraction. The editor passes `!reduceMotion`;
     /// nil reads the environment so previews and other hosts stay correct.
