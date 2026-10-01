@@ -79,10 +79,10 @@ final class FreeChatUITests: XCTestCase {
         XCTAssertTrue(element(app, "chat.emptyState.free").waitForExistence(timeout: 10), "chat was not cleared")
     }
 
-    /// Without the override (RevenueCat off, fails open), the chat is the
+    /// With RevenueCat off (`-DisablePaywall`, fails open), the chat is the
     /// full Pro chat: no Upgrade pill, history present.
     func test_proChatUnchangedWithoutOverride() {
-        let app = openChat([])
+        let app = openChat(["-DisablePaywall"])
         XCTAssertTrue(app.buttons["Chat history"].waitForExistence(timeout: 15))
         XCTAssertFalse(element(app, "chat.header.upgrade").exists)
     }
