@@ -465,6 +465,13 @@ final class ChatEvalScoringTests: XCTestCase {
         XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: emptyIndex).isEmpty)
     }
 
+    func test_turnKindMismatch_isReportOnly() {
+        let v = ChatEvalScoring.turnKindMismatch(predicted: .journalQuery, gold: .followup)
+        XCTAssertEqual(v.map(\.code), ["route.turnKindMismatch"])
+        XCTAssertTrue(ChatEvalScoring.reportOnlyCodes.contains("route.turnKindMismatch"))
+        XCTAssertTrue(ChatEvalScoring.gating(v).isEmpty)
+    }
+
     // MARK: - Convo-sim harness (T1)
 
     func test_hitResponseCap_requiresExactEquality() {
