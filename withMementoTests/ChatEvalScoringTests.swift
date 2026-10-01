@@ -44,6 +44,12 @@ final class ChatEvalScoringTests: XCTestCase {
                 "\(code): pattern does not compile, so the scorer silently returns no violations"
             )
         }
+        for (index, pattern) in ChatEvalScoring.compiledPatterns.enumerated() {
+            XCTAssertNoThrow(
+                try NSRegularExpression(pattern: pattern),
+                "compiledPatterns[\(index)]: pattern does not compile"
+            )
+        }
     }
 
     /// The exact spelling that was broken, pinned so nobody "simplifies" it back.
