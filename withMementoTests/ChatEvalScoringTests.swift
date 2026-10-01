@@ -44,6 +44,12 @@ final class ChatEvalScoringTests: XCTestCase {
                 "\(code): pattern does not compile, so the scorer silently returns no violations"
             )
         }
+        for (index, pattern) in ChatEvalScoring.compiledPatterns.enumerated() {
+            XCTAssertNoThrow(
+                try NSRegularExpression(pattern: pattern),
+                "compiledPatterns[\(index)]: pattern does not compile"
+            )
+        }
     }
 
     /// The exact spelling that was broken, pinned so nobody "simplifies" it back.
@@ -423,41 +429,40 @@ final class ChatEvalScoringTests: XCTestCase {
     // MARK: - Empty corpus (S3)
 
     func test_emptyCorpus_pinsQuoteSemantics() {
-        let index = ChatEvalScoring.QuoteIndex([])
-        XCTAssertTrue(index.isEmpty)
-        XCTAssertFalse(index.contains("the harbor was quiet before the train"))
-        XCTAssertNil(index.quotesCorpus(
+        XCTAssertTrue(emptyIndex.isEmpty)
+        XCTAssertFalse(emptyIndex.contains("the harbor was quiet before the train"))
+        XCTAssertNil(emptyIndex.quotesCorpus(
             "The harbor was quiet before the first train left the station today."
         ))
 
         let italic = ChatEvalScoring.fabricatedQuotes(
             "Nothing here, but *the invented pottery night* showed up anyway.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertTrue(italic.contains { $0.code == "hall.fabricatedQuote" })
 
         let heading = ChatEvalScoring.fabricatedQuotes(
             "### First pottery class\nI don't see anything.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertTrue(heading.contains { $0.detail.contains("###") })
 
         XCTAssertTrue(ChatEvalScoring.uncitedQuote(
             "The harbor was quiet before the first train left the station today.",
             citations: [],
-            index: index
+            index: emptyIndex
         ).isEmpty)
 
         let bold = ChatEvalScoring.boldNotTheirWords(
             "They called it **invented phrasing** today.",
-            index: index
+            index: emptyIndex
         )
         XCTAssertEqual(bold.map(\.code), ["rule.boldNotTheirWords"])
 
         let plain = "I don't see anything from that stretch. What are you holding onto?"
-        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(plain, index: index).isEmpty)
-        XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: index).isEmpty)
-        XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: index).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.fabricatedQuotes(plain, index: emptyIndex).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.uncitedQuote(plain, citations: [], index: emptyIndex).isEmpty)
+        XCTAssertTrue(ChatEvalScoring.boldNotTheirWords(plain, index: emptyIndex).isEmpty)
     }
 
     // MARK: - Convo-sim harness (T1)
