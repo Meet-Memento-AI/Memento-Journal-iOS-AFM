@@ -107,6 +107,9 @@ final class ConversationSimulation: XCTestCase {
 
         let service = FoundationModelsIntelligenceService.shared
         guard case .available = await service.availability() else {
+            if ProcessInfo.processInfo.environment["CI_ONLINE"] == "1" {
+                throw XCTSkip("CI_ONLINE=1: convo-sim gate is device-lane only (spec 025)")
+            }
             XCTFail("""
                 The device model is not available on this simulator, so nothing here would \
                 generate. Check Apple Intelligence on the host and re-run.
