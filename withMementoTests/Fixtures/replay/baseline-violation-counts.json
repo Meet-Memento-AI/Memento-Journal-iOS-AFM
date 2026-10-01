@@ -1,0 +1,21 @@
+{
+  "source_jsonl": "eval-archive/convo-sim/full-2026-09-27-tier.jsonl",
+  "source_sha256": "02bdf3f1e630510d61ee0f567ee47b1ee44fd70142b2f102f399351866df791e",
+  "turn_count": 3319,
+  "rendered_only": true,
+  "gating_counts": {
+    "hall.uncitedQuote": 37,
+    "leak.placeholder": 25,
+    "leak.promptTag": 2,
+    "leak.schemaField": 1,
+    "leak.sectionLabel": 1,
+    "rule.bannedOpener": 23,
+    "rule.bannedPhrase": 32,
+    "rule.emptyHeading": 5,
+    "rule.entryCount": 1,
+    "rule.multipleH3": 2,
+    "rule.multipleQuestions": 170,
+    "rule.noOpen": 9
+  },
+  "gating_total": 308
+}
