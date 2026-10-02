@@ -41,7 +41,7 @@ control. Everything else can be done in an afternoon; these cannot.
 | # | Item | Owner | Blocks | Status / evidence |
 |---|---|---|---|---|
 | A1 | **Accept the current Program License Agreement** at developer.apple.com. Archive signing has been failing on a pending PLA since 2026-07-13. | ☐ user | Gate T | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Archive signing should now proceed. |
-| A2 | **Sign the Paid Apps Agreement** (Business → Agreements), complete **tax forms** (W-9 or W-8BEN) and **banking**. Account Holder only, requires 2FA, cannot be undone. Without all three the app **cannot go on sale even after App Review approves it**. | ☐ user | Gate L | ☐ Open for **paid download**. **Skip if 1.x is Free** (no IAP). Click path in `13`. |
+| A2 | **Sign the Paid Apps Agreement** (Business → Agreements), complete **tax forms** (W-9 or W-8BEN) and **banking**. Account Holder only, requires 2FA, cannot be undone. Without all three the app **cannot go on sale even after App Review approves it**. | ☐ user | Gate L | 🔴 **Reopened 2026-10-01 — REQUIRED, no longer skippable.** `68553fc` switched Memento Pro on, so 1.x ships an auto-renewable subscription. Without the agreement, tax forms and banking all in effect, **no purchase completes even after App Review approves**. Account Holder only, 2FA, real latency on banking/tax validation — start this first. Click path in `13`. |
 | A3 | **Enroll in the App Store Small Business Program.** This is the eligibility gate for A4 and therefore for the entire Z1 architecture, not a commission perk. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — Z1/PCC is not in this binary. File when 2.0 starts. |
 | A4 | **File the Private Cloud Compute access request** at `developer.apple.com/contact/request/private-cloud-compute/`. Separate, gated, and **Apple states no lead time anywhere** — this is the least controllable dependency in the project. | ☐ user | Gate S (architecture) | ⏭ **Skip for 1.x** (2026-08-17) — this build is on-device Foundation Models only. |
 | A5 | **Declare EU Digital Services Act trader status** and pass email + phone verification. Required since 2025-02-17; apps without it are **removed from the App Store in all 27 EU territories**. See `05` — this is a *decision*, because an individual developer's address and phone are **published on the EU product page**. | ☐ user | Gate S | ✅ **1.x default recorded 2026-08-17** — deselect the 27 EU territories (reversible). Still answer the account-level trader question. Click path in `13`. |
@@ -190,7 +190,7 @@ retained below.
 | D7a | **A demo video recorded on a physical device is attached** to App Review Information. Apple asked for it by name and the app was rejected without it. | agent + ☐ user | ☑ **User-confirmed 2026-09-17.** Not agent-verifiable (App Store Connect / developer.apple.com is not reachable from the repo); recorded on the Account Holder's statement. Recorded and checked against the eight steps in `08` §4 by the Account Holder; the file is deliberately kept outside this public repo, so it is not in the evidence column. |
 | D8 | Metadata: name, subtitle, keywords, promotional text, description, What's New — all within limits and compliant with `REQ-POS-001`. | agent + ☐ user | 🔴 **Action required 2026-09-17** — `description.txt` changed *after* the build was submitted: the companion line said it "requires a compatible iPhone" while the app ships `TARGETED_DEVICE_FAMILY = "1,2"` and Apple Intelligence runs on M-series iPads. **The live product page still carries the old wording**, so re-paste `metadata/en-US/description.txt` into App Store Connect. Metadata edits do not need a new build. |
 | D9 | Screenshots: **iPhone 6.9″ (1320×2868)** and **iPad 13″ (2064×2752)**. iPad is mandatory because `TARGETED_DEVICE_FAMILY = "1,2"`. | agent + ☐ user | ✅ **Agent half closed 2026-09-24** — four frames per slot now exist in the repo at `metadata/en-US/screenshots/{iphone-6.9,ipad-13}/`, captured by `AppStoreScreenshotUITests` from the seeded sample journal and verified by `scripts/ci/export_screenshots.sh`: correct pixel dimensions **and** all four distinct, because duplicate frames are the signature of a navigation step that silently did nothing (which is exactly what the first version of that test produced). 2.3.3 is met — every frame shows a populated journal, not an empty state — and 2.3.9 is met by construction, since the sample content is the synthetic persona the eval fixtures use. The previous 🟡 was inference from "the build reached App Review"; there were in fact **no image files in the repo at all**. Known weakness: the Ask frame shows the entry screen rather than Ask answering, because the only simulator with Apple Intelligence assets is an iPhone 17 Pro (1206×2622) and the 6.9″ slot needs 1320×2868 — see `14` §1. Remaining: the ASC upload (☐ user). |
-| D10 | Price and **tax category** — both required before submission. | ☐ user | 1.x has **no IAP**. Set Free, or a paid-download tier after A2. Subscription `DEC-004` is 2.0. See `13`. |
+| D10 | Price and **tax category** — both required before submission. | ☐ user | 🔴 **Corrected 2026-10-01.** 1.x **has IAP**: free download plus the Memento Pro auto-renewable subscription. Set the app to Free, create the subscription group and the two products at `DEC-015`'s prices ($59.99/yr, $5.99/mo), and set the tax category. Blocked on A2. See `revenuecat-setup.md` and `specs/021` Task 12. |
 | D11 | Availability / territories, including the EU decision from A5 and the recommendation to exclude mainland China. | ☐ user | 1.x default: exclude mainland China **and** the 27 EU until trader verification. See `13`. |
 | D12 | Release option — **Manual** recommended for 1.0. | ☐ user | 🟡 **Presumed populated 2026-09-17** — the build reached App Review (it came back under 2.1 *Information Needed*, not for missing metadata), and App Store Connect will not accept a submission with this field empty. Recorded as bookkeeping lag, not as an open task. Confirm on the next pass through `13`. **Manual** release is the recommendation for 1.0 — see `10`. |
 
@@ -203,7 +203,7 @@ resolution unblocks rows above.
 
 | Decision | Owner | Gates |
 |---|---|---|
-| `DEC-004` — subscription price and trial | `specs/021` R1 | **Deferred past 1.x** — no IAP in this binary |
+| `DEC-004` — subscription price and trial | `specs/021` R1 | **Superseded by `DEC-013`/`DEC-014`/`DEC-015` (2026-09-26 → 09-30).** Not deferred: 1.x ships the subscription at $59.99/yr and $5.99/mo, no trial — the free tier is the trial |
 | `DEC-001` — ship on non-Apple-Intelligence (Reduced-tier) devices? | `specs/021` R2 | Already implemented Option A: companion unavailable, capture/journal still work |
 | **V8** — does RevenueCat's SDK force a collection disclosure? | `specs/021` R5/R8 | **N/A for 1.x** — StoreKit/RevenueCat not linked |
 | **EU trader status** — registered business address, or exclude the EU? | ☐ user | A5, D11 — **1.x default: exclude EU** |
@@ -258,9 +258,10 @@ Connect privacy label matches the manifest. Those need evidence, not a script.
 3. `PrivacyInfo.xcprivacy`, the App Store Connect privacy label, and the privacy
    policy **all say the same thing**: Tracking = No; declare Other User Content,
    Other Data Types, and User ID (linked, not tracking; App Functionality +
-   Analytics) for opt-in feedback. Journal content is not collected. CloudKit
-   private DB is the user’s iCloud, not our collection. **Do not** submit
-   Data Not Collected. **(B3, D6)**
+   Analytics) for opt-in feedback, **and Purchases → Purchase History (not
+   linked, not tracking, App Functionality) for the subscription**. Journal
+   content is not collected. CloudKit private DB is the user’s iCloud, not our
+   collection. **Do not** submit Data Not Collected. **(B3, D6)**
 4. `xcodebuild archive` → `-exportArchive` → `altool --validate-app` completes
    with **zero ITMS errors**. **(C1–C6, `07`)**
 5. A reviewer who launches the app cold can reach capture → transcription →
@@ -268,7 +269,16 @@ Connect privacy label matches the manifest. Those need evidence, not a script.
 5a. The review notes answer **all six items** of Apple's standard information
    request, in Apple's order, and a demo video captured on a physical device —
    beginning at app launch — is attached. **(D7, D7a, `08` §2 and §4)**
-6. If the app is **paid**, the Paid Apps Agreement, tax forms, and banking are
-   all in effect. If **free**, skip. **(A2)**
+6. The Paid Apps Agreement, tax forms, and banking are all in effect. **The
+   "if free, skip" branch is dead as of 2026-10-01** — the app is a free
+   download carrying an auto-renewable subscription, which requires all three.
+   **(A2)**
 7. Age rating and the social-media declaration are answered. **(A7, A8)**
 8. EU trader status is declared and verified, **or** the EU is deselected. **(A5)**
+9. **The subscription actually works.** The two auto-renewable products exist in
+   App Store Connect at `DEC-015`'s prices; the archive passes
+   `scripts/ci/check_release_revenuecat_key.sh` (a missing or `test_` key makes
+   `ProAccess` fail open and gives Pro away); and a sandbox purchase **and
+   restore** have been completed on a physical device. The description and
+   review notes describe the subscription, and neither states a price.
+   **(A2, D10, `specs/021` R3)**

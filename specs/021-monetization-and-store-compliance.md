@@ -851,7 +851,10 @@ the paywall is a straight conversion that says exactly what is charged.
       placement to RevenueCat.
 - ~~11. Day-25 in-app trial card and the win-back offer (R10).~~ Dropped with the trial (DEC-014).
 - [ ] 12. App Store Connect:
-      - `yearly` 59.99 USD and `monthly` 9.99 USD, **no introductory offer on either**
+      - `yearly` 59.99 USD and `monthly` 5.99 USD, **no introductory offer on either**
+        (the monthly figure read 9.99 until 2026-10-01 — a leftover from the
+        pre-DEC-013 plan. `DEC-015` and `docs/app-store/revenuecat-setup.md`
+        both say 5.99, and this row is the one someone configures ASC from.)
       - Billing Grace Period on
       - mirror the prices in RevenueCat's Test Store
 - [ ] 13. Day-0 onboarding: spec 053.

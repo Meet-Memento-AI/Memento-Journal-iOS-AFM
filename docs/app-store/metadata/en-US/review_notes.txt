@@ -4,88 +4,88 @@ REVIEW NOTES — Memento 1.0
 
 No sign-in, account or login screen; every feature is reachable after
 install, so the Sign-In fields are blank deliberately. Not applicable: no
-registration, login or account-deletion flow, as no account exists
-(Settings > Delete Everything erases all app data); no shared user
-content; no purchases.
+registration, login or account-deletion flow and no shared user content,
+as no account exists (Settings > Delete Everything erases all data).
+
+One auto-renewing subscription, Memento Pro, annual or monthly; the
+paywall shows the regional price. Journalling is free and unlimited —
+writing, reading, search and export are never gated. Pro lifts the free
+tier's 10-messages-a-day companion limit and unlocks Weekly reflections
+and Patterns.
+
+To see the paywall without buying: send 10 companion messages in a day, or
+open Journal > Insights > Weekly. Restore Purchases is on that screen and
+in Settings. Crisis messages are never limited.
 
 2. PURPOSE AND AUDIENCE
 
-Memento is a private journal that answers questions about what you wrote.
-Speak or type an entry; it is transcribed, filed and indexed on the device.
-Later you ask your archive a question and get an answer from your own
-entries, citing the ones used. The problem it solves: journals go unread,
-and search finds only the words you happened to use.
+A private journal that answers questions about what you wrote. Speak or
+type an entry; it is transcribed, filed and indexed on the device. Later
+you ask your archive a question and get an answer from your own entries,
+citing the ones used. The problem it solves: journals go unread, and
+search finds only the words you happened to use.
 
-For adults who journal and want it private. An archivist, not an advisor:
-it reports what you wrote, never advising, diagnosing or using clinical
-language. Not a health or medical product.
+For adults who journal and want it private. An archivist, not an advisor
+(see 6).
 
 3. SETUP AND ACCESS
 
 No credentials needed. Onboarding offers an optional app lock; "Skip for
-now" bypasses it, and if enabled the lock screen has a device-passcode
-fallback, so no PIN is needed from us.
+now" bypasses it, and the lock screen has a device-passcode fallback, so
+no PIN is needed from us.
 
 The companion answers from entries; a fresh install has none:
 
   Journal > initials button top left (VoiceOver: "Menu") > Profile >
   Settings > "Load Sample Entries"
 
-Clearly fictional, reversible from the same row. Then:
-
-- Ask: message icon top right, or swipe left. Ask "what have I been
-  writing about?" and tap a citation to open that entry.
-- Capture: compose button, allow Microphone and Speech Recognition, speak.
-- Export: Settings > "Export Your Journal".
-
-Every permission is optional, and the app does not track you.
+Clearly fictional, reversible from the same row. Then: Ask via the message
+icon top right or swipe left ("what have I been writing about?", then tap
+a citation to open that entry); Capture via the compose button, allowing
+Microphone and Speech Recognition; Export at Settings > "Export Your
+Journal". Permissions are all optional.
 
 4. EXTERNAL SERVICES
 
-On device, Apple frameworks only: Foundation Models for all companion text,
-Speech, NaturalLanguage, Vision, LocalAuthentication, Core Spotlight (off
-by default), and a bundled Core ML read-aloud voice, never downloaded.
+On device, Apple frameworks only: Foundation Models for all companion
+text, Speech, NaturalLanguage, Vision, LocalAuthentication, Core Spotlight
+(off by default), and a bundled Core ML voice, never downloaded.
+
 Reaching Apple: MapKit reverse geocoding to name a place when asked; your
-own private CloudKit database, which syncs the journal to your other
-devices if you use iCloud and which we cannot access; and Apple's speech
-models on first use.
+own private CloudKit database, which we cannot access; Apple's speech
+models on first use;
+and the App Store, which processes every purchase.
 
-One non-Apple service: Supabase, hosting a write-only database for
-volunteered answer-quality feedback. A Report sends that question and
-answer; thumbs ratings need the off-by-default Settings switch "Share
-Quality Feedback". Journal entries and chat history are not sent.
-
-No authentication provider, payment processor, analytics or crash SDK,
-advertising, third-party AI, or third-party Swift package.
+Two non-Apple services. Supabase hosts a write-only database for
+volunteered answer-quality feedback. RevenueCat reads subscription status
+only, keyed to an anonymous identifier. Journal entries and chat history
+go to neither. No auth provider, analytics or crash SDK, ads, or
+third-party AI.
 
 5. REGIONAL DIFFERENCES
 
 The binary is identical everywhere. Nothing in it reads the device's
-country or gates a feature by territory; the interface is English only.
-Two things vary by device, not region: the companion needs Apple
-Intelligence, and dictation needs Apple's on-device speech model for the
-device language. Without either, the app says so and the rest still works.
-
-The crisis-support card is identical in every region: the US 988 line and
-a link to the International Association for Suicide Prevention's worldwide
-directory.
+country or gates a feature by territory; the interface is English only,
+and the App Store shows prices in local currency. Two things vary by
+device, not region: the companion needs Apple Intelligence, and dictation
+needs Apple's on-device speech model for the device language. Without
+either the app says so, and the rest still works. The crisis card is
+identical in every region.
 
 6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
 
-Memento is a journaling and personal-productivity app, not a health or
-medical one, and provides no regulated service, so no professional
-credential applies. The non-advisory design is enforced in code, by an
-on-device safety layer and CI evaluation gates.
+A journaling and personal-productivity app, not a health or medical one,
+providing no regulated service, so no professional credential applies.
+The non-advisory design is enforced in code by a safety layer and CI gates.
 
-A crisis message shows a static bundled resource card: a pointer to help,
-never generated, naming organisations in plain text with no logos or
-claimed affiliation, beside a line saying this is not a crisis service.
+A crisis message shows a static bundled card, never generated: the US 988
+line and the IASP directory, in plain text, no logos, beside a line saying
+this is not a crisis service.
 
 Bundled third-party material, full licence text at Settings > About >
 Acknowledgments: Supertonic 3 voice weights (BigScience Open RAIL-M); its
-runtime, soniqo/speech-swift (Apache-2.0); the typefaces Figtree, Lora,
-Manrope and Sora (SIL Open Font License 1.1); and SF Symbols. All other
-content and artwork is original.
+runtime soniqo/speech-swift (Apache-2.0); the typefaces Figtree, Lora,
+Manrope, Sora (SIL OFL 1.1); SF Symbols. All other content is original.
 
 7. CONTACT
 

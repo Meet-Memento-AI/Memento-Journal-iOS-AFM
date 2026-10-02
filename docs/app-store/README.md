@@ -1,7 +1,8 @@
 # docs/app-store/ — App Store Connect submission and review readiness
 
 **Compiled 2026-08-07** against Apple's published documentation; **1.x submit
-path updated 2026-09-12.** Target: **Memento 1.0 on iOS 26, no accounts, no IAP,
+path updated 2026-09-12.** Target: **Memento 1.0 on iOS 26, no accounts, one auto-renewable
+subscription (Memento Pro, on since 2026-09-30),
 on-device Foundation Models.** The privacy label is **not** “Data Not Collected”:
 opt-in quality feedback is declared (spec 042); the journal itself is not
 collected; CloudKit, when the user is signed into iCloud, is a private replica

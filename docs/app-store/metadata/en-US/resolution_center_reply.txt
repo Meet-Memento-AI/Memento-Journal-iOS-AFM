@@ -1,92 +1,91 @@
 Hello App Review Team,
 
-Thank you for the detailed request. All six items are answered below and
-have been added to the Notes field in App Review Information. A screen
-recording captured on a physical iPhone running iOS 26 is attached; it
-begins at app launch and follows the typical flow.
+Thank you for the request. All six items are answered below and added to
+the Notes field in App Review Information. A screen recording
+captured on a physical iPhone is attached, beginning at app launch.
 
 1. RECORDING
 
 It shows launch, onboarding (including the optional app lock and how to
 skip it), loading sample entries, a voice entry with the recording
 indicator visible, asking the companion a question and tapping a citation
-to open its source entry, export, and deleting all data.
+to open its source, the paywall, export, and deleting all data.
 
-Not applicable, and so not shown: no account registration, login or
-account-deletion flow, because there are no accounts; no user-generated
-content shared between users, so no reporting or blocking mechanism
-applies; no paid content and no in-app purchase.
+Not applicable, so not shown: no registration, login or account-deletion
+flow, as there are no accounts; no content shared between users, so no
+reporting or blocking mechanism applies.
+
+One auto-renewing subscription, Memento Pro, annual or monthly.
+Journalling is free and unlimited — writing, reading, search and export
+are never gated. Pro lifts the free tier's ten-messages-a-day companion
+limit and unlocks Weekly reflections and Patterns. The paywall is reached
+by sending ten messages in a day, or via Journal > Insights > Weekly.
+Restore Purchases is on that screen and in Settings. Crisis messages are
+never limited or charged.
 
 2. PURPOSE AND AUDIENCE
 
-Memento is a private journal that answers questions about what you wrote.
-Speak or type an entry; it is transcribed, filed and indexed on the
-device. Later you ask your archive a question and get an answer from your
-own entries, citing the ones used. The problem it solves: journals go
-unread, and search finds only the words you happened to use.
+A private journal that answers questions about what you wrote. Speak or
+type an entry; it is transcribed, filed and indexed on the device. Later
+you ask your archive a question and get an answer from your own entries,
+citing the ones used. The problem it solves: journals go unread, and
+search finds only the words you used.
 
 For adults who journal and want it private. An archivist, not an advisor:
-it reports what you wrote, never advising, diagnosing or using clinical
-language. Not a health or medical product.
+it reports what you wrote, never advising or diagnosing. Not a health
+product.
 
 3. SETUP AND ACCESS
 
 No credentials, and no sign-in, which is why those fields are blank.
 Onboarding offers an optional app lock; "Skip for now" bypasses it, and
-if enabled the lock screen has a device-passcode fallback, so no PIN is
-needed from us.
+the lock screen has a device-passcode fallback, so no PIN is needed.
 
 The companion answers from entries and a fresh install has none:
 
   Journal > initials button top left (VoiceOver: "Menu") > Profile >
   Settings > "Load Sample Entries"
 
-Clearly fictional, reversible from the same row. Then ask via the message
-icon top right or a left swipe; capture via the compose button, allowing
-Microphone and Speech Recognition; export via Settings > "Export Your
-Journal".
+Fictional, reversible from the same row. Then ask via the message icon top
+right or a left swipe; capture via the compose button, allowing Microphone
+and Speech Recognition; export via Settings.
 
 4. EXTERNAL SERVICES
 
 On device, Apple frameworks only: Foundation Models for all companion
 text, Speech, NaturalLanguage, Vision, LocalAuthentication, Core Spotlight
-(off by default), and a bundled Core ML read-aloud voice, never
-downloaded.
+(off by default), and a bundled Core ML voice, never downloaded.
 
 Reaching Apple: MapKit reverse geocoding to name a place when asked; the
-user's own private CloudKit database, which we cannot access; and Apple's
-speech models on first use.
+user's private CloudKit database, which we cannot access; Apple's speech
+models on first use; and the App Store, which processes purchases.
 
-One non-Apple service: Supabase, hosting a write-only database for
-volunteered answer-quality feedback. A Report sends that question and
-answer; thumbs ratings need the off-by-default setting "Share Quality
-Feedback". Journal entries and chat history are not sent.
-
-No authentication provider, payment processor, analytics or crash SDK,
-advertising, third-party AI, or third-party Swift package.
+Two non-Apple services. Supabase hosts a write-only database for
+volunteered answer-quality feedback. RevenueCat reads subscription status
+only, keyed to an anonymous identifier. Journal entries and chat history
+go to neither. No auth provider, analytics or crash SDK, ads, or
+third-party AI.
 
 5. REGIONAL DIFFERENCES
 
-The app functions consistently across all regions. The binary is identical
-everywhere, nothing in it reads the device's country or gates a feature by
-territory, and the interface is English only. Two things vary by device
-rather than region: the companion needs Apple Intelligence, and dictation
-needs Apple's on-device speech model for the device language. Without
-either, the app says so and the rest still works.
+The app functions consistently across all regions: the binary is identical
+everywhere, nothing reads the device's country or gates a feature by
+territory, the interface is English only, and the App Store shows prices
+in local currency. Two things vary by device rather than region: the
+companion needs Apple Intelligence, and dictation needs Apple's on-device
+speech model. Without either, the app says so and the rest still works.
 
 6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
 
-Memento is a journaling and personal-productivity app providing no
-regulated service, so no professional credential applies.
+A journaling and personal-productivity app providing no regulated
+service, so no professional credential applies.
 
-Bundled third-party material, full licence text in the app at Settings >
-About > Acknowledgments: Supertonic 3 voice weights (BigScience Open
-RAIL-M); its runtime, soniqo/speech-swift (Apache-2.0); and the typefaces
-Figtree, Lora, Manrope and Sora (SIL Open Font License 1.1). All other
-content and artwork is original.
+Bundled third-party material, full licence text at Settings > About >
+Acknowledgments: Supertonic 3 voice weights (BigScience Open RAIL-M); its
+runtime soniqo/speech-swift (Apache-2.0); the typefaces Figtree, Lora,
+Manrope, Sora (SIL OFL 1.1). All other content is original.
 
-Please let us know if anything else would help.
+Please tell us if anything else would help.
 
-Best regards,
 Sebastian Mendo
 hello@withmemento.ai

@@ -91,6 +91,12 @@ host is dead — do not paste it.** That host serving a stale policy is the Nove
 
 ## 3. Free, and why that closes A2
 
+> ⚠️ **Superseded 2026-10-01.** `68553fc` switched Memento Pro on, so §3's
+> determination below is false and A2 is required. The evidence it cites —
+> "no RevenueCat in the resolved package set" — no longer holds: the app
+> target links `RevenueCat` and `RevenueCatUI`. Kept as the record of how the
+> conclusion was reached.
+
 **1.x is Free with no in-app purchases.** Evidence rather than intent: `StoreKit`
 appears exactly once in the app target, in `AboutSettingsView` for
 `@Environment(\.requestReview)` — the rate-this-app prompt. No `SKProduct`, no

@@ -61,7 +61,12 @@ done. It is not on Apple's clock, but it is the first gate in the chain.
 2. Accept the current **Apple Developer Program License Agreement** if a banner
    is waiting. Archive signing has been blocked on this since 2026-07-13.
 
-### A2 — Price path (pick one; 1.x has no IAP)
+### A2 — Price path
+
+> ⚠️ **Corrected 2026-10-01.** 1.x **has** IAP. The three options below were
+> written for a free, no-IAP binary; only the free-download row still applies,
+> and it no longer lets you skip the Paid Apps Agreement. Free download **plus**
+> the Memento Pro subscription requires the agreement, tax forms and banking.
 
 | Path | What to do | When you can go on sale |
 |---|---|---|

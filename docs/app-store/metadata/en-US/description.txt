@@ -41,6 +41,23 @@ WHAT IT WILL NOT DO
 Memento does not give advice, make recommendations, or comment on how you seem to be doing. It is not a wellness product and it is not a substitute for talking to a person. It observes and it remembers. That is the whole design.
 
 
+MEMENTO PRO
+
+Memento is free to use as a journal. Writing, reading, searching, and exporting
+your entries are unlimited and always will be.
+
+Memento Pro is an optional subscription that lifts the free daily limit on the
+companion and unlocks Weekly reflections and Patterns.
+
+Memento Pro is offered as an annual or a monthly subscription. The price for
+your region is shown in the app before you buy.
+
+Payment is charged to your Apple account at confirmation of purchase.
+Subscriptions renew automatically unless auto-renew is turned off at least 24
+hours before the end of the current period. Your account is charged for renewal
+within 24 hours of the end of the period. Manage your subscription, or turn off
+auto-renew, in your Apple account settings after purchase.
+
 REQUIREMENTS
 
 The companion uses Apple Intelligence and requires a compatible iPhone or iPad. Capture, transcription, timeline, search, and export work on every supported device.
