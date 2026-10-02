@@ -106,18 +106,49 @@ else
   echo "SKIP ${CLIENT} absent — no verification disclosure required"
 fi
 
-# --- The live page must match the copy in this repo --------------------------
+# --- The live page must match the copy that is supposed to be published ------
 # A6's root cause was Pages serving a DIFFERENT repository, so the committed
 # fix never reached production. Comparing bytes is what would have caught it.
-if [ -f docs/privacy.html ]; then
-  if diff -q docs/privacy.html "$PRIVACY_TMP" >/dev/null 2>&1; then
-    echo "OK   live privacy.html matches docs/privacy.html"
+#
+# Which bytes, though, depends on when this runs. Pages publishes from the
+# default branch, so on a pull request the live page CANNOT yet match a
+# modified `docs/privacy.html` — the change is not merged. Comparing against
+# the PR's own copy therefore made any edit to a legal page unmergeable, which
+# is a deadlock rather than a gate: the page cannot be corrected without
+# merging, and cannot be merged without being corrected. Hit on 2026-10-01 by
+# the subscription-disclosure fix.
+#
+# So: on a pull request, compare the live page against the BASE branch — that
+# is what should be published right now, and a mismatch still means Pages is
+# stale or serving a foreign repo, which is the defect this check exists for.
+# On push (i.e. after the merge) compare against the working tree, which is
+# the assertion that actually guards production.
+COMPARE_AGAINST="docs/privacy.html"
+COMPARE_LABEL="docs/privacy.html"
+BASE_TMP=""
+if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+  BASE_TMP="$(mktemp "${TMPDIR:-/tmp}/memento-privacy-base.XXXXXX")"
+  if git show "origin/${GITHUB_BASE_REF}:docs/privacy.html" > "$BASE_TMP" 2>/dev/null; then
+    COMPARE_AGAINST="$BASE_TMP"
+    COMPARE_LABEL="docs/privacy.html on origin/${GITHUB_BASE_REF}"
+    if ! diff -q docs/privacy.html "$BASE_TMP" >/dev/null 2>&1; then
+      echo "NOTE this PR changes docs/privacy.html; comparing the live page"
+      echo "     against ${GITHUB_BASE_REF} instead. The edit is verified"
+      echo "     against production by this same gate on the post-merge push."
+    fi
+  fi
+fi
+
+if [ -f "$COMPARE_AGAINST" ]; then
+  if diff -q "$COMPARE_AGAINST" "$PRIVACY_TMP" >/dev/null 2>&1; then
+    echo "OK   live privacy.html matches ${COMPARE_LABEL}"
   else
-    echo "FAIL: live privacy.html differs from docs/privacy.html — Pages is"
+    echo "FAIL: live privacy.html differs from ${COMPARE_LABEL} — Pages is"
     echo "      serving stale or foreign content (docs/app-store/00 A6)."
     fail=1
   fi
 fi
+[ -n "$BASE_TMP" ] && rm -f "$BASE_TMP"
 
 if [ "$fail" -ne 0 ]; then
   echo "FAIL: live legal URLs are not ready for App Store Connect."
