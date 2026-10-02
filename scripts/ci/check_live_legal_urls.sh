@@ -128,14 +128,36 @@ COMPARE_LABEL="docs/privacy.html"
 BASE_TMP=""
 if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
   BASE_TMP="$(mktemp "${TMPDIR:-/tmp}/memento-privacy-base.XXXXXX")"
-  if git show "origin/${GITHUB_BASE_REF}:docs/privacy.html" > "$BASE_TMP" 2>/dev/null; then
+  # actions/checkout leaves a PR checkout without a local `origin/<base>` ref,
+  # so resolve it explicitly. No --depth: a shallow fetch grafts the repo and
+  # breaks later revision walks (the same trap fixed in security.yml and
+  # lint_changed_swift.sh).
+  git fetch --quiet origin "$GITHUB_BASE_REF" 2>/dev/null || true
+  base_blob=""
+  for ref in "origin/${GITHUB_BASE_REF}" FETCH_HEAD; do
+    if git show "${ref}:docs/privacy.html" > "$BASE_TMP" 2>/dev/null; then
+      base_blob="$ref"
+      break
+    fi
+  done
+
+  if [ -n "$base_blob" ]; then
     COMPARE_AGAINST="$BASE_TMP"
-    COMPARE_LABEL="docs/privacy.html on origin/${GITHUB_BASE_REF}"
+    COMPARE_LABEL="docs/privacy.html on ${base_blob}"
     if ! diff -q docs/privacy.html "$BASE_TMP" >/dev/null 2>&1; then
       echo "NOTE this PR changes docs/privacy.html; comparing the live page"
-      echo "     against ${GITHUB_BASE_REF} instead. The edit is verified"
-      echo "     against production by this same gate on the post-merge push."
+      echo "     against ${base_blob} instead. The edit is verified against"
+      echo "     production by this same gate on the post-merge push."
     fi
+  elif ! diff -q docs/privacy.html "$PRIVACY_TMP" >/dev/null 2>&1; then
+    # Falling back to the working tree here would re-create the deadlock, and
+    # silently. Say so instead: the HTTP checks and the content rules above
+    # already ran against the live page, and the push run after merge makes
+    # the byte comparison that actually guards production.
+    echo "WARN could not read docs/privacy.html from ${GITHUB_BASE_REF}, and"
+    echo "     this PR modifies it, so the byte comparison is skipped here."
+    echo "     It runs on the post-merge push."
+    COMPARE_AGAINST=""
   fi
 fi
 
