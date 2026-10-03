@@ -266,6 +266,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Forbid Color.white / Color(hex:) outside Theme.swift
         run: scripts/ci/check_theme_color_bypass.sh
