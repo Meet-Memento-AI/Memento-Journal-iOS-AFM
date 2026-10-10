@@ -56,7 +56,7 @@ let loadingTips = [
     LoadingTip(
         icon: "target",
         title: "Set intentions",
-        message: "Writing down your goals makes you 42% more likely to achieve them."
+        message: "Writing down what you want makes it easier to notice when you get there."
     ),
     LoadingTip(
         icon: "lock.shield.fill",

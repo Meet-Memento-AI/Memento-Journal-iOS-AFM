@@ -95,16 +95,17 @@ paywall location, and Ready-to-Submit confirmation to be added here.
 
 ---
 
-## 3. The seeded-demo decision — ✅ **made and shipped**
+## 3. The seeded-demo decision — **reversed 2026-10-08**
 
-**Resolved 2026-08-11, recorded here 2026-09-17.** Option A shipped:
-`withMemento/Services/SampleContentService.swift` plus the **"Load Sample
-Entries"** row at `withMemento/Views/Settings/SettingsView.swift:317`. The row is
-**not** `#if DEBUG` gated, so a reviewer can reach it in the Release build, and
-the notes give the exact tap path. This section is retained for the reasoning,
-not as an open question.
+**Option A shipped 2026-08-11 and was removed 2026-10-08.** The Settings "Load
+Sample Entries" row was judged a test tool and taken out before 1.0, along with
+Patterns. Any install that loaded the samples has them removed on next launch
+(`AppStateStore.removeRetiredSampleEntries()`); `SampleContentService` survives
+only for the DEBUG screenshot seed (`-SeedSampleEntries`). The reviewer path is
+now **write two or three entries, then Ask** (`review_notes.txt` §3), backed by
+the mandatory demo video in §4. The table below is kept for the reasoning.
 
-A reviewer launching Memento cold has no entries, so Weekly, Patterns, and Ask —
+A reviewer launching Memento cold has no entries, so Weekly and Ask —
 the whole value proposition — have nothing to operate on. Three options, from
 `01` §2.1:
 
@@ -149,9 +150,8 @@ Constraints Apple stated, all of which are load-bearing:
 2. Welcome → "Get Started" → privacy explainer → "Open my journal".
 3. Onboarding; at the lock step tap **"Skip for now"** — shows the lock is
    optional and that no credentials exist.
-4. Journal opens **empty** → initials button top-left → Profile → Settings →
-   **"Load Sample Entries"** → back to a populated Journal. This is the shot that
-   answers "how does a reviewer reach the features".
+4. Journal opens **empty** → new-entry button → type two short entries → Save.
+   This is the shot that answers "how does a reviewer reach the features".
 5. New-entry button → grant Microphone and Speech Recognition → speak a sentence
    with the recording indicator visible → Save.
 6. Swipe left to Chat → ask a question → **tap a citation** and land on the

@@ -89,21 +89,15 @@ final class EvidenceCaptureUITests: XCTestCase {
         settle(2)
     }
 
-    private func loadSamples(_ app: XCUIApplication) {
-        openSettings(app)
-        let sample = app.buttons["settings.sampleEntries"].firstMatch
-        var tries = 0
-        while !(sample.exists && sample.isHittable) && tries < 8 {
-            app.swipeUp(); tries += 1
-        }
-        if sample.exists {
-            if sample.label.contains("Load") || app.staticTexts["Load Sample Entries"].exists {
-                sample.tap()
-                settle(4)
-            }
-        } else {
-            log("settings.sampleEntries missing")
-        }
+    /// Seeds the fictional sample journal through the DEBUG-only launch flag
+    /// (Settings no longer offers Load Sample Entries).
+    private func loadSamples() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITesting", "-SeedSampleEntries"]
+        app.launchEnvironment["MEETMEMENTO_UI_TEST"] = "1"
+        app.launch()
+        settle(4)
+        app.terminate()
     }
 
     // MARK: Full light/dark set
@@ -124,10 +118,7 @@ final class EvidenceCaptureUITests: XCTestCase {
         shot("settings")
         app.terminate()
 
-        app = launchLocked()
-        unlock(app)
-        loadSamples(app)
-        app.terminate()
+        loadSamples()
 
         app = launchLocked()
         unlock(app)
@@ -165,14 +156,7 @@ final class EvidenceCaptureUITests: XCTestCase {
         let weekly = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Weekly'")).firstMatch
         if weekly.waitForExistence(timeout: 10) {
             weekly.tap(); settle(3); shot("weekly")
-            app.terminate()
-            app = launchLocked(); unlock(app)
-            app.buttons["Menu"].firstMatch.tap(); settle(1.5)
         } else { log("Weekly row missing"); shot("menu-debug") }
-        let patterns = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Patterns'")).firstMatch
-        if patterns.waitForExistence(timeout: 10) {
-            patterns.tap(); settle(3); shot("patterns")
-        } else { log("Patterns row missing") }
         app.terminate()
 
         app = launchLocked()

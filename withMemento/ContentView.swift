@@ -61,6 +61,7 @@ public struct ContentView: View {
     @State private var holdOverlayForZoomOut = false
     @State private var overlayHoldTask: Task<Void, Never>?
     @State private var showWeeklyFromNotification = false
+    @State private var showTemporaryStoreAlert = false
 
     /// Overlay is on while a destination is pushed, and for a beat after pop
     /// so `.navigationTransition(.zoom)` can shrink back to its source.
@@ -204,6 +205,11 @@ public struct ContentView: View {
         .environment(\.paywallContext, PaywallContext(entries: entryViewModel.entries))
         .useTheme()
         .useTypography()
+        .alert("Your journal couldn't be opened", isPresented: $showTemporaryStoreAlert) {
+            Button("OK") { }
+        } message: {
+            Text("Memento is running without saving this time. Anything you write now will be lost when you close the app. Restart your device and open Memento again; if this keeps happening, contact support from Settings > About.")
+        }
         #if MEMENTO_AI
         .sheet(isPresented: $showWeeklyFromNotification) {
             NavigationStack {
@@ -221,6 +227,9 @@ public struct ContentView: View {
         }
         #endif
         .onAppear {
+            // Read on appear, not at init: the container is built by the
+            // scene's `.modelContainer`, after this view's state exists.
+            if JournalContainer.isUsingTemporaryStore { showTemporaryStoreAlert = true }
             if let tab = previewInitialTab, !didSetPreviewTab {
                 RootPage.select(tab, in: $selectedPage)
                 didSetPreviewTab = true
@@ -353,13 +362,8 @@ public struct ContentView: View {
                 .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
-        case .patterns:
-            PatternsView()
-                .environmentObject(entryViewModel)
-                .toolbar(.hidden, for: .tabBar)
-                .environment(\.fabVisible, false)
         #else
-        case .weekly, .patterns:
+        case .weekly:
             EmptyView()
         #endif
         }

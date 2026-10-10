@@ -221,7 +221,7 @@ but the two below are the ones to actually produce.
 
 **Recommended sequence (5 shots):** capture with the live recording indicator
 visible (which doubles as evidence for Guideline **2.5.14**, `01` §2.5.14) →
-timeline → a weekly reflection with its citations → Patterns → Ask answering a
+timeline → a weekly reflection with its citations → Ask answering a
 question with sources.
 
 **The alternative worth considering:** dropping `TARGETED_DEVICE_FAMILY` to

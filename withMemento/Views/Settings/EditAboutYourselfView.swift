@@ -40,13 +40,14 @@ public struct EditAboutYourselfView: View {
             .accessibilityLabel("Save")
             .accessibilityIdentifier("settings.saveAbout")
         }
-        .alert("Couldn't update tuning", isPresented: .init(
+        .alert("Saved, with one problem", isPresented: .init(
             get: { rebuildError != nil },
             set: { if !$0 { rebuildError = nil } }
         )) {
             Button("OK") { rebuildError = nil }
         } message: {
-            Text(rebuildError ?? "Your reflection was saved. Theme tuning can be rebuilt later in Settings.")
+            // The raw error is developer text; it goes to the log, not the user.
+            Text("Your answer was saved, but Memento couldn't update how it reflects on your journal. Tap Save again to retry.")
         }
     }
 
@@ -113,6 +114,7 @@ public struct EditAboutYourselfView: View {
                 }
             } catch {
                 await MainActor.run {
+                    AppLogger.log("⚠️ [AboutYourself] Lens rebuild failed: \(error.localizedDescription)")
                     rebuildError = error.localizedDescription
                     isSaving = false
                 }

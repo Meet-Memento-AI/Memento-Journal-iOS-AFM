@@ -7,7 +7,7 @@ captured on a physical iPhone is attached, beginning at app launch.
 1. RECORDING
 
 It shows launch, onboarding (including the optional app lock and how to
-skip it), loading sample entries, a voice entry with the recording
+skip it), writing entries, a voice entry with the recording
 indicator visible, asking the companion a question and tapping a citation
 to open its source, the paywall, export, and deleting all data.
 
@@ -18,9 +18,10 @@ reporting or blocking mechanism applies.
 One auto-renewing subscription, Memento Pro, annual or monthly.
 Journalling is free and unlimited — writing, reading, search and export
 are never gated. Pro lifts the free tier's ten-messages-a-day companion
-limit and unlocks Weekly reflections and Patterns. The paywall is reached
-by sending ten messages in a day, or via Journal > Insights > Weekly.
-Restore Purchases is on that screen and in Settings. Crisis messages are
+limit and unlocks Weekly reflections. The paywall is reached by sending
+ten messages in a day, or via Journal > initials button top left
+(VoiceOver: "Menu") > Weekly. Restore Purchases is on the paywall and in
+Settings. Crisis messages are
 never limited or charged.
 
 2. PURPOSE AND AUDIENCE
@@ -41,14 +42,11 @@ No credentials, and no sign-in, which is why those fields are blank.
 Onboarding offers an optional app lock; "Skip for now" bypasses it, and
 the lock screen has a device-passcode fallback, so no PIN is needed.
 
-The companion answers from entries and a fresh install has none:
-
-  Journal > initials button top left (VoiceOver: "Menu") > Profile >
-  Settings > "Load Sample Entries"
-
-Fictional, reversible from the same row. Then ask via the message icon top
-right or a left swipe; capture via the compose button, allowing Microphone
-and Speech Recognition; export via Settings.
+A fresh install has an empty journal; the companion answers only from
+what you write. Write two or three short entries with the compose button
+(type, or dictate after allowing Microphone and Speech Recognition), then
+ask via the message icon top right or a left swipe, and tap a citation to
+open its entry. Export is at Settings > "Export Your Journal".
 
 4. EXTERNAL SERVICES
 

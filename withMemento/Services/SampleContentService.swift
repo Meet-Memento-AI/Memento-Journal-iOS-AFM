@@ -4,11 +4,10 @@
 //
 //  Loads (and removes) a bundled set of sample journal entries.
 //
-//  Why this exists: Memento reflects on what you have written, so a fresh
-//  install has nothing for Weekly, Patterns, or Ask to work with. That is a
-//  poor first impression for a real user and an outright Guideline 2.1 risk for
-//  App Review — over 40% of unresolved review issues are app completeness, and a
-//  reviewer opens the app cold, in a quiet room, with an empty journal.
+//  No longer user-facing: Settings dropped Load / Remove Sample Entries before
+//  1.0. What remains is the DEBUG screenshot seed (`-SeedSampleEntries`) and
+//  `AppStateStore.removeRetiredSampleEntries()`, which takes the set back out
+//  of any install that loaded it from Settings in a TestFlight build.
 //
 //  The entries are fictional and clearly labelled. Loading is idempotent and
 //  fully reversible: entry ids are derived deterministically from the sample id,
@@ -47,7 +46,7 @@ final class SampleContentService: ObservableObject {
         let entries: [SampleEntry]
     }
 
-    /// Published so Settings re-renders when the sample set is added or removed.
+    /// Published so observers re-render when the sample set is added or removed.
     @Published private(set) var loadedCount: Int = 0
 
     private init() {

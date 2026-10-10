@@ -80,10 +80,12 @@ final class PaywallPlanTests: XCTestCase {
 
     // MARK: - Features (R4)
 
-    /// DEC-013: "what they get, with memory and insights first".
+    /// DEC-013: "what they get, with memory and insights first". Patterns was
+    /// removed from the app, so the table must not sell it.
     func testMemoryAndInsightsLead() {
-        XCTAssertEqual(PaywallFeature.all.prefix(2).map(\.name), ["Memory across all your entries", "Insights and patterns"])
-        XCTAssertEqual(PaywallFeature.proOnly.count, 4)
+        XCTAssertEqual(PaywallFeature.all.prefix(2).map(\.name), ["Memory across all your entries", "Sunday weekly review"])
+        XCTAssertEqual(PaywallFeature.proOnly.count, 3)
+        XCTAssertFalse(PaywallFeature.all.contains { $0.name.localizedCaseInsensitiveContains("pattern") })
     }
 
     /// R4: journaling, reading and export are free forever. Export must
@@ -177,13 +179,6 @@ final class PaywallPlanTests: XCTestCase {
         let quietTuesday = PaywallContext(entryCount: 20, entriesThisWeek: 1, isSunday: false)
         XCTAssertEqual(weekly.title(in: quietTuesday), "One week at a time.")
         XCTAssertEqual(weekly.subtitle(in: quietTuesday), "Pro writes a short recap of your week, every Sunday.")
-    }
-
-    /// Patterns are promised only once there's enough writing to find them.
-    func testPatternsCopyMatchesTheHistory() {
-        let patterns = PaywallTrigger.patterns
-        XCTAssertEqual(patterns.title(in: PaywallContext(entryCount: 3, entriesThisWeek: 0, isSunday: false)), "Patterns take time.")
-        XCTAssertEqual(patterns.title(in: PaywallContext(entryCount: 40, entriesThisWeek: 0, isSunday: false)), "See what repeats.")
     }
 
     func testContextCountsThisWeekAndSunday() throws {

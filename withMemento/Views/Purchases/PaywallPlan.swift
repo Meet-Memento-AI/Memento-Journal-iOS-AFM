@@ -117,7 +117,6 @@ struct PaywallFeature: Equatable {
 
     static let all: [PaywallFeature] = [
         PaywallFeature(name: "Memory across all your entries", inFree: false),
-        PaywallFeature(name: "Insights and patterns", inFree: false),
         PaywallFeature(name: "Sunday weekly review", inFree: false),
         PaywallFeature(name: "Unlimited chats and summaries", inFree: false),
         PaywallFeature(name: "Unlimited journaling", inFree: true),
@@ -149,7 +148,6 @@ enum PaywallTrigger: CaseIterable, Identifiable {
     case clearChat
     case chatSummary
     case weeklyReview
-    case patterns
     case askWholeJournal
 
     /// The surface a `.proGated(_:)` lock card names. Nil for an unknown
@@ -158,7 +156,6 @@ enum PaywallTrigger: CaseIterable, Identifiable {
     init?(gate: String) {
         switch gate {
         case "Weekly reflections": self = .weeklyReview
-        case "Patterns": self = .patterns
         default: return nil
         }
     }
@@ -182,8 +179,6 @@ enum PaywallTrigger: CaseIterable, Identifiable {
             return "From chat to journal."
         case .weeklyReview:
             return context.hasBusyWeek ? "Your week, in focus." : "One week at a time."
-        case .patterns:
-            return context.hasPatternHistory ? "See what repeats." : "Patterns take time."
         case .askWholeJournal:
             return context.hasJournal ? "Every entry. One conversation." : "A chat that remembers."
         }
@@ -212,10 +207,6 @@ enum PaywallTrigger: CaseIterable, Identifiable {
             case (false, true): return "Pro writes a short recap of your week, today."
             case (false, false): return "Pro writes a short recap of your week, every Sunday."
             }
-        case .patterns:
-            return context.hasPatternHistory
-                ? "Pro finds the people, places and moods that return."
-                : "Keep writing. Pro will show you what repeats."
         case .askWholeJournal:
             return context.hasJournal
                 ? "Free chat sees your latest entry. Pro sees them all."
@@ -234,7 +225,7 @@ enum PaywallTrigger: CaseIterable, Identifiable {
         case .clearChat: "clear_chat"
         case .chatSummary: "chat_summary"
         case .weeklyReview: "weekly_review"
-        case .patterns, .askWholeJournal: "locked_surface"
+        case .askWholeJournal: "locked_surface"
         }
     }
 }
@@ -269,8 +260,6 @@ struct PaywallContext: Equatable {
 
     /// More than one entry, so "every entry" means more than the latest one.
     var hasJournal: Bool { entryCount >= 2 }
-    /// Enough writing for patterns to be more than noise.
-    var hasPatternHistory: Bool { entryCount >= 10 }
     /// More than one entry this week, so a weekly recap has something to
     /// draw on.
     var hasBusyWeek: Bool { entriesThisWeek >= 2 }

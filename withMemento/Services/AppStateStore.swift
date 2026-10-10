@@ -88,23 +88,24 @@ class AppStateStore: ObservableObject {
         // name + configured PIN lock) before this method's normal local-load
         // + migration path runs, then assert the launch lands directly on
         // Journal. Double-gated on -UITesting so it can never fire outside
-        // an explicit UI test launch.
+        // an explicit UI test launch, and compiled out of Release: it
+        // overwrites the PIN.
+        #if DEBUG
         let shouldSeedUpgradeFixture = isUiTestRun
             && ProcessInfo.processInfo.arguments.contains("-SeedUpgradeFixture")
         if shouldSeedUpgradeFixture {
             seedUpgradeFixture()
         }
+        #else
+        let shouldSeedUpgradeFixture = false
+        #endif
 
         // App Store screenshots (checklist D9). Guideline 2.3.3 wants the app
         // shown in use and 2.3.9 wants the content fictional, which is exactly
         // what the shipping sample journal is — so the screenshot run seeds it
-        // and starts past onboarding, rather than a human tapping through
-        // Settings before every capture and producing slightly different frames
-        // each time.
+        // and starts past onboarding, so every capture produces the same frames.
         //
-        // Triple-gated: DEBUG only, `-UITesting`, and its own flag. It calls
-        // the same `SampleContentService.load()` the Settings row calls, so
-        // there is no second seeding path to drift.
+        // Triple-gated: DEBUG only, `-UITesting`, and its own flag.
         #if DEBUG
         let shouldSeedScreenshotJournal = isUiTestRun
             && ProcessInfo.processInfo.arguments.contains("-SeedSampleEntries")
@@ -143,6 +144,9 @@ class AppStateStore: ObservableObject {
 
         if !isUiTestRun {
             LegacyStoreImporter.importIfNeeded()
+            if !isRunningAnyTest {
+                removeRetiredSampleEntries()
+            }
         }
         Task {
             #if MEMENTO_AI
@@ -158,6 +162,7 @@ class AppStateStore: ObservableObject {
     /// onboarding-complete flag) so the very next line of `initializeAppState()`
     /// exercises `migrateFromPriorAccountIfNeeded()` against realistic upgrade
     /// state instead of a fresh install. See `shouldSeedUpgradeFixture` above.
+    #if DEBUG
     private func seedUpgradeFixture() {
         UserDefaults.standard.set("Ada", forKey: Self.firstNameKey)
         UserDefaults.standard.set("Lovelace", forKey: Self.lastNameKey)
@@ -165,6 +170,17 @@ class AppStateStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.migratedFromAccountKey)
         _ = SecurityService.shared.savePIN("4829")
         SecurityService.shared.setSecurityMode(.pin)
+    }
+    #endif
+
+    /// Settings no longer offers Load / Remove Sample Entries, so anyone who
+    /// loaded the fictional journal (TestFlight builds) would otherwise be
+    /// left with it mixed into their own and no way to take it out short of
+    /// Delete Everything. Removes exactly the ids the service seeded; a no-op
+    /// once they are gone.
+    private func removeRetiredSampleEntries() {
+        guard SampleContentService.shared.isLoaded else { return }
+        SampleContentService.shared.remove()
     }
 
     /// Marks onboarding complete locally.

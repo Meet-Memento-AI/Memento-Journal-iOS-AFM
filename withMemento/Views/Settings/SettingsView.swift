@@ -25,7 +25,6 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showCustomerCenter = false
     #endif
-    @State private var isSampleWorking = false
 
     @State private var exportURLs: [URL] = []
     @State private var showExportSheet = false
@@ -95,7 +94,7 @@ struct SettingsView: View {
         .alert("Nothing to export yet", isPresented: $showNothingToExportAlert) {
             Button("OK") { }
         } message: {
-            Text("Write an entry first — sample entries aren't included in exports.")
+            Text("Write an entry first, then come back to export it.")
         }
         .alert("Export failed", isPresented: $exportError) {
             Button("OK") { }
@@ -296,7 +295,7 @@ struct SettingsView: View {
     #if MEMENTO_AI
     private var proPlanSubtitle: String {
         guard let active = entitlements.activeEntitlement else { return "Active" }
-        let plan = active.productIdentifier.contains("monthly") ? "Monthly" : "Yearly"
+        let plan = active.productIdentifier.localizedCaseInsensitiveContains("monthly") ? "Monthly" : "Yearly"
         guard let date = active.expirationDate else { return plan }
         let verb = active.willRenew ? "Renews" : "Ends"
         return "\(plan) · \(verb) \(date.formatted(date: .abbreviated, time: .omitted))"
@@ -390,25 +389,6 @@ struct SettingsView: View {
                     : "Ratings stay on this device. Submitting a Report still sends that reply. Double-tap to share ratings."
             )
 
-            SettingsRowDivider()
-
-            // Sample entries. Memento reflects on what you've written, so a
-            // fresh install has nothing for Ask to work with — a weak first
-            // impression, and a Guideline 2.1 risk since a reviewer opens the
-            // app cold with an empty journal.
-            SettingsRow(
-                icon: sampleContent.isLoaded ? "trash" : "text.book.closed",
-                title: sampleContent.isLoaded ? "Remove Sample Entries" : "Load Sample Entries",
-                subtitle: sampleContent.isLoaded
-                    ? "Deletes only the \(sampleContent.loadedCount) sample entries — your own writing is untouched"
-                    : ProductCapabilities.includesGenerativeAI
-                        ? "Adds a fictional 9-month journal so you can try reflections right away"
-                        : "Adds a fictional 9-month journal so you can see how entries look",
-                showChevron: false,
-                showProgress: isSampleWorking,
-                accessibilityIdentifier: "settings.sampleEntries",
-                action: { toggleSampleEntries() }
-            )
 
             SettingsRowDivider()
 
@@ -466,27 +446,6 @@ struct SettingsView: View {
 
     // MARK: - Actions
 
-    /// Interim scope (spec 023 R4): local entry storage + security/encryption
-    /// Keychain entries + UserDefaults + caches. Spec 015 extends this to the
-    /// full five-store deletion per REQ-DATA-013.
-    /// Loads or removes the bundled sample journal. Reversible by design — it
-    /// tracks the ids it created, so removal never touches the user's own
-    /// entries even if a sample was edited afterwards.
-    private func toggleSampleEntries() {
-        guard !isSampleWorking else { return }
-        isSampleWorking = true
-        let wasLoaded = sampleContent.isLoaded
-        Task {
-            if wasLoaded {
-                sampleContent.remove()
-            } else {
-                sampleContent.load()
-            }
-            await entryViewModel.loadEntries()
-            isSampleWorking = false
-        }
-    }
-
     /// Writes the user's entries (sample entries excluded) as Markdown + JSON
     /// and hands them to the share sheet. Files are cleaned up on dismiss.
     private func exportJournal() {
@@ -514,6 +473,9 @@ struct SettingsView: View {
         }
     }
 
+    /// Interim scope (spec 023 R4): local entry storage + security/encryption
+    /// Keychain entries + UserDefaults + caches. Spec 015 extends this to the
+    /// full five-store deletion per REQ-DATA-013.
     private func deleteEverything() {
         isDeletingEverything = true
         deleteEverythingError = ""

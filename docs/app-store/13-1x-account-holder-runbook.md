@@ -137,7 +137,7 @@ Display name **Memento**. Version **1.0**, build must be **≥ 3**.
 | D4 Primary category | **Lifestyle**. Secondary: Productivity. Never Health & Fitness or Medical |
 | D5 Copyright | `2026 Sebastian Mendoza` (no ©). Content Rights: No third-party content. License: Apple's standard EULA |
 | D6 App Privacy | Tracking = **No**. Declare **Other User Content**, **Other Data Types**, **User ID** (linked, not tracking; App Functionality + Analytics) for opt-in quality feedback (spec 042). Journal is not collected. CloudKit private DB is the user’s iCloud, not our collection. Match `PrivacyInfo.xcprivacy` and live `privacy.html`. **Not** Data Not Collected |
-| D7 Review contact | Name + phone (you). Email: `hello@withmemento.ai`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. Optional: 60–90s video (onboarding → Load Sample Entries → Chat → export) |
+| D7 Review contact | Name + phone (you). Email: `hello@withmemento.ai`. Sign-in fields **blank**. Notes: paste `metadata/en-US/review_notes.txt`. **Required:** 90–120s video on a physical device (onboarding → write two entries → Chat → export), per `08` §4 |
 | D8 Metadata | Paste `metadata/en-US/{name,subtitle,keywords,promotional_text,description,release_notes}.txt` |
 | D9 Screenshots | **iPhone 6.9″ 1320×2868** and **iPad 13″ 2064×2752** (iPad is mandatory; `TARGETED_DEVICE_FAMILY = 1,2`) |
 | D10 Price | From A2. Tax category required if paid |
@@ -152,10 +152,10 @@ Display name **Memento**. Version **1.0**, build must be **≥ 3**.
 
 On an Apple Intelligence iPhone, Appearance Light, then repeat iPad 13″:
 
-1. Journal with sample entries
+1. Journal with sample entries (seeded by the DEBUG `-SeedSampleEntries` screenshot run; fictional, per 2.3.9)
 2. New entry (text or voice)
 3. Chat reply with a citation
-4. Profile / Settings (Load Sample Entries visible is fine)
+4. Profile / Settings
 5. Optional lock screen
 
 Export PNG at the exact pixel sizes above. No device chrome required if using
@@ -209,7 +209,7 @@ Product contains no `.xcconfig`, `.storekit`, or `.md` files.
 That is the A1 / certificate-refresh step: accept the Program License Agreement, then in Xcode → Settings → Accounts → Manage Certificates, create or download a current **Apple Distribution** certificate and let automatic signing regenerate the App Store profile. Re-run export from `07`. Validate/upload still need an App Store Connect API key (`ASC_KEY_ID` / `ASC_ISSUER_ID`) or Organizer.
 
 Internal TestFlight on a physical Apple Intelligence iPhone: Welcome →
-onboarding (skip lock) → Load Sample Entries → write one entry → Chat one
+onboarding (skip lock) → write two entries → Chat one
 question → airplane-mode journal still saves → Delete Everything returns to
 Welcome.
 

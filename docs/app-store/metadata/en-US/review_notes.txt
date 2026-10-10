@@ -10,12 +10,12 @@ as no account exists (Settings > Delete Everything erases all data).
 One auto-renewing subscription, Memento Pro, annual or monthly; the
 paywall shows the regional price. Journalling is free and unlimited —
 writing, reading, search and export are never gated. Pro lifts the free
-tier's 10-messages-a-day companion limit and unlocks Weekly reflections
-and Patterns.
+tier's 10-messages-a-day companion limit and unlocks Weekly reflections.
 
 To see the paywall without buying: send 10 companion messages in a day, or
-open Journal > Insights > Weekly. Restore Purchases is on that screen and
-in Settings. Crisis messages are never limited.
+open Journal > initials button top left (VoiceOver: "Menu") > Weekly.
+Restore Purchases is on the paywall and in Settings. Crisis messages are
+never limited.
 
 2. PURPOSE AND AUDIENCE
 
@@ -23,7 +23,7 @@ A private journal that answers questions about what you wrote. Speak or
 type an entry; it is transcribed, filed and indexed on the device. Later
 you ask your archive a question and get an answer from your own entries,
 citing the ones used. The problem it solves: journals go unread, and
-search finds only the words you happened to use.
+search finds only the words you used.
 
 For adults who journal and want it private. An archivist, not an advisor
 (see 6).
@@ -34,16 +34,16 @@ No credentials needed. Onboarding offers an optional app lock; "Skip for
 now" bypasses it, and the lock screen has a device-passcode fallback, so
 no PIN is needed from us.
 
-The companion answers from entries; a fresh install has none:
+A fresh install has an empty journal; the companion answers only from
+what you write. To try it:
 
-  Journal > initials button top left (VoiceOver: "Menu") > Profile >
-  Settings > "Load Sample Entries"
+  1. Write two or three short entries with the compose button (type, or
+     dictate after allowing Microphone and Speech Recognition).
+  2. Ask via the message icon top right or swipe left: "what have I been
+     writing about?" Tap a citation to open that entry.
+  3. Export at Settings > "Export Your Journal".
 
-Clearly fictional, reversible from the same row. Then: Ask via the message
-icon top right or swipe left ("what have I been writing about?", then tap
-a citation to open that entry); Capture via the compose button, allowing
-Microphone and Speech Recognition; Export at Settings > "Export Your
-Journal". Permissions are all optional.
+Permissions are all optional. The attached video shows this path.
 
 4. EXTERNAL SERVICES
 

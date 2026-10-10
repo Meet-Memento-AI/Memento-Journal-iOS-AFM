@@ -47,7 +47,7 @@ Memento is free to use as a journal. Writing, reading, searching, and exporting
 your entries are unlimited and always will be.
 
 Memento Pro is an optional subscription that lifts the free daily limit on the
-companion and unlocks Weekly reflections and Patterns.
+companion and unlocks Weekly reflections.
 
 Memento Pro is offered as an annual or a monthly subscription. The price for
 your region is shown in the app before you buy.
@@ -62,4 +62,5 @@ REQUIREMENTS
 
 The companion uses Apple Intelligence and requires a compatible iPhone or iPad. Capture, transcription, timeline, search, and export work on every supported device.
 
-Privacy Policy and Terms of Service are linked below and inside the app.
+Privacy Policy: https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/privacy.html
+Terms of Use: https://meet-memento-ai.github.io/Memento-Journal-iOS-AFM/terms.html

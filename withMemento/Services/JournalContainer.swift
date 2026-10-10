@@ -15,6 +15,12 @@ enum JournalContainer {
     private static let lock = NSLock()
     private static var cached: ModelContainer?
 
+    /// True when the on-disk store could not be opened and this launch is
+    /// running on a throwaway in-memory store. Nothing written now survives a
+    /// quit, so the root view tells the person instead of letting them write
+    /// into a journal that silently disappears.
+    private(set) static var isUsingTemporaryStore = false
+
     /// Process-wide container so UI `.modelContainer` and store writes share one store.
     static func make() -> ModelContainer {
         lock.lock()
@@ -74,6 +80,7 @@ enum JournalContainer {
                 return try ModelContainer(for: schema, configurations: localSameStore)
             } catch {
                 AppLogger.log("[JournalContainer] Local memento-journal store failed: \(error.localizedDescription)")
+                isUsingTemporaryStore = true
                 return makeInMemory()
             }
         }
@@ -86,6 +93,7 @@ enum JournalContainer {
             return try ModelContainer(for: schema, configurations: local)
         } catch {
             AppLogger.log("[JournalContainer] Local SwiftData store failed: \(error.localizedDescription)")
+            isUsingTemporaryStore = true
             return makeInMemory()
         }
     }

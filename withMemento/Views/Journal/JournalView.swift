@@ -436,13 +436,8 @@ public struct JournalView: View {
                 .environmentObject(entryViewModel)
                 .toolbar(.hidden, for: .tabBar)
                 .environment(\.fabVisible, false)
-        case .patterns:
-            PatternsView()
-                .environmentObject(entryViewModel)
-                .toolbar(.hidden, for: .tabBar)
-                .environment(\.fabVisible, false)
         #else
-        case .weekly, .patterns:
+        case .weekly:
             EmptyView()
         #endif
         }

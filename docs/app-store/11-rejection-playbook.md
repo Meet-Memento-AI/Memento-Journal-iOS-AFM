@@ -272,10 +272,10 @@ The app offers an optional Face ID or passcode lock during onboarding. It is
 skippable, and if it is enabled the device passcode works as a fallback on the
 lock screen.
 
-To see the reflection features, which need entries to work from:
-Journal -> initials button, top-left (VoiceOver: "Menu") -> Profile ->
-Settings -> "Load Sample Entries". That adds a fictional journal and is
-reversible from the same row; it never touches real entries.
+To see the reflection features, which need entries to work from: write
+two or three short entries with the compose button, then ask the companion
+(message icon top right, or swipe left) "what have I been writing about?"
+and tap a citation to open its entry.
 ```
 
 ### 5.4 If asked for information under 2.1 (the September 2026 pattern)

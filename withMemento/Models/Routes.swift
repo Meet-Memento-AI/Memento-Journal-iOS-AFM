@@ -56,7 +56,6 @@ public enum SettingsRoute: Hashable {
     case about
     case acknowledgments
     case weekly
-    case patterns
 }
 
 // MARK: - Navigation route for AI Chat

@@ -73,18 +73,6 @@ struct ProfileSheet: View {
                                 )
                             }
                             .buttonStyle(.plain)
-
-                            SettingsRowDivider()
-
-                            NavigationLink(value: SettingsRoute.patterns) {
-                                SettingsRow(
-                                    icon: "chart.bar",
-                                    title: "Patterns",
-                                    subtitle: "Counts stay in the app, not the model",
-                                    showChevron: true
-                                )
-                            }
-                            .buttonStyle(.plain)
                             #endif
                         }
 
@@ -199,11 +187,8 @@ struct ProfileSheet: View {
         case .weekly:
             WeeklyReflectionView()
                 .environmentObject(entryViewModel)
-        case .patterns:
-            PatternsView()
-                .environmentObject(entryViewModel)
         #else
-        case .weekly, .patterns:
+        case .weekly:
             EmptyView()
         #endif
         }
