@@ -42,6 +42,28 @@ struct ChatFooterHeightKey: PreferenceKey {
     .useTypography()
 }
 
+#if DEBUG // StreamRevealDemoService is compiled out of release builds
+/// The reveal under a hostile stream (`StreamRevealDemoService`): random
+/// 1–8 character deltas, a 2s stall, a 300-character burst. The first turn
+/// is history and must appear instantly; the second streams in.
+#Preview("Streaming reveal") {
+    @Previewable @StateObject var viewModel = ChatViewModel(chatService: StreamRevealDemoService())
+    NavigationStack {
+        AIChatView(viewModel: viewModel, isEmbedded: true, hasEntries: true)
+    }
+    .useTheme()
+    .useTypography()
+    .task {
+        guard viewModel.messages.isEmpty else { return }
+        viewModel.messages = [
+            ChatMessage(content: "How did last week go?", isFromUser: true),
+            ChatMessage.aiMessage(body: "Calmer than the one before. You wrote less about work and more about the walk home.")
+        ]
+        viewModel.sendMessage(prompt: "What has this month looked like?")
+    }
+}
+#endif
+
 #Preview("Dark Mode") {
     @Previewable @StateObject var viewModel = ChatViewModel()
     NavigationStack {

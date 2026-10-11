@@ -56,6 +56,9 @@ struct ChatInputField: View {
     var onNarrate: (() -> Void)?
     /// When false, input is disabled (e.g. while a send is in flight)
     var isInteractive: Bool
+    /// When false, the draft can be edited but not sent (the previous reply
+    /// is still revealing).
+    var isSendEnabled: Bool
     /// Reports the capsule's frame in `ChatSpace.page` after every layout.
     ///
     /// The send choreography reads the last reported value at send time, which
@@ -134,7 +137,7 @@ struct ChatInputField: View {
     }
 
     private var canSend: Bool {
-        !isTextEmpty || !attachedPhotos.isEmpty
+        isSendEnabled && (!isTextEmpty || !attachedPhotos.isEmpty)
     }
 
     private var remainingAttachmentSlots: Int {
@@ -158,6 +161,7 @@ struct ChatInputField: View {
         onDismiss: (() -> Void)? = nil,
         onNarrate: (() -> Void)? = nil,
         isInteractive: Bool = true,
+        isSendEnabled: Bool = true,
         initialState: InputState = .defaultState,
         onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
@@ -166,6 +170,7 @@ struct ChatInputField: View {
         self.onDismiss = onDismiss
         self.onNarrate = onNarrate
         self.isInteractive = isInteractive
+        self.isSendEnabled = isSendEnabled
         self.onComposerFrame = onComposerFrame
         self._inputState = State(initialValue: initialState)
     }

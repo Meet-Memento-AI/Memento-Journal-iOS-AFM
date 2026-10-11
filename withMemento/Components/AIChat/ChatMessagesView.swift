@@ -60,12 +60,17 @@ struct ChatMessagesView: View {
     /// `.settling` hand-back. A send is never in both states at once, and both
     /// must die together on release, transcript replacement, and disappear.
     @State private var pinTimer: Task<Void, Never>?
+    /// When `.following` last scrolled; follows are throttled to
+    /// `followInterval` so a growing reply glides rather than judders.
+    @State private var lastFollowAt: Date = .distantPast
     @State private var sessionSettleTask: Task<Void, Never>?
 
     private let followClock = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     private static let bottomAnchorID = "chat-transcript-end"
     /// Sub-point drift is invisible and not worth a scroll.
     private static let pinTolerance: CGFloat = 0.5
+    /// Minimum spacing between follow scrolls while a long reply reveals.
+    private static let followInterval: TimeInterval = 0.15
     /// Corrections allowed against any one content height. Deliberately per
     /// *layout*, not per send: a send is followed by a burst of layouts as the
     /// placeholder, the loading row and the composer all settle, and a per-send
@@ -196,6 +201,11 @@ struct ChatMessagesView: View {
                             // Applied AFTER the reporter so it can never shift
                             // the measured top of a pinned row.
                             .padding(.bottom, turnTrailingGap(for: message))
+                            // A reply's glyphs are its entrance; a row-level
+                            // fade on top would double it. Removal unchanged.
+                            .transition(message.isAssistantReply
+                                ? .asymmetric(insertion: .identity, removal: .opacity)
+                                : .opacity)
                     }
 
                     if viewModel.isLoading {
@@ -473,6 +483,9 @@ struct ChatMessagesView: View {
             // leave behind, on the first layout after the settle.
             return
 
+        case .following:
+            follow(proxy: proxy, snapshot: snapshot)
+
         case .holding(let id, _):
             // Corrective re-assert. Every clamp this feature can suffer shows up
             // here as a non-zero delta: the loading row leaving the stack at
@@ -483,6 +496,18 @@ struct ChatMessagesView: View {
             // transcript tail, which is BELOW the pin while the turn is shorter
             // than the viewport. Two authorities over one offset would fight.
             guard !followTail, let top = lastUserTop, top.id == id else { return }
+
+            // Pin, then follow: once the reply revealing under the pin has
+            // outgrown the viewport (the reserve is spent and the transcript
+            // runs past the bottom), hand the offset to `.following`. A reply
+            // that fits never gets here and stays pinned exactly as before.
+            if viewModel.revealingMessageID != nil,
+               reserve <= Self.pinTolerance,
+               hasContentBelow(snapshot) {
+                if case .holding(_, let seq) = pin { pin = .following(id: id, seq: seq) }
+                follow(proxy: proxy, snapshot: snapshot)
+                return
+            }
 
             let delta = ChatTranscriptMetrics.pinDelta(
                 rowTopInContent: top.y,
@@ -593,6 +618,52 @@ struct ChatMessagesView: View {
         }
     }
 
+    /// Whether transcript content sits below the visible rect: the offset is
+    /// short of the end of the scroll range.
+    private func hasContentBelow(_ snapshot: ScrollSnapshot) -> Bool {
+        snapshot.offsetY < snapshot.contentHeight - snapshot.viewport - Self.pinTolerance
+    }
+
+    /// Keeps the end of a long, still-revealing reply in view. Gentle (an
+    /// eased scroll, at most every `followInterval`, with a trailing one so
+    /// the last growth is not missed) and never against the user: a drag
+    /// moves `pin` to `.none` in `onScrollPhaseChange`, and nothing returns
+    /// it here. Once the reveal settles this goes inert — it must not fall
+    /// back to `.holding`, whose corrective pass would scroll up to the pin.
+    private func follow(proxy: ScrollViewProxy, snapshot: ScrollSnapshot) {
+        guard case .following(let id, let seq) = pin,
+              viewModel.revealingMessageID != nil,
+              hasContentBelow(snapshot)
+        else { return }
+
+        let wait = Date.now.timeIntervalSince(lastFollowAt)
+        guard wait >= Self.followInterval else {
+            // Throttled: one trailing follow, so growth that lands inside the
+            // window still gets shown.
+            guard pinTimer == nil else { return }
+            pinTimer = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Self.followInterval - wait))
+                pinTimer = nil
+                guard !Task.isCancelled, pin == .following(id: id, seq: seq) else { return }
+                lastFollowAt = .distantPast
+                scrollToFollow(proxy: proxy)
+            }
+            return
+        }
+        scrollToFollow(proxy: proxy)
+    }
+
+    private func scrollToFollow(proxy: ScrollViewProxy) {
+        lastFollowAt = .now
+        if reduceMotion || Self.usesInstantSendScroll {
+            snap(proxy: proxy) { $0.scrollTo(Self.bottomAnchorID, anchor: .bottom) }
+        } else {
+            withAnimation(.easeOut(duration: 0.25)) {
+                proxy.scrollTo(Self.bottomAnchorID, anchor: .bottom)
+            }
+        }
+    }
+
     /// Hands the offset back to the corrective pass with a fresh allowance —
     /// the first layout after a settle is one that pass has never seen.
     private func beginHolding(id: UUID, seq: Int) {
@@ -656,7 +727,7 @@ struct ChatMessagesView: View {
         ChatMessageBubble(
             message: message,
             animate: message.isNew,
-            isStreaming: message.isStreaming,
+            isStreaming: message.isStreaming || viewModel.revealingMessageID == message.id,
             feedbackType: viewModel.feedbackType(for: message.id),
             isSpeaking: voiceService.speakingMessageID == message.id,
             isPaused: voiceService.speakingMessageID == message.id && voiceService.isPaused,
@@ -695,8 +766,7 @@ struct ChatMessagesView: View {
                 viewModel.beginFeedback(messageID: message.id, source: .report)
             } : nil,
             onRetry: message.isFromUser ? { viewModel.retryMessage(message) } : nil,
-            isUnanswered: message.isFromUser && viewModel.isUnansweredUserMessage(message),
-            onAnimationComplete: { viewModel.markMessageSeen(message.id) }
+            isUnanswered: message.isFromUser && viewModel.isUnansweredUserMessage(message)
         )
     }
 
@@ -858,6 +928,9 @@ private enum PinIntent: Equatable {
     case settling(id: UUID, seq: Int)
     /// Landed on the pin. Hold it against clamps until the user takes over.
     case holding(id: UUID, seq: Int)
+    /// The reply outgrew the viewport while revealing: keep its end in view
+    /// until it settles or the user drags.
+    case following(id: UUID, seq: Int)
 }
 
 /// The scroll-view facts the pin logic needs, in one equatable value so a single

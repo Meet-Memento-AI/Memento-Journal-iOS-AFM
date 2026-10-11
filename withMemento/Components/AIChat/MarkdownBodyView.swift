@@ -10,10 +10,13 @@ import SwiftUI
 
 struct MarkdownBodyView: View {
     let blocks: [MarkdownBlock]
-    /// When > 0, fade the newest characters of the last renderable block.
-    var dissolveCount: Int = 0
-    var dissolveMinOpacity: Double = 0.1
-    var showCaret: Bool = false
+    /// Set while a reply is streaming in (or still settling): each block's
+    /// text is revealed glyph by glyph from its slice of the schedule. Nil
+    /// renders plain, settled text: history, previews, safety copy.
+    var schedule: StreamSchedule? = nil
+    /// Index of each block's first character in `schedule`
+    /// (`StreamLayout.blockStarts`). Ignored when `schedule` is nil.
+    var blockStarts: [Int] = []
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -21,12 +24,9 @@ struct MarkdownBodyView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                blockView(block, isLastRenderable: index == lastRenderableIndex)
+                blockView(block, range: streamRange(at: index))
                     .padding(.top, topPadding(at: index))
                     .accessibilityAddTraits(traits(for: block))
-            }
-            if blocks.isEmpty, showCaret {
-                caretText
             }
         }
         .limitDynamicTypeSize()
@@ -34,11 +34,11 @@ struct MarkdownBodyView: View {
 
     // MARK: - Layout
 
-    private var lastRenderableIndex: Int {
-        blocks.indices.reversed().first { idx in
-            if case .blank = blocks[idx] { return false }
-            return true
-        } ?? -1
+    /// Block `index`'s slice of the schedule, or nil to render it settled.
+    private func streamRange(at index: Int) -> Range<Int>? {
+        guard schedule != nil, blockStarts.indices.contains(index) else { return nil }
+        let start = blockStarts[index]
+        return start..<(start + blocks[index].displayedText.count)
     }
 
     private func topPadding(at index: Int) -> CGFloat {
@@ -61,7 +61,7 @@ struct MarkdownBodyView: View {
     // MARK: - Blocks
 
     @ViewBuilder
-    private func blockView(_ block: MarkdownBlock, isLastRenderable: Bool) -> some View {
+    private func blockView(_ block: MarkdownBlock, range: Range<Int>?) -> some View {
         switch block {
         case .blank:
             Color.clear.frame(height: Spacing.xs)
@@ -73,8 +73,7 @@ struct MarkdownBodyView: View {
                 baseFont: headingFont(level),
                 boldFont: headingFont(level),
                 lineSpacing: headingLineSpacing(level),
-                dissolve: isLastRenderable,
-                caret: isLastRenderable && showCaret
+                range: range
             )
             .accessibilityLabel(plain(runs))
 
@@ -84,8 +83,7 @@ struct MarkdownBodyView: View {
                 baseFont: type.body1,
                 boldFont: type.body1Bold,
                 lineSpacing: type.bodyLineSpacing,
-                dissolve: isLastRenderable,
-                caret: isLastRenderable && showCaret
+                range: range
             )
 
         case .unorderedItem(let depth, let runs):
@@ -94,8 +92,7 @@ struct MarkdownBodyView: View {
                 markerWidth: 14,
                 depth: depth,
                 runs: runs,
-                dissolve: isLastRenderable,
-                caret: isLastRenderable && showCaret
+                range: range
             )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(plain(runs))
@@ -106,8 +103,7 @@ struct MarkdownBodyView: View {
                 markerWidth: 28,
                 depth: depth,
                 runs: runs,
-                dissolve: isLastRenderable,
-                caret: isLastRenderable && showCaret
+                range: range
             )
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(n). \(plain(runs))")
@@ -119,11 +115,10 @@ struct MarkdownBodyView: View {
         markerWidth: CGFloat,
         depth: Int,
         runs: [MarkdownInline],
-        dissolve: Bool,
-        caret: Bool
+        range: Range<Int>?
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
-            Text(marker)
+            markerText(marker, range: range)
                 .font(type.body1)
                 .foregroundStyle(theme.foreground)
                 .frame(width: markerWidth, alignment: .trailing)
@@ -133,54 +128,47 @@ struct MarkdownBodyView: View {
                 baseFont: type.body1,
                 boldFont: type.body1Bold,
                 lineSpacing: type.bodyLineSpacing,
-                dissolve: dissolve,
-                caret: caret
+                range: range
             )
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.leading, CGFloat(depth) * Spacing.lg)
     }
 
+    @ViewBuilder
     private func styledText(
         runs: [MarkdownInline],
         baseFont: Font,
         boldFont: Font,
         lineSpacing: CGFloat,
-        dissolve: Bool,
-        caret: Bool
+        range: Range<Int>?
     ) -> some View {
-        var attr = RichTextParser.attributed(
+        let attr = RichTextParser.attributed(
             runs,
             baseFont: baseFont,
             boldFont: boldFont,
             textColor: theme.foreground
         )
-        if dissolve, dissolveCount > 0 {
-            applyDissolve(&attr)
+        if let schedule, let range {
+            StreamingText(attributed: attr, schedule: schedule, range: range)
+                .lineSpacing(lineSpacing)
+        } else {
+            Text(attr).lineSpacing(lineSpacing)
         }
-        if caret {
-            var caretAttr = AttributedString("\u{258F}")
-            caretAttr.foregroundColor = theme.mutedForeground
-            attr.append(caretAttr)
-        }
-        return Text(attr).lineSpacing(lineSpacing)
     }
 
-    private var caretText: some View {
-        Text("\u{258F}")
-            .foregroundStyle(theme.mutedForeground)
-    }
-
-    private func applyDissolve(_ attr: inout AttributedString) {
-        let ramp = min(dissolveCount, attr.characters.count)
-        guard ramp > 0 else { return }
-        var upper = attr.characters.endIndex
-        for k in 0..<ramp {
-            let lower = attr.characters.index(before: upper)
-            let t = Double(k + 1) / Double(ramp)
-            let alpha = dissolveMinOpacity + (1 - dissolveMinOpacity) * t
-            attr[lower..<upper].foregroundColor = theme.foreground.opacity(alpha)
-            upper = lower
+    /// A list marker fades in with its row's first character.
+    @ViewBuilder
+    private func markerText(_ marker: String, range: Range<Int>?) -> some View {
+        if let schedule, let range {
+            let first = range.lowerBound
+            StreamingText(
+                attributed: AttributedString(marker),
+                schedule: schedule,
+                range: first..<(first + 1)
+            )
+        } else {
+            Text(marker)
         }
     }
 

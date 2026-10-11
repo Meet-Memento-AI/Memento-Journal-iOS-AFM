@@ -53,17 +53,23 @@ final class ChatContinuityTests: XCTestCase {
         XCTAssertFalse(turns[1].text.contains("{"), "assistant history must not carry raw JSON")
     }
 
-    // MARK: Repeat bug — a message stops animating once seen
+    // MARK: Repeat bug — a settled reply never replays
 
+    /// The reveal's timing lives on the message, not in the row's view state,
+    /// so a LazyVStack recycle reads the same schedule and finds it settled.
     @MainActor
-    func testMarkMessageSeenStopsReplay() {
-        let vm = ChatViewModel()
-        let ai = ChatMessage(content: "hello there", isFromUser: false, isNew: true)
-        vm.messages = [ai]
-        XCTAssertTrue(vm.messages[0].isNew, "starts as new (animates once)")
+    func testSettledScheduleDoesNotReplayOnRecycle() {
+        let id = UUID()
+        var schedule = StreamSchedule(messageID: id, start: Date(timeIntervalSinceNow: -10))
+        schedule.append("hello there", receivedAt: schedule.start)
+        schedule.finish()
+        var ai = ChatMessage.aiMessage(id: id, body: "hello there", isNew: true)
+        ai.schedule = schedule
 
-        vm.markMessageSeen(ai.id)
-        XCTAssertFalse(vm.messages[0].isNew, "after typing finishes it's seen → won't replay on recycle")
+        let vm = ChatViewModel()
+        vm.messages = [ai]
+        XCTAssertTrue(vm.messages[0].isRevealSettled(), "finished well in the past → drawn whole")
+        XCTAssertEqual(vm.messages[0].schedule, schedule, "a re-render reads the same schedule")
     }
 
     /// REQ-PRM-004: a stored reply carries the prompt and model that produced
