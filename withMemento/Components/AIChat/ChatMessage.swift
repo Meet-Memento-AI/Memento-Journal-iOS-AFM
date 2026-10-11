@@ -142,7 +142,7 @@ public struct ChatMessage: Identifiable, Hashable {
     /// for user turns, history, and authored safety copy, which show
     /// instantly. Transient — never persisted. Lives here, not in the view,
     /// so a recycled row resumes mid-reveal and a settled one never replays.
-    var schedule: StreamSchedule? = nil
+    var schedule: StreamSchedule?
 
     /// Spec 041: generation metadata copied from the stored assistant JSON so
     /// a reported turn can be attributed (REQ-PRM-004). Optional — older

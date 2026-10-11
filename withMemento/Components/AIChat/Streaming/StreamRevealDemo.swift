@@ -21,9 +21,15 @@ final class StreamRevealDemoService: ChatServiceProtocol {
     }
 
     static let reply = """
-    You have come back to the same few themes all month, and each time you write about them the tone shifts a little. Early on the move felt like something being done to you; by the third week you were describing it as a choice, even a relief. That change is worth noticing, because it happened quietly, between entries, without you naming it.
+    You have come back to the same few themes all month, and each time you write about them the tone shifts a \
+    little. Early on the move felt like something being done to you; by the third week you were describing it \
+    as a choice, even a relief. That change is worth noticing, because it happened quietly, between entries, \
+    without you naming it.
 
-    The evenings stand out too. Most of what you wrote after nine was about rest, or the lack of it, and almost none of it was about work — which is unusual for you. It reads like you were giving yourself permission to stop thinking about the job once the day was done, and it seems to have helped: the mornings after those entries are lighter, shorter, and more curious about what comes next.
+    The evenings stand out too. Most of what you wrote after nine was about rest, or the lack of it, and \
+    almost none of it was about work — which is unusual for you. It reads like you were giving yourself \
+    permission to stop thinking about the job once the day was done, and it seems to have helped: the mornings \
+    after those entries are lighter, shorter, and more curious about what comes next.
 
     A few things you might carry forward:
 
@@ -31,12 +37,19 @@ final class StreamRevealDemoService: ChatServiceProtocol {
     - Notice when "should" shows up in your writing.
     - Write one line about the move each week, just to see where it goes.
 
-    None of this needs fixing. It is simply what the last month looks like from the outside, and you get to decide what it means.
+    None of this needs fixing. It is simply what the last month looks like from the outside, and you get to \
+    decide what it means.
     """
 
     func sendMessage(_ text: String, sessionId: UUID?) async throws -> ChatResponse {
-        ChatResponse(reply: Self.reply, heading1: nil, heading2: nil,
-                     citedEntryIds: nil, sources: [], sessionId: UUID().uuidString)
+        ChatResponse(
+            reply: Self.reply,
+            heading1: nil,
+            heading2: nil,
+            citedEntryIds: nil,
+            sources: [],
+            sessionId: UUID().uuidString
+        )
     }
 
     func fetchSessions() async throws -> [ChatSession] { [] }
@@ -48,7 +61,12 @@ final class StreamRevealDemoService: ChatServiceProtocol {
     }
 
     /// Cumulative snapshots, as the live service emits them.
-    func sendMessageStream(_ text: String, sessionId: UUID?, images: [Data], spoken: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+    func sendMessageStream(
+        _ text: String,
+        sessionId: UUID?,
+        images: [Data],
+        spoken: Bool
+    ) -> AsyncThrowingStream<ChatStreamEvent, Error> {
         let characters = Array(Self.reply)
         let stallAt = characters.count * 2 / 10
         let burstAt = characters.count * 5 / 10
@@ -88,12 +106,18 @@ final class StreamRevealDemoService: ChatServiceProtocol {
             sent = min(characters.count, sent + step)
             continuation.yield(.delta(
                 body: String(characters[..<sent]),
-                heading1: nil, heading2: nil, sources: []
+                heading1: nil,
+                heading2: nil,
+                sources: []
             ))
         }
         continuation.yield(.final(ChatResponse(
-            reply: Self.reply, heading1: nil, heading2: nil,
-            citedEntryIds: nil, sources: [], sessionId: UUID().uuidString
+            reply: Self.reply,
+            heading1: nil,
+            heading2: nil,
+            citedEntryIds: nil,
+            sources: [],
+            sessionId: UUID().uuidString
         )))
         continuation.finish()
     }

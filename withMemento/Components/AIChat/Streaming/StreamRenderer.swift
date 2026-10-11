@@ -40,18 +40,18 @@ struct StreamRenderer: TextRenderer {
                 if elapsed >= start(of: last) + fade { ctx.draw(run); continue }
 
                 for (offset, glyph) in run.enumerated() {
-                    let p = (elapsed - start(of: first + offset)) / fade
-                    if p <= 0 { continue }
-                    if p >= 1 { ctx.draw(glyph); continue }
+                    let progress = (elapsed - start(of: first + offset)) / fade
+                    if progress <= 0 { continue }
+                    if progress >= 1 { ctx.draw(glyph); continue }
 
                     var glyphContext = ctx
                     if reduceMotion {
-                        glyphContext.opacity = p
+                        glyphContext.opacity = progress
                     } else {
-                        let e = 1 - pow(1 - p, 3)
-                        glyphContext.opacity = e
-                        glyphContext.addFilter(.blur(radius: (1 - e) * Self.maxBlur))
-                        glyphContext.translateBy(x: 0, y: (1 - e) * Self.maxRise)
+                        let eased = 1 - pow(1 - progress, 3)
+                        glyphContext.opacity = eased
+                        glyphContext.addFilter(.blur(radius: (1 - eased) * Self.maxBlur))
+                        glyphContext.translateBy(x: 0, y: (1 - eased) * Self.maxRise)
                     }
                     glyphContext.draw(glyph)
                 }

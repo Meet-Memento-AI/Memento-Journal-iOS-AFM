@@ -34,10 +34,10 @@ struct SplitMix64: RandomNumberGenerator, Sendable {
 
     mutating func next() -> UInt64 {
         state &+= 0x9e37_79b9_7f4a_7c15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xbf58_476d_1ce4_e5b9
-        z = (z ^ (z >> 27)) &* 0x94d0_49bb_1331_11eb
-        return z ^ (z >> 31)
+        var mixed = state
+        mixed = (mixed ^ (mixed >> 30)) &* 0xbf58_476d_1ce4_e5b9
+        mixed = (mixed ^ (mixed >> 27)) &* 0x94d0_49bb_1331_11eb
+        return mixed ^ (mixed >> 31)
     }
 }
 
@@ -80,7 +80,7 @@ struct StreamSchedule: Sendable {
 
     private var rng: SplitMix64
     /// Cursor: when the next character would arrive.
-    private var t: Double = 0
+    private var cursor: Double = 0
     /// Characters left in the token being scheduled. A delta that ends
     /// mid-token carries the rest of the token into the next append.
     private var tokenRemaining = 0
@@ -115,14 +115,14 @@ struct StreamSchedule: Sendable {
 
         for character in delta {
             // Network floor: nothing appears before it was received.
-            t = max(t, received)
+            cursor = max(cursor, received)
             if tokenRemaining == 0 {
                 tokenRemaining = Int.random(in: 2...5, using: &rng)
-                currentTokenStart = t
+                currentTokenStart = cursor
                 tokenLastNonSpace = nil
             }
 
-            arrivals.append(t)
+            arrivals.append(cursor)
             tokenStarts.append(currentTokenStart)
             text.append(character)
             if !character.isWhitespace { tokenLastNonSpace = character }
@@ -132,9 +132,9 @@ struct StreamSchedule: Sendable {
             if character.isWhitespace || tokenRemaining == 0 {
                 // Token ends right after a space, or at its length.
                 tokenRemaining = 0
-                t += tokenGap(after: tokenLastNonSpace) * factor
+                cursor += tokenGap(after: tokenLastNonSpace) * factor
             } else {
-                t += Self.intraTokenSpacing * factor
+                cursor += Self.intraTokenSpacing * factor
             }
         }
     }
@@ -155,7 +155,7 @@ struct StreamSchedule: Sendable {
             text.removeLast(drop)
             arrivals.removeLast(drop)
             tokenStarts.removeLast(drop)
-            t = arrivals.last.map { $0 + Self.intraTokenSpacing } ?? 0
+            cursor = arrivals.last.map { $0 + Self.intraTokenSpacing } ?? 0
             tokenRemaining = 0
         }
         if common < new.count {
@@ -215,7 +215,7 @@ struct StreamSchedule: Sendable {
     /// 1 while the reveal keeps up; ramps toward `minBacklogFactor` as it
     /// trails what has been received, so it speeds up instead of jumping.
     private func backlogFactor(received: Double) -> Double {
-        let lag = t - received
+        let lag = cursor - received
         guard lag > Self.backlogThreshold else { return 1 }
         let progress = min(1, (lag - Self.backlogThreshold) / (Self.backlogFloorLag - Self.backlogThreshold))
         return 1 - (1 - Self.minBacklogFactor) * progress

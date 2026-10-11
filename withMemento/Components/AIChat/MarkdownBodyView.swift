@@ -13,7 +13,7 @@ struct MarkdownBodyView: View {
     /// Set while a reply is streaming in (or still settling): each block's
     /// text is revealed glyph by glyph from its slice of the schedule. Nil
     /// renders plain, settled text: history, previews, safety copy.
-    var schedule: StreamSchedule? = nil
+    var schedule: StreamSchedule?
     /// Index of each block's first character in `schedule`
     /// (`StreamLayout.blockStarts`). Ignored when `schedule` is nil.
     var blockStarts: [Int] = []
