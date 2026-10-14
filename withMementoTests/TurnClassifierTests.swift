@@ -217,6 +217,50 @@ final class TurnClassifierTests: XCTestCase {
         )
     }
 
+    /// A topic question after an open question used to become `.followup`
+    /// because the assistant had just asked something. Retrieval then searched
+    /// the earlier journal question instead of the words just typed.
+    func test_contentQuestion_afterOpenQuestion_isJournalQuery() {
+        XCTAssertEqual(
+            classify("what about the hike?", lastAssistantAskedQuestion: true),
+            .journalQuery
+        )
+        XCTAssertNotEqual(
+            classify("what about the hike?", lastAssistantAskedQuestion: true),
+            .followup
+        )
+    }
+
+    func test_deicticAndContinuer_withHistory_stayFollowup() {
+        XCTAssertEqual(classify("what about that?", hasHistory: true), .followup)
+        XCTAssertEqual(classify("tell me more", hasHistory: true), .followup)
+        XCTAssertEqual(
+            classify("what about that?", hasHistory: true, lastAssistantAskedQuestion: true),
+            .followup
+        )
+        XCTAssertEqual(
+            classify("tell me more", hasHistory: true, lastAssistantAskedQuestion: true),
+            .followup
+        )
+    }
+
+    func test_explicitContinuation_excludesAnswersTopicsAndJournalAsks() {
+        XCTAssertTrue(TurnClassifier.isExplicitContinuation("tell me more", hasHistory: true))
+        XCTAssertTrue(TurnClassifier.isExplicitContinuation("what about that?", hasHistory: true))
+        XCTAssertTrue(TurnClassifier.isExplicitContinuation("why?", hasHistory: true))
+        XCTAssertTrue(TurnClassifier.isExplicitContinuation("why not", hasHistory: true))
+        XCTAssertTrue(TurnClassifier.isExplicitContinuation("really?", hasHistory: true))
+        XCTAssertFalse(TurnClassifier.isExplicitContinuation("it was pretty heavy", hasHistory: true))
+        XCTAssertFalse(TurnClassifier.isExplicitContinuation("what about the hike?", hasHistory: true))
+        XCTAssertFalse(
+            TurnClassifier.isExplicitContinuation("what did I write about work?", hasHistory: true)
+        )
+        XCTAssertFalse(
+            TurnClassifier.isExplicitContinuation("what else did I write that week?", hasHistory: true)
+        )
+        XCTAssertFalse(TurnClassifier.isExplicitContinuation("tell me more", hasHistory: false))
+    }
+
     func test_answerWithoutLastQuestion_staysShare() {
         XCTAssertEqual(classify("it was actually pretty heavy"), .share)
     }

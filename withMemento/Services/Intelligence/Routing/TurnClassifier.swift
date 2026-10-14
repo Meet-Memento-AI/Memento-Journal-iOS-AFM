@@ -232,12 +232,30 @@ enum TurnClassifier {
 
     // MARK: - Classification
 
+    /// An explicit continuer: a `followupPhrases` hit, a pure deictic question,
+    /// or bare "why" / "why not" / "really".
+    ///
+    /// An answer ("it was pretty heavy"), a new topic ("what about the hike?"),
+    /// and a journal question are not continuers. Ask reuses entries already
+    /// shown in this thread only for this predicate.
+    static func isExplicitContinuation(_ message: String, hasHistory: Bool) -> Bool {
+        let normalized = normalize(message)
+        let words = normalized.split(separator: " ").map(String.init)
+        guard hasHistory, !carriesOwnJournalAsk(normalized, words: words) else { return false }
+        return matchesExplicitContinuation(
+            normalized,
+            words: words,
+            isQuestion: Self.isQuestion(message, normalized: normalized)
+        )
+    }
+
     /// Classifies ONLY the current message. `hasHistory` gates `followup` —
     /// without prior turns there is nothing to follow up on.
     ///
     /// `lastAssistantAskedQuestion` is true when the previous assistant turn
-    /// asked something, in typed chat and in narration. A short answer to
-    /// that question is a follow-up.
+    /// asked something, in typed chat and in narration. A statement that
+    /// answers that question is a follow-up. A question is not, unless it was
+    /// already claimed as a continuer or as pure deixis.
     static func classify( // swiftlint:disable:this cyclomatic_complexity
         _ message: String,
         hasHistory: Bool,
@@ -245,12 +263,7 @@ enum TurnClassifier {
     ) -> TurnType {
         let normalized = normalize(message)
         let words = normalized.split(separator: " ").map(String.init)
-        let isQuestion = message.contains("?")
-            || normalized.hasPrefix("what ") || normalized.hasPrefix("why ")
-            || normalized.hasPrefix("how ") || normalized.hasPrefix("when ")
-            || normalized.hasPrefix("who ") || normalized.hasPrefix("where ")
-            || normalized.hasPrefix("have i") || normalized.hasPrefix("did i")
-            || normalized.hasPrefix("am i")
+        let isQuestion = Self.isQuestion(message, normalized: normalized)
 
         if normalized.isEmpty { return .acknowledgement }
 
@@ -282,39 +295,16 @@ enum TurnClassifier {
         // A continuer is a message with no content of its own. Once it carries
         // journal lexicon or a retrospective shape it is a new ask that happens
         // to open politely, so let it fall through to rule 5.
-        let carriesOwnJournalAsk =
-            words.contains(where: { journalWords.contains($0) })
-            || (matches(normalized, anyOf: retrospectiveRegexes) && mentionsSelf(words))
-            || matches(normalized, anyOf: journalPossessiveRegexes)
-            || matches(normalized, anyOf: summaryRequestRegexes)
-
-        if hasHistory, !carriesOwnJournalAsk {
-            if followupPhrases.contains(where: {
-                normalized == $0
-                    || normalized.hasPrefix($0 + " ")
-                    || normalized.hasSuffix(" " + $0)
-            }) {
+        if hasHistory, !carriesOwnJournalAsk(normalized, words: words) {
+            if matchesExplicitContinuation(normalized, words: words, isQuestion: isQuestion) {
                 return .followup
             }
-            if normalized == "why" || normalized == "why not" || normalized == "really" {
+            // A statement answering the question just asked. A question that
+            // was not already a continuer or pure deixis falls through, so
+            // rule 8 retrieves "what about the hike?" on the words just typed
+            // instead of the earlier journal question.
+            if lastAssistantAskedQuestion, !isQuestion {
                 return .followup
-            }
-            // Short question whose only content words are deictic ("what about that?").
-            if isQuestion, words.count <= 8 {
-                let content = words.filter { !stopwordsForDeixis.contains($0) }
-                if !content.isEmpty, content.allSatisfy({ deicticWords.contains($0) }) {
-                    return .followup
-                }
-            }
-            // Spoken answer to the question just asked — no continuer phrase,
-            // no deixis. Still not a follow-up when this turn is its own
-            // journal ask, a world question, or a reflective one.
-            if lastAssistantAskedQuestion {
-                let isOffdomain = isQuestion && matches(normalized, anyOf: offdomainRegexes)
-                let isReflective = isQuestion && matches(normalized, anyOf: reflectiveRegexes)
-                if !isOffdomain, !isReflective {
-                    return .followup
-                }
             }
         }
 
@@ -374,6 +364,45 @@ enum TurnClassifier {
 // MARK: - Helpers
 
 extension TurnClassifier {
+
+    private static func isQuestion(_ message: String, normalized: String) -> Bool {
+        message.contains("?")
+            || normalized.hasPrefix("what ") || normalized.hasPrefix("why ")
+            || normalized.hasPrefix("how ") || normalized.hasPrefix("when ")
+            || normalized.hasPrefix("who ") || normalized.hasPrefix("where ")
+            || normalized.hasPrefix("have i") || normalized.hasPrefix("did i")
+            || normalized.hasPrefix("am i")
+    }
+
+    private static func carriesOwnJournalAsk(_ normalized: String, words: [String]) -> Bool {
+        words.contains(where: { journalWords.contains($0) })
+            || (matches(normalized, anyOf: retrospectiveRegexes) && mentionsSelf(words))
+            || matches(normalized, anyOf: journalPossessiveRegexes)
+            || matches(normalized, anyOf: summaryRequestRegexes)
+    }
+
+    /// Phrase, pure deixis, or bare "why" / "why not" / "really". The caller
+    /// has already rejected a message that carries its own journal ask.
+    private static func matchesExplicitContinuation(
+        _ normalized: String,
+        words: [String],
+        isQuestion: Bool
+    ) -> Bool {
+        if followupPhrases.contains(where: {
+            normalized == $0
+                || normalized.hasPrefix($0 + " ")
+                || normalized.hasSuffix(" " + $0)
+        }) {
+            return true
+        }
+        if normalized == "why" || normalized == "why not" || normalized == "really" {
+            return true
+        }
+        // Short question whose only content words are deictic ("what about that?").
+        guard isQuestion, words.count <= 8 else { return false }
+        let content = words.filter { !stopwordsForDeixis.contains($0) }
+        return !content.isEmpty && content.allSatisfy({ deicticWords.contains($0) })
+    }
 
     private static func isCorrection(_ normalized: String) -> Bool {
         let cues = [

@@ -28,6 +28,13 @@ enum TurnPromptAssembler {
     /// Same format as `EntryRetriever.formattedDate` plus the weekday, so the
     /// model can compare this line against `[ref N | March 12, 2026]` directly
     /// and resolve a weekday name without arithmetic it cannot do.
+    /// Wide retrieval hit, and the slice dropped every entry because it was
+    /// already used in this thread. A genuine first-time miss does not carry
+    /// this line.
+    static let droppedAlreadyShownLine =
+        "Do not quote or reopen a journal moment already used in this thread. "
+        + "Answer the current message."
+
     static func todayLine(now: Date = Date(), calendar: Calendar = .current) -> String {
         let formatter = DateFormatter()
         formatter.calendar = calendar
@@ -67,6 +74,7 @@ enum TurnPromptAssembler {
         retracted: [String] = [],
         interpretationCut: Bool = false,
         evidencePack: EvidencePack? = nil,
+        droppedAlreadyShown: Bool = false,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> TurnPromptPlan {
@@ -172,6 +180,9 @@ enum TurnPromptAssembler {
                     + "earlier in this conversation. Do not reopen an entry you already used "
                     + "in this thread."
             )
+        }
+        if droppedAlreadyShown {
+            parts.append(Self.droppedAlreadyShownLine)
         }
         if skipName, personalization.spokenName != nil {
             parts.append(PromptPersonalization.nameSkipLine)
