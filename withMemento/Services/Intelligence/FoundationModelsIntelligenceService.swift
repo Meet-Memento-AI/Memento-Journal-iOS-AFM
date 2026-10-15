@@ -1345,7 +1345,17 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
         visionBlock: String?
     ) -> AskPreparation {
         let isNewConversation = startsNewConversation(history: core.history)
-        let retrieval = sliceRetrieval(wideRetrieval, promptCap: core.promptCap, resetPool: isNewConversation)
+        let reuseSurfaced = TurnClassifier.isExplicitContinuation(
+            core.question,
+            hasHistory: !core.history.isEmpty
+        )
+        let sliced = sliceRetrieval(
+            wideRetrieval,
+            promptCap: core.promptCap,
+            resetPool: isNewConversation,
+            reuseSurfaced: reuseSurfaced
+        )
+        let retrieval = sliced.result
         let stance = RetrievalPolicy.stance(
             turn: core.turn, retrieval: retrieval, question: core.question
         )
@@ -1390,7 +1400,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             policy: policy,
             retracted: retracted,
             interpretationCut: interpretationCut,
-            evidencePack: pack
+            evidencePack: pack,
+            droppedAlreadyShown: sliced.droppedAlreadyShown
         )
         let retrievalRan = !retrieval.isEmpty && !retrieval.isAmbient
         let generationOptions = Self.askOptions(
@@ -1438,20 +1449,34 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
     /// default: `k` is product-visible — fewer slots is fewer chips a reader can
     /// open — and 7 of the 45 fitted gold questions have multi-entry answers,
     /// so this measures before it ships.
-    private func sliceRetrieval(_ retrieval: RetrievalResult, promptCap: Int, resetPool: Bool) -> RetrievalResult {
+    private func sliceRetrieval(
+        _ retrieval: RetrievalResult,
+        promptCap: Int,
+        resetPool: Bool,
+        reuseSurfaced: Bool
+    ) -> (result: RetrievalResult, droppedAlreadyShown: Bool) {
         poolLock.lock()
         defer { poolLock.unlock() }
         if resetPool { candidatePool.reset() }
-        guard !retrieval.isEmpty else { return retrieval }
+        guard !retrieval.isEmpty else { return (retrieval, false) }
         candidatePool.ingest(retrieval.entries)
         let cap = Self.narrowedCap(promptCap, margin: retrieval.topMargin)
-        let sliced = candidatePool.sliceForPrompt(retrieval.entries, cap: cap)
+        let alreadyShown = retrieval.entries.allSatisfy { candidatePool.surfacedIDs.contains($0.id) }
+        let sliced = candidatePool.sliceForPrompt(
+            retrieval.entries, cap: cap, reuseSurfaced: reuseSurfaced
+        )
+        // Refused to repeat entries this thread already used. Do not mark
+        // anything surfaced, and do not hand those entries to the prompt.
+        guard !sliced.isEmpty else { return (.empty, alreadyShown && !reuseSurfaced) }
         candidatePool.markSurfaced(sliced.map(\.id))
-        return RetrievalResult(
-            entries: sliced,
-            contextBlock: EntryRetriever.contextBlock(for: sliced, ambient: retrieval.isAmbient),
-            isAmbient: retrieval.isAmbient,
-            topMargin: retrieval.topMargin
+        return (
+            RetrievalResult(
+                entries: sliced,
+                contextBlock: EntryRetriever.contextBlock(for: sliced, ambient: retrieval.isAmbient),
+                isAmbient: retrieval.isAmbient,
+                topMargin: retrieval.topMargin
+            ),
+            false
         )
     }
 
@@ -2439,7 +2464,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
                                        policy: ResponsePolicy? = nil,
                                        retracted: [String] = [],
                                        interpretationCut: Bool = false,
-                                       evidencePack: EvidencePack? = nil) -> String {
+                                       evidencePack: EvidencePack? = nil,
+                                       droppedAlreadyShown: Bool = false) -> String {
         let assembled = TurnPromptAssembler.plan(
             question: question,
             history: history,
@@ -2460,7 +2486,8 @@ final class FoundationModelsIntelligenceService: IntelligenceService, @unchecked
             policy: policy,
             retracted: retracted,
             interpretationCut: interpretationCut,
-            evidencePack: evidencePack
+            evidencePack: evidencePack,
+            droppedAlreadyShown: droppedAlreadyShown
         )
         _ = (assembled.channel, assembled.effectiveStance, assembled.evidencePack)
         return assembled.prompt

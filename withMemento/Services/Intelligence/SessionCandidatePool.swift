@@ -45,20 +45,35 @@ struct SessionCandidatePool: Sendable, Equatable {
         surfacedIDs.formUnion(ids)
     }
 
-    /// Prefer entries not already used this thread, then top up with ones that
-    /// have been, so the prompt is always filled to `cap`.
+    /// Prefer entries not already used this thread. When any are still fresh,
+    /// top up with already-shown ones so the prompt fills to `cap`.
     ///
-    /// The top-up is the point. This used to fall back to the ranked slice only
-    /// when `fresh` was *entirely* empty — so a thread with one weak unsurfaced
-    /// entry left handed the model that single entry instead of five. By the
-    /// fourth or fifth turn the strong hits are all denylisted, and a prompt
-    /// carrying one marginal entry alongside "everything you claim must come
-    /// from the evidence block" earns exactly the one thin sentence it asks
-    /// for. Novelty is still preferred; it just no longer starves the turn.
-    func sliceForPrompt(_ entries: [RetrievedEntry], cap: Int) -> [RetrievedEntry] {
+    /// The top-up is the point when something new is left. This used to fall
+    /// back to the ranked slice only when `fresh` was *entirely* empty — so a
+    /// thread with one weak unsurfaced entry left handed the model that single
+    /// entry instead of five. Novelty is still preferred; it just no longer
+    /// starves a turn that still has a fresh hit.
+    ///
+    /// When every entry was already shown, return those reused entries only if
+    /// `reuseSurfaced` is true (an explicit "tell me more"). Otherwise return
+    /// an empty slice so the same citation is not attached again. The default
+    /// is false: the Ask path passes the flag explicitly, and a caller that
+    /// omits it must not reattach a fully surfaced pool. Call sites that still
+    /// have fresh entries are unaffected.
+    func sliceForPrompt(
+        _ entries: [RetrievedEntry],
+        cap: Int,
+        reuseSurfaced: Bool = false
+    ) -> [RetrievedEntry] {
         let fresh = entries.filter { !surfacedIDs.contains($0.id) }
         let reused = entries.filter { surfacedIDs.contains($0.id) }
-        return (fresh + reused).prefix(cap).enumerated().map { index, entry in
+        let chosen: [RetrievedEntry]
+        if fresh.isEmpty {
+            chosen = reuseSurfaced ? Array(reused.prefix(cap)) : []
+        } else {
+            chosen = Array((fresh + reused).prefix(cap))
+        }
+        return chosen.enumerated().map { index, entry in
             RetrievedEntry(
                 ref: index + 1,
                 id: entry.id,

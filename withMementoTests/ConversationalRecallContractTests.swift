@@ -178,8 +178,105 @@ final class ConversationalRecallContractTests: XCTestCase {
         XCTAssertEqual(pool.sliceForPrompt(all, cap: 2).count, 2, "cap honoured")
 
         pool.markSurfaced(all.map(\.id))
-        XCTAssertEqual(pool.sliceForPrompt(all, cap: 3).count, 3,
-                       "all surfaced still grounds the reply")
+        XCTAssertEqual(
+            pool.sliceForPrompt(all, cap: 3, reuseSurfaced: true).count, 3,
+            "all surfaced still grounds an explicit continuation"
+        )
+        XCTAssertTrue(
+            pool.sliceForPrompt(all, cap: 3, reuseSurfaced: false).isEmpty,
+            "a non-continuation does not reuse surfaced entries"
+        )
+    }
+
+    /// Wide retrieval still has the entry, but it was already shown and this
+    /// turn is not "tell me more". The slice is empty, so the evidence pack is
+    /// a miss: no chip, no {{quote:N}}, and the old sentence is not in the
+    /// prompt. The move-on line is only for this dropped-slice case.
+    func test_droppedSlice_omitsSurfacedEntryFromEvidenceAndPrompt() {
+        let sentence = "The ridge trail went gold before we turned back toward camp."
+        let entry = RetrievedEntry(
+            ref: 1, id: UUID(), date: Date(timeIntervalSince1970: 1_700_000_000),
+            text: sentence, quotedSpan: sentence
+        )
+        var pool = SessionCandidatePool()
+        pool.ingest([entry])
+        pool.markSurfaced([entry.id])
+        let before = pool.surfacedIDs
+
+        let sliced = pool.sliceForPrompt([entry], cap: 5, reuseSurfaced: false)
+        XCTAssertTrue(sliced.isEmpty)
+        XCTAssertEqual(pool.surfacedIDs, before, "slicing does not mark ids; an empty slice has nothing to surface")
+
+        let retrieval = RetrievalResult(
+            entries: sliced,
+            contextBlock: EntryRetriever.contextBlock(for: sliced, ambient: false),
+            isAmbient: false
+        )
+        XCTAssertTrue(retrieval.isEmpty)
+        XCTAssertFalse(retrieval.contextBlock.contains("ridge trail"))
+
+        let question = "what about the hike?"
+        let stance = RetrievalPolicy.stance(turn: .journalQuery, retrieval: retrieval, question: question)
+        XCTAssertEqual(stance, .noMatch)
+        let pack = EvidencePackBuilder.build(
+            retrieval: retrieval, stance: stance, channel: .notebook, archiveEmpty: false
+        )
+        XCTAssertEqual(pack.state, .none)
+        XCTAssertTrue(pack.slots.isEmpty)
+        XCTAssertNotEqual(pack.promptLegend(channel: .notebook)?.contains("{{quote:"), true)
+
+        let rendered = ReplyRenderer.render(
+            sentence, pack: pack, context: RenderContext(userTexts: [question])
+        )
+        let chips = CitationReconciliation.citations(
+            for: rendered, pack: pack, citedRefs: [1], retrieval: retrieval, question: question
+        )
+        XCTAssertTrue(chips.isEmpty)
+        XCTAssertTrue(
+            CitationReconciliation.reconcileCitations([1], retrieval: retrieval, question: question, body: sentence)
+                .isEmpty
+        )
+
+        let history = [
+            ChatTurn(role: .user, text: "how was the afternoon"),
+            ChatTurn(role: .assistant, text: "Want to stay with that?")
+        ]
+        let prompt = FoundationModelsIntelligenceService.buildAskPrompt(
+            question: question,
+            history: history,
+            retrieval: retrieval,
+            stance: stance,
+            shape: .answerOpen,
+            archiveEmpty: false,
+            budget: ContextBudget(window: .unavailable),
+            channel: .notebook,
+            evidencePack: pack,
+            droppedAlreadyShown: true
+        )
+        XCTAssertFalse(prompt.contains("ridge trail"))
+        XCTAssertFalse(prompt.contains("{{quote:"))
+        XCTAssertTrue(prompt.contains(TurnPromptAssembler.droppedAlreadyShownLine))
+        let reopen = prompt.range(of: "Do not reopen an entry you already used")
+        let movedOn = prompt.range(of: "journal moment already used")
+        XCTAssertNotNil(reopen)
+        XCTAssertNotNil(movedOn)
+        if let reopen, let movedOn {
+            XCTAssertLessThan(reopen.lowerBound, movedOn.lowerBound)
+        }
+
+        let genuineMiss = FoundationModelsIntelligenceService.buildAskPrompt(
+            question: question,
+            history: history,
+            retrieval: .empty,
+            stance: .noMatch,
+            shape: .answerOpen,
+            archiveEmpty: false,
+            budget: ContextBudget(window: .unavailable),
+            channel: .notebook,
+            droppedAlreadyShown: false
+        )
+        XCTAssertFalse(genuineMiss.contains("journal moment already used"))
+        XCTAssertTrue(genuineMiss.contains(NoMatchLead.promptLine))
     }
 
     // MARK: - Conversation identity
