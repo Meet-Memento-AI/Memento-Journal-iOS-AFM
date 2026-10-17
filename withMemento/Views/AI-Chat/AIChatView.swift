@@ -473,14 +473,14 @@ public struct AIChatView: View {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
                     isSending: viewModel.isLoading,
-                    onSend: { images in
+                    onSend: {
                     // Synchronous, and it must run first: ChatInputField
                     // fires `onSend` before it clears the text, so this
                     // is the last moment the composer's pre-send frame is
                     // the one on screen.
                     choreographer.captureOrigin()
                     let pending = viewModel.inputText
-                    if !viewModel.sendMessage(images: images), viewModel.dailyLimitReached {
+                    if !viewModel.sendMessage(), viewModel.dailyLimitReached {
                         // The composer clears itself after `onSend`; a
                         // message held back by the free limit keeps its text.
                         DispatchQueue.main.async { viewModel.inputText = pending }

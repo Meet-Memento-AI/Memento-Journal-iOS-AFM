@@ -13,7 +13,7 @@ import SwiftUI
 struct AIChatFooter: View {
     @Binding var inputText: String
     var isSending: Bool
-    var onSend: ([Data]) -> Void
+    var onSend: () -> Void
     var onNarrate: (() -> Void)?
     /// Forwarded to `ChatInputField` so the send choreography can read the
     /// composer's pre-send frame.
@@ -22,7 +22,7 @@ struct AIChatFooter: View {
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
-        onSend: @escaping ([Data]) -> Void,
+        onSend: @escaping () -> Void,
         onNarrate: (() -> Void)? = nil,
         onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
@@ -57,7 +57,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { _ in AppLogger.log("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -70,7 +70,7 @@ struct AIChatFooter: View {
         AIChatFooter(
             inputText: .constant("What patterns do you see?"),
             isSending: true,
-            onSend: { _ in AppLogger.log("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -82,7 +82,7 @@ struct AIChatFooter: View {
         Spacer()
         AIChatFooter(
             inputText: .constant(""),
-            onSend: { _ in AppLogger.log("Send tapped") }
+            onSend: { AppLogger.log("Send tapped") }
         )
     }
     .useTheme()
@@ -113,7 +113,7 @@ private struct AIChatFooterInteractivePreview: View {
             AIChatFooter(
                 inputText: $inputText,
                 isSending: isSending,
-                onSend: { _ in
+                onSend: {
                     isSending = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         isSending = false
