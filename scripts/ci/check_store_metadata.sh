@@ -16,6 +16,9 @@
 #   5. Build number above the last-uploaded floor -> 1.0(2) was uploaded and
 #      rejected in Nov 2025; build numbers are consumed permanently per version
 #      string, so reusing one is ITMS-90062 territory (docs/app-store/07 s2).
+#   6. UIRequiredDeviceCapabilities must not list hardware the app does not
+#      truly require (Guideline 2.3 — Oct 2026 rejection on iPad Air 11-inch
+#      Wi-Fi when gps/telephony-class keys were present in the shipped binary).
 #
 # Usage: scripts/ci/check_store_metadata.sh
 set -euo pipefail
@@ -157,6 +160,81 @@ else
   else
     echo "OK   version $version build $build is above the uploaded floor ($floor)"
   fi
+fi
+
+# --- 6. UIRequiredDeviceCapabilities -----------------------------------------
+# Memento is universal (iPhone + iPad). Optional location uses reduced accuracy
+# and must not require a GPS chip; crisis tel: links do not require telephony.
+FORBIDDEN_DEVICE_CAPS=(
+  gps
+  telephony
+  sms
+  healthkit
+  location-services
+  nfc
+  iphone-performance-gaming-tier
+  ipad-minimum-performance-m1
+  armv7
+)
+
+plist_caps=""
+if grep -q "<key>UIRequiredDeviceCapabilities</key>" "$PLIST"; then
+  plist_caps="$(python3 - "$PLIST" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+data = plistlib.load(Path(sys.argv[1]).open("rb"))
+caps = data.get("UIRequiredDeviceCapabilities")
+if not caps:
+    sys.exit(0)
+for item in caps:
+    print(item)
+PY
+)"
+fi
+
+settings_caps="$(grep -E '^[[:space:]]*INFOPLIST_KEY_UIRequiredDeviceCapabilities = ' "$PBXPROJ" \
+  | sed -E 's/^[[:space:]]*INFOPLIST_KEY_UIRequiredDeviceCapabilities = //; s/;[[:space:]]*$//; s/^"(.*)"$/\1/' || true)"
+
+bad_caps=""
+for cap in $plist_caps $settings_caps; do
+  [ -z "$cap" ] && continue
+  for forbidden in "${FORBIDDEN_DEVICE_CAPS[@]}"; do
+    if [ "$cap" = "$forbidden" ]; then
+      bad_caps="${bad_caps} ${cap}"
+    fi
+  done
+done
+
+if [ -n "$(echo "$bad_caps" | tr -d ' ')" ]; then
+  echo "FAIL: UIRequiredDeviceCapabilities lists hardware Memento does not require:${bad_caps}"
+  note "Wi-Fi iPads (including the App Review iPad Air 11-inch M3) cannot install"
+  note "when gps, telephony, or similar keys are required. Keep the array empty."
+  note "See docs/app-store/11-rejection-playbook.md (Oct 2026, Guideline 2.3)."
+  fail=1
+elif grep -q "<key>UIRequiredDeviceCapabilities</key>" "$PLIST"; then
+  if [ -n "$plist_caps" ]; then
+    echo "OK   UIRequiredDeviceCapabilities present with only: $(echo "$plist_caps" | tr '\n' ' ')"
+  else
+    echo "OK   UIRequiredDeviceCapabilities is an empty array (no hardware required)"
+  fi
+else
+  echo "OK   UIRequiredDeviceCapabilities omitted (no hardware required)"
+fi
+
+if [ -n "$settings_caps" ]; then
+  echo "FAIL: INFOPLIST_KEY_UIRequiredDeviceCapabilities is set in the project ($settings_caps)."
+  note "Keep required capabilities in $PLIST only so CI can audit the shipped value."
+  fail=1
+fi
+
+ipad_family="$(grep -E 'TARGETED_DEVICE_FAMILY = "1,2"' "$PBXPROJ" | wc -l | tr -d ' ')"
+if [ "$ipad_family" -lt 2 ]; then
+  echo "FAIL: withMemento Debug/Release must keep TARGETED_DEVICE_FAMILY = \"1,2\"."
+  fail=1
+else
+  echo "OK   TARGETED_DEVICE_FAMILY includes iPad (1,2) on app target configurations"
 fi
 
 echo ""
