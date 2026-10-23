@@ -9,6 +9,18 @@
 
 ## 1. Our rejection history
 
+### October 2026 — v1.0 (8), Guideline 2.3 Accurate Metadata
+
+**Metadata rejection — the binary blocked App Review's iPad from installing it.**
+Apple's iPad Air 11-inch (M3), iPadOS 27.0.1 (Wi-Fi) could not install build 8
+because `UIRequiredDeviceCapabilities` listed hardware the app does not truly
+need. Memento attaches an optional place name via reduced-accuracy Core Location
+and does not require a GPS chip, cellular telephony, or an Apple Intelligence
+hardware gate in the plist — journal capture, voice, and export must remain
+installable on Wi-Fi iPads. **Fix:** keep `UIRequiredDeviceCapabilities` as an
+empty array in `withMemento/Info.plist` and guard it in
+`scripts/ci/check_store_metadata.sh` / `StoreDeviceCapabilitiesTests`.
+
 ### September 2026 — v1.0, Guideline 2.1 Information Needed
 
 **Not a bug rejection and not a metadata rejection.** Apple asked for six pieces
