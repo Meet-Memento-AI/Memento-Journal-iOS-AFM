@@ -473,6 +473,7 @@ public struct AIChatView: View {
                 AIChatFooter(
                     inputText: $viewModel.inputText,
                     isSending: viewModel.isLoading,
+                    isRevealing: viewModel.revealingMessageID != nil,
                     onSend: { images in
                     // Synchronous, and it must run first: ChatInputField
                     // fires `onSend` before it clears the text, so this

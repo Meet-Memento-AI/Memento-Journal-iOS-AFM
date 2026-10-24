@@ -125,7 +125,7 @@ public struct ChatMessage: Identifiable, Hashable {
     /// False for messages loaded from database (should display instantly).
     /// Mutable so the view model can mark a message as "seen" once its
     /// entrance animation has played — otherwise LazyVStack recycling and
-    /// tab switches replay the typewriter effect on the whole transcript.
+    /// tab switches replay it. Reply text is timed by `schedule` instead.
     public var isNew: Bool
 
     /// True for this user message failed to send (spec-010): kept visible
@@ -133,10 +133,16 @@ public struct ChatMessage: Identifiable, Hashable {
     public var sendFailed: Bool
 
     /// True while this assistant message is still receiving streamed deltas.
-    /// Transient (never persisted) — mirrors `isNew`. The typewriter uses it to
-    /// know the stream has truly ended (vs. a mid-generation pause) so it only
-    /// completes once the full reply has been drained.
+    /// Transient (never persisted) — mirrors `isNew`. Narration reads it to
+    /// know the stream has truly ended (vs. a mid-generation pause).
     public var isStreaming: Bool
+
+    /// When each displayed character of this reply appears (`StreamLayout`
+    /// order). Set by `ChatViewModel` on a reply generated this session; nil
+    /// for user turns, history, and authored safety copy, which show
+    /// instantly. Transient — never persisted. Lives here, not in the view,
+    /// so a recycled row resumes mid-reveal and a settled one never replays.
+    var schedule: StreamSchedule?
 
     /// Spec 041: generation metadata copied from the stored assistant JSON so
     /// a reported turn can be attributed (REQ-PRM-004). Optional — older
@@ -204,6 +210,13 @@ public struct ChatMessage: Identifiable, Hashable {
     /// anything that means "an answer" — regenerate, feedback, speak, the
     /// summarisable-conversation count — must ask this instead.
     public var isAssistantReply: Bool { !isFromUser && !isStarterPrompt }
+
+    /// True once every glyph of this reply is on screen and settled. Gate
+    /// follow-up UI (action bar, composer) on this, not on the stream
+    /// ending, or it appears while text is still revealing.
+    func isRevealSettled(at date: Date = .now) -> Bool {
+        schedule?.isSettled(at: date) ?? !isStreaming
+    }
 
     /// The question a suggestion card asked, shown in the transcript.
     /// Never a user turn — see `isStarterPrompt`.

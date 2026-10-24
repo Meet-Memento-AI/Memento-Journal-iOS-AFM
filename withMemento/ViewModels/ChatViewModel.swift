@@ -43,6 +43,13 @@ class ChatViewModel: ObservableObject {
     /// UI ignores it (bubbles already track their own `isStreaming`).
     @Published private(set) var streamingAssistantMessageID: UUID?
 
+    /// The assistant reply whose text is still revealing on screen: set on
+    /// its first published glyph, cleared once its `StreamSchedule` settles —
+    /// which is later than the stream ending. Follow-up UI (composer, action
+    /// bar) and transcript follow-scrolling gate on this, not on the network.
+    @Published private(set) var revealingMessageID: UUID?
+    private var revealSettleTask: Task<Void, Never>?
+
     /// Where a send came from.
     ///
     /// Four entry points reach `performSend` — the composer, narration,
@@ -145,6 +152,7 @@ class ChatViewModel: ObservableObject {
     /// See `transcriptGeneration` for the rule.
     private func beginNewTranscript() {
         transcriptGeneration += 1
+        endReveal()
     }
 
     private func track(_ task: Task<Void, Never>) {
@@ -161,6 +169,31 @@ class ChatViewModel: ObservableObject {
         // Cancelled work can no longer finish, so don't leave the input
         // dimmed and the loading indicator up.
         isLoading = false
+        endReveal()
+    }
+
+    /// Clears the reveal gate once `id`'s schedule has settled. Not a tracked
+    /// task: `cancelActiveTasks` runs on every swipe back to Journal and must
+    /// not strand the gate set, so it calls `endReveal()` instead.
+    private func settleReveal(of id: UUID, at date: Date?) {
+        // A superseded send settling late must not touch a newer reply's gate.
+        guard revealingMessageID == nil || revealingMessageID == id else { return }
+        revealSettleTask?.cancel()
+        guard let date, date > .now else {
+            if revealingMessageID == id { revealingMessageID = nil }
+            return
+        }
+        revealSettleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(date.timeIntervalSinceNow))
+            guard !Task.isCancelled, let self, self.revealingMessageID == id else { return }
+            self.revealingMessageID = nil
+        }
+    }
+
+    private func endReveal() {
+        revealSettleTask?.cancel()
+        revealSettleTask = nil
+        revealingMessageID = nil
     }
 
     // MARK: - Initialization
@@ -169,7 +202,11 @@ class ChatViewModel: ObservableObject {
          feedbackStore: AnswerFeedbackStore = .shared,
          feedbackSync: FeedbackSyncService = .shared,
          allowance: FreeChatAllowance? = nil) {
+        #if DEBUG
+        self.chatService = StreamRevealDemoService.isRequested ? StreamRevealDemoService() : chatService
+        #else
         self.chatService = chatService
+        #endif
         self.feedbackStore = feedbackStore
         self.feedbackSync = feedbackSync
         self.allowance = allowance ?? .shared
@@ -579,15 +616,25 @@ class ChatViewModel: ObservableObject {
             guard let self else { return }
             LiveTurnClock.shared.beginTurn()
             // Whatever ends the stream — success, error, or cancel — settle the
-            // assistant bubble so the typewriter can complete instead of blinking
-            // its caret forever. On the success path `.final` already cleared this,
-            // so the flip is a no-op; on error/cancel `.final` never arrives, so
+            // assistant bubble so its reveal can finish and the action bar and
+            // composer come back. On the success path `.final` already did this,
+            // so the flips are no-ops; on error/cancel `.final` never arrives, so
             // this is the only thing that settles a partial reply.
             defer {
                 LiveTurnClock.shared.finishAndLog()
-                if let idx = messages.firstIndex(where: { $0.id == assistantId }),
-                   messages[idx].isStreaming {
-                    messages[idx].isStreaming = false
+                if let idx = messages.firstIndex(where: { $0.id == assistantId }) {
+                    if messages[idx].isStreaming {
+                        messages[idx].isStreaming = false
+                    }
+                    // Whatever was received settles normally, error and
+                    // cancel included.
+                    if var schedule = messages[idx].schedule, !schedule.isComplete {
+                        schedule.finish()
+                        messages[idx].schedule = schedule
+                    }
+                    settleReveal(of: assistantId, at: messages[idx].schedule?.settleDate)
+                } else {
+                    settleReveal(of: assistantId, at: nil)
                 }
                 // Settle the narration observer with the bubble. Guarded so a
                 // superseded send can't clear a newer send's marker.
@@ -612,6 +659,10 @@ class ChatViewModel: ObservableObject {
             var appliedFirstDelta = false
             var pendingDelta: (body: String, heading1: String?, heading2: String?,
                                citations: [JournalCitation]?, facts: [InsightFact]?)?
+            // Reveal timing for this reply. Reconciled on EVERY snapshot, not
+            // only the coalesced ones, so each character's floor is the time
+            // it was actually received; published with each applied delta.
+            var schedule: StreamSchedule?
             // Mapped once per turn — the reviewed set is constant across deltas.
             var reviewedCitations: [JournalCitation]?
             var reviewedFacts: [InsightFact]?
@@ -626,7 +677,21 @@ class ChatViewModel: ObservableObject {
                                        heading1: d.heading1, heading2: d.heading2,
                                        citations: d.citations,
                                        facts: d.facts,
+                                       schedule: schedule,
                                        isStreaming: true)
+            }
+
+            /// Snapshots are cumulative: diff against what is scheduled and
+            /// schedule only what changed. The clock starts on the first
+            /// visible character, not at request time, or the first
+            /// characters would pop in already faded up.
+            func reconcileSchedule(body: String, heading1: String?, heading2: String?) {
+                let shown = StreamLayout(body: body, heading1: heading1, heading2: heading2).text
+                if schedule == nil {
+                    guard !shown.isEmpty else { return }
+                    schedule = StreamSchedule(messageID: assistantId)
+                }
+                schedule?.reconcile(to: shown)
             }
 
             do {
@@ -665,7 +730,12 @@ class ChatViewModel: ObservableObject {
                         if reviewedFacts == nil, !facts.isEmpty {
                             reviewedFacts = facts
                         }
+                        reconcileSchedule(body: body, heading1: heading1, heading2: heading2)
                         pendingDelta = (body, heading1, heading2, reviewedCitations, reviewedFacts)
+                        if schedule != nil, revealingMessageID != assistantId {
+                            revealSettleTask?.cancel()
+                            revealingMessageID = assistantId
+                        }
                         if Self.shouldApplyStreamDelta(
                             alreadyAppliedFirst: appliedFirstDelta,
                             elapsedSinceLastApply: deltaClock.now - lastDeltaApply,
@@ -674,7 +744,9 @@ class ChatViewModel: ObservableObject {
                             deltaFlushTask?.cancel()
                             deltaFlushTask = nil
                             applyPendingDelta()
-                            appliedFirstDelta = true
+                            // An empty first snapshot (reviewed journals only)
+                            // must not spend the immediate first paint.
+                            appliedFirstDelta = appliedFirstDelta || schedule != nil
                         } else if deltaFlushTask == nil {
                             deltaFlushTask = Task { [weak self] in
                                 try? await Task.sleep(for: minDeltaInterval)
@@ -699,6 +771,21 @@ class ChatViewModel: ObservableObject {
                         }
                         let citations = mapSourcesToCitations(response.sources)
                         let facts = response.facts.isEmpty ? reviewedFacts : response.facts
+                        // Designed crisis / refusal copy shows at once; a
+                        // generated reply reveals, even one that arrived
+                        // whole in `.final` with no deltas before it.
+                        if response.safetyPresentation == .none {
+                            reconcileSchedule(body: response.reply,
+                                              heading1: response.heading1,
+                                              heading2: response.heading2)
+                            schedule?.finish()
+                        } else {
+                            schedule = nil
+                        }
+                        if schedule != nil, revealingMessageID != assistantId {
+                            revealSettleTask?.cancel()
+                            revealingMessageID = assistantId
+                        }
                         // Carry the Safety route through: ChatService now returns a
                         // designed crisis/refusal reply as `.final` rather than
                         // throwing, so dropping this would render the crisis card
@@ -708,6 +795,7 @@ class ChatViewModel: ObservableObject {
                                                citations: citations.isEmpty ? nil : citations,
                                                facts: facts,
                                                safetyPresentation: response.safetyPresentation,
+                                               schedule: schedule,
                                                isStreaming: false)
                         sawContent = sawContent || !response.reply.isEmpty || !(facts?.isEmpty ?? true)
                         if let sessionId = currentSessionId { messageCache[sessionId] = messages }
@@ -719,6 +807,11 @@ class ChatViewModel: ObservableObject {
                 }
             } catch {
                 AppLogger.log("[ChatViewModel] sendMessage error: \(error)", type: .error)
+                // The coalescer may be holding the newest snapshot; a partial
+                // reply that stays on screen should end where the model did.
+                deltaFlushTask?.cancel()
+                deltaFlushTask = nil
+                if pendingDelta != nil { applyPendingDelta() }
 
                 // A guardrail / safety route is a designed state, not a failure:
                 // it fills the assistant bubble with authored copy (and for
@@ -733,6 +826,7 @@ class ChatViewModel: ObservableObject {
                         body: body,
                         heading1: nil, heading2: nil, citations: nil,
                         safetyPresentation: presentation,
+                        schedule: nil,
                         isStreaming: false
                     )
                     sawContent = true
@@ -762,9 +856,9 @@ class ChatViewModel: ObservableObject {
     }
 
     /// Replaces the streaming assistant bubble (matched by id) with the
-    /// latest body/headings/citations. Called on every delta (`isStreaming:
-    /// true`) and once on final (`isStreaming: false`) so the typewriter knows
-    /// when the stream has genuinely ended.
+    /// latest body/headings/citations and reveal schedule. Called on every
+    /// applied delta (`isStreaming: true`) and once on final
+    /// (`isStreaming: false`).
     private func updateStreamingMessage(
         id: UUID,
         body: String,
@@ -773,10 +867,11 @@ class ChatViewModel: ObservableObject {
         citations: [JournalCitation]?,
         facts: [InsightFact]? = nil,
         safetyPresentation: ChatSafetyPresentation = .none,
+        schedule: StreamSchedule?,
         isStreaming: Bool
     ) {
         guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
-        messages[index] = ChatMessage.aiMessage(
+        var message = ChatMessage.aiMessage(
             id: id,
             heading1: heading1,
             heading2: heading2,
@@ -788,6 +883,8 @@ class ChatViewModel: ObservableObject {
             isNew: true,
             isStreaming: isStreaming
         )
+        message.schedule = schedule
+        messages[index] = message
     }
 
     // MARK: - Clear Conversation
@@ -1217,18 +1314,11 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    /// Marks a single message as seen once its typewriter finishes, so a
-    /// LazyVStack recycle (scroll / keyboard / re-render) shows the full reply
-    /// instead of replaying the animation. This is the fix for a reply appearing
-    /// to "repeat" — `animate` (== `isNew`) flips false so recycles skip typing.
-    func markMessageSeen(_ id: UUID) {
-        guard let index = messages.firstIndex(where: { $0.id == id }), messages[index].isNew else { return }
-        messages[index].isNew = false
-    }
-
     /// Marks every message as already seen so the transcript doesn't replay
-    /// its typewriter animation when the view is rebuilt (tab switch,
-    /// LazyVStack recycling). Called from the view's `onDisappear`.
+    /// entrance effects (citation fade, send choreography) when the view is
+    /// rebuilt (tab switch, LazyVStack recycling). Called from the view's
+    /// `onDisappear`. Reply text needs no help: its reveal is timed by the
+    /// message's `schedule`, which has long settled by then.
     func markAllMessagesSeen() {
         for index in messages.indices where messages[index].isNew {
             messages[index].isNew = false

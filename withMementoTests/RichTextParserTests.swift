@@ -147,7 +147,7 @@ final class RichTextParserTests: XCTestCase {
             "Meet them here.\n### 12 March\n1. The lon"
         ]
         for text in samples {
-            let split = AIOutputComponent.lastLineStart(of: text)
+            let split = text.lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
             let prefix = String(text[..<split])
             let trailing = String(text[split...])
             let spliced = RichTextParser.parseBlocks(prefix, lastLineClosed: true)

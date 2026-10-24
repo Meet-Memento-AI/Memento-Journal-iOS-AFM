@@ -11,8 +11,8 @@ import UIKit
 public struct ChatMessageBubble: View {
     let message: ChatMessage
     var animate: Bool
-    /// True while the assistant reply is still streaming — forwarded to the
-    /// typewriter so it only completes once the full reply has arrived.
+    /// True while the assistant reply is still streaming or still revealing
+    /// on screen — forwarded so the action bar waits for the last glyph.
     var isStreaming: Bool
     var feedbackType: FeedbackType?
     /// True while this message is the one being read aloud (spec 018 R7, chat
@@ -33,8 +33,6 @@ public struct ChatMessageBubble: View {
     /// True when this user turn has no assistant reply yet (failed send, or
     /// the reply never arrived). Shows Resend / Copy Message on long-press.
     var isUnanswered: Bool
-    /// Forwarded from AIOutputComponent when the reply finishes typing.
-    var onAnimationComplete: (() -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(\.typography) private var type
@@ -54,8 +52,7 @@ public struct ChatMessageBubble: View {
         isReported: Bool = false,
         onReportAnswer: (() -> Void)? = nil,
         onRetry: (() -> Void)? = nil,
-        isUnanswered: Bool = false,
-        onAnimationComplete: (() -> Void)? = nil
+        isUnanswered: Bool = false
     ) {
         self.message = message
         self.animate = animate
@@ -72,7 +69,6 @@ public struct ChatMessageBubble: View {
         self.onReportAnswer = onReportAnswer
         self.onRetry = onRetry
         self.isUnanswered = isUnanswered
-        self.onAnimationComplete = onAnimationComplete
     }
 
     public var body: some View {
@@ -182,9 +178,9 @@ public struct ChatMessageBubble: View {
                 onThumbsUp: onThumbsUp,
                 onThumbsDown: onThumbsDown,
                 isReported: isReported,
-                onReportAnswer: onReportAnswer,
-                onAnimationComplete: onAnimationComplete
+                onReportAnswer: onReportAnswer
             )
+            .revealing(message.schedule)
         } else {
             // AI messages: support markdown/rich text (fallback)
             // Clean any JSON artifacts that might have leaked through
@@ -208,8 +204,7 @@ public struct ChatMessageBubble: View {
                     onThumbsUp: onThumbsUp,
                     onThumbsDown: onThumbsDown,
                     isReported: isReported,
-                    onReportAnswer: onReportAnswer,
-                    onAnimationComplete: onAnimationComplete
+                    onReportAnswer: onReportAnswer
                 )
             }
         }

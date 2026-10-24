@@ -13,6 +13,9 @@ import SwiftUI
 struct AIChatFooter: View {
     @Binding var inputText: String
     var isSending: Bool
+    /// The last reply is still revealing on screen. Typing stays live; only
+    /// sending waits, so the next turn can't start over a half-drawn answer.
+    var isRevealing: Bool
     var onSend: ([Data]) -> Void
     var onNarrate: (() -> Void)?
     /// Forwarded to `ChatInputField` so the send choreography can read the
@@ -22,12 +25,14 @@ struct AIChatFooter: View {
     init(
         inputText: Binding<String>,
         isSending: Bool = false,
+        isRevealing: Bool = false,
         onSend: @escaping ([Data]) -> Void,
         onNarrate: (() -> Void)? = nil,
         onComposerFrame: ((CGRect) -> Void)? = nil
     ) {
         self._inputText = inputText
         self.isSending = isSending
+        self.isRevealing = isRevealing
         self.onSend = onSend
         self.onNarrate = onNarrate
         self.onComposerFrame = onComposerFrame
@@ -39,6 +44,7 @@ struct AIChatFooter: View {
             onSend: onSend,
             onNarrate: onNarrate,
             isInteractive: !isSending,
+            isSendEnabled: !isRevealing,
             onComposerFrame: onComposerFrame
         )
         // 16pt above the field. Horizontal inset is `rootEdgeInset()` on the
