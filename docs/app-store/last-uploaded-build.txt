@@ -13,3 +13,4 @@
 
 1.0 2   # Nov 2025 — submitted, REJECTED (Guidelines 5.1.2, 1.5), never released
 1.0 3   # Sep 2026 — submitted, REJECTED (Guideline 2.1 Information Needed), never released
+1.0 8   # Oct 2026 — submitted, REJECTED (Guideline 2.3 UIRequiredDeviceCapabilities / iPad install), never released
