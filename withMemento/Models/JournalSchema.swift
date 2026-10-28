@@ -102,7 +102,7 @@ final class StoredAttachment {
     /// Plaintext under `NSFileProtection` + optional CloudKit field encryption —
     /// not wrapped in the ThisDeviceOnly DEK used for `EncryptedPhotos/`.
     @Attribute(.externalStorage, .allowsCloudEncryption)
-    var coverJPEGData: Data? = nil
+    var coverJPEGData: Data?
     var entry: StoredEntry?
 
     init() {}
