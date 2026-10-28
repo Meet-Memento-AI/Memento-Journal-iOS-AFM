@@ -1066,8 +1066,7 @@ public struct AddEntryView: View {
         guard untreatedPhotoImage == nil || photoData == nil else { return }
 
         let loaded: (data: Data, image: UIImage, sample: JournalBackdropSample)? = await Task.detached(priority: .userInitiated) {
-            guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
-                  let data = JournalService.shared.encryptionService.decryptData(encrypted),
+            guard let data = JournalPhotoReplication.loadCoverJPEGBytes(entryId: entryId),
                   let uiImage = UIImage(data: data) else { return nil }
             return (data, uiImage, JournalBackdropContrast.sample(image: uiImage))
         }.value

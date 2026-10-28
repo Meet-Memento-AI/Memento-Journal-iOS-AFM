@@ -98,6 +98,11 @@ final class StoredAttachment {
     var id: UUID = UUID()
     var kind: String = "photo"
     var fileAssetID: String?
+    /// Cover JPEG replicated via CloudKit (`CKAsset` / external storage).
+    /// Plaintext under `NSFileProtection` + optional CloudKit field encryption —
+    /// not wrapped in the ThisDeviceOnly DEK used for `EncryptedPhotos/`.
+    @Attribute(.externalStorage, .allowsCloudEncryption)
+    var coverJPEGData: Data?
     var entry: StoredEntry?
 
     init() {}

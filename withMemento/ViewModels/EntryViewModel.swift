@@ -144,7 +144,8 @@ class EntryViewModel: ObservableObject {
         // loading states are unchanged.
         let pin = legacyPIN
         let localEntries = await Task.detached(priority: .userInitiated) {
-            JournalService.shared.loadAllEntriesLocally(legacyPIN: pin)
+            JournalPhotoReplication.reconcilePhantomPhotos()
+            return JournalService.shared.loadAllEntriesLocally(legacyPIN: pin)
                 .sorted { $0.createdAt > $1.createdAt }
         }.value
         self.entries = JournalService.shared.purgeOnboardingSeedEntries(from: localEntries)
@@ -277,6 +278,7 @@ class EntryViewModel: ObservableObject {
 
                 if photoWriteSucceeded {
                     PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entryId)
+                    JournalPhotoReplication.persistMirroredCover(jpeg: photoData, entryId: entryId)
                 }
 
                 if !photoWriteSucceeded {
@@ -403,6 +405,7 @@ class EntryViewModel: ObservableObject {
                 }
                 if succeeded {
                     PhotoThumbnailCache.shared.storeDownsampled(from: photoData, for: entry.id)
+                    JournalPhotoReplication.persistMirroredCover(jpeg: photoData, entryId: entry.id)
                 } else {
                     PhotoThumbnailCache.shared.removeImage(for: entry.id)
                     photoWriteFailed = true
