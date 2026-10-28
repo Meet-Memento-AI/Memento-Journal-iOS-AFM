@@ -146,6 +146,7 @@ class AppStateStore: ObservableObject {
             LegacyStoreImporter.importIfNeeded()
             if !isRunningAnyTest {
                 removeRetiredSampleEntries()
+                JournalPhotoReplication.migrateLocalEncryptedPhotosIfNeeded()
             }
         }
         Task {

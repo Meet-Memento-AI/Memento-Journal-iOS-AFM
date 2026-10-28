@@ -199,12 +199,17 @@ final class PhotoThumbnailCache {
     }
 
     private static func decodeFullFile(entryId: UUID) -> DecodedThumb? {
-        guard let encrypted = PhotoStorage.shared.loadEncrypted(entryId: entryId),
-              let data = encryption.decryptData(encrypted),
+        guard let data = JournalPhotoReplication.loadCoverJPEGBytes(
+            entryId: entryId,
+            encryption: encryption
+        ),
               let image = downsampledImage(from: data) else {
+            _ = JournalPhotoReplication.reconcileMissingCover(entryId: entryId)
             return nil
         }
-        shared.recordFullFileDecode()
+        if PhotoStorage.shared.hasEncrypted(entryId: entryId) {
+            shared.recordFullFileDecode()
+        }
         return DecodedThumb(
             image: image,
             sample: JournalBackdropContrast.sample(image: image),
